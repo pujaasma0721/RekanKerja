@@ -50,7 +50,7 @@ export function VarianceDoc({ data }: { data: VariancePayload }) {
           "Δ% ≥ ±10% is flagged as ANOMALY for investigation (raises, back pay, THR, headcount changes, or input errors).",
         )}
       >
-        <table className="w-full border-collapse text-[11px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[11px]">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="border border-slate-700 px-2 py-1 text-left text-[9px] font-bold uppercase">{t("Komponen Biaya", "Cost Component")}</th>
@@ -87,11 +87,11 @@ export function VarianceDoc({ data }: { data: VariancePayload }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       <DocSection title={t("Rincian per Unit Kerja (basis bruto)", "Breakdown per Org Unit (gross basis)")}>
-        <table className="w-full border-collapse text-[11px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[11px]">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="border border-slate-700 px-2 py-1 text-left text-[9px] font-bold uppercase">{t("Unit Kerja", "Org Unit")}</th>
@@ -121,7 +121,7 @@ export function VarianceDoc({ data }: { data: VariancePayload }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       <TotalBand
@@ -185,7 +185,7 @@ export function TcowDoc({ data }: { data: TcowPayload }) {
           "TCOW = Σ Take Home Pay (net salary received by employees) + Σ PPh 21 withheld from employees + Σ PPh allowance (gross-up) + Σ company-portion BPJS premiums. This reflects the company's total cash outflow for workforce — not just net salary.",
         )}
       >
-        <table className="w-full border-collapse text-[11px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[11px]">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="w-8 border border-slate-700 px-2 py-1 text-center text-[9px] font-bold uppercase">No</th>
@@ -229,7 +229,7 @@ export function TcowDoc({ data }: { data: TcowPayload }) {
               <td className="border border-slate-400 px-2 py-1 text-center font-extrabold">100%</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       <TotalBand
@@ -292,7 +292,7 @@ export function OvertimeSheetDoc({ data }: { data: OvertimePayload }) {
           "Estimate uses the official formula: hourly wage = 1/173 × monthly base salary (Kepmenakertrans 102/MEN/VI/2004), times the day index (PP 35/2021: 1.5× first working-day hours, 2× rest day/holiday). The “Amount in Run” column = the LEMBUR component actually transferred into the payroll run (when already transferred).",
         )}
       >
-        <table className="w-full border-collapse text-[10.5px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10.5px]">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="w-8 border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">No</th>
@@ -343,12 +343,12 @@ export function OvertimeSheetDoc({ data }: { data: OvertimePayload }) {
               <td className="border border-slate-400 bg-emerald-100 px-1.5 py-1 text-right font-extrabold tabular-nums">{money(data.totals.runAmount)}</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       {data.orders.length > 0 && (
         <DocSection title={t("Lampiran — Daftar Order Lembur yang Dibayar Run Ini", "Appendix — Overtime Orders Paid in This Run")}>
-          <table className="w-full border-collapse text-[10px]">
+          <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10px]">
             <thead>
               <tr className="bg-slate-700 text-white">
                 <th className="border border-slate-600 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("No. Order", "Order No.")}</th>
@@ -375,7 +375,7 @@ export function OvertimeSheetDoc({ data }: { data: OvertimePayload }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </DocSection>
       )}
 

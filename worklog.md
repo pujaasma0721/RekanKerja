@@ -4312,3 +4312,25 @@ Stage Summary:
 - Artifak: vendor/jasper/{lib 8 JAR, templates/SPT1721A1.jrxml, images/pajak.png (logo diekstrak PDF resmi DJP), JasperRunner.java}; src/rekankerja/payroll/services/spt1721a1-jrxml.ts; route spt1721a1; components spt-a1-pdf.tsx; npwp15() helper di payroll-spt.ts (fix e-SPT CSV sekalian); scripts/{parse-jrxml,test-jasper-1721a1}.ts; bukti-potong-a1.tsx dihapus.
 - Catatan deploy: server produksi wajib punya Java 11+ di PATH (tanpa itu route 503 dgn pesan jelas); vendor/jasper ter-commit; cache .jasper di-gitignore (auto-regen).
 >>>>>>> Stashed changes
+
+---
+Task ID: T-PAYROLL-REPORTS-OVERLAP-FIX
+Agent: Z.ai (orkestrator utama)
+Task: Perbaiki "banyak preview report payroll dan report2 lain yang overlap antara header dan table" (screenshot user: R2.1 Rekap PPh 21 — kolom kanan TARIF EFEKTIF/PPH 21 TERUTANG/NETTO DIBAYARKAN terpotong & bertumpuk).
+
+Work Log:
+- DIAGNOSA (VLM screenshot user + agent-browser DOM measurement): PrintDoc payroll memakai kertas max-w-[210mm] (794px, lebar A4 POTRET) untuk SEMUA orientasi — padahal 8 dari 11 dokumen HTML berorientasi LANDSCAPE dgn tabel 11-25 kolom. Tabel R2.1 min-content 817px > kertas 794px → tabel MENONJOL keluar tepi kanan kertas putih: kolom terakhir terpotong, header kolom membungkus rapat & bertabrakan, judul seksi terpotong di tepi kanan. R1.2 lebih parah: 25 kolom = 1919px.
+- FIX doc-kit.tsx PrintDoc: lebar kertas per orientasi (landscape max-w-[297mm] = A4 landscape, portrait tetap 210mm) + padding landscape px-6 (portrait px-8) + print CSS: .rk-doc-table { overflow: visible } saat cetak.
+- FIX DocTable doc-kit: tabel dibungkus div.rk-doc-table.overflow-x-auto (pola DocTable modul HR) — di layar sempit tabel menggulir DI DALAM kertas, tidak pernah keluar tepi kertas.
+- FIX documents-g1..g4.tsx: SEMUA 13 tabel mentah dibungkus wrapper .rk-doc-table overflow-x-auto.
+- PRINT: tambah print CSS (pola modul HR teruji): #rk-print-area table { width: 100% } + th/td overflow-wrap: break-word — tabel super lebar (R1.2 25 kolom) dimampatkan ke lebar kertas saat cetak, tidak ada kolom hilang.
+- VERIFIKASI E2E (agent-browser login hrd@mii.co.id, viewport 934px = lebar panel preview user + 1440px): SELURUH 11 dokumen HTML digenerate & diukur DOM (paperW, tableW, insidePaper, wrapScrolls, h2Gap, clipped sections):
+  · R1.1 portrait 794px: 3 tabel 730px inside ✓ · R1.2 landscape: 1919px scroll DI DALAM kertas ✓ (wrapperScrolls, tidak keluar kertas) · R1.3 ✓ · R2.1 landscape 886px: tabel 838px INSIDE + margin 24px ✓ (sebelumnya -23px keluar) · R2.3 ✓ · R3.1 (header 2 baris colspan) ✓ · R3.2 ✓ · R3.3 ✓ · R4.1/R4.2/R4.3 (2 tabel masing2) ✓ — semua insidePaper=true, h2Gap=8px, clipped=0. R2.2 = PDF iframe (tidak terdampak).
+  · VLM visual R2.1 di viewport 934px: kolom kanan terbaca penuh, angka utuh di dalam kertas, judul seksi tidak terpotong — sesuai keluhan user teratasi. Banner PWA "Instal aplikasi" sempat menutupi → didismiss saat verifikasi (bukan bug layout dokumen).
+- CROSS-CHECK "report2 lain" (modul lain): HR R1.1 sensus (tabel 1368px) & Leave LR11 (tabel 1306px) — keduanya sudah memakai pola sheet max-w-1000px + tabel scroll-di-dalam-kertas, tidak keluar kertas ✓ (tidak perlu ubah). Attendance: wizard setup menahan halaman reports, tapi berbagi doc-kit HR yang sama (aman struktural).
+- tsc --noEmit 0 error · lint 0 error (2 warning pre-existing) · dev.log bersih (semua API 200).
+
+Stage Summary:
+- ROOT CAUSE: kertas laporan payroll selalu 210mm meski orientasi landscape → tabel lebar menonjol keluar kertas, kolom terakhir terpotong, header bertumpuk.
+- FIX: kertas per orientasi (landscape 297mm) + semua tabel dibungkus wrapper scroll-di-dalam-kertas + print CSS pemampatan lebar kertas (pola modul HR).
+- 5 file berubah: doc-kit.tsx, documents-g1/g2/g3/g4.tsx. 12 laporan payroll terverifikasi (11 HTML + R2.2 PDF tak terdampak); modul HR/Leave dicek aman.

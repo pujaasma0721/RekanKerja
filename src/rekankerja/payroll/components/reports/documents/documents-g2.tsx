@@ -52,7 +52,7 @@ export function Pph21MonthlyDoc({ data }: { data: Pph21Payload }) {
           { mode: data.regulation.useTer ? t("TER BULANAN (useTer aktif)", "MONTHLY TER (useTer active)") : t("Pasal 17 tahunan (useTer nonaktif) + true-up Desember", "Annual Article 17 (useTer off) + December true-up") },
         )}
       >
-        <table className="w-full border-collapse text-[10.5px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10.5px]">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="w-8 border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">No</th>
@@ -104,7 +104,7 @@ export function Pph21MonthlyDoc({ data }: { data: Pph21Payload }) {
               <td className="border border-slate-400 bg-emerald-100 px-1.5 py-1 text-right font-extrabold tabular-nums">{money(data.totals.totalNet)}</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       <TotalBand
@@ -164,7 +164,7 @@ export function Pph26Doc({ data }: { data: Pph26Payload }) {
           "Population: employees with FINAL tax-method wage components (FixedRateFinal / SeveranceFinal / PensionFinal / Final2Years) in the selected period — 20% of gross withheld per Article 26(1)(a) of the Income Tax Law. Foreign workers without an NPWP are withheld at the final rate and NOT merged into permanent-employee PPh 21.",
         )}
       >
-        <table className="w-full border-collapse text-[11px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[11px]">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="w-8 border border-slate-700 px-2 py-1 text-center text-[9px] font-bold uppercase">No</th>
@@ -210,7 +210,7 @@ export function Pph26Doc({ data }: { data: Pph26Payload }) {
               <td className="border border-slate-400 bg-rose-100 px-2 py-1 text-right font-extrabold text-rose-800 tabular-nums">{money(data.totals.totalTax26)}</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       <TotalBand

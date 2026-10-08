@@ -44,6 +44,13 @@ const fmtDateId = (iso: string | null | undefined): string => {
 
 // ---------- kertas + area cetak ----------
 
+// Perbaikan overlap kop/tabel (T115): kertas mengikuti orientasi — laporan
+// LANDSCAPE (tabel 11-12 kolom) memakai lebar kertas A4 landscape (297mm),
+// bukan 210mm potret, sehingga tabel tidak lagi menonjol keluar kertas /
+// memotong kolom terakhir. Di layar, tiap tabel juga dibungkus .rk-doc-table
+// (overflow-x-auto) — bila lebar layar lebih kecil dari kertas, tabel
+// menggulir DI DALAM kertas (pola DocTable modul HR), tidak pernah overlap
+// keluar tepi kertas. Saat cetak wrapper dilepas (overflow: visible).
 export function PrintDoc({ orientation, children }: { orientation: "portrait" | "landscape"; children: ReactNode }) {
   return (
     <div id="rk-print-area" className="rk-print-doc">
@@ -59,11 +66,22 @@ export function PrintDoc({ orientation, children }: { orientation: "portrait" | 
           }
           .rk-noprint { display: none !important; }
           .rk-doc-scroll { overflow: visible !important; }
+          .rk-doc-table { overflow: visible !important; }
+          /* Tabel sangat lebar (mis. R1.2 daftar induk 25 kolom) dimampatkan
+             ke lebar kertas saat cetak — teks boleh membungkus (pola modul HR),
+             tidak ada kolom yang terpotong hilang. */
+          #rk-print-area table { width: 100% !important; }
+          #rk-print-area th, #rk-print-area td { overflow-wrap: break-word; }
           #rk-print-area, #rk-print-area * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
       `}</style>
-      <div className="mx-auto w-full max-w-[210mm] bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0">
-        <div className="px-8 py-7 text-[12px] leading-relaxed">{children}</div>
+      <div
+        className={cn(
+          "mx-auto w-full bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0",
+          orientation === "landscape" ? "max-w-[297mm]" : "max-w-[210mm]",
+        )}
+      >
+        <div className={cn("text-[12px] leading-relaxed", orientation === "landscape" ? "px-6 py-6" : "px-8 py-7")}>{children}</div>
       </div>
     </div>
   );
@@ -162,26 +180,28 @@ export function DocSection({ title, note, children, className }: { title?: strin
 
 export function DocTable({ head, children, className }: { head: ReactNode[]; children: ReactNode; className?: string }) {
   return (
-    <table className={cn("w-full border-collapse text-[11px]", className)}>
-      <thead>
-        <tr className="bg-slate-800 text-white">
-          {head.map((h, i) => (
-            <th
-              key={i}
-              className={cn(
-                "border border-slate-700 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide",
-                // konvensi: kolom pertama (teks) kiri; sisanya ditentukan konten
-              )}
-            >
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody className="[&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-1 [&_tr:nth-child(even)]:bg-slate-50/70">
-        {children}
-      </tbody>
-    </table>
+    <div className="rk-doc-table overflow-x-auto">
+      <table className={cn("w-full border-collapse text-[11px]", className)}>
+        <thead>
+          <tr className="bg-slate-800 text-white">
+            {head.map((h, i) => (
+              <th
+                key={i}
+                className={cn(
+                  "border border-slate-700 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide",
+                  // konvensi: kolom pertama (teks) kiri; sisanya ditentukan konten
+                )}
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="[&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-1 [&_tr:nth-child(even)]:bg-slate-50/70">
+          {children}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

@@ -42,7 +42,7 @@ export function PayslipDoc({ data }: { data: SlipPayload }) {
   const taxTotal = (slip.taxRegular ?? 0) + (slip.taxIrregular ?? 0);
 
   const itemTable = (rows: SlipItem[], totalLabel: string, totalValue: number | null, tone: "green" | "red" | "slate") => (
-    <table className="w-full border-collapse text-[11px]">
+    <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[11px]">
       <thead>
         <tr className={cn("text-white", tone === "green" ? "bg-emerald-800" : tone === "red" ? "bg-rose-800" : "bg-slate-700")}>
           <th className="border border-slate-600 px-2 py-1 text-left text-[9.5px] font-bold uppercase tracking-wide">{t("Komponen", "Component")}</th>
@@ -70,7 +70,7 @@ export function PayslipDoc({ data }: { data: SlipPayload }) {
           )}>{money(totalValue)}</td>
         </tr>
       </tbody>
-    </table>
+    </table></div>
   );
 
   return (
@@ -188,7 +188,7 @@ export function RegisterDoc({ data }: { data: RegisterPayload }) {
           "Company-borne premium columns (_C codes, yellow tint) sit outside Gross/THP. Rows marked † fall below the office UMP/UMK (advisory warning).",
         )}
       >
-        <table className="w-full border-collapse text-[10px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10px]">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="border border-slate-700 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("No. Karyawan", "Emp. No.")}</th>
@@ -257,7 +257,7 @@ export function RegisterDoc({ data }: { data: RegisterPayload }) {
               <td className="border border-slate-400 bg-emerald-200 px-1.5 py-1 text-right font-extrabold tabular-nums">{money(data.totals.totalNet)}</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       <TotalBand
@@ -313,7 +313,7 @@ export function BankTransferDoc({ data }: { data: BankPayload }) {
           "This document is the payment distribution recap — the machine file (CSV) is ready for upload to partner bank payroll portals (BCA, Mandiri, BNI, BRI, etc.). Transfer amount = Take Home Pay (Net THP).",
         )}
       >
-        <table className="w-full border-collapse text-[10.5px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10.5px]">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="w-8 border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">No</th>
@@ -359,7 +359,7 @@ export function BankTransferDoc({ data }: { data: BankPayload }) {
               <td className="border border-emerald-800 px-2 py-1.5 text-right text-[12px] font-extrabold tabular-nums">{money(data.totals.totalNet)}</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       <TotalBand

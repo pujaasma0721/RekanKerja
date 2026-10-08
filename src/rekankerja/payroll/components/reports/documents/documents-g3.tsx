@@ -68,7 +68,7 @@ export function BpjsTkDoc({ data }: { data: BpjsTkPayload }) {
           },
         )}
       >
-        <table className="w-full border-collapse text-[10.5px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10.5px]">
           <thead>
             <tr>
               <th colSpan={5} className="border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white" />
@@ -130,7 +130,7 @@ export function BpjsTkDoc({ data }: { data: BpjsTkPayload }) {
               </td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       <TotalBand
@@ -181,7 +181,7 @@ export function BpjsKesehatanDoc({ data }: { data: BpjsKesPayload }) {
           { cap: money(reg?.jpkSalaryCap ?? null), pc: pctLabel(reg?.jpkCompanyRate), pe: pctLabel(reg?.jpkEmployeeRate) },
         )}
       >
-        <table className="w-full border-collapse text-[10.5px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10.5px]">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="w-8 border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">No</th>
@@ -219,7 +219,7 @@ export function BpjsKesehatanDoc({ data }: { data: BpjsKesPayload }) {
               <td className="border border-slate-400 bg-slate-300 px-1.5 py-1 text-right font-extrabold tabular-nums">{money((data.totals.jknCompany ?? 0) + (data.totals.jknEmployee ?? 0))}</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       <TotalBand
@@ -268,7 +268,7 @@ export function TaperaDoc({ data }: { data: TaperaPayload }) {
           "PP 21/2024: Tapera premium is 3% of monthly wages — 2.5% borne by the employer and 0.5% deducted from the employee. The private-sector obligation phases in (from 2027); state-owned enterprises first (2026). If your company is not yet enrolled, this report will be empty — activate it by adding TAPERA wage components (_C code for company, deduction for employee).",
         )}
       >
-        <table className="w-full border-collapse text-[11px]">
+        <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[11px]">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="w-8 border border-slate-700 px-2 py-1 text-center text-[9px] font-bold uppercase">No</th>
@@ -310,7 +310,7 @@ export function TaperaDoc({ data }: { data: TaperaPayload }) {
               <td className="border border-slate-400 bg-slate-300 px-2 py-1 text-right font-extrabold tabular-nums">{money((data.totals.totalCompany ?? 0) + (data.totals.totalEmployee ?? 0))}</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </DocSection>
 
       <TotalBand
