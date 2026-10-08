@@ -98,7 +98,7 @@ export function MR11View({ data, meta }: { data: MR11Data; meta: DocMeta }) {
           </thead>
           <tbody>
             {data.rows.map((r, i) => (
-              <tr key={`${r.employeeNo}-${r.typeCode}`} className={cn("hover:bg-slate-50", i % 2 === 1 && "bg-slate-50/60")}>
+              <tr key={`${r.employeeNo}-${r.typeCode}-${r.dependent ? "dep" : "emp"}`} className={cn("hover:bg-slate-50", i % 2 === 1 && "bg-slate-50/60")}>
                 <TD align="center" className="text-slate-400">{i + 1}</TD>
                 <TD className="font-bold text-slate-800">{r.employeeNo}</TD>
                 <TD className="font-semibold text-slate-800">{r.name}</TD>

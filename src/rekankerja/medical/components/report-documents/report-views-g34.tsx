@@ -82,7 +82,8 @@ export function MR31View({ data, meta }: { data: MR31Data; meta: DocMeta }) {
             <TD align="number">{rp(r.companyPart)}</TD>
             <TD align="number">{rp(r.insurancePart)}</TD>
             <TD align="number" className="font-black">{r.sharePct != null ? f.pct(r.sharePct) : <Dash />}</TD>
-            <TD align="number">{rp(r.avgPerClaim)}</TD>
+            {/* null + vault terbuka = kategori tanpa klaim berbayar (bukan masked) → "—" */}
+            <TD align="number">{r.avgPerClaim == null && !data.masked ? <Dash /> : rp(r.avgPerClaim)}</TD>
           </tr>
         ))}
         <TotalRow label={t("TOTAL", "TOTAL")} cells={[
@@ -134,7 +135,7 @@ export function MR32View({ data, meta }: { data: MR32Data; meta: DocMeta }) {
         <SummaryBox className="grid-cols-1" items={[{ label: t("Total Klaim Medis", "Total Medical Claims"), value: f.num(data.total.claimCount), accent: true }]} />
         <SummaryBox className="grid-cols-1" items={[{ label: t("Rawat Inap", "Inpatient"), value: f.num(data.total.inpatientClaims) }]} />
         <SummaryBox className="grid-cols-1" items={[{ label: t("Rawat Jalan", "Outpatient"), value: f.num(data.total.outpatientClaims) }]} />
-        <SummaryBox className="grid-cols-1" items={[{ label: t("Biaya per Hari Hilang", "Cost per Lost Day"), value: rp(data.total.costPerLostDay), accent: true }]} />
+        <SummaryBox className="grid-cols-1" items={[{ label: t("Biaya per Hari Hilang", "Cost per Lost Day"), value: data.total.costPerLostDay == null && !data.masked ? "—" : rp(data.total.costPerLostDay), accent: true }]} />
       </div>
       {data.masked && <MaskedBanner />}
 
@@ -156,7 +157,8 @@ export function MR32View({ data, meta }: { data: MR32Data; meta: DocMeta }) {
             <TD align="number">{f.num(r.sickLeaveDays)}</TD>
             <TD align="number">{f.num(est(r.lostWorkdays, r.sickLeaveDays))}</TD>
             <TD align="number" className="font-black">{f.num(r.lostWorkdays)}</TD>
-            <TD align="number">{rp(r.costPerLostDay)}</TD>
+            {/* null + vault terbuka = tidak ada hari hilang (bukan masked) → "—" */}
+            <TD align="number">{r.costPerLostDay == null && !data.masked ? <Dash /> : rp(r.costPerLostDay)}</TD>
           </tr>
         ))}
         <TotalRow label={t("TOTAL PERUSAHAAN", "COMPANY TOTAL")} cells={[
@@ -164,7 +166,7 @@ export function MR32View({ data, meta }: { data: MR32Data; meta: DocMeta }) {
           f.num(data.total.inpatientClaims), f.num(data.total.outpatientClaims),
           rp(data.total.approved), f.num(data.total.sickLeaveDays),
           f.num(est(data.total.lostWorkdays, data.total.sickLeaveDays)),
-          f.num(data.total.lostWorkdays), rp(data.total.costPerLostDay),
+          f.num(data.total.lostWorkdays), data.total.costPerLostDay == null && !data.masked ? "—" : rp(data.total.costPerLostDay),
         ]} spanLabel={1} />
       </DocTable>
 

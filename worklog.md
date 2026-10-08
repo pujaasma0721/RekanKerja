@@ -4428,3 +4428,27 @@ Stage Summary:
 - Endpoint laporan medical lengkap: GET /api/rekankerja/medical/reports/documents (JSON {id, meta+periodLabel, data}) + XLSX export multi-sheet + activity log. 2 file baru: src/rekankerja/medical/api/medical-report-documents.ts, src/app/api/rekankerja/medical/reports/documents/route.ts (thin route) — tanpa memodifikasi file lain.
 - Kontrak payload di-enforce compile-time via import types.ts (MED-1-b memakai file sama — verifikasi silang tsc kedua arah).
 - Keputusan: baris UNLIMITED (KHUSUS_PJK) tetap masuk mr11 dgn plafon 0 → status "safe" + usedPct null (spek: plafon≤0→safe); relation mr23 best-effort fallback "Tanggungan" bila nama pasien ≠ master EmployeeFamily (data demo memang tak match); mr41 kosong di data demo MII (semua jenis pctInsurance=0 — struktur terverifikasi via year 2019/2026 + filter path); treatment didekripsi utk grouping mr33 tapi payload hanya agregat count (privacy).
+
+---
+Task ID: T-MED-REPORTS (MED-0 + MED-2 + MED-3 + MED-4)
+Agent: Z.ai (orkestrator utama)
+Task: "Buat report untuk module Medical sama seperti module2 sebelumnya" — 12 laporan distribusi Medical dalam 4 grup (Saldo & Plafon, Transaksi Klaim, Analisis Biaya & Utilisasi, Rekonsiliasi Asuransi & Kepatuhan) siap cetak/PDF + XLSX.
+
+Work Log:
+- MED-0 KONTRAK: riset pola report modul sebelumnya (leave T112 = katalog 3 tahap; payroll T115; HR T110) + model data medical (MedicalBenefitType/Balance/Claim/ClaimLine/Provider/Adjustment, EmployeeFamily, LeaveRequest CT-SAKIT). Tulis 3 file kontrak di src/rekankerja/medical/components/report-documents/: catalog.ts (12 def laporan/4 grup, ikon lucide), params.ts (matriks parameter office/unit/benefitType/status/month/year/from/to), types.ts (payload MR11..MR43 — kontrak tunggal backend↔frontend, uang nullable = masked vault).
+- MED-1 (2 subagent paralel, commit 30a81e6 + 6456f32): backend medical-report-documents.ts (~1290 baris, 12 builder + _params + XLSX multi-sheet + activity log) & frontend (params-form, tab katalog 3 tahap, views g12/g34, wiring tab medical-reports.tsx → "Rekap Klaim" + "Dokumen Laporan").
+- MED-2 INTEGRASI: lint 0 error (2 warning pre-existing scripts/e2e), tsc 0 error, dev.log semua endpoint 200 (12 laporan + _params + export + filter variant).
+- MED-3 E2E AGENT-BROWSER (login hrd@mii.co.id MII, ?m=medical&s=medical&v=medical-reports):
+  · Katalog 12 kartu tampil (4 grup tema emerald/amber/rose/violet). Alur kartu → form parameter → generate → dokumen terverifikasi.
+  · AUDIT KOLOM th=td (script DOM generik, colSpan dihitung): 20 tabel SEMUA PASS — mr11 12×421, mr12 11×2, mr13 7×9+4×8, mr21 14×12+2×5, mr22 13×6, mr23 12×4+6×4, mr31 9×8+4×13, mr32 10×8, mr33 9×11, mr41 8×3+5×13+11×3, mr42 9×2+9×3, mr43 12×6.
+  · BUG DITEMUKAN & FIXED (2): (1) MR11 React duplicate key — baris pool karyawan + pool tanggungan (IMUNISASI/PERSALINAN dgn depLimitRule EACH/TOTAL_SEPARATE) memakai key sama employeeNo-typeCode → 84 console error; fix: key + "-emp"/"-dep". (2) mr31 avgPerClaim & mr32 costPerLostDay null (denominator 0, vault terbuka) dirender "•••" seolah masked → fix: null && !masked → "—" (Dash).
+  · ENRICH DEMO ASURANSI (scripts/enrich-medical-reports-demo.ts, idempoten): RAWAT_INAP 70/30 PT AIA Financial, RAWAT_JALAN 80/20 PT Asuransi AXA Indonesia + snapshot piutang MC-2026-001 (SUBMITTED Rp 2.850.000, ref AIA-CLM-2026-88123) & MC-2026-002 (PAID Rp 350.000, ref AXA-CLM-2026-45210) — totalApproved/jurnal tak diubah. R4.1 kini menampilkan 2 penanggung (outstanding 2,85jt, recovered 350rb, recovery 11%) dan konsisten dgn halaman Piutang Asuransi existing (2 klaim muncul).
+  · Verifikasi matematis silang: mr43 insurancePart Rp 6,65jt = (9,5+11,5jt)×30% + 1,75jt×20% ✓; mr31 porsi 70/80% ✓; mr13 liabilitas turun ke Rp 2.127.950.000 setelah pctCompany 100→70/80 (semantik benar).
+  · Filter divisi (Ubah Parameter): data tersaring server-side + chip "UNIT: Finance & Accounting" muncul di kop dokumen ✓. XLSX toolbar: request 200 dgn query filter benar. Mobile 375px: paper 343px, tabel scroll DI DALAM kertas, body tidak overflow. Cetak: window.print terpanggil + cleanup afterprint (clone/style/rk-printing bersih). Console: 0 error setelah fix (verifikasi ulang mr11 pasca-fix + sweep 12 laporan).
+- MED-4: lint+tsc bersih → commit + push.
+
+Stage Summary:
+- 12 laporan distribusi Medical live di menu Laporan Medis → tab "Dokumen Laporan": R1.1 saldo plafon per kategori (421 baris, pool karyawan+tanggungan), R1.2 utilizer <20%, R1.3 liabilitas Finance, R2.1 register klaim per baris perawatan, R2.2 pipeline tertahan+SLA verifikasi, R2.3 klaim tanggungan+hubungan keluarga, R3.1 distribusi per jenis+tren 12 bln, R3.2 klaim vs hari kerja hilang per divisi, R3.3 diagnosis anonim (privasi), R4.1 rekonsiliasi asuransi per penanggung, R4.2 mutasi enroll/de-enroll, R4.3 audit CoB BPJS-penjamin pertama.
+- File: kontrak 3 (MED-0) + API+route (MED-1-a) + 5 file frontend (MED-1-b) + fix 2 bug render (g12/g34) + enrich-medical-reports-demo.ts + 17 screenshot e2e-med/.
+- Keamanan konsisten: guard menu medical-reports, uang terenkripsi M-8 didekripsi hanya utk kalkulasi, display digerbang MoneyView (masked → null → "•••"), MR3.3 anonim tanpa nama pasien.
+- Pelajaran audit kolom diterapkan sejak desain: th=td 20 tabel PASS, XLSX baris TOTAL di-pad, TotalRow span+cells = lebar tabel.
