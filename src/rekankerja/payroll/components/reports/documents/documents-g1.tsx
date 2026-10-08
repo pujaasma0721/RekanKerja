@@ -170,7 +170,7 @@ export function RegisterDoc({ data }: { data: RegisterPayload }) {
   const earnCols = data.columns.filter((c) => c.type === "Earning");
   const dedCols = data.columns.filter((c) => c.type === "Deduction");
   const infoCols = data.columns.filter((c) => c.type === "Informational");
-  const span = 6 + earnCols.length + dedCols.length + infoCols.length;
+  const span = 9 + earnCols.length + dedCols.length + infoCols.length;
 
   return (
     <PrintDoc orientation="landscape">
@@ -184,8 +184,8 @@ export function RegisterDoc({ data }: { data: RegisterPayload }) {
       <DocSection
         title={t("Daftar Induk Komponen Upah (untuk ayat jurnal akuntansi)", "Master List of Wage Components (for accounting entries)")}
         note={t(
-          "Kolom iuran perusahaan (kode _C, latar kuning) berada di luar Bruto/THP. Baris dengan tanda † berada di bawah UMP/UMK kantor penempatan (peringatan edukatif).",
-          "Company-borne premium columns (_C codes, yellow tint) sit outside Gross/THP. Rows marked † fall below the office UMP/UMK (advisory warning).",
+          "Kolom iuran perusahaan (kode _C, latar kuning) berada di luar Bruto/THP. Kolom bertanda ⓘ bersifat informasi (non-finansial) dan tidak dijumlahkan ke Bruto/Potongan. Baris dengan tanda † berada di bawah UMP/UMK kantor penempatan (peringatan edukatif).",
+          "Company-borne premium columns (_C codes, yellow tint) sit outside Gross/THP. Columns marked ⓘ are informational (non-financial) and are not included in Gross/Deductions. Rows marked † fall below the office UMP/UMK (advisory warning).",
         )}
       >
         <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10px]">
@@ -203,6 +203,9 @@ export function RegisterDoc({ data }: { data: RegisterPayload }) {
               ))}
               {dedCols.map((c) => (
                 <th key={c.code} className="border border-slate-700 px-1.5 py-1 text-right text-[8.5px] font-bold uppercase leading-tight">{c.name}</th>
+              ))}
+              {infoCols.map((c) => (
+                <th key={c.code} className="border border-slate-700 bg-slate-600 px-1.5 py-1 text-right text-[8.5px] font-bold uppercase italic leading-tight">{c.name} ⓘ</th>
               ))}
               <th className="border border-slate-700 bg-slate-900 px-1.5 py-1 text-right text-[8.5px] font-bold uppercase">{t("Total Bruto", "Gross")}</th>
               <th className="border border-slate-700 bg-slate-900 px-1.5 py-1 text-right text-[8.5px] font-bold uppercase">{t("Total Potongan", "Deductions")}</th>
@@ -225,6 +228,7 @@ export function RegisterDoc({ data }: { data: RegisterPayload }) {
                     <td key={c.code} className={cn(
                       "border border-slate-300 px-1.5 py-0.5 text-right tabular-nums",
                       c.type === "Deduction" && "text-rose-700",
+                      c.type === "Informational" && "italic text-slate-500",
                       isCompanyCode(c.code) && "bg-amber-50 text-slate-500",
                     )}>
                       {v == null || v === 0 ? "—" : new Intl.NumberFormat("id-ID").format(v)}
@@ -246,7 +250,11 @@ export function RegisterDoc({ data }: { data: RegisterPayload }) {
               {[...earnCols, ...dedCols, ...infoCols].map((c) => {
                 const v = data.totals.perColumn[c.code];
                 return (
-                  <td key={c.code} className={cn("border border-slate-400 px-1.5 py-1 text-right tabular-nums", isCompanyCode(c.code) && "bg-amber-100")}>
+                  <td key={c.code} className={cn(
+                    "border border-slate-400 px-1.5 py-1 text-right tabular-nums",
+                    isCompanyCode(c.code) && "bg-amber-100",
+                    c.type === "Informational" && "italic text-slate-500",
+                  )}>
                     {v == null || v === 0 ? "—" : new Intl.NumberFormat("id-ID").format(v)}
                   </td>
                 );

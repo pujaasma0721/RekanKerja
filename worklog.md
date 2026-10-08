@@ -4334,3 +4334,23 @@ Stage Summary:
 - ROOT CAUSE: kertas laporan payroll selalu 210mm meski orientasi landscape → tabel lebar menonjol keluar kertas, kolom terakhir terpotong, header bertumpuk.
 - FIX: kertas per orientasi (landscape 297mm) + semua tabel dibungkus wrapper scroll-di-dalam-kertas + print CSS pemampatan lebar kertas (pola modul HR).
 - 5 file berubah: doc-kit.tsx, documents-g1/g2/g3/g4.tsx. 12 laporan payroll terverifikasi (11 HTML + R2.2 PDF tak terdampak); modul HR/Leave dicek aman.
+
+---
+Task ID: T-PAYROLL-R12-COLUMN-MISALIGN
+Agent: Z.ai (orkestrator utama)
+Task: Perbaiki "sepertinya antara judul kolom dan data kolom tidak sesuai" (screenshot user: R1.2 Rekapitulasi Gaji Bulanan — lingkaran merah di area kanan tabel; kolom GROSS berisi "21", DEDUCTIONS berisi angka bruto, dst).
+
+Work Log:
+- DIAGNOSA (VLM screenshot user): pada tabel "Daftar Induk Komponen Upah" R1.2, di bawah header GROSS tampil nilai "21", di bawah DEDUCTIONS tampil Rp 11.132.500 (bruto), di bawah PPh 21 tampil potongan, di bawah THP tampil pajak → seluruh 4 kolom total bergeser 1 posisi ke kanan.
+- ROOT CAUSE: documents-g1.tsx RegisterDoc — thead hanya merender header earnCols + dedCols, sedangkan tbody (baris data & baris total) merender [...earnCols, ...dedCols, ...infoCols]. Kolom Informational (mis. "Hari Kerja Period" = 21) punya SEL DATA tapi TANPA HEADER → semua kolom sesudahnya (Total Bruto/Potongan/PPh21/THP) tidak sinkron dengan judulnya. API reports-documents.ts memang mengirim columns bertipe Earning/Deduction/Informational (sort rank Earning→Deduction→Informational).
+- FIX documents-g1.tsx RegisterDoc: (1) tambah header infoCols di thead setelah dedCols — styling pembeda bg-slate-600 italic + marker "ⓘ" (pola konsisten dgn "⛭" utk kode _C); (2) sel data & sel total informational diberi italic text-slate-500 agar terbaca sbg kolom non-finansial; (3) span EmptyDocRow dikoreksi 6+… → 9+earn+ded+info (5 kolom identitas + 4 kolom total); (4) note DocSection diperbarui menjelaskan marker ⓘ (kolom informasi non-finansial, tidak dijumlahkan ke Bruto/Potongan).
+- CROSS-CHECK tabel dinamis lain (antisipasi pola serupa): monthly XLSX (reports-monthly.ts Sheet 2) header & data sama-sama TANPA infoCols → konsisten, bukan bug; custom-reports-view.tsx th & td sama-sama map result.columns → aman; HR doc-kit DocTable header statis JSX → aman; attendance report-views-g34 th & td sama-sama map data.byCategory → aman. Satu-satunya mismatch = R1.2 (fixed).
+- VERIFIKASI E2E (agent-browser login hrd@mii.co.id MII, run PR-2026-08-SAL-01 — run yang sama dgn screenshot user): DOM → headerCount 26 == firstBodyRowCellCount 26; urutan kolom kanan kini "Angsuran Pinjaman | Hari Kerja Period ⓘ | Total Bruto | Total Potongan | PPh 21 | Take Home Pay" dgn data "— | 21 | Rp 11.132.500 | Rp 796.500 | Rp 454.500 | Rp 10.336.000" (angka persis screenshot user, kini di posisi benar); baris total 23 td + colspan4 = 26 efektif, THP total Rp 531.745.241 cocok dgn ringkasan run; infoHeaders terdeteksi ["Hari Kerja Period ⓘ"].
+- VLM visual (desktop full-page): semua nilai sejajar benar di bawah header masing-masing, tidak ada kolom mismatch/shift.
+- Mobile 375px: tabel 1921px scroll DI DALAM wrapper kertas (scrollsInsidePaper=true), layout aman.
+- Interaksi: "Buat Dokumen Laporan" & "Ubah Parameter" bekerja; console 0 error; dev.log semua API 200 (r12 payload render 98ms); lint 0 error (2 warning pre-existing scripts/e2e).
+
+Stage Summary:
+- ROOT CAUSE: kolom Informational dirender di tbody tanpa header di thead → 4 kolom total (Bruto/Potongan/PPh21/THP) bergeser dari judulnya di R1.2.
+- FIX: header infoCols ditambahkan (marker ⓘ, slate italic) + styling sel informational + koreksi span + update note. 1 file berubah: documents-g1.tsx.
+- Verifikasi DOM + VLM (desktop & mobile) + interaksi + log semuanya PASS; nilai data demo persis screenshot user kini sejajar benar.
