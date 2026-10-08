@@ -400,7 +400,7 @@ export function R21View({ data, meta }: { data: R21Data; meta: DocMeta }) {
             </tr>
           );
         })}
-        <TotalRow label={t("Total kontrak terpantau", "Total monitored contracts")} cells={[data.total]} />
+        <TotalRow label={t("Total kontrak terpantau", "Total monitored contracts")} cells={[data.total]} spanLabel={9} />
       </DocTable>
 
       <DocSection no="C" title={t("Tindak Lanjut yang Disarankan", "Recommended Actions")} />

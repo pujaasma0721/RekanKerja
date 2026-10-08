@@ -60,6 +60,7 @@ export function LR31View({ data, meta }: { data: LR31Data; meta: DocMeta }) {
           f.num(data.total.headcount), f.num(data.workdays), f.num(data.total.present),
           f.num(data.total.onLeave), f.num(data.total.workoff), f.num(data.total.absent),
           f.num(data.total.lostTotal), data.total.rate != null ? f.pct(data.total.rate) : "—",
+          data.total.unplannedRate != null ? f.pct(data.total.unplannedRate) : "—",
         ]} spanLabel={1} />
       </DocTable>
 

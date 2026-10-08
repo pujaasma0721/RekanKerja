@@ -511,7 +511,7 @@ export function R43View({ data, meta }: { data: R43Data; meta: DocMeta }) {
             </TD>
           </tr>
         ))}
-        <TotalRow label={t("Total", "Total")} cells={[data.total]} spanLabel={5} />
+        <TotalRow label={t("Total", "Total")} cells={[data.total, "", "", "", ""]} spanLabel={5} />
       </DocTable>
 
       <DocSection no="B" title={t("Ringkasan Kepatuhan", "Compliance Summary")} />

@@ -4354,3 +4354,35 @@ Stage Summary:
 - ROOT CAUSE: kolom Informational dirender di tbody tanpa header di thead → 4 kolom total (Bruto/Potongan/PPh21/THP) bergeser dari judulnya di R1.2.
 - FIX: header infoCols ditambahkan (marker ⓘ, slate italic) + styling sel informational + koreksi span + update note. 1 file berubah: documents-g1.tsx.
 - Verifikasi DOM + VLM (desktop & mobile) + interaksi + log semuanya PASS; nilai data demo persis screenshot user kini sejajar benar.
+
+---
+Task ID: T-REPORTS-COLUMN-AUDIT-ALL-MODULES
+Agent: Z.ai (orkestrator utama)
+Task: "Audit semua report yang sudah dibuat di semua module untuk ketidaksesuaian kolom seperti case di atas" (polutan bug R1.2 — header vs sel data tidak sinkron) — audit menyeluruh + perbaikan.
+
+Work Log:
+- ENUMERASI: grep seluruh titik ekspor (toXlsx/xlsxResponse/toCsv/csvResponse = 25+ endpoint) + semua file dgn tabel report (thead/TableHeader) di 8 modul. Cakupan: dokumen cetak HTML (payroll g1-g4, HR g12/g34, leave g12/g34, attendance g12/g34), view laporan UI, export XLSX/CSV (payroll monthly/register/bpjs/run-export/spt CSV, HR reports/report-documents/employees, leave, attendance, travel, medical, activity-logs), engine custom-reports, ESS payslip.
+- AUDIT STATIK (4 agent paralel, pola bug A-H: header set ≠ cell set / colSpan salah / panjang baris XLSX-CSV beda / kondisional tak mirror / multi-row header colspan / baris total & grup tak sama lebar):
+  · Payroll → 1 temuan: R3.1 header grup atas 5+4+2=11 vs tabel 12 kolom (kolom Total tanpa sel grup).
+  · HR → 3 temuan: (a) R4.1 WLKP XLSX baris TOTAL 3 elemen vs 4 kolom — workersTotal jatuh di bawah "Perempuan" (POLA SAMA DGN R1.2!); (b) R2.1 TotalRow 1+1=2 vs 10 kolom; (c) R4.3 TotalRow 5+1=6 vs 10 kolom.
+  · Leave → 1 temuan: LR3.1 TOTAL PERUSAHAAN 1+8=9 vs 10 kolom — sel "Alpa %" (unplannedRate) hilang (data tersedia di API tapi tak dirender).
+  · Attendance, Travel, Medical, Whistleblow, Activity-log, Employees export, Custom-reports engine, ESS payslip, toXlsx/toCsv helpers → SEMUA CLEAN (25+ tabel JSX & 12+ export dihitung sel-per-sel).
+- FIX (5 file):
+  1. payroll/documents-g3.tsx — tambah <th colSpan={1} bg-slate-900> utk kolom Total di baris header grup R3.1.
+  2. hr/api/report-documents.ts (r41 XLSX) — TOTAL kini ["TOTAL", mTot, fTot, workersTotal ?? mTot+fTot] (4 sel; total L/P dihitung dari 4 kategori pekerja).
+  3. hr/report-views-g12.tsx (R2.1) — TotalRow spanLabel 1→9 (10 kolom penuh).
+  4. hr/report-views-g34.tsx (R4.3) — TotalRow cells di-pad ["", "", "", ""] (5+5=10).
+  5. leave/report-views-g34.tsx (LR3.1) — sel unplannedRate (Alpa %) ditambahkan ke TOTAL PERUSAHAAN.
+- AUDIT E2E BROWSER (agent-browser, login hrd@mii.co.id MII): script DOM generik — utk SETIAP tabel di halaman: jumlah th (dengan colspan) tiap baris thead harus = jumlah td efektif tiap baris tbody. 19 dokumen HTML + 2 view UI di-generate & diaudit:
+  · Payroll: R1.1 (3×2) ✓ · R1.2 (26, fix hari ini) ✓ · R1.3 (8×47) ✓ · R2.1 (11×43) ✓ · R2.3 (9) ✓ · R3.1 (12×2 header + 43 baris — FIX terverifikasi) ✓ · R3.2 (9×43) ✓ · R3.3 (7) ✓ · R4.1 (6+8) ✓ · R4.2 (9×17) ✓ · R4.3 (10+6) ✓. R2.2 = PDF (tak terdampak).
+  · HR: R1.1 sensus (15×42) ✓ · R2.1 (10 — TotalRow fix) ✓ · R3.3 matriks 12 bulan dinamis (16×8) ✓ · R4.1 WLKP (3 tabel × 4) ✓ · R4.3 (10×7 — fix) ✓.
+  · Leave: LR1.1 (14×42 + 9) ✓ · LR3.1 (10×8 — fix; sel Alpa % 89,3% muncul) ✓.
+  · Attendance: AR3.1 kolom dinamis byCategory (2/14/3) ✓.
+  · Travel (6×5) ✓ · Medical (7×10 + 3×4) ✓.
+  · XLSX R4.1 diunduh via browser fetch → base64 → parse exceljs: sheet "Data Pekerja" TOTAL = ["TOTAL","25","17","42"] — 4 sel, L+P=42 konsisten dgn ringkasan run ✓.
+- 0 console error · dev.log semua 200 · lint 0 error (2 warning pre-existing scripts/e2e).
+
+Stage Summary:
+- 5 ketidaksesuaian kolom ditemukan & diperbaiki (2 di antaranya menggeser nilai: R4.1 XLSX TOTAL & LR3.1 Alpa%; 3 lainnya baris total/header grup kurang lebar). File berubah: documents-g3.tsx, api/report-documents.ts, report-views-g12.tsx, report-views-g34.tsx (HR), report-views-g34.tsx (Leave).
+- Metodologi audit: (1) statik 4 agent paralel pola A-H dgn hitung sel-per-sel; (2) E2E DOM script th=td utk 19 dokumen + 2 view; (3) parse XLSX exceljs utk verifikasi export. Semua laporan 8 modul kini terverifikasi sejajar.
+- Konvensi aman yang terkonfirmasi (dipertahankan): employees export & custom-reports membangun baris via columns.map (header & sel selalu dari array sama); byCategory dinamis attendance memetakan array sama di head & TotalRow; export.ts sengaja tak padding/truncate (regresi akan terlihat, bukan tersembunyi).

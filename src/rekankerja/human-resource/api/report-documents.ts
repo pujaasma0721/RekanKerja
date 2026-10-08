@@ -1319,12 +1319,17 @@ function buildSheets(id: string, built: { periodLabel: string; payload: unknown 
     }
     case "r41": {
       const w = (p.workers as AnyRec) ?? {};
+      // total L/P dihitung dari 4 kategori pekerja (kolom Laki-laki/Perempuan/Jumlah
+      // harus terisi penuh di baris TOTAL — sebelumnya 3 sel vs 4 kolom).
+      const wGroups = (["permanent", "contract", "probation", "outsourcing"] as const).map((k) => (w[k] as AnyRec) ?? {});
+      const mTot = wGroups.reduce((s, g) => s + ((g.male as number) ?? 0), 0);
+      const fTot = wGroups.reduce((s, g) => s + ((g.female as number) ?? 0), 0);
       const rows: ExportCell[][] = [
         ["A. PEKERJA TETAP", (w.permanent as AnyRec).male as number, (w.permanent as AnyRec).female as number, ((w.permanent as AnyRec).male as number) + ((w.permanent as AnyRec).female as number)],
         ["B. PKWT / KONTRAK", (w.contract as AnyRec).male as number, (w.contract as AnyRec).female as number, ((w.contract as AnyRec).male as number) + ((w.contract as AnyRec).female as number)],
         ["C. PROBATION / MAGANG", (w.probation as AnyRec).male as number, (w.probation as AnyRec).female as number, ((w.probation as AnyRec).male as number) + ((w.probation as AnyRec).female as number)],
         ["D. OUTSOURCING", (w.outsourcing as AnyRec).male as number, (w.outsourcing as AnyRec).female as number, ((w.outsourcing as AnyRec).male as number) + ((w.outsourcing as AnyRec).female as number)],
-        ["TOTAL", "", (p.workersTotal as number) ?? 0],
+        ["TOTAL", mTot, fTot, (p.workersTotal as number) ?? (mTot + fTot)],
       ];
       const wb = ((p.wageBuckets as AnyRec[]) ?? []).map((b) => [s(b.label), (b.male as number) ?? 0, (b.female as number) ?? 0, (b.total as number) ?? 0]);
       return [

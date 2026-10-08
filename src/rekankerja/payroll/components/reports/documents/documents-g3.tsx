@@ -78,6 +78,7 @@ export function BpjsTkDoc({ data }: { data: BpjsTkPayload }) {
               <th colSpan={2} className="border border-slate-700 bg-rose-800 px-1.5 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-white">
                 {t("Porsi Karyawan (Employee Deduction)", "Employee Deduction Portion")}
               </th>
+              <th colSpan={1} className="border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white" />
             </tr>
             <tr className="bg-slate-700 text-white">
               <th className="w-8 border border-slate-600 px-1.5 py-1 text-center text-[9px] font-bold uppercase">No</th>
