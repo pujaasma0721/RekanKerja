@@ -1,0 +1,187 @@
+y=   0 x= 15 w= 18 staticText  TEXT: "Static text"
+y=   0 x=562 w= 18 staticText  TEXT: "Static text"
+y=  12 x= 60 w= 60 image       
+y=  12 x=165 w=  1 line        
+y=  12 x=438 w=  1 line        
+y=  12 x=530 w= 10 staticText  TEXT: "Static text"
+y=  12 x=543 w= 10 staticText  TEXT: "Static text"
+y=  12 x=556 w= 10 staticText  TEXT: "Static text"
+y=  12 x=569 w= 10 staticText  TEXT: "Static text"
+y=  24 x=166 w=273 staticText  TEXT: "BUKTI PEMOTONGAN PAJAK PENGHASILAN PASAL 21"
+y=  27 x=444 w=135 staticText  TEXT: "FORMULIR 1721 - A1"
+y=  37 x=166 w=273 staticText  TEXT: "BAGI PEGAWAI TETAP ATAU PENERIMA PENSIUN YANG"
+y=  42 x=442 w=153 staticText  TEXT: "Lembar ke-1 : untuk Penerima Penghasilan"
+y=  50 x=166 w=273 staticText  TEXT: "MENERIMA UANG TERKAIT PENSIUN SECARA BERKALA"
+y=  68 x=444 w=145 staticText  TEXT: "MASA PEROLEHAN PENGHASILAN"
+y=  74 x= 16 w=147 staticText  TEXT: "KEMENTERIAN KEUANGAN R.I. ⏎ DIREKTORAT JENDERAL PAJAK"
+y=  76 x=444 w=145 staticText  TEXT: "[mm - mm]"
+y=  79 x=166 w=288 line        
+y=  80 x=453 w=  1 line        
+y=  85 x=171 w= 40 staticText  TEXT: "NOMOR :"
+y=  85 x=222 w=210 textField   EXPR: $F{iSequenceNo}
+y=  86 x=464 w=106 textField   EXPR: $F{iPeriodFrom}.substring(0,2)+"-"+$F{iPeriodTo}.substring(0,2)+"/"+new Integer($F{iSptYear}.intValue()).toString()
+y= 101 x= 16 w=563 rectangle   
+y= 102 x= 20 w= 55 staticText  TEXT: "NPWP PEMOTONG"
+y= 102 x= 83 w=324 textField   EXPR: $F{iCompanyCompulsionNo}
+y= 108 x= 78 w=  3 staticText  TEXT: ":"
+y= 120 x= 20 w= 55 staticText  TEXT: "NITKU PEMOTONG"
+y= 120 x= 83 w=324 textField   EXPR: $F{iCompanyNITKU}
+y= 126 x= 78 w=  3 staticText  TEXT: ":"
+y= 138 x= 20 w= 55 staticText  TEXT: "NAMA PEMOTONG"
+y= 138 x= 83 w=486 textField   EXPR: $F{iCompanyName}
+y= 144 x= 78 w=  3 staticText  TEXT: ":"
+y= 161 x= 16 w=316 staticText  TEXT: "A. IDENTITAS PENERIMA PENGHASILAN"
+y= 175 x= 16 w=563 rectangle   
+y= 178 x= 20 w= 41 staticText  TEXT: "1. NPWP"
+y= 178 x= 61 w=  3 staticText  TEXT: ":"
+y= 178 x= 67 w=250 textField   EXPR: $F{iEmployeeCompulsionNo}
+y= 178 x= 67 w=250 textField   EXPR: "-"
+y= 178 x=330 w=240 staticText  TEXT: "7. STATUS / JUMLAH TANGGUNGAN KELUARGA UNTUK PTKP"
+y= 192 x= 20 w= 47 staticText  TEXT: "2. NITKU"
+y= 192 x= 61 w=  3 staticText  TEXT: ":"
+y= 192 x= 67 w=250 textField   EXPR: $F{iNITKU}
+y= 194 x=344 w= 14 staticText  TEXT: "K /"
+y= 194 x=358 w= 17 textField   EXPR: "K".equalsIgnoreCase($F{iPtkpStatus}.substring(0,1)) ? $F{iPtkpStatus}.substring(1) : ""
+y= 194 x=407 w= 19 staticText  TEXT: "TK /"
+y= 194 x=426 w= 16 textField   EXPR: "TK".equalsIgnoreCase($F{iPtkpStatus}.substring(0,2)) ? $F{iPtkpStatus}.substring(2) : ""
+y= 194 x=475 w= 20 staticText  TEXT: "HB /"
+y= 194 x=495 w= 17 textField   EXPR: "H".equalsIgnoreCase($F{iPtkpStatus}.substring(0,1)) ? $F{iPtkpStatus}.substring(2) : ""
+y= 206 x= 20 w= 47 staticText  TEXT: "3. NIK"
+y= 206 x= 61 w=  3 staticText  TEXT: ":"
+y= 206 x= 67 w=250 textField   EXPR: $F{iID}
+y= 208 x=330 w= 80 staticText  TEXT: "8. NAMA JABATAN"
+y= 208 x=428 w=  3 staticText  TEXT: ":"
+y= 208 x=434 w=141 textField   EXPR: $F{iPosition}
+y= 221 x= 20 w= 41 staticText  TEXT: "4. NAMA"
+y= 221 x= 61 w=  3 staticText  TEXT: ":"
+y= 221 x= 67 w=250 textField   EXPR: $F{iEmployeeName}
+y= 224 x=330 w= 80 staticText  TEXT: "9. KARYAWAN ASING"
+y= 224 x=428 w=  3 staticText  TEXT: ":"
+y= 224 x=434 w= 14 rectangle   
+y= 224 x=451 w= 67 staticText  TEXT: "YA"
+y= 225 x=434 w= 14 textField   EXPR: !("IDN".equalsIgnoreCase($F{iCitizenship}) || "".equalsIgnoreCase($F{iCitizenship}) || $F{iCitizenship}==null) ? "X" : ""
+y= 236 x= 20 w= 41 staticText  TEXT: "5. ALAMAT"
+y= 236 x= 61 w=  3 staticText  TEXT: ":"
+y= 236 x= 67 w=250 textField   EXPR: $F{iEmployeeAddress}
+y= 240 x=330 w=113 staticText  TEXT: "10. KODE NEGARA DOMISILI"
+y= 240 x=428 w=  3 staticText  TEXT: ":"
+y= 240 x=434 w=141 textField   EXPR: $F{iCitizenship}
+y= 263 x= 20 w= 77 staticText  TEXT: "6. JENIS KELAMIN :"
+y= 263 x= 97 w= 14 rectangle   
+y= 263 x=158 w= 14 rectangle   
+y= 264 x= 97 w= 14 textField   EXPR: "2".equalsIgnoreCase($F{iGender}) ? "X" : ""
+y= 264 x=114 w= 40 staticText  TEXT: "LAKI-LAKI"
+y= 264 x=158 w= 14 textField   EXPR: "1".equalsIgnoreCase($F{iGender}) ? "X" : ""
+y= 264 x=175 w= 72 staticText  TEXT: "PEREMPUAN"
+y= 287 x= 16 w=316 staticText  TEXT: "B. RINCIAN PENGHASILAN DAN PENGHITUNGAN PPh PASAL 21"
+y= 301 x= 16 w=423 staticText  TEXT: "URAIAN"
+y= 301 x=439 w=140 staticText  TEXT: "JUMLAH (Rp)"
+y= 317 x= 16 w=423 staticText  TEXT: "KODE OBJEK PAJAK:"
+y= 317 x=115 w= 45 staticText  TEXT: "21-100-01"
+y= 317 x=177 w= 45 staticText  TEXT: "21-100-02"
+y= 317 x=439 w=140 staticText  
+y= 319 x= 98 w= 14 rectangle   
+y= 319 x=160 w= 14 rectangle   
+y= 320 x= 98 w= 14 textField   EXPR: "X"
+y= 320 x=160 w= 14 textField   
+y= 334 x= 16 w=423 staticText  TEXT: "PENGHASILAN BRUTO:"
+y= 334 x=439 w=140 staticText  
+y= 350 x= 16 w= 16 staticText  TEXT: "1."
+y= 350 x= 32 w=407 staticText  TEXT: "GAJI ATAU UANG PENSIUNAN BERKALA"
+y= 350 x=439 w=140 textField   EXPR: new DecimalFormat().format($V{iD1}.doubleValue())
+y= 366 x= 16 w= 16 staticText  TEXT: "2."
+y= 366 x= 32 w=407 staticText  TEXT: "TUNJANGAN PPh"
+y= 366 x=439 w=140 textField   EXPR: new DecimalFormat().format($F{iD2})
+y= 382 x= 16 w= 16 staticText  TEXT: "3."
+y= 382 x= 32 w=407 staticText  TEXT: "TUNJANGAN LAINNYA, UANG LEMBUR DAN SEGALANYA"
+y= 382 x=439 w=140 textField   EXPR: new DecimalFormat().format($V{iD3}.doubleValue())
+y= 398 x= 16 w= 16 staticText  TEXT: "4."
+y= 398 x= 32 w=407 staticText  TEXT: "HONORARIUM DAN IMBALAN LAIN SEJENISNYA"
+y= 398 x=439 w=140 textField   EXPR: new DecimalFormat().format($V{iD4}.doubleValue())
+y= 414 x= 16 w= 16 staticText  TEXT: "5."
+y= 414 x= 32 w=407 staticText  TEXT: "PREMI ASURANSI YANG DIBAYARKAN PEMBERI KERJA"
+y= 414 x=439 w=140 textField   EXPR: new DecimalFormat().format($V{iD5}.doubleValue())
+y= 430 x= 16 w= 16 staticText  TEXT: "6."
+y= 430 x= 32 w=407 staticText  TEXT: "PENERIMAAN DALAM BENTUK NATURA DAN KENIKMATAN LAINNYA YANG DIKENAKAN PEMOTONGAN PPh PASAL 21"
+y= 430 x=439 w=140 textField   EXPR: new DecimalFormat().format($V{iD6}.doubleValue())
+y= 446 x= 16 w= 16 staticText  TEXT: "7."
+y= 446 x= 32 w=407 staticText  TEXT: "TANTIEM, BONUS, GRATIFIKASI, JASA PRODUKSI DAN THR"
+y= 446 x=439 w=140 textField   EXPR: new DecimalFormat().format($V{iD8}.doubleValue())
+y= 462 x= 16 w= 16 staticText  TEXT: "8."
+y= 462 x= 32 w=407 staticText  TEXT: "JUMLAH PENGHASILAN BRUTO (1 S.D. 7)"
+y= 462 x=439 w=140 textField   EXPR: new DecimalFormat().format($V{iD9}.doubleValue())
+y= 478 x= 16 w=423 staticText  TEXT: "PENGURANGAN:"
+y= 478 x=439 w=140 staticText  
+y= 494 x= 16 w= 16 staticText  TEXT: "9."
+y= 494 x= 32 w=407 staticText  TEXT: "BIAYA JABATAN/BIAYA PENSIUN"
+y= 494 x=439 w=140 textField   EXPR: new DecimalFormat().format($F{iD10}.doubleValue()+$F{iD11}.doubleValue())
+y= 510 x= 16 w= 16 staticText  TEXT: "10."
+y= 510 x= 32 w=407 staticText  TEXT: "IURAN TERKAIT PENSIUN ATAU HARI TUA"
+y= 510 x=439 w=140 textField   EXPR: new DecimalFormat().format(Math.abs($V{iD10}.doubleValue()))
+y= 526 x= 16 w= 16 staticText  TEXT: "11."
+y= 526 x= 32 w=407 staticText  TEXT: "ZAKAT/SUMBANGAN KEAGAMAAN YANG BERSIFAT WAJIB YANG DIBAYARKAN MELALUI PEMBERI KERJA"
+y= 526 x=439 w=140 textField   EXPR: new DecimalFormat().format(Math.abs($V{iD11}.doubleValue()))
+y= 542 x= 16 w= 16 staticText  TEXT: "12."
+y= 542 x= 32 w=407 staticText  TEXT: "JUMLAH PENGURANGAN (9 S.D. 11)"
+y= 542 x=439 w=140 textField   EXPR: new DecimalFormat().format($V{iD13}.doubleValue())
+y= 558 x= 16 w=423 staticText  TEXT: "PENGHITUNGAN PPh PASAL 21:"
+y= 558 x=439 w=140 staticText  
+y= 574 x= 16 w= 16 staticText  TEXT: "13."
+y= 574 x= 32 w=407 staticText  TEXT: "JUMLAH PENGHASILAN NETO (8 - 12)"
+y= 574 x=439 w=140 textField   EXPR: new DecimalFormat().format($V{iD14}.doubleValue())
+y= 590 x= 16 w= 16 staticText  TEXT: "14."
+y= 590 x= 32 w=407 staticText  TEXT: "PENGHASILAN NETO MASA PAJAK SEBELUMNYA"
+y= 590 x=439 w=140 textField   EXPR: new DecimalFormat().format($F{iD15}.doubleValue())
+y= 606 x= 16 w= 16 staticText  TEXT: "15."
+y= 606 x= 32 w=407 staticText  TEXT: "JUMLAH PENGHASILAN NETO UNTUK PERHITUNGAN PPh PASAL 21 (SETAHUN/DISETAHUNKAN)"
+y= 606 x=439 w=140 textField   EXPR: new DecimalFormat().format($F{iD16}.doubleValue())
+y= 622 x= 16 w= 16 staticText  TEXT: "16."
+y= 622 x= 32 w=407 staticText  TEXT: "PENGHASILAN TIDAK KENA PAJAK  (PTKP)"
+y= 622 x=439 w=140 textField   EXPR: new DecimalFormat().format($F{iD17}.doubleValue())
+y= 638 x= 16 w= 16 staticText  TEXT: "17."
+y= 638 x= 32 w=407 staticText  TEXT: "PENGHASILAN KENA PAJAK SETAHUN/DISETAHUNKAN (15 - 16)"
+y= 638 x=439 w=140 textField   EXPR: new DecimalFormat().format($F{iD18}.doubleValue())
+y= 654 x= 16 w= 16 staticText  TEXT: "18."
+y= 654 x= 32 w=407 staticText  TEXT: "PPh PASAL 21 ATAS PENGHASILAN KENA PAJAK SETAHUN/DISETAHUNKAN"
+y= 654 x=439 w=140 textField   EXPR: new DecimalFormat().format($F{iD19}.doubleValue())
+y= 670 x= 16 w= 16 staticText  TEXT: "19."
+y= 670 x= 32 w=407 staticText  TEXT: "PPh PASAL 21 YANG TELAH DIPOTONG MASA PAJAK SEBELUMNYA"
+y= 670 x=439 w=140 textField   EXPR: new DecimalFormat().format($F{iD20}.doubleValue())
+y= 686 x= 16 w= 16 staticText  TEXT: "20."
+y= 686 x= 32 w=407 staticText  TEXT: "PPh PASAL 21 DITANGGUNG PEMERINTAH (DTP) YANG TELAH DIPOTONG MASA PAJAK SEBELUMNYA"
+y= 686 x=439 w=140 textField   EXPR: "0"
+y= 702 x= 16 w= 16 staticText  TEXT: "21."
+y= 702 x= 32 w=407 staticText  TEXT: "PPh PASAL 21 TERUTANG (18 - 19 - 20)"
+y= 702 x=439 w=140 textField   EXPR: new DecimalFormat().format($F{iD21}.doubleValue()-$F{iD20}.doubleValue())
+y= 718 x= 16 w= 16 staticText  TEXT: "22."
+y= 718 x= 32 w=407 staticText  TEXT: "PPh PASAL 21 DAN PPh PASAL 26 YANG TELAH DIPOTONG DAN DILUNASI PADA SELAIN MASA PAJAK TERAKHIR"
+y= 718 x=439 w=140 staticText  
+y= 734 x= 16 w= 16 staticText  
+y= 734 x= 32 w=407 staticText  TEXT: "22a. PPh PASAL 21 DIPOTONG"
+y= 734 x=439 w=140 textField   EXPR: new Boolean($F{iInsGov}.equals("N")) ? new DecimalFormat().format($F{iTaxBefore}.doubleValue()):"0"
+y= 750 x= 16 w= 16 staticText  
+y= 750 x= 32 w=407 staticText  TEXT: "22b. PPh PASAL 21 DITANGGUNG PEMERINTAH (DTP)"
+y= 750 x=439 w=140 textField   EXPR: new Boolean($F{iInsGov}.equals("Y")) ? new DecimalFormat().format($F{iTaxBefore}.doubleValue()):"0"
+y= 766 x= 16 w= 16 staticText  TEXT: "23."
+y= 766 x= 32 w=407 staticText  TEXT: "PPh PASAL 21 KURANG BAYAR/LEBIH BAYAR MASA PAJAK TERAKHIR"
+y= 766 x=439 w=140 textField   EXPR: $F{iD21}.doubleValue()-$F{iD20}.doubleValue()-$F{iTaxBefore}
+y= 782 x= 16 w= 16 staticText  
+y= 782 x= 32 w=407 staticText  TEXT: "23a. PPh PASAL 21 DIPOTONG"
+y= 782 x=439 w=140 textField   EXPR: new Boolean($F{iInsGov}.equals("N")) ? $F{iD21}.doubleValue()-$F{iD20}.doubleValue()-$F{iTaxBefore}:0
+y= 798 x= 16 w= 16 staticText  
+y= 798 x= 32 w=407 staticText  TEXT: "23b. PPh PASAL 21 DITANGGUNG PEMERINTAH (DTP)"
+y= 798 x=439 w=140 textField   EXPR: new Boolean($F{iInsGov}.equals("Y")) ? $F{iD21}.doubleValue()-$F{iD20}.doubleValue()-$F{iTaxBefore}:0
+y= 815 x= 16 w=178 staticText  TEXT: "C. IDENTITAS PENANDA TANGAN"
+y= 829 x= 16 w=563 rectangle   
+y= 832 x= 67 w=230 textField   EXPR: $F{iLeaderNPWP}.substring(0,2)+"."+$F{iLeaderNPWP}.substring(2,5)+"."+$F{iLeaderNPWP}.substring(5,8)+"."+$F{iLeaderNPWP}.substring(8,9)+"-"+$F{iLeaderNPWP}.substring(9,12)+"."+$F{iLeaderNPWP}.substring(12,15)
+y= 833 x= 20 w= 41 staticText  TEXT: "1. NPWP"
+y= 833 x= 61 w=  3 staticText  TEXT: ":"
+y= 833 x=321 w=125 staticText  TEXT: "3. TANGGAL & TANDA TANGAN"
+y= 833 x=454 w=121 staticText  
+y= 835 x=456 w=117 image       
+y= 855 x= 67 w=230 textField   EXPR: $F{iLeaderName}
+y= 855 x=321 w=125 textField   EXPR: $F{iDate}.substring(0,2)+"/"+$F{iDate}.substring(3,5)+"/"+$F{iDate}.substring(6,10)
+y= 856 x= 20 w= 41 staticText  TEXT: "2. NAMA"
+y= 856 x= 61 w=  3 staticText  TEXT: ":"
+y= 882 x= 15 w= 18 staticText  TEXT: "Static text"
+y= 882 x=562 w= 18 staticText  TEXT: "Static text"

@@ -119,8 +119,8 @@ export const REPORT_GROUPS: GroupDef[] = [
       {
         id: "r22", no: "R2.2", icon: FileSignature, orientation: "portrait",
         titleId: "Bukti Potong PPh 21 (Form 1721-A1)", titleEn: "PPh 21 Withholding Slip (Form 1721-A1)",
-        descId: "Formulir DJP siap cetak untuk pegawai tetap — identitas, rincian penghasilan & penghitungan PPh 21.",
-        descEn: "Print-ready DJP form for permanent employees — identity, income detail & PPh 21 computation.",
+        descId: "Formulir DJP dirender engine iReport (JasperReports) dari template JRXML resmi — PDF siap cetak/simpan.",
+        descEn: "DJP form rendered by the iReport engine (JasperReports) from the official JRXML template — print/save-ready PDF.",
         audience: ["KPP / DJP", "Karyawan"],
       },
       {

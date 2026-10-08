@@ -432,6 +432,18 @@ export interface EsptA1Context {
 
 const digitsOnly = (s: string | null | undefined): string => (s ?? "").replace(/\D+/g, "");
 
+/** NPWP tersimpan (12 digit inti / 15 digit penuh) → 15 digit resmi tanpa
+ *  format: NPWP klasik = 12 digit inti + akhiran 3 digit "000" (cabang
+ *  pusat; cabang = 001+) → 12 digit dipad kanan "000". <12 digit → ""
+ *  (invalid — penerima diidentifikasi NIK). Dipakai bukti potong 1721-A1
+ *  (engine iReport) & CSV e-Bupot. */
+export function npwp15(v: string | null | undefined): string {
+  const d = digitsOnly(v);
+  if (d.length === 15) return d;
+  if (d.length >= 12) return (d + "000").slice(0, 15);
+  return "";
+}
+
 /** PTKP "K2"/"TK0"/"KI1" → { kawin: "K"|"TK", tanggungan: 0..3, kode: "K/2"|"K/I/1" }. */
 function ptkpParts(taxStatus: string): { kawin: "TK" | "K" | "HB"; tanggungan: number; kode: string } {
   const m = /^(TK|K|KI)(\d)/.exec(taxStatus ?? "");
@@ -463,14 +475,14 @@ const csvEsc = (v: string | number | null | undefined): string => {
  */
 export function buildEsptA1Csv(report: SptReport, ctx: EsptA1Context): string {
   const year = report.year;
-  const companyNpwp15 = digitsOnly(ctx.companyNpwp).slice(0, 15);
+  const companyNpwp15 = npwp15(ctx.companyNpwp) || "000000000000000";
   const lines: string[] = [ESPT_A1_COLUMNS.map(csvEsc).join(";")];
 
   report.employees.forEach((r, i) => {
     const ptkp = ptkpParts(r.taxStatus);
-    const npwp15 = digitsOnly(r.npwp).slice(0, 15);
+    const empNpwp15 = npwp15(r.npwp);
     // Penerima ber-NPWP bila nomor valid & hasNpwp; selain itu identitas NIK.
-    const useNpwp = r.hasNpwp && npwp15.length === 15;
+    const useNpwp = r.hasNpwp && empNpwp15.length === 15;
     // Tanggal pemotongan = akhir bulan masa pajak terakhir (Desember utk
     // pegawai setahun penuh; bulan berhenti bila masa kerja < setahun — PMK
     // 168/2023 "masa pajak terakhir").
@@ -481,7 +493,7 @@ export function buildEsptA1Csv(report: SptReport, ctx: EsptA1Context): string {
       i + 1, // No
       ddmmYYYY(tanggal), // Tanggal Pemotongan
       useNpwp ? "NPWP" : "NIK", // Penerima Penghasilan?
-      useNpwp ? npwp15 : "", // NPWP
+      useNpwp ? empNpwp15 : "", // NPWP
       r.nik ?? "", // NIK
       r.employeeName, // Nama
       r.address ?? "", // Alamat

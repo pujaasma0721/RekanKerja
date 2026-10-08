@@ -4,7 +4,7 @@
 // DOKUMEN (cetak/PDF-ready dengan area cetak #rk-print-area + toolbar Cetak /
 // Unduh XLSX). Kartu katalog memakai tema grup (bar gradien 3px + blok ikon
 // 44px + badge audiens + hover lift — pola T111).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { PageHeader, EmptyState, LoadingCards } from "@/rekankerja/shared/components/ui-kit";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -19,7 +19,7 @@ import type { Pools } from "./params";
 import { ReportParamsForm, type ParamValues } from "./report-params-form";
 import { PayslipDoc, RegisterDoc, BankTransferDoc } from "./documents/documents-g1";
 import { Pph21MonthlyDoc, Pph26Doc } from "./documents/documents-g2";
-import { BuktiPotongA1Doc } from "./documents/bukti-potong-a1";
+import { SptA1PdfDoc, type SptA1PdfPayload } from "./documents/spt-a1-pdf";
 import { BpjsTkDoc, BpjsKesehatanDoc, TaperaDoc } from "./documents/documents-g3";
 import { VarianceDoc, TcowDoc, OvertimeSheetDoc } from "./documents/documents-g4";
 
@@ -39,6 +39,9 @@ export function PayrollReportsPage() {
   const [docData, setDocData] = useState<DocData | null>(null);
   const [docLoading, setDocLoading] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
+  // R2.2: blob URL PDF engine iReport — pastikan ter-lepas saat komponen bongkar.
+  const lastPdf = useRef<string | null>(null);
+  useEffect(() => () => { if (lastPdf.current) URL.revokeObjectURL(lastPdf.current); }, []);
 
   const openParams = (r: ReportDef) => {
     setSelected(r);
@@ -46,13 +49,52 @@ export function PayrollReportsPage() {
     setStage("params");
   };
 
-  /** Susun query dari parameter → ambil payload dokumen. */
+  /** Lepas blob URL PDF 1721-A1 (mekanisme tunggal via ref lastPdf). */
+  const releasePdf = () => {
+    if (lastPdf.current) {
+      URL.revokeObjectURL(lastPdf.current);
+      lastPdf.current = null;
+    }
+  };
+
+  /** Susun query dari parameter → ambil payload dokumen.
+   *  R2.2 (1721-A1) PENUH PENGECUALIAN: dokumen = PDF yang dirender engine
+   *  iReport/JasperReports (template JRXML DJP resmi di vendor/jasper) —
+   *  metadata divalidasi lewat endpoint JSON l22, lalu blob PDF diambil dari
+   *  endpoint khusus dan ditampilkan via objectURL. */
   const generate = async (v: ParamValues) => {
     if (!selected) return;
     setValues(v);
     setDocLoading(true);
     setDocError(null);
+    releasePdf();
     try {
+      if (selected.id === "r22" && v.year && v.employee) {
+        // 1) metadata + validasi via endpoint JSON existing
+        const qsMeta = new URLSearchParams({ report: "r22", year: v.year, employeeId: v.employee });
+        const meta = await apiSend<DocData>(`/api/rekankerja/payroll-reports/documents?${qsMeta.toString()}`, "GET");
+        const emp = meta.employee as { employeeNo: string; employeeName: string } | undefined;
+        // 2) PDF dari engine iReport
+        const res = await fetch(`/api/rekankerja/payroll-reports/spt1721a1?year=${encodeURIComponent(v.year)}&employeeId=${encodeURIComponent(v.employee)}`);
+        if (!res.ok) {
+          const j = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(j?.error ?? `Gagal merender PDF 1721-A1 (${res.status})`);
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get("Content-Disposition") ?? "";
+        const fm = /filename="([^"]+)"/.exec(cd);
+        const pdfUrl = URL.createObjectURL(blob);
+        lastPdf.current = pdfUrl;
+        setDocData({
+          report: "r22",
+          pdfUrl,
+          fileName: fm?.[1] ?? `1721-A1-${v.year}.pdf`,
+          year: parseInt(v.year, 10),
+          employees: [{ employeeNo: emp?.employeeNo ?? "—", name: emp?.employeeName ?? "—" }],
+        } as DocData);
+        setStage("doc");
+        return;
+      }
       const qs = new URLSearchParams({ report: selected.id });
       if (v.run) qs.set("runId", v.run);
       if (v.period) qs.set("periodId", v.period);
@@ -74,10 +116,12 @@ export function PayrollReportsPage() {
   };
 
   const backToParams = () => {
+    releasePdf();
     setStage("params");
     setDocData(null);
   };
   const backToCatalog = () => {
+    releasePdf();
     setStage("catalog");
     setSelected(null);
     setDocData(null);
@@ -178,21 +222,25 @@ export function PayrollReportsPage() {
             <div className="flex-1" />
             <ParamChips report={selected} values={values} pools={pools} />
             <XlsxExportButton report={selected} values={values} />
-            <Button size="sm" className="bg-brand text-white hover:bg-brand-dark" onClick={() => window.print()}>
-              <Printer className="mr-1.5 h-4 w-4" />
-              {t("Cetak / Simpan PDF", "Print / Save PDF")}
-            </Button>
+            {selected.id !== "r22" && (
+              <Button size="sm" className="bg-brand text-white hover:bg-brand-dark" onClick={() => window.print()}>
+                <Printer className="mr-1.5 h-4 w-4" />
+                {t("Cetak / Simpan PDF", "Print / Save PDF")}
+              </Button>
+            )}
           </div>
           {/* kertas dokumen — scroll horizontal di layar kecil (print tetap utuh) */}
           <div className="rk-doc-scroll overflow-x-auto pb-2">
             <DocRenderer report={selected} data={docData} />
           </div>
-          <div className="rk-noprint mt-4 flex justify-center">
-            <Button variant="outline" size="sm" onClick={() => window.print()}>
-              <Printer className="mr-1.5 h-4 w-4" />
-              {t("Cetak / Simpan PDF", "Print / Save PDF")}
-            </Button>
-          </div>
+          {selected.id !== "r22" && (
+            <div className="rk-noprint mt-4 flex justify-center">
+              <Button variant="outline" size="sm" onClick={() => window.print()}>
+                <Printer className="mr-1.5 h-4 w-4" />
+                {t("Cetak / Simpan PDF", "Print / Save PDF")}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -291,7 +339,7 @@ function DocRenderer({ report, data }: { report: ReportDef; data: DocData }) {
     case "r12": return <RegisterDoc data={data as unknown as Parameters<typeof RegisterDoc>[0]["data"]} />;
     case "r13": return <BankTransferDoc data={data as unknown as Parameters<typeof BankTransferDoc>[0]["data"]} />;
     case "r21": return <Pph21MonthlyDoc data={data as unknown as Parameters<typeof Pph21MonthlyDoc>[0]["data"]} />;
-    case "r22": return <BuktiPotongA1Doc data={data as unknown as Parameters<typeof BuktiPotongA1Doc>[0]["data"]} />;
+    case "r22": return <SptA1PdfDoc data={data as unknown as Parameters<typeof SptA1PdfDoc>[0]["data"]} />;
     case "r23": return <Pph26Doc data={data as unknown as Parameters<typeof Pph26Doc>[0]["data"]} />;
     case "r31": return <BpjsTkDoc data={data as unknown as Parameters<typeof BpjsTkDoc>[0]["data"]} />;
     case "r32": return <BpjsKesehatanDoc data={data as unknown as Parameters<typeof BpjsKesehatanDoc>[0]["data"]} />;

@@ -77,3 +77,6 @@ worklog.md
 src/generated/
 /upload/
 /uploads/
+
+# engine iReport (JasperReports) — cache kompilasi template (regenerasi otomatis)
+vendor/jasper/cache/
