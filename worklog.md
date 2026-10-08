@@ -4547,3 +4547,8 @@ Stage Summary:
 - 12 laporan distribusi Travel LIVE di menu Laporan Klaim Perjalanan → tab "Dokumen Laporan": G1 SPPD log/uang muka/traveler aktif real-time; G2 settlement register (a/b/c)/breakdown komponen/mileage-lokal; G3 pelanggaran tier/lost savings SBI + last-minute/ROI cost center; G4 rekonsiliasi CTA/room-nights hotel/utilisasi maskapai.
 - Rantai verifikasi: kontrak tsc dua arah → curl 12 endpoint + XLSX + filter → E2E browser DOM audit 19 tabel PASS → mobile + print + console bersih → push origin.
 - Pola anti-reaper & worklog protocol dipatuhi; subagent TRAV-1-a kehabisan context sebelum verifikasi — file lengkap, verifikasi diselesaikan orkestrator (catatan utk sesi berikut: brief subagent backend sebaiknya minta commit lebih awal bila konteks besar).
+## 2026-10-08 20:00 — pull github + deploy be05dea (thread T108)
+- git pull origin main: 7 commit baru dari thread lain (30a81e6/6456f32/59cd69b feat medical — 12 laporan distribusi + fix E2E, 8bf2bfb/8267e39/58600e0 feat travel — 12 laporan distribusi + fix TR22, be05dea docs) — fast-forward, tanpa konflik (~8.5k baris).
+- Koreksi instruksi: sempat start dev server lokal :3010 atas "run", dihentikan & log dibersihkan sebelum deploy.
+- Deploy .15: ✅ 2026-10-08 19:55:50 — prod = be05dea (rollback rekankerja-rollback-20261008-195110).
+- Verifikasi: PM2 onevity online, health :3001 = 200, home = 200, guard API tanpa sesi = 401 di medical/reports/documents + travel/reports/documents + attendance/reports/documents, prod HEAD = be05dea.
