@@ -4526,3 +4526,24 @@ Stage Summary:
 - Endpoint laporan travel lengkap live: GET /api/rekankerja/travel/reports/documents (JSON {id, meta+periodLabel, data} + XLSX multi-sheet + activity log). File: src/rekankerja/travel/api/travel-report-documents.ts, src/app/api/rekankerja/travel/reports/documents/route.ts, scripts/enrich-travel-reports-demo.ts (idempoten) + 5 file frontend TRAV-1-b.
 - Data demo diperkaya & konsisten: pelanggaran limit terdeteksi (R3.1), lost savings SBI terhitung (R3.2), akun korporat CTA (R4.1), carrier terparse (R4.3), traveler aktif real-time (R1.3).
 - Lanjutan: TRAV-3 E2E agent-browser (katalog → generate 12 → audit DOM → mobile/print) sebelum commit final.
+
+---
+Task ID: TRAV-3 + TRAV-4
+Agent: Z.ai (orkestrator utama)
+Task: E2E agent-browser 12 laporan distribusi Travel + commit & push origin.
+
+Work Log:
+- E2E (login hrd@mii.co.id → MII → ?m=travel&s=travel&v=travel-reports): tab "Rekap Klaim" + "Dokumen Laporan" muncul; katalog 12 kartu 4 grup (audiens PENERIMA di tiap kartu) render 0 error.
+- Golden path: kartu R1.1 → form parameter → Generate → dokumen render dgn data nyata (10 SPPD: TR-2026-001..014). Kop lengkap: logo/MI + perusahaan + alamat + NPWP + cabang, RAHASIA · CONFIDENTIAL, badge R1.1 + judul, PENERIMA DOKUMEN, PERIODE LAPORAN/TANGGAL DICETAK/NAMA PENGUNDUH/NO. DOKUMEN deterministik TR/R11/2026/10.
+- AUDIT KOLOM DOM (eval generik, colSpan dihitung) SEMUA 12 laporan: R1.1 9×11+2×4 · R1.2 11×8+2×3 · R1.3 10×4 · R2.1 14×9+2×5 · R2.2 10×13+3×5+3×13 · R2.3 11×5+4×5+6×4 · R3.1 11×3+4×3 · R3.2 10×11+3×4 · R3.3 10×5 · R4.1 12×2+3×13 · R4.2 7×4+8×6 · R4.3 8×6+7×6 — SEMUA th=td PASS setelah 1 FIX: TotalRow TR22 spanLabel 5 + 6 sel = 11 ≠ 10 kolom (sel "" leading berlebih) → dihapus → 5+5=10 ✓.
+- Konten terverifikasi: R4.3 carrier SQ/Garuda/KAI + Last-Minute badge; footer semua dokumen "DOKUMEN INTERNAL PERUSAHAAN (CONFIDENTIAL CORPORATE TRAVEL LOG)" + signoff 3 peran (Disiapkan oleh Karyawan/Travel Admin → Diperiksa oleh Finance/Auditor → Disetujui oleh Kepala Departemen) ✓.
+- Filter "Ubah Parameter": pilih unit Finance & Accounting via UI (eval click shadcn Select) → request server-side &unit=<id> 200 → chip "UNIT | Finance & Accounting" di blok meta kop + data tersaring (baris tabel berkurang) ✓.
+- XLSX: tombol Unduh XLSX → GET …&unit=…&export=xlsx 200 (file terunduh, filter terbawa) ✓. Cetak: window.print terpanggil (stub counter=1) + afterprint cleanup .rk-printing=0 & #rk-print-area pulih ✓.
+- Mobile 375px: paper 341px; tabel terlebar (R2.1 14 kolom) scroll DI DALAM kertas (wrapper overflow w=341) — body tidak overflow, baik fresh-load maupun resize 1280→375 (overflow transien pertama terbukti artefak measurement transisi, bukan bug).
+- Console & page errors: 0 di seluruh sweep.
+- TRAV-4: tsc 0 error · lint 0 error (2 warning pre-existing scripts/e2e-browser-subdomain.mjs) → commit 58600e0 push origin (8267e39..58600e0 main→main) — backend 1797 baris + route + enrich script + fix TR22.
+
+Stage Summary:
+- 12 laporan distribusi Travel LIVE di menu Laporan Klaim Perjalanan → tab "Dokumen Laporan": G1 SPPD log/uang muka/traveler aktif real-time; G2 settlement register (a/b/c)/breakdown komponen/mileage-lokal; G3 pelanggaran tier/lost savings SBI + last-minute/ROI cost center; G4 rekonsiliasi CTA/room-nights hotel/utilisasi maskapai.
+- Rantai verifikasi: kontrak tsc dua arah → curl 12 endpoint + XLSX + filter → E2E browser DOM audit 19 tabel PASS → mobile + print + console bersih → push origin.
+- Pola anti-reaper & worklog protocol dipatuhi; subagent TRAV-1-a kehabisan context sebelum verifikasi — file lengkap, verifikasi diselesaikan orkestrator (catatan utk sesi berikut: brief subagent backend sebaiknya minta commit lebih awal bila konteks besar).
