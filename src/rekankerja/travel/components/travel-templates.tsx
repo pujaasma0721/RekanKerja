@@ -106,10 +106,10 @@ export function TravelTemplatesPage() {
             onClick={() => setTab(tb.key)}
             className={cn(
               "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-colors",
-              tab === tb.key ? "ov-fill shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
+              tab === tb.key ? "ov-fill shadow-sm" : "ov-tile hover:ov-soft text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white",
             )}
           >
-            <tb.icon className="h-3.5 w-3.5" /> {tb.label} <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", tab === tb.key ? "bg-white/20" : "bg-slate-100 dark:bg-slate-800")}>{tb.count}</span>
+            <tb.icon className="h-3.5 w-3.5" /> {tb.label} <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", tab === tb.key ? "bg-white/20" : "bg-white/70 text-[color:var(--ov-accent-strong)] dark:bg-white/15 dark:text-white")}>{tb.count}</span>
           </button>
         ))}
         <div className="ml-auto flex gap-2">
