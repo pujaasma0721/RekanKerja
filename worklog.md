@@ -4909,3 +4909,13 @@ Stage Summary:
 - HASIL AUDIT: aturan lembur Indonesia terkini (UU 13/2003 jo. UU 6/2023, PP 35/2021 Ps.25-34, Kepmen 102/MEN/VI/2004) diverifikasi dari teks resmi; sistem punya 5 gap kepatuhan -> SEMUA diperbaiki dalam commit 3cd71e3 (15 file, +524/-84): pengecualian Ps.26(2) (dikutip user), tabel rate Ps.31 per model minggu 5/6 hari, basis upah Ps.32(3) pokok+tunjangan tetap, persetujuan Ps.28, advisory Ps.29; ar33 jadi laporan kepatuhan cap yang legal-akuratis.
 - Demo MII kini patuh statutori: minggu 5 hari, basis pokok+tunjangan tetap (TJAB+TKEL+TTRANS+TMAKAN), pelanggaran seeded ar33 tetap terdeteksi utk demonstrasi.
 - Artefak: scripts/apply-ot-compliance.ts (idempoten, 3 tenant) + .audit-tmp/ot-*.png; worklog aud-ot untuk regresi.
+
+## 2026-10-09 - Brand: logo resmi RekanKerja (deploy b3d076f)
+
+- Permintaan: ganti logo di semua tempat dgn logo master (image user), login transparan menyatu.
+- scripts/generate-brand-logo.ts: keying inkness (dark+colored, alpha feather 14/52/255, blur r=2), bbox colFrac/rowFrac>0.004, split mark/teks dgn gap kolom terlebar (556-576).
+- Output: public/brand/rekankerja-{lockup,mark}{,-white}.png; icons 192/512/maskable/apple; logo.svg wrapper favicon (path sama, sw.js STATIC_EXACT tak diubah).
+- Komponen: EditorialLogo (hero=/brand/rekankerja-lockup-white.png di panel gradient biru, default warna asli; transparan, tanpa kotak), LogoMark app-shell, EssLogo, splash AuthGate, replika+judul auth-design-lab (import Waypoints dibersihkan).
+- Verifikasi visual via dev :3011 + screenshot: lab replika login menampilkan mark+lockup baru; splash baru.
+- tsc: hanya error pre-existing (payroll non-employee, stale validator); file baru bersih.
+- Deploy .15: b3d076f ✅ 2026-10-09 14:09:55 (rollback rekankerja-rollback-20261009-140534). Prod: health/home/lockup 200, docs guard 401.
