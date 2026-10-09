@@ -19,9 +19,12 @@ const OT_STATUS_LABEL: Record<string, [string, string]> = {
 const DAYCAT_LABEL: Record<string, [string, string]> = {
   Weekday: ["Hari Kerja", "Weekday"], Weekend: ["Akhir Pekan", "Weekend"], Holiday: ["Hari Libur", "Holiday"],
 };
-const SEV_TONE: Record<string, "red" | "amber" | "slate"> = { tinggi: "red", sedang: "amber", ringan: "slate" };
+// AUD-2c fix: kontrak ar41/ar43 memakai "rendah" sementara ar2x memakai
+// "ringan" — map menerima KEDUA alias agar badge severity tidak crash
+// (dulu SEV_LABEL["rendah"] = undefined → t(...undefined) → exception).
+const SEV_TONE: Record<string, "red" | "amber" | "slate"> = { tinggi: "red", sedang: "amber", ringan: "slate", rendah: "slate" };
 const SEV_LABEL: Record<string, [string, string]> = {
-  tinggi: ["Tinggi", "High"], sedang: ["Sedang", "Medium"], ringan: ["Ringan", "Low"],
+  tinggi: ["Tinggi", "High"], sedang: ["Sedang", "Medium"], ringan: ["Ringan", "Low"], rendah: ["Ringan", "Low"],
 };
 
 // ================= AR3.1 Overtime Summary Report =================

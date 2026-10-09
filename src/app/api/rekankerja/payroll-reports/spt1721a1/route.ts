@@ -4,7 +4,7 @@ import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { buildAnnualSpt } from "@/rekankerja/payroll/services/payroll-spt";
 import { buildJrA1DataLines } from "@/rekankerja/payroll/services/spt1721a1-jrxml";
 import { spawn } from "node:child_process";
-import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, rm, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -89,6 +89,10 @@ export async function GET(req: NextRequest) {
     });
 
     // ---- jalankan engine iReport (JasperRunner.java, single-file launch) ----
+    // AUD-2b fix: cache/ di-gitignore & diregenerasi otomatis — PASTIKAN ada
+    // sebelum spawn java (JRSaver gagal FileOutputStream bila dir hilang,
+    // mis. checkout segar; dulu menyebabkan 502 persisten).
+    await mkdir(path.join(VENDOR_JASPER, "cache"), { recursive: true });
     const dir = await mkdtemp(path.join(tmpdir(), "rk-1721a1-"));
     const dataPath = path.join(dir, "data.txt");
     const outPath = path.join(dir, "1721-A1.pdf");

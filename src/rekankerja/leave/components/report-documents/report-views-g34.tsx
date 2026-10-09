@@ -23,7 +23,7 @@ export function LR31View({ data, meta }: { data: LR31Data; meta: DocMeta }) {
   const f = useDocFmt();
   return (
     <ReportSheet docId="lr31" landscape>
-      <DocHeader meta={meta} reportNo="R3.1" title="Absenteeism Rate Summary" subtitle={t(`Persentase Ketidakhadiran per Divisi — ${data.month}`, `Absence Rate per Division — ${data.month}`)} audience={t("Direksi · Manajemen Senior · HR", "Directorate · Senior Management · HR")} docNo={mkDocNo("lr33", meta)} />
+      <DocHeader meta={meta} reportNo="R3.1" title="Absenteeism Rate Summary" subtitle={t(`Persentase Ketidakhadiran per Divisi — ${data.month}`, `Absence Rate per Division — ${data.month}`)} audience={t("Direksi · Manajemen Senior · HR", "Directorate · Senior Management · HR")} docNo={mkDocNo("lr31", meta)} />
 
       <DocSection no="A" title={t("Ringkasan Perusahaan", "Company Summary")} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">

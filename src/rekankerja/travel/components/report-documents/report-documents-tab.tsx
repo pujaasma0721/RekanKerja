@@ -178,7 +178,7 @@ export function TravelReportDocumentsTab() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => api.refresh()} disabled={api.loading} className="gap-1.5 font-bold">
                 <RefreshCw className={cn("h-3.5 w-3.5", api.loading && "animate-spin")} /> {t("Segarkan")}
               </Button>

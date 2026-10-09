@@ -80,3 +80,6 @@ src/generated/
 
 # engine iReport (JasperReports) — cache kompilasi template (regenerasi otomatis)
 vendor/jasper/cache/
+
+# Artefak audit laporan (screenshot bukti + eval script — lokal saja)
+.audit-tmp/

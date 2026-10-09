@@ -103,15 +103,20 @@ export type ParamValues = Record<string, string>;
 export function defaultsFor(reportId: string): ParamValues {
   const now = new Date();
   const v: ParamValues = {};
+  // AUD-2a fix: R3.4 log riwayat pergerakan (promosi/demosi/rotasi/mutasi)
+  // default-nya SELURUH RIWAYAT (from/to kosong) — konsisten dengan default
+  // API. Jendela tahun-berjalan menyembunyikan riwayat lama (mis. data 2022)
+  // sehingga dokumen tampak kosong padahal ada isinya.
+  const fullHistory = reportId === "r34";
   for (const f of REPORT_PARAMS[reportId] ?? []) {
     if (f.type === "month") {
       v[f.key] = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     } else if (f.type === "year") {
       v[f.key] = String(now.getFullYear());
     } else if (f.key === "from") {
-      v[f.key] = `${now.getFullYear()}-01-01`;
+      v[f.key] = fullHistory ? "" : `${now.getFullYear()}-01-01`;
     } else if (f.key === "to") {
-      v[f.key] = now.toISOString().slice(0, 10);
+      v[f.key] = fullHistory ? "" : now.toISOString().slice(0, 10);
     } else {
       v[f.key] = ""; // select (Semua ...) & multi (kosong)
     }

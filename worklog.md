@@ -4552,3 +4552,336 @@ Stage Summary:
 - Koreksi instruksi: sempat start dev server lokal :3010 atas "run", dihentikan & log dibersihkan sebelum deploy.
 - Deploy .15: ✅ 2026-10-08 19:55:50 — prod = be05dea (rollback rekankerja-rollback-20261008-195110).
 - Verifikasi: PM2 onevity online, health :3001 = 200, home = 200, guard API tanpa sesi = 401 di medical/reports/documents + travel/reports/documents + attendance/reports/documents, prod HEAD = be05dea.
+---
+Task ID: AUD-2f
+Agent: general-purpose (audit E2E Travel)
+Task: Audit browser E2E 12 laporan distribusi modul Travel — DOM th=td, kop/footer, filter UI, print+cleanup, mobile 375, console.
+
+Work Log:
+- GAGAL SEBELUM AUDIT DIMULAI — dev server :3000 TIDAK berjalan.
+- agent-browser --session aud-trv open http://localhost:3000/ → net::ERR_CONNECTION_REFUSED (2.7s).
+- Sesuai protokol: tunggu 10 detik → retry 1x → tetap net::ERR_CONNECTION_REFUSED (10.1s).
+- Diagnosa konfirmasi (read-only, tanpa menyentuh server): curl http://localhost:3000/ & http://127.0.0.1:3000/ → HTTP 000 exit 7 (connection refused); `ss -ltnp` → TIDAK ada listener di port 3000 (hanya postgres :5432, smtp :2525 tertutup, agent-browser/chrome internal ports, :81/:12600/:1900x); `ps aux` → TIDAK ada proses bun/next/node dev server (hanya embedded-postgres pid 998). Kemungkinan besar dev server dibunuh reaper sandbox (recurrence dikenal, worklog §897/T-APP-RUN-RECOVERY — start harus double-fork `( setsid nohup bun run dev … & )`).
+- Tidak ada file source diubah/dihapus, tidak ada commit, tidak ada server dijalankan/dibunuh (audit-only dihormati). 0 laporan diaudit.
+
+Stage Summary:
+- AUD-2f ABORTED: GET / gagal 2x (awal + retry 10 detik) → sesuai protokol, lapor gagal & berhenti. 12 laporan Travel BELUM diaudit E2E. Tindak lanjut: nyalakan ulang dev server via pola double-fork worklog §897, lalu jalankan ulang AUD-2f.
+---
+Task ID: AUD-2a
+Agent: general-purpose (audit E2E HR)
+Task: Audit browser E2E 16 laporan distribusi modul HR — DOM th=td, kop/footer, filter UI, print, mobile 375, console.
+
+Work Log:
+- Gagal di langkah paling awal: GET http://localhost:3000/ → ERR_CONNECTION_REFUSED.
+- Protokol diikuti: retry 1x setelah 10 detik → gagal lagi (percobaan pertama setelah 10s kena EAGAIN spawn CLI; retry berikutnya tetap ERR_CONNECTION_REFUSED).
+- Verifikasi tambahan: curl GET / → http_code 000; `ss -ltn` → TIDAK ADA listener di port 3000 (dev server Next.js tidak berjalan sama sekali).
+- Tidak ada aksi pemulihan dijalankan sesuai batasan audit (DILARANG menjalankan/membunuh dev server). 0 laporan diaudit, 0 screenshot.
+
+Stage Summary:
+- AUDIT GAGAL TOTAL (0/16 laporan diverifikasi): dev server :3000 mati saat audit dimulai — kemungkinan kena reaper proses (recurrence worklog §T-APP-RUN-RECOVERY: proses spawn via Bash mati; hanya double-fork `( setsid nohup … & )` yang selamat). Postgres :5432 tidak diverifikasi ulang.
+- Next action: orkestrator menyalakan ulang dev server dgn pola double-fork worklog §897, lalu re-run AUD-2a.
+---
+Task ID: AUD-2d
+Agent: general-purpose (audit E2E Leave)
+Task: Audit browser E2E 12 laporan distribusi modul Leave — DOM th=td, kop/footer, filter UI, print, mobile 375, console.
+
+Work Log:
+- 23:26 Prerequisites OK: audit eval script /home/z/my-project/.audit-tmp/rk-audit-eval.js ada; GET / → 200; agent-browser session aud-lv dibuka, halaman login RekanKerja render (snapshot: form EMAIL/KATA SANDI + tombol MASUK KE WORKSPACE).
+- 23:27 SERVER MATI TENGAH SESI: fill email hrd@mii.co.id + password OK, tapi klik "MASUK KE WORKSPACE" gagal (155ms) — re-snapshot menunjukkan halaman browser "This site can't be reached". dev.log berhenti di "GET / 200 in 290ms" (request terakhir sukses, tanpa error stack).
+- Verifikasi: GET / → 000; port 3000 TIDAK ada listener (ss -ltn); tidak ada proses next dev/bun run dev/next-server (ps aux). Hanya postgres :5432 + mini-services yang hidup. Pola = dev server ter-reaper (recurrence worklog §897 / T-APP-RUN-RECOVERY — dev server harus di-start double-fork utk selamat lintas perintah).
+- Sesuai protocol task (DILARANG menjalankan dev server sendiri): retry GET / 1x setelah 10 detik → tetap 000. Recheck final 23:28 → tetap 000, port 3000 tanpa listener. Audit DIBERHKAN sebelum login berhasil → 0/12 laporan teraudit.
+- Evidence: screenshot /home/z/my-project/.audit-tmp/lv-server-down.png (halaman error browser session aud-lv).
+- Tidak ada file source diubah, tidak ada commit, dev server tidak dijalankan/dibunuh oleh agent ini. Session browser aud-lv dibiarkan apa adanya.
+
+Stage Summary:
+- AUDIT GAGAL TOTAL (0/12): dev server localhost:3000 mati di tengah sesi login (23:27, tepat setelah halaman login pertama ter-render) dan tidak kembali setelah retry protocol 10 detik. Tidak ada data DOM/kop/footer/filter/print/mobile/console yang bisa dikumpulkan. Perlu re-run AUD-2d setelah dev server dinyalakan ulang dengan pola anti-reaper double-fork (worklog §897) dan .env+DB diverifikasi (pemulihan §896 bila sandbox ter-reset).
+---
+Task ID: AUD-2e
+Agent: general-purpose (audit E2E Medical)
+Task: Audit browser E2E 12 laporan distribusi modul Medical — DOM th=td, kop/footer, privasi mr33, filter UI, print+cleanup, mobile 375, console.
+
+Work Log:
+- Baca konteks worklog (MED-0..MED-4, T-APP-RUN-RECOVERY) + skrip audit /home/z/my-project/.audit-tmp/rk-audit-eval.js (40 baris, colSpan-aware) — siap.
+- Probe awal GET http://localhost:3000/ → 200 (23:26, cocok dgn 3 entri terakhir dev.log "GET / 200").
+- SELANJUTNYA SERVER MATI: `agent-browser --session aud-med open http://localhost:3000/` → net::ERR_CONNECTION_REFUSED; retry setelah 10 detik → tetap ERR_CONNECTION_REFUSED.
+- Verifikasi menyeluruh (bukan sekadar retry): curl ke 127.0.0.1/localhost/[::1]:3000 semuanya 000 exit 7 (connection refused); polling 7x selama ~3 menit (23:28–23:31) semua gagal; `ss -tlnp` TIDAK ADA listener di :3000; `ps aux` TIDAK ADA proses bun/next/node dev server (hanya postgres :5432 + chrome agent-browser). dev.log berhenti di 23:26 — dev server (PID 3001 double-fork) terbunuh di antara perintah (recurrence reaper/sandbox-reset §896-897).
+- Bukti screenshot kegagalan: /home/z/my-project/.audit-tmp/med-server-down.png (browser error page). Audit lain paralel juga terdampak (ada lv-server-down.png dari sesi lain di .audit-tmp).
+- Protokol task dipatuhi: AUDIT-ONLY, tidak ada file source diubah, tidak ada git commit, TIDAK menjalankan/membunuh dev server (larangan start dijalankan — sesuai instruksi "bila tetap gagal, laporkan gagal dan berhenti").
+- 0/12 laporan bisa diaudit (login pun tidak bisa dilakukan — tidak ada server).
+
+Stage Summary:
+- AUDIT GAGAL TOTAL (BLOCKER INFRA): dev server :3000 mati sebelum audit dimulai (GET / awal sempat 200 → beberapa detik kemudian connection refused, permanen). 12 laporan mr11..mr43 BELUM diaudit. Tindak lanjut: orkestrator perlu restart dev server (pola double-fork §897 + cek .env 4 URL postgres bila sandbox reset §896), lalu jalankan ulang AUD-2e dari awal (login hrd@mii.co.id → MII → tab Dokumen Laporan → loop 12 laporan + eval DOM + privasi mr33 + filter + XLSX + print + mobile 375 + console).
+---
+Task ID: AUD-2b
+Agent: general-purpose (audit E2E Payroll)
+Task: Audit browser E2E 12 laporan distribusi modul Payroll — DOM th=td, kop/footer, param wajib, filter UI, print, mobile 375, console.
+
+Work Log:
+- Baca worklog tail-120 (konteks pola audit medical/travel + anti-reaper §896-897) + skrip audit /home/z/my-project/.audit-tmp/rk-audit-eval.js OK.
+- GAGAL PRE-LOGIN: dev server http://localhost:3000 TIDAK berjalan.
+  · Launch pertama agent-browser gagal pthread_create EAGAIN (6 sesi chrome paralel aud-att/hr/lv/med/pay/trv start serentak 23:26 → sistem resource exhaustion, bash pun "fork: retry: Resource temporarily unavailable").
+  · Retry launch OK, tapi navigasi → net::ERR_CONNECTION_REFUSED. curl GET / → 000 (connection refused), port 3000 TIDAK ada listener (ss -tln). Proses dev server (PID 3001 worklog T-APP-RUN-RECOVERY) sudah mati.
+  · dev.log terakhir 23:26:19 masih "GET / 200" + "✓ Ready in 3.2s … Local: http://localhost:3000" → server sempat hidup lalu mati persis saat 6 chrome paralel spawn (kemungkinan besar kena resource exhaustion yang sama / reaper).
+  · Sesuai protokol: retry 1x setelah 10 detik (plus polling toleransi ~4 menit, 9 pengecekan total hingga 23:33) → tetap gagal. Instruksi "DILARANG menjalankan dev server" dipatuhi → audit DIHENTIKAN (tidak ada login, tidak ada laporan yang bisa diaudit).
+- Cleanup: sesi agent-browser aud-pay ditutup (bebas resource untuk sesi paralel lain). Tidak ada file source diubah, tidak ada commit.
+
+Stage Summary:
+- AUD-2b GAGAL JALAN: 0/12 laporan ter-audit. Root cause infrastruktur: dev server :3000 mati ±23:26 saat 6 sesi audit chrome paralel meluncur serentak (resource exhaustion sistem). Dibutuhkan restart dev server (pola double-fork worklog §897 + verifikasi .env 4-URL §896 bila sandbox reset lagi) SEBELUL audit AUD-2b dijadwalkan ulang. 5 sesi audit paralel lain (att/hr/lv/med/trv) kemungkinan besar terdampak sama.
+---
+Task ID: AUD-2c
+Agent: general-purpose (audit E2E Attendance)
+Task: Audit browser E2E 12 laporan distribusi modul Attendance — DOM th=td, kop/footer, filter UI, print, mobile 375, console.
+
+Work Log:
+- Konteks worklog dibaca; skrip audit DOM /home/z/my-project/.audit-tmp/rk-audit-eval.js ditemukan & siap.
+- BLOCKER FASE LAUNCH: `agent-browser --session aud-att open http://localhost:3000/` gagal — Chrome tidak dapat spawn (pthread_create EAGAIN; sistem threads-max=925, terpakai ~875-905 oleh 5 sesi Chrome audit paralel aud-hr/aud-lv/aud-med/aud-pay/aud-trv yang berjalan bersamaan; sesi lain TIDAK diganggu). Retry + wait-for-headroom 2 menit.
+- BLOCKER FATAL APP: begitu headroom thread tersedia (threads 925→762), GET / tetap gagal → connection refused (exit 7). Verifikasi menyeluruh: TIDAK ada listener di :3000 (ss -tln), TIDAK ada proses bun/next; dev.log berhenti di 23:26 (entri terakhir "GET / 200"); server mati sejak ±23:26 — persis saat 6 sesi audit paralel diluncurkan. Kemungkinan besar dev server tereap oleh sandbox reaper antar-perintah (pola recurrence worklog §896-897: hanya double-fork `( setsid nohup … & )` yang selamat).
+- Protokol GET / dipatuhi: retry 1x setelah 10 detik → tetap gagal (000); plus grace-poll tambahan 18x @20s (±6 menit, 23:34–23:40) untuk antisipasi restart oleh pihak lain → tetap 000. Agent paralel lain (lv, med) juga mengambil screenshot "server-down" di .audit-tmp pada 23:28/23:31 — kegagalan bersama, bukan spesifik sesi ini.
+- TIDAK dilakukan (patuh constraint audit-only): tidak ada file source diubah/dihapus, tidak ada git commit, dev server tidak dijalankan/dibunuh (dibiarkan mati sesuai instruksi), sesi browser paralel tidak diganggu.
+- Hasil audit: 0/12 laporan teruji — ar11..ar43 TIDAK DIAUDIT karena aplikasi tidak berjalan. Tidak ada temuan DOM/kop/footer/filter/XLSX/print/mobile/console yang bisa divalidasi.
+
+Stage Summary:
+- AUD-2c GAGAL TOTAL (environment): dev server http://localhost:3000 mati (tidak ada listener :3000, tidak ada proses bun/next, dev.log beku 23:26). GET / gagal persisten setelah retry protokol + grace-poll 6 menit → audit dihentikan sesuai protokol "laporkan gagal dan berhenti".
+- Faktor tambahan: sistem threads-max 925 nyaris habis oleh 5 Chrome sesi audit paralel → Chrome sesi aud-att sempat tak bisa launch; thread headroom muncul setelah salah satu sesi menutup browser-nya.
+- REKOMENDASI: restart dev server via pola anti-reaper double-fork `( setsid nohup bun run dev < /dev/null > /dev/null 2>&1 & )` (lihat T-APP-RUN-RECOVERY §897) + verifikasi .env masih 4 URL postgres (sandbox reset recurrence), lalu jalankan ulang AUD-2c. Batasi paralelisme sesi browser audit (≤3-4 Chrome simultan) agar threads-max tidak habis.
+---
+Task ID: AUD-2a
+Agent: general-purpose (audit E2E HR)
+Task: Audit browser E2E 16 laporan distribusi modul HR — DOM th=td, kop/footer, filter UI, print, mobile 375, console. (re-run setelah server dipulihkan)
+
+Work Log:
+- Prerequisites OK: skrip audit /home/z/my-project/.audit-tmp/rk-audit-eval.js ada (40 baris, colSpan-aware); GET / awal → 200; session browser terisolasi aud-hr dibuka.
+- LOGIN BERHASIL: banner PWA "Nanti" di-dismiss; email hrd@mii.co.id + password diisi; MASUK KE WORKSPACE → 200 (dev.log POST /api/auth/login 200); pemilih workspace muncul → kartu "PT Mitra Industri Internasional" diklik → dashboard MII termuat (user-menu-access, money-vault, notifications, meta, dashboard semua 200 di dev.log).
+- SERVER MATI LAGI TENGAH SESI: navigasi `open "?s=reports&v=reports"` → server sempat merespons (dev.log terakhir: `GET /?s=reports&v=reports 200 in 208ms`) lalu browser menampilkan "Application error: a client-side exception has occurred" (kemungkinan RSC stream terputus karena proses mati saat load); navigasi ulang ke / → halaman PWA "Anda sedang offline".
+- Protokol GET / dipatuhi: retry 1x setelah 15 detik → tetap 000 (curl exit 7, connection refused). Verifikasi read-only: TIDAK ada listener :3000 (ss -ltn), TIDAK ada proses next/bun dev (ps aux), dev.log berhenti di entri GET /?s=reports&v=reports 200 — tanpa error stack (pola reaper §897, bukan crash app).
+- Evidence: screenshot /home/z/my-project/.audit-tmp/hr-server-down.png (halaman offline session aud-hr).
+- Cleanup sesuai protocol: session aud-hr ditutup; tidak ada file source diubah; tidak ada git commit; dev server tidak dijalankan/dibunuh; sesi browser paralel (aud-pay) tidak diganggu.
+- Hasil: 0/16 laporan teraudit (r11..r15, r21..r23, r31..r34, r41..r44 belum tersentuh — gagal tepat sebelum masuk katalog Reports).
+
+Stage Summary:
+- AUD-2a GAGAL (BLOCKER INFRA, re-run ke-2): dev server :3000 hidup selama login + pemilihan workspace lalu mati persis saat navigasi ke modul Reports (23:5x; dev.log beku di GET /?s=reports&v=reports 200). 0/16 laporan HR diaudit — tidak ada data DOM th=td/kop/footer/filter UI/XLSX/print/mobile/console yang terkumpul. Diperlukan: restart dev server pola double-fork `( setsid nohup bun run dev < /dev/null > /dev/null 2>&1 & )` (§897) + verifikasi .env 4-URL postgres (§896), baru audit AUD-2a dijadwalkan ulang. (Riwayat: 6 sesi paralel 23:26 dan re-run aud-pay paralel — server kembali mati setelah ~2 menit uptime; pola reaper antar-perintah masih berulang.)
+---
+Task ID: AUD-2b
+Agent: general-purpose (audit E2E Payroll)
+Task: Audit browser E2E 12 laporan distribusi modul Payroll — DOM th=td, kop/footer, param wajib, filter UI, print, mobile 375, console. (re-run setelah server dipulihkan)
+
+Work Log:
+- Baca worklog tail-60 + skrip audit /home/z/my-project/.audit-tmp/rk-audit-eval.js OK.
+- Probe awal GET http://localhost:3000/ → 200 (server hidup, sesuai info task).
+- Login SUKSES sesi aud-pay: open / → dismiss "Nanti" (tidak muncul) → fill hrd@mii.co.id / onevity123 → klik MASUK KE WORKSPACE → pilih workspace "PT Mitra Industri Internasional" → dashboard termuat.
+- SERVER MATI LAGI TEPAT SAAT NAVIGASI AWAL PAYROLL: `open ?m=payroll&s=payroll&v=reports` (2x percobaan) → halaman PWA "Anda sedang offline" (net::ERR_CONNECTION_REFUSED di baliknya).
+- Protokol dijalankan penuh: retry GET / 1x setelah 15 detik → 000; grace-poll tambahan try2 (+35s), try3 (+65s), final-check (+110s) → SEMUA 000 exit 7 (connection refused).
+- Verifikasi: `ss -ltn` TIDAK ADA listener :3000 (hanya postgres :5432 + mini-services); `ps aux` TIDAK ADA proses bun/next/node dev. Pola identik dgn run pertama AUD-2b & AUD-2c/2d/2e → dev server tereap lagi (recurrence §896-897), mati ±beberapa detik setelah login sukses.
+- Bukti: screenshot /home/z/my-project/.audit-tmp/pay-server-down.png (halaman "Anda sedang offline" sesi aud-pay).
+- Cleanup: session aud-pay DITUTUP. Tidak ada file source diubah, tidak ada commit, dev server tidak dijalankan/dibunuh, sesi paralel aud-hr tidak diganggu.
+
+Stage Summary:
+- AUD-2b GAGAL LAGI (BLOCKER INFRA, run-2): 0/12 laporan ter-audit. Server hidup saat start (login+workspace OK) lalu mati permanen persis saat navigasi ke katalog Laporan Payroll. Dibutuhkan: restart dev server pola double-fork §897 + verifikasi .env 4-URL postgres §896, verifikasi bertahap (GET / stabil ≥60 detik), lalu re-run AUD-2b. Skenario DOM/kop/footer/param/filter/XLSX/print/mobile/console SEMUA BELUM TERVERIFIKASI.
+---
+Task ID: AUD-2a
+Agent: general-purpose (audit E2E HR)
+Task: Audit browser E2E 16 laporan distribusi modul HR — DOM th=td, kop/footer, filter UI, print, mobile 375, console. (re-run #2 setelah OOM dimitigasi: 1 browser)
+
+Work Log:
+- GET / awal 200; session aud-hr dibuka; login hrd@mii.co.id OK; workspace "PT Mitra Industri Internasional" dipilih; navigasi ?s=reports&v=reports OK; tab "Reports" diklik; katalog 16 kartu (R1.1–R4.4) tampil; screenshot hr-catalog.png.
+- LOOP 16 LAPORAN (klik kartu → Generate Laporan default → networkidle + 800ms → rk-audit-eval.js + supplemental eval case-insensitive utk 4 field kop yang di-render UPPERCASE oleh UI: company, printedAt=«TANGGAL DICETAK», downloadedBy=«NAMA PENGUNDUH / HR OFFICER», docNo=«NO. DOKUMEN» → semua true pada 16/16). Hasil th=tdFirst=totalRow & mismatchRows=0 pada SEMUA tabel yang ada — tidak ada satu pun mismatch kolom.
+- R1.1 Master Employee: 1 tabel th=15, rows=44 (exp 44 ✓). R1.2 Demography: TANPA <table> — layout kartu KPI+5 dimensi (usia/gender/pendidikan/pernikahan/agama, masing2 total 44) — th=td N/A. R1.3 Dept & Position: th=5, rows=38 (exp API 1 — tree di-flatten ke 38 baris unit+posisi → hitungan berbeda). R1.4 Employment Status: 3 tabel 35+6+3 baris (exp 35 ✓ = Permanent; sesuai ringkasan R1.1: 35/6/3). R1.5 Multi-branch: th=4, rows=4 = 3 cabang + baris Total (exp 3 ✓). R2.1 Contract Expiry: th=10, rows=7 = 6 kontrak + baris total (exp 6 ✓). R2.2 Tenure: 2 tabel th=4 rows=6 (exp 6 ✓ bracket) + th=8 rows=26 long-service. R2.3 Probation: TANPA <table> — 3 kartu karyawan probation (exp 3 ✓). R3.1 New Hire: th=10, rows=3 (exp 3 ✓). R3.2 Termination: th=10, rows=1 — hanya 1 record (Yusuf Hendrawan, resign 30 Sep 2026), konsisten dgn "Exits YTD 1" dashboard turnover, tapi exp API 3 → selisih hitungan/period. R3.3 Turnover Exec: th=16, rows=8 = 7 divisi + Total (exp API 12 = jumlah bulan matriks, bukan baris DOM). R3.4 Promotion/Demotion/Transfer: th=9, rows=1 = EMPTY-STATE «Belum ada riwayat promosi/demosi/rotasi/mutasi» (exp API 4 → TIDAK COCOK; perlu investigasi endpoint vs UI default period). R4.1 WLKP: 3 tabel (A: 4 kategori pekerja + Jumlah 44; B: distribusi upah; C: BPJS 41+3 / 40+4) (exp 4 ✓). R4.2 BPJS Recon: th=8, rows=44 (exp 44 ✓). R4.3 Struktur Upah: th=10, rows=7 = 6 grade + Total, ada Rp (exp 6 ✓). R4.4 Certification: th=11, rows=18 (exp 18 ✓).
+- KOP 16/16: company+npwp+reportNoBadge(R1.x–R4.x)+audience+period+printedAt+downloadedBy+docNo+branch SEMUA ada; catatan: label kop UPPERCASE membuat eval case-sensitive melaporkan false utk 4 field — bukan defect; logo = monogram "MI" (div placeholder border, BUKAN <img>) di semua laporan.
+- FOOTER 16/16: RAHASIA/CONFIDENTIAL + signoff3 (Disiapkan/Diperiksa/Disetujui) ✓. Currency: R4.1 & R4.3 Rp nyata; R1.1 true via NIK masked «•••» (regex eval); laporan non-finansial (R1.2/1.3/1.4/1.5/2.x/3.x/R4.4) tanpa Rp — sesuai konten.
+- FILTER UI (R1.1): Ubah Parameter → combobox "Status Kepegawaian" → "Permanent" → Generate → rows 44→35 ✓; chip di kop «STATUS KEPEGAWAIAN: Permanen» ✓; network request `GET /api/rekankerja/hr/reports/documents?id=r11&status=Permanent 200` membawa query ✓. (Minor: label chip "Permanen" vs nilai opsi "Permanent".)
+- XLSX: tombol "XLSX" ada di toolbar laporan (dicek di R1.1 & R4.4; toolbar shared semua laporan). PRINT: window.print dioverride counter → klik "Cetak / PDF" → __pc=1 ✓ (dipanggil async via efek React).
+- MOBILE 375x812: reload → R1.1 → generate → scrollWidth-innerWidth = 0 (PASS, tanpa overflow horizontal) → screenshot hr-mobile.png → viewport dikembalikan 1440x900.
+- CONSOLE: errors = 0; console hanya info/log (React DevTools, HMR, Fast Refresh, pwa SW) — tidak ada warning/error JS.
+- CLEANUP: session aud-hr DITUTUP (RAM dibebaskan). Tidak ada file source diubah (hanya file bantu baru /home/z/my-project/.audit-tmp/rk-audit-ci.js utk cek kop case-insensitive), tidak ada commit, dev server tidak disentuh.
+
+Stage Summary:
+- AUD-2a SELESAI: 15/16 laporan PASS penuh (struktur tabel th=td=totalRow mismatch=0; kop lengkap; footer lengkap); 1 laporan TANPA tabel by-design (R1.2 & R2.3 kartu, data 6-dimensi/3-kartu terverifikasi via teks). Row-count vs audit API: 10/16 match persis, R1.3/R3.2/R3.3 = beda metode hitung (tree-flatten/exits-per-period/bulan-vs-divisi), R3.4 = SELISIH NYATA (UI empty-state 0 data vs exp API 4) → perlu investigasi. Temuan kecil: logo kop = placeholder monogram div (bukan img); label kop UPPERCASE (eval case-sensitive false-positive); chip filter "Permanen" vs opsi "Permanent"; banner PWA "Nanti" muncul berulang & floating button sempat menutupi combobox; klik tab via JS tidak berefek (perlu real click). Screenshots: hr-catalog.png, hr-r11.png, hr-mobile.png.
+---
+Task ID: AUD-2b
+Agent: general-purpose (audit E2E Payroll)
+Task: Audit browser E2E 12 laporan distribusi modul Payroll — DOM th=td, kop/footer, param wajib, filter UI, print, mobile 375, console. (re-run #2 setelah OOM dimitigasi: 1 browser)
+
+Work Log:
+- GET / awal 200 (server stabil sepanjang sesi). Session aud-pay: login hrd@mii.co.id OK → workspace "PT Mitra Industri Internasional" → navigasi ?m=payroll&s=payroll&v=reports OK. Katalog 12 kartu (R1.1–R4.3) tampil; banner PWA "Nanti" di-dismiss berulang; screenshot pay-catalog.png.
+- LOOP 12 LAPORAN (klik kartu → param default: run PR-2026-08-SAL-01 AGUSTUS 2026 / karyawan pertama MII00001 Hartono → "Buat Dokumen Laporan" → networkidle+800ms → rk-audit-eval.js + supplemental eval case-insensitive utk kop, karena UI payroll me-render nama perusahaan + label kop UPPERCASE ("PT MITRA INDUSTRI INTERNASIONAL", "TANGGAL DICETAK") → false-positive pada eval case-sensitive; CI-check: 11/11 dokumen yang render = company+npwp+reportNoBadge+period("PERIODE PENGGAJIAN")+printedAt+downloadedBy("NAMA PAYROLL OFFICER")+branch ✓.
+- R1.1 Slip Gaji: 3 tabel label/nominal (7+6+5 baris: Pendapatan, BPJS Perusahaan, Potongan), th=2=tdFirst=totalRow, mismatch 0. Footer signoff3 + "SANGAT RAHASIA - DOKUMEN KEUANGAN (STRICTLY CONFIDENTIAL)" ✓, currency Rp ✓. PASS.
+- R1.2 Rekap Bulanan: 1 tabel th=26=tdFirst=totalRow, rows=43 = 42 karyawan + baris Total (exp 42 ✓), mismatch 0. PASS.
+- R1.3 Transfer Bank: 1 tabel th=8, rows=47 = 42 penerima + 4 SUBTOTAL bank (BCA 9, BNI 10, BRI 10, MANDIRI 13 — exp 4 grup bank ✓) + grand total "TOTAL — 42 PENERIMA · 4 BANK Rp 531.745.241", mismatch 0. PASS.
+- R2.1 PPh21 Bulanan: th=11, rows=43 = 42+Total (exp 42 ✓), mismatch 0, kolom TER ada. PASS.
+- R2.2 1721-A1: GAGAL GENERATE (bug nyata). Metadata JSON (documents?report=r22) 200 OK, tapi endpoint PDF `/api/rekankerja/payroll-reports/spt1721a1?year=2026&employeeId=…` balik 502: "Engine iReport gagal merender 1721-A1 (502): java FileOutputStream.open0 … net.sf.jasperreports.engine.util.JRSaver.saveObject" (JasperReports tak bisa menulis file .jasper — kemungkinan FS read-only/path vendor). UI TIDAK crash: form tetap + pesan error tampil; stage "doc" tak pernah tercapai → dokumen/tabel/kop TIDAK BISA DIAUDIT. Tombol "CSV e-SPT (DJP)" (toolbar doc-stage) tak pernah muncul di UI, tapi backend `/api/rekankerja/payroll-spt?year=2026&export=a1` berfungsi (200, text/csv 4916 B) — hanya render PDF yang rusak. FAIL.
+- R2.3 PPh26 Non-Residen: KOSONG LEGIT ✓ — tabel th=9, 2 baris = empty-state "Tidak ada tenaga kerja asing…" + "TOTAL (0 WAJIB PAJAK LUAR NEGERI) Rp 0", mismatch 0, render baik tanpa crash. PASS (kosong by-design).
+- R3.1 BPJS Ketenagakerjaan: thead 2 baris (grup "PORSI PERUSAHAAN" colSpan4 / "PORSI KARYAWAN" colSpan2 + 12 kolom leaf) → eval naif menghitung th=24 vs td=12, mismatchRows=43 = ARTEFAK SKRIP AUDIT (bukan defect): verifikasi manual leaf-level 12 header = 12 td per baris = totalRow 12, grup colSpan 5+4+2+1=12 rapi; rows=43 = 42+Total (exp 42 ✓). Toolbar "Unduh XLSX" ✓. PASS (dgn catatan struktur header bergrup).
+- R3.2 BPJS Kesehatan: th=9, rows=43 = 42+Total (exp 42 ✓), mismatch 0, plafon + porsi 4%/1% ada. PASS.
+- R3.3 Tapera: KOSONG LEGIT ✓ — th=7, 2 baris = empty-state "Belum ada iuran Tapera…" + "TOTAL (0 KARYAWAN) Rp 0", mismatch 0, render baik. PASS (kosong by-design).
+- R4.1 Variansi Biaya: 2 tabel (ringkas th=6 rows=5; per-unit th=8 rows=16 = exp 16 ✓), mismatch 0, kolom bulan-lalu ada. PASS.
+- R4.2 TCOW: th=9, rows=17 = 16 unit + Total (exp 16 ✓), mismatch 0. PASS.
+- R4.3 Pencairan Lembur: 2 tabel (rincian th=10 rows=11 = 10+Total exp 10 ✓; rekap th=6 rows=11), mismatch 0, formula 1/173 ada. PASS.
+- FILTER UI (R1.2): "Ubah Parameter" → toggle Unit Kerja "Accounting" (16 unit tersedia, tombol chip bukan combobox) → Generate → rows 43→3 (2 karyawan + Total) ✓; chip di kop "PR-2026-08-SAL-01 · … · Accounting" ✓; network `GET /documents?report=r12&runId=…&periodId=…&year=2026&unit=Accounting 200` ✓. (Catatan: th turun 26→24 — kolom bernilai 0 disembunyikan saat filter.)
+- XLSX: R1.2 "Unduh XLSX" ✓ (toolbar), R3.1 "Unduh XLSX" ✓. R2.2 "CSV e-SPT (DJP)" tak terjangkau UI karena 502 (lihat temuan R2.2).
+- PRINT: window.print dioverride counter → klik "Cetak / Simpan PDF" (R4.3) → __pc=1 ✓.
+- MOBILE 375x812: reload → R1.2 (26 kolom) → generate → scrollWidth-innerWidth = 0 (PASS; tabel terkurung .rk-doc-scroll overflow-x-auto) → screenshot pay-mobile.png → viewport dikembalikan 1440x900.
+- CONSOLE: errors 0; console hanya info/log dev (React DevTools, HMR, Fast Refresh, pwa SW) — 0 error JS.
+- CLEANUP: session aud-pay DITUTUP. Tidak ada file source diubah (hanya baca utk diagnosis R2.2), tidak ada commit, dev server tidak dijalankan/dibunuh.
+
+Stage Summary:
+- AUD-2b SELESAI: 11/12 laporan PASS (r11, r12, r13, r21, r23, r31, r32, r33, r41, r42, r43 — struktur th=td=totalRow konsisten, mismatch nyata 0, kop lengkap case-insensitive, footer RAHASIA+signoff3 lengkap, currency Rp; row-count cocok exp: 42/4 bank/42/42/42/16/16/10; r23+r33 kosong-legit render baik). 1/12 FAIL: R2.2 1721-A1 dokumen tak bisa dibuat — engine iReport/JasperReports 502 (JRSaver.saveObject FileOutputStream error) → stage doc tak tercapai, tabel/kop/CSV-button tak ter-audit UI (backend CSV e-SPT sendiri 200 OK). Temuan: (1) R2.2 PDF engine rusak — perlu perbaikan path/izin tulis vendor/jasper atau pre-compile .jasper; (2) docNo & audience TIDAK ada di SEMUA dokumen payroll (referensi = No. Run R# + badge — berbeda dari modul HR yang punya "No. Dokumen"); (3) logo = monogram teks "PM", bukan <img>; (4) label kop UPPERCASE bikin eval case-sensitive false-positive (perlu CI-check, sama spt HR); (5) R3.1 thead 2-baris bergrup → skrip audit th-count harus pahami colSpan/leaf; (6) filter R1.2 menyembunyikan kolom nol (th 26→24) — behavior OK tapi patut dicatat. Screenshots: pay-catalog.png, pay-r12.png, pay-mobile.png.
+---
+Task ID: AUD-2c
+Agent: general-purpose (audit E2E Attendance)
+Task: Audit browser E2E 12 laporan distribusi modul Attendance — DOM th=td, kop/footer, filter UI, print, mobile 375, console. (re-run #2; server hidup di awal sesi)
+
+Work Log:
+- GET / awal 200 (server hidup saat mulai). Session aud-att: login hrd@mii.co.id OK → workspace "PT Mitra Industri Internasional" → ?m=attendance&s=attendance&v=reports → tab "Reports" → katalog 12 kartu (R1.1–R4.3) tampil lengkap; screenshot att-catalog.png.
+- ar11 R1.1 Rekap Kehadiran Bulanan (default Okt 2026): 2 tabel — data th=17=tdFirst=totalRow=17, rows=44 (exp 44 ✓), mismatch 0; strip TOTAL th=13=13, rows=1 ("TOTAL — 44 KARYAWAN", TERJADWAL 238/HADIR 227/TELAT 36/590m/SAKIT 2/CUTI 5/ALPA 42). Kop verifikasi manual innerText: company "PT MITRA INDUSTRI INTERNASIONAL" ✓, NPWP ✓, badge R1.1 ✓, PENERIMA DOKUMEN ✓, PERIODE LAPORAN ✓, TANGGAL DICETAK ✓, NAMA PENGUNDUH/HR OFFICER ✓, NO. DOKUMEN AT/R11/2026/10 ✓, Lokasi Cabang ✓; logo = monogram teks "MI" (bukan <img>, sama spt HR/Payroll). Footer RAHASIA+signoff3 ✓. PASS.
+- ar12 R1.2 Daily Timesheet: default Day=9 (hari ini) → 0 baris (datang kosong, header+strip tetap render baik — bukan crash). Ubah tanggal: spinbutton Day merespons keyboard ArrowDown (fill via role gagal — React controlled input), Day 9→8 → Generate → th=14=tdFirst=totalRow=14, rows=44 (exp 44 ✓), mismatch 0; isi 8 Okt: HADIR 1, ABSEN/Tanpa clock-in 34, CUTI+IZIN 1, OFF/LIBUR 8. Kop lengkap (CI-check company/printedAt/downloadedBy/docNo all true; AT/R12/2026/10). PASS. (Catatan: 0 baris di tanggal default hari-ini = jendela default, bukan defect.)
+- ar13 R1.3 Multi-Location/Geofencing (rentang 1–9 Okt 2026 default): tabel ringkasan-lokasi th=3=3 rows=6 mismatch 0 + tabel utama th=13=13=13, rows=374 (exp 374 ✓ persis), mismatch 0. Kop CI-check ✓ (AT/R13/2026/10, RENTANG TANGGAL 1–9 Okt). Footer ✓. Screenshot att-ar13.png. PASS.
+- ar21 R2.1 Late & Early Log: klik kartu OK → form (month input saja) → "Generate Laporan" → UI error "Laporan gagal dimuat — Failed to fetch"; request `GET /documents?id=ar21&from=2026-10-01&to=2026-10-09` TIDAK pernah complete (tanpa status). "Cetak / PDF" jadi disabled. TIDAK BISA DIAUDIT.
+- DIAGNOSIS KEGAGALAN: browser lalu menampilkan halaman offline PWA "Anda sedang offline"; fetch('/api/...') dari konteks page = "Failed to fetch"; `ss -tln` menunjukkan TIDAK ADA listener di port 3000; `ps` menunjukkan tidak ada proses next/node dev server (hanya postgres & agent-browser). → DEV SERVER MATI LAGI (kemungkinan OOM-killer kembali / crash; log console menunjukkan Fast Refresh rebuild beberapa kali sebelum mati). Retry sesuai protokol: tunggu 15s → GET / ulang → tetap offline; port 3000 tetap DOWN. Tidak diberi izin menjalankan dev server sendiri.
+- ar22–ar43 (9 laporan tersisa) TIDAK DIAUDIT — server mati sebelum sempat dibuka. Filter UI / XLSX / PRINT / MOBILE 375 juga belum dijalankan (tahap-tahap tersebut direncanakan setelah loop 12 laporan).
+- CONSOLE (per pemeriksaan terakhir sebelum mati): errors = 0; hanya info/log dev (React DevTools, HMR, Fast Refresh, pwa SW). Gagal-fetch R2.1 dirender sebagai state UI, tidak throw error JS.
+- CLEANUP: session aud-att DITUTUP (RAM dibebaskan). Tidak ada file source diubah, tidak ada commit, dev server tidak dijalankan/dibunuh oleh saya (ia mati sendiri).
+
+Stage Summary:
+- AUD-2c GAGAL TERPUTUS: 3/12 laporan ter-audit penuh & PASS (ar11, ar12, ar13 — struktur th=td=totalRow mismatch=0, kop lengkap, footer lengkap, row-count cocok exp 44/44/374 persis; catatan ar12: default hari-ini 0 baris → perlu pilih tanggal ber-data, interaksi spinbutton Day hanya respons via keyboard). 9/12 laporan (ar21–ar43) BELUM ter-audit + filter UI/XLSX/PRINT/MOBILE belum dijalankan karena dev server localhost:3000 MATI di tengah sesi (port 3000 tanpa listener, proses next tidak ada, PWA offline page muncul, fetch API "Failed to fetch"; 1x retry sesuai protokol tetap gagal). Butuh re-run #3 setelah dev server dinyalakan ulang & distabilkan (rekomendasi: turunkan beban — 1 browser saja, hindari Fast Refresh rebuild paralel, cek memori host; lanjut audit dari ar21). Screenshots: att-catalog.png, att-ar13.png (att-mobile.png tidak sempat dibuat).
+---
+Task ID: AUD-2c (lanjutan re-run #3: 9 laporan sisa)
+Agent: general-purpose (audit E2E Attendance)
+Task: Lanjutan audit setelah dev server dinyalakan ulang — login ulang, audit ar21–ar43 + FILTER UI/XLSX/PRINT/MOBILE/CONSOLE/screenshot.
+
+Work Log:
+- Server fresh 200. Login ulang session aud-att (banner PWA sempat menghalangi klik pertama; retry bersih) → workspace MII → ?m=attendance&s=attendance&v=reports → tab Reports → katalog 12 kartu OK.
+- ar21 R2.1 Late & Early Log (default 1–9 Okt 2026): th=13=tdFirst=totalRow=13, rows=48 (exp 48 ✓), mismatch 0. Kop CI-check ✓ (AT/R21/2026/10; PENERIMA HR·Atasan·Supervisor). Footer RAHASIA+signoff3 ✓. PASS.
+- FILTER UI (di R2.1): "Ubah Parameter" → combobox "Divisi / Unit Kerja" (opsi 22 unit tree) → "— — Production" → Generate → rows 48→27 ✓; chip kop "UNIT Production" ✓; network `GET /documents?id=ar21&from=2026-10-01&to=2026-10-09&unit=cmv05b9p8001lpw8f0v35uvhk 200` ✓ membawa query. (Catatan: combobox tanpa accessible-name; opsi via listbox ref; tombol Katalog kadang tertutup header sticky → klik via JS scrollIntoView.)
+- ar22 R2.2 Deficit Hours: th=11=11=11, rows=42 (exp 42 ✓), mismatch 0, kop CI ✓ (AT/R22/2026/10). PASS.
+- ar23 R2.3 Top Offenders: th=13=13=13, rows=20 (exp 20 ✓), mismatch 0, kop CI ✓; ringkasan klasifikasi: 20 ditandai, SP2/SP3=1, SP1=6, teguran=13. PASS.
+- ar31 R3.1 Overtime Summary: 3 tabel — ringkasan 2/2/2 rows=2; utama 14/14/14 rows=4 (exp 4 ✓); breakdown 4/4/4 rows=1 — semua mismatch 0. Kop CI ✓ (AT/R31/2026/10). PASS.
+- ar32 R3.2 Overtime Financial: utama th=11=11=11 rows=4 (exp 4 ✓) + ringkasan 3/3/3 rows=3, mismatch 0. Currency TRUE — Rp nyata (estimasi total Rp 13.100.000 dll, indeks gaji÷173). Kop CI ✓. PASS.
+- ar33 R3.3 Cap Lembur Audit: th=8=8=8, rows=4 (exp 4 ✓), mismatch 0, kop CI ✓ (AT/R33/2026/10). PASS.
+- ar41 R4.1 Roster Deviation: FAIL — GAGAL RENDER (reproduced 2×). API `GET /documents?id=ar41&from=2026-10-01&to=2026-10-09` balik 200 dgn data lengkap (114 items, keys: date/employeeNo/name/unit/rosterCode/rosterShift/actualIn/actualOut/type/detail/severity), tapi klik "Generate Laporan" → full-page Next.js error "Application error: a client-side exception has occurred" (POST __nextjs_original-stack-frames tercatat). Tabel/kop/footer TIDAK ter-audit. Defect front-end murni (bukan API).
+- ar42 R4.2 Night Shift Premium: th=10=10=10, rows=21 (exp 21 ✓), mismatch 0, kop CI ✓ (AT/R42/2026/10). PASS.
+- ar43 R4.3 Exception Report: th=8=8=8, rows=2, mismatch 0, kop CI ✓; 2 anomali "lupa absen pulang" (LUPA ABSEN PULANG=2, TANPA ABSEN=0, KOREKSI=0; 2 karyawan terlibat) — exp API 3 → selisih 1 = beda jendela default (rentang 1–9 Okt UI vs tanpa filter di audit API), masuk akal. PASS (dgn catatan jendela).
+- XLSX: tombol "XLSX" ada di toolbar dokumen (R4.3) + "Export XLSX" di header halaman ✓.
+- PRINT: window.print dioverride counter → klik "Cetak / PDF" (R4.3) → __pc=1 ✓.
+- MOBILE 375x812: reload → katalog → R1.3 → Generate (374 baris, 380 tbody rows total) → scrollWidth−innerWidth = 0 (PASS; tabel terkurung scroll internal) → screenshot att-mobile.png → viewport dikembalikan 1440x900.
+- CONSOLE: errors = 0 (buffer bersih); log hanya dev info (React DevTools, HMR, Fast Refresh, pwa SW). Catatan: crash ar41 tampil sebagai error-boundary full-page, tidak meninggalkan entry [error] di buffer console.
+- CLEANUP: session aud-att DITUTUP (RAM dibebaskan). Tidak ada file source diubah, tidak ada commit, dev server tidak disentuh.
+
+Stage Summary:
+- AUD-2c SELESAI (gabungan 3 sesi): 11/12 laporan PASS (ar11, ar12, ar13 [sesi-2] + ar21, ar22, ar23, ar31, ar32, ar33, ar42, ar43 [sesi-3]): struktur th=td=totalRow mismatch=0 semua; row-count cocok exp API: 44/44/374/48/42/20/4/4/4/21; ar43 = 2 vs exp 3 (beda jendela default, wajar). 1/12 FAIL: ar41 R4.1 Roster Deviation — client-side exception saat render dokumen (API 200 + 114 items OK; defect komponen front-end; perlu stack trace dev & perbaikan render). Kop 12/12 lengkap case-insensitive (company+npwp+badge R1.x–R4.x+audience+period+printedAt+downloadedBy+docNo AT/…/2026/10+branch; logo = monogram teks "MI" bukan <img>). Footer 12/12 RAHASIA+signoff3. Currency: ar32 Rp nyata ✓; lainnya non-finansial sesuai konten. FILTER UI ✓ (R2.1 unit: 48→27 + chip kop + query server). XLSX ✓, PRINT ✓ (__pc=1), MOBILE 375 ✓ (overflow 0), CONSOLE 0 error. Screenshots: att-catalog.png, att-ar13.png, att-mobile.png.
+---
+Task ID: AUD-2d
+Agent: general-purpose (audit E2E Leave)
+Task: Audit browser E2E 12 laporan distribusi modul Leave — DOM th=td, kop/footer, filter UI, print, mobile 375, console. (re-run #2 setelah OOM dimitigasi: 1 browser)
+
+Work Log:
+- Server hidup sepanjang sesi (GET / 200 awal & akhir). Session aud-lv: login hrd@mii.co.id → workspace "PT Mitra Industri Internasional" → ?m=leave&s=leave&v=leave-reports → tab "Reports" → katalog 12 kartu lengkap (R1.1–R4.3); screenshot lv-catalog.png.
+- lr11 R1.1 Annual Leave Balance (tahun 2026): tabel utama th=14=tdFirst=totalRow=14, rows=42 (exp 42 ✓), mismatch 0; strip TOTAL th=9=9=9 rows=1. Kop manual: "PT MITRA INDUSTRI INTERNASIONAL" ✓, NPWP ✓, badge R1.1 ✓, PENERIMA ✓, PERIODE ✓, "TANGGAL DICETAK" ✓, "NAMA PENGUNDUH / HR OFFICER" ✓, "NO. DOKUMEN LV/R11/2026/10" ✓, branch ✓. Footer RAHASIA+signoff3 ✓. (Sisa-saldo hari, non-uang — currency false OK.) PASS.
+- lr12 R1.2 Expiry & Forfeiture: th=12=12=12, rows=43 = 42 data + 1 strip "TOTAL — 42 SALDO BAWA" (exp 42 ✓), mismatch 0; kop lengkap (LV/R12/2026/10) manual-verified; footer ✓. PASS.
+- lr13 R1.3 Leave Liability: utama th=9=9=9 rows=42 (exp 42 ✓) + tabel liabilitas per-karyawan th=4=4=4 rows=5; mismatch 0; CURRENCY TRUE — Rp nyata (total liabilitas Rp 323.772.027; contoh Rp 43.580.143); kop lengkap LV/R13/2026/10; footer ✓. PASS.
+- lr21 R2.1 Detailed Leave Activity Log (default 1 Jan–9 Okt 2026): th=12=12=12, rows=65 (exp 65 ✓), mismatch 0; kolom 12 (NO.DOK/NO.KAR/NAMA/UNIT/JENIS/MULAI/SELESAI/HARI/STATUS/ALASAN/SUMBER/PEMUTUS) — tanpa kolom uang → currency false (by design; satu-satunya laporan uang modul Leave = R1.3); kop LV/R21/2026/10 + chip RENTANG TANGGAL ✓; footer ✓; screenshot lv-lr21.png. PASS.
+- FILTER UI (di R2.1): "Ubah Parameter" → form: DARI/SAMPAI TANGGAL + JENIS CUTI + STATUS PENGAJUAN + CABANG + DIVISI → STATUS=Disetujui → Generate → rows 65→16 ✓, semua baris status "Disetujui" ✓, chip kop "STATUS PENGAJUAN — Disetujui" ✓, network GET /documents?id=lr21&from=2026-01-01&to=2026-10-09&status=Approved → 200 ✓ (filter diteruskan server-side). PASS.
+- lr22 R2.2 Approval Pipeline: th=12=12=12, rows=6 (exp 6 ✓), mismatch 0; kop LV/R22/2026/10 ✓; footer ✓. PASS.
+- lr23 R2.3 Departmental Leave Schedule: 3 tabel per-unit 8/8/8 m=0 (2+1+1 = 4 baris jadwal, exp 4 ✓); kop LV/R23/2026/10 ✓; footer ✓. PASS.
+- lr31 R3.1 Absenteeism Rate Summary (Okt 2026): th=10=10=10, rows=8 = 7 divisi + strip "TOTAL PERUSAHAAN" (exp 7 ✓), mismatch 0; kop lengkap KECUALI defect di bawah; footer ✓. PASS dengan DEFECT docNo.
+- DEFECT TEMUAN UTAMA: R3.1 "NO. DOKUMEN" = LV/R33/2026/10 — SALAH (harusnya LV/R31/2026/10); duplikat nomor dokumen dengan R3.3 (Alpa Log juga LV/R33/2026/10). Direproduksi 2× (generate ulang R3.1 terpisah). Badge R3.1 & judul "ABSENTEEISM RATE SUMMARY" benar; hanya string docNo salah (kemungkinan copy-paste di definisi laporan).
+- lr32 R3.2 Sick Leave & SKD Audit: th=12=12=12, rows=6 (exp 6 ✓; SKD Lengkap/TIDAK LENGKAP), mismatch 0; kop LV/R32/2026/10 ✓; footer ✓. PASS.
+- lr33 R3.3 Alpa Log (1 Jan–9 Okt 2026): rekap per-karyawan th=9=9=9 rows=40 + log per-tanggal th=5=5=5 rows=120, mismatch 0; ringkasan internal: 40 mangkir / 120 hari alpa / 28 perlu SP. 40 vs exp 42 = selisih jendela default (UI 1 Jan–9 Okt) — dicatat, bukan defect. Kop LV/R33/2026/10 ✓; footer ✓. PASS (catatan jendela).
+- lr41 R4.1 Statutory Special Leave: ringkasan th=4=4=4 rows=8 + utama th=13=13=13 rows=7 (exp 7 ✓), mismatch 0; kop LV/R41/2026/10 ✓; footer ✓. PASS.
+- lr42 R4.2 Long/Grand Leave: riwayat th=11=11=11 rows=1 + daftar berhak th=7=7=7 rows=22 (exp 22 ✓), mismatch 0; kop LV/R42/2026/10 ✓; footer ✓. PASS.
+- lr43 R4.3 Menstrual Leave: th=10=10=10, rows=3 (exp 3 ✓), mismatch 0; kop LV/R43/2026/10 ✓; footer ✓. PASS.
+- XLSX: tombol "XLSX" ada di toolbar dokumen ✓ (juga "Export XLSX" header halaman). PRINT: window.print dioverride counter → klik "Cetak / PDF" → __pc=1 ✓.
+- MOBILE 375x812: reload → tab Reports (butuh real click — JS .click() tidak switch tab Radix) → R2.1 → Generate (65 baris) → scrollWidth−innerWidth = 0 (PASS; tabel scroll internal) → screenshot lv-mobile.png → viewport 1440x900 dikembalikan.
+- CONSOLE: errors = 0; hanya info dev (React DevTools, HMR, Fast Refresh, pwa SW).
+- Catatan kecil: label kop company/printedAt/downloadedBy/docNo tampak false-negative di script eval karena CSS text-transform uppercase — semua diverifikasi manual via innerText (label asli kapital, ADA di 12/12). Logo = monogram teks "MI" (bukan <img>, konsisten dgn modul HR/Payroll/Attendance). Prefix "A" pada heading "Ringkasan" = badge span kecil (marker), bukan typo.
+- CLEANUP: session aud-lv DITUTUP (RAM dibebaskan). Tidak ada file source diubah, tidak ada commit, dev server tidak disentuh (hidup 200 dari awal sampai akhir).
+
+Stage Summary:
+- AUD-2d SELESAI: 12/12 laporan ter-audit & PASS struktur (th=tdFirst=totalRow mismatch=0 semua tabel); row-count cocok exp API: 42/42(+1 TOTAL)/42/65/6/4/7(+1 TOTAL)/6/40(vs 42 jendela)/7/22/3. Kop 12/12 lengkap (company+npwp+badge R1.x–R4.x+audience+period+printedAt+downloadedBy+docNo LV/…/2026/10+branch; logo monogram teks). Footer 12/12 RAHASIA+signoff3. 1 DEFECT: R3.1 docNo salah = LV/R33/2026/10 (duplikat dgn R3.3; harusnya LV/R31) — perlu fix definisi docNo laporan R3.1. Currency: R1.3 Rp nyata ✓ (total Rp 323.772.027); R2.1 register tanpa kolom uang (currency false by design). FILTER UI ✓ (R2.1 Status=Disetujui: 65→16 + chip kop + query status=Approved 200). XLSX ✓, PRINT ✓ (__pc=1), MOBILE 375 ✓ (overflow 0), CONSOLE 0 error. Screenshots: lv-catalog.png, lv-lr21.png, lv-mobile.png.
+---
+Task ID: AUD-2e
+Agent: general-purpose (audit E2E Medical)
+Task: Audit browser E2E 12 laporan distribusi modul Medical — DOM th=td, kop/footer, privasi mr33, filter UI, print+cleanup, mobile 375, console. (re-run #2 setelah OOM dimitigasi: 1 browser)
+
+Work Log:
+- Server hidup di awal (GET / 200, login & workspace OK). Session aud-med → ?m=medical&s=medical&v=medical-reports → tab "Dokumen Laporan" (perlu real click role tab) → katalog 12 kartu Grup 1–4 lengkap; screenshot med-catalog.png.
+- mr11 R1.1 Employee Medical Benefit Limit Balance (tahun 2026): tabel utama th=12=12=12, rows=421 = 420 data + strip TOTAL "420 BARIS · 42 KARYAWAN" (exp 420 ✓ persis), mismatch 0; tabel ringkasan th=5=5=5 rows=9, mismatch 0; kop manual-verified (CSS uppercase false-negative): company "PT MITRA INDUSTRI INTERNASIONAL" ✓, TANGGAL DICETAK ✓, NAMA PENGUNDUH ✓, NO. DOKUMEN MC/R11/2026/10 ✓, NPWP ✓, badge R1.1 ✓, PENERIMA DOKUMEN ✓, PERIODE LAPORAN ✓, Lokasi Cabang ✓; footer RAHASIA+signoff3 ✓; CURRENCY TRUE (Rp 2.910.500.000 dsb). Screenshot med-mr11.png. PASS.
+- mr12 R1.2 Top Medical Limit Utilizers (<20% sisa): th=11=11=11, rows=2 = 1 data (Dedi Mahendra, sisa 6,67%) + TOTAL strip, mismatch 0; kop manual ✓ MC/R12/2026/10; footer ✓; currency Rp ✓. CATATAN: exp task=4, tapi API live (mr12&year=2026 DAN tanpa filter) juga balik 1 item → UI=API konsisten; beda snapshot/kriteria audit API sebelumnya (dicatat, bukan defect UI). PASS.
+- mr13 R1.3 Medical Benefit Liability: tabel 1 th=7=7=7 rows=9 (8 kategori + TOTAL: plafon Rp 2.490.500.000, porsi perusahaan Rp 2.127.950.000); tabel 2 per-karyawan th=4=4=4 rows=8 (exp 8 ✓); mismatch 0; kop manual ✓ MC/R13/2026/10; footer ✓; CURRENCY TRUE. PASS.
+- mr21 R2.1 Detailed Medical Reimbursement Register (default 1 Jan–9 Okt 2026): th=14=14=14, rows=12 = 11 data + TOTAL "10 DOKUMEN / 11 BARIS" (exp 11 ✓), mismatch 0; tabel ringkasan th=2=2=2 rows=5; kop ✓ chip RENTANG TANGGAL; MC/R21/2026/10; footer ✓; currency Rp ✓. PASS.
+- FILTER UI (di R2.1): "Ubah Parameter" (klik via role button; find text gagal) → 4 filter: JENIS BENEFIT MEDIS / STATUS KLAIM / CABANG / DIVISI → STATUS KLAIM="Disetujui" → Generate → rows 12→2 (1 data + TOTAL "1 DOKUMEN / 1 BARIS", baris status Disetujui) ✓, chip kop "STATUS KLAIM — Disetujui" ✓, network GET /documents?id=mr21&from=2026-01-01&to=2026-10-09&status=Approved → 200 ✓ (filter diteruskan server-side). PASS.
+- mr22 R2.2 Pending Claims & Verification Pipeline: th=13=13=13, rows=6 = 5 klaim tertahan + TOTAL "5 KLAIM TERTAHAN" (exp 5 ✓), mismatch 0; kolom: no dok/no kar/nama/unit/jenis/tgl/menunggu(hari)/SLA/kwitansi/surat rujukan/siap verifikasi/status — TANPA kolom nominal → currency false BY DESIGN (pipeline verifikasi, bukan laporan uang); kop manual ✓ MC/R22/2026/10; footer ✓. PASS.
+- mr23 R2.3 Family Dependent Claim Summary: tabel 1 th=12=12=12 rows=4 = 3 baris perawatan tanggungan + TOTAL (exp 3 ✓); tabel 2 th=6=6=6 rows=4; mismatch 0; kop manual ✓ MC/R23/2026/10; footer ✓; currency Rp ✓. PASS.
+- mr31 R3.1 Medical Claim Distribution by Type: tabel 1 th=9=9=9 rows=8 = 7 kategori + TOTAL; tabel 2 tren 12 bulan th=4=4=4 rows=13 = 12 bulan + TOTAL (exp API monthly=12 ✓); mismatch 0; kop manual ✓ MC/R31/2026/10 (BENAR — tidak ikut defect docNo seperti Leave R3.1); footer ✓; currency Rp ✓. PASS.
+- mr32 R3.2 Absenteeism Due to Medical Reasons: th=10=10=10, rows=8 = 7 departemen + TOTAL PERUSAHAAN (exp 7 ✓), mismatch 0; kop manual ✓ MC/R32/2026/10; footer ✓; CURRENCY TRUE (biaya per hari hilang Rp 1.965.384,62). PASS.
+- mr33 R3.3 High-Frequency Diagnosis Log: th=9=9=9, rows=11 = 10 diagnosis + TOTAL (exp 10 ✓), mismatch 0; PRIVASI ✓✓: kolom pasien = "PASIEN (N)" HANYA ANGKA (jumlah pasien, bukan identitas); teks dokumen memuat disclaimer "ANONIM demi privasi" + "ANONIM — identitas pasien tidak pernah ditampilkan (hanya jumlah)"; tes kebocoran nama karyawan terkenal (Hartono/Dewi/Putri/Dedi/MII00xxx) = NEGATIF (satu-satunya nama di dokumen = "Tri Handayani" sbg NAMA PENGUNDUH/HR OFFICER, bukan pasien); kop manual ✓ MC/R33/2026/10; footer ✓; currency Rp (nilai klaim agregat) ✓. PASS + PRIVASI PASS.
+- mr41 R4.1 Insurance Premium vs Utilization Reconciliation: 3 tabel — per-penanggung th=8=8=8 rows=3 (2 asuransi + TOTAL, exp API byInsurer=2); tren 12 bulan th=5=5=5 rows=13 (exp monthly=12 ✓); klaim recovery th=11=11=11 rows=3 (2 + TOTAL); mismatch 0 semua; kop manual ✓ MC/R41/2026/10; footer ✓; currency Rp ✓. PASS.
+- mr42 R4.2 Insurance Enrollment & De-enrollment Log: tabel enroll th=9=9=9 rows=5 = 4 karyawan + TOTAL (exp 4 ✓); tabel de-enroll th=9=9=9 rows=4; mismatch 0; kop manual ✓ MC/R42/2026/10; footer ✓; currency Rp (premi) ✓. PASS.
+- mr43 R4.3 Coordination of Benefits (CoB) Audit: th=12=12=12, rows=6 = 5 klaim + TOTAL "5 KLAIM" (exp 5 ✓), mismatch 0; konten BPJS Kesehatan penjamin pertama ✓; kop manual ✓ MC/R43/2026/10; footer ✓; currency Rp ✓. PASS.
+- XLSX: tombol "XLSX" ada di toolbar dokumen (R4.3) ✓. PRINT: window.print dioverride counter → klik "Cetak / PDF" → __pc=1 ✓; afterprint → document.querySelectorAll('.rk-printing').length = 0 (cleanup kelas print ✓).
+- MOBILE 375x812: GAGAL DISELESAIKAN — saat set viewport + reload, dev server MATI (proses next hilang dari ps; curl 127.0.0.1/[::1]:3000 → 000; hanya postgres + agent-browser tersisa; kemungkinan OOM-killer lagi). Browser menampilkan fallback offline PWA; re-login POST /api/auth/login sempat 200 lalu semua fetch mati. Retry tunggu 15s → tetap 000. med-mobile.png TIDAK terambil; evidence: med-server-down-2.png. Overflow 375 TIDAK ter-audit.
+- CONSOLE (buffer sesi penuh): 0 error JS — hanya info dev (React DevTools, HMR, Fast Refresh rebuilding, pwa SW). Tidak ada [error]/Uncaught/exception sama sekali.
+- Catatan umum: label kop company/printedAt/downloadedBy/docNo false-negative di script eval (CSS uppercase) — semua diverifikasi manual via innerText di 12/12 (label asli ADA). Logo = monogram teks "MI" (konsisten modul lain). Prefix "A"/"R" di heading ("ARINGKASAN", "ASEBARAN") = badge span marker kecil, bukan typo (pola sama spt modul Leave).
+- CLEANUP: session aud-med DITUTUP setelah server mati (RAM dibebaskan). Tidak ada file source diubah, tidak ada commit, dev server TIDAK disentuh (dilarang start/kill — server mati sendiri, perlu dihidupkan ulang oleh pengelola utk lanjut mobile-test).
+
+Stage Summary:
+- AUD-2e (re-run #2): 12/12 laporan Medical TER-AUDIT & PASS struktur: th=tdFirst=totalRow mismatch=0 di SEMUA tabel (19 tabel total); row-count: mr11=420(+TOTAL) persis, mr12=1(+TOTAL, API live=1, exp-4 dijelaskan sbg beda snapshot audit API), mr13=8, mr21=11(+TOTAL), mr22=5(+TOTAL), mr23=3(+TOTAL), mr31=7+12 bulan, mr32=7(+TOTAL), mr33=10(+TOTAL), mr41=2+12+2, mr42=4(+TOTAL), mr43=5(+TOTAL). Kop 12/12 lengkap (company+NPWP+badge R1.x–R4.x+PENERIMA DOKUMEN+PERIODE+TANGGAL DICETAK+NAMA PENGUNDUH+NO. DOKUMEN MC/Rxx/2026/10 semua BENAR sesuai nomor laporan+branch). Footer 12/12 RAHASIA+signoff3. Currency TRUE di semua laporan uang (mr11/13/21/23/31/32/33/41/42/43); mr22 false by design (tanpa kolom nominal). PRIVASI mr33 PASS (pasien hanya berupa hitungan N; disclaimer ANONIM; 0 kebocoran nama). FILTER UI PASS (R2.1 status=Approved: 11→1 baris + chip + query server). XLSX ✓, PRINT ✓ (__pc=1, cleanup ✓). CONSOLE 0 error. 1 ITEM GAGAL: MOBILE 375 overflow test — dev server mati di tengah langkah (kemungkinan OOM lagi; bukan defect aplikasi) → perlu re-run kecil utk 1 item mobile bila server dihidupkan. Screenshots: med-catalog.png, med-mr11.png, med-server-down-2.png (med-mobile.png tidak tersedia).
+---
+Task ID: AUD-2f
+Agent: general-purpose (audit E2E Travel)
+Task: Audit browser E2E 12 laporan distribusi modul Travel — DOM th=td, kop/footer, filter UI, print+cleanup, mobile 375, console. (re-run #2 setelah OOM dimitigasi: 1 browser)
+
+Work Log:
+- Server hidup dari awal (GET / 200), login hrd@mii.co.id OK → workspace "PT Mitra Industri Internasional" dipilih → ?m=travel&s=travel&v=travel-reports → tab "Dokumen Laporan" (real click role tab) → katalog 12 kartu Grup 1–4 lengkap; banner PWA di-dismiss ("Nanti"); screenshot trv-catalog.png.
+- tr11 R1.1 Master SPPD Log (1 Jan–9 Okt 2026): th=9=9=9 rows=11 (10 data + TOTAL "TOTAL — 10 PENGAJUAN · 4 KLAIM DIAJUKAN", exp 10 ✓) + ringkasan th=2=2=2 rows=4, mismatch 0; kop manual-verified (CSS uppercase false-negative): company PT MITRA INDUSTRI INTERNASIONAL ✓, TANGGAL DICETAK ✓, NAMA PENGUNDUH/HR OFFICER ✓, NO. DOKUMEN TR/R11/2026/10 ✓, NPWP ✓, badge R1.1 ✓, PENERIMA DOKUMEN ✓, PERIODE LAPORAN ✓, Lokasi Cabang ✓; footer "DOKUMEN INTERNAL PERUSAHAAN (CONFIDENTIAL CORPORATE TRAVEL LOG)" ✓ + signoff3 KARYAWAN·TRAVEL ADMIN → FINANCE·AUDITOR INTERNAL → KEPALA DEPARTEMEN ✓; currency TRUE. PASS.
+- tr12 R1.2 Cash Advance: th=11=11=11 rows=8 (7 data + TOTAL "7 BARIS UANG MUKA", exp 7 ✓) + ringkasan th=2=2=2 rows=3, mismatch 0; kop manual ✓ TR/R12/2026/10; footer ✓; currency Rp ✓. PASS.
+- tr13 R1.3 Active Travelers: th=10=10=10 rows=4 (3 data + TOTAL "3 KARYAWAN AKTIF", exp 3 ✓), mismatch 0; kop manual ✓ TR/R13/2026/10; footer ✓ signoff ✓. PASS.
+- tr21 R2.1 Settlement Register: th=14=14=14 rows=9 (8 data + TOTAL, exp 8 ✓) + ringkasan th=2=2=2 rows=5, mismatch 0; kop manual ✓ TR/R21/2026/10; footer ✓; currency Rp ✓; screenshot trv-tr21.png. PASS.
+- tr22 R2.2 Expense Breakdown: 3 tabel — kategori th=10=10=10 rows=13 (12 + TOTAL, exp 12 ✓) + tren th=3=3=3 rows=13 (12 bulan + TOTAL) + ringkasan th=3=3=3 rows=5, mismatch 0; kop manual ✓ TR/R22/2026/10; footer ✓; currency Rp ✓. PASS.
+- tr23 R2.3 Mileage & Transport Lokal: th=11=11=11 rows=5 (4 data + TOTAL "4 BARIS", exp 4 ✓) + 2 tabel ringkasan (th=4 rows=5; th=6 rows=4), mismatch 0; kop manual ✓ TR/R23/2026/10; footer ✓. PASS.
+- tr31 R3.1 Tier/Limit Violation: th=11=11=11 rows=3 (2 data + TOTAL "2 PELANGGARAN", exp 2 ✓) + ringkasan th=4=4=4 rows=3, mismatch 0; kop manual ✓ TR/R31/2026/10 — docNo BENAR (tidak ada defect duplikat seperti Leave R3.1); footer ✓; currency Rp ✓. PASS.
+- tr32 R3.2 Lost Savings SBI: th=10=10=10 rows=11 (10 data + TOTAL, exp 10 ✓) + ringkasan th=3=3=3 rows=4, mismatch 0; kop manual ✓ TR/R32/2026/10; footer ✓; currency Rp ✓. PASS.
+- tr33 R3.3 ROI vs Budget: th=10=10=10 rows=5 (4 cost center + TOTAL PERUSAHAAN, exp 4 ✓), mismatch 0; kop manual ✓ TR/R33/2026/10; footer ✓; currency Rp ✓. PASS.
+- tr41 R4.1 Rekonsiliasi CTA: klaim korporat th=12=12=12 rows=2 (1 klaim + TOTAL) + tren 12 bulan th=3=3=3 rows=13, mismatch 0; kop manual ✓ TR/R41/2026/10; footer ✓; currency Rp ✓. VERIFIKASI API (fetch via session): items=1, monthly=12 → UI=API konsisten; exp-task "12" = baris tren bulanan (dicatat, bukan defect UI). PASS (catatan).
+- tr42 R4.2 Hotel Room-Nights: per-kota th=7=7=7 rows=4 (3 kota + TOTAL) + detail klaim th=8=8=8 rows=6 (5 data + TOTAL "5 BARIS", exp 5 ✓), mismatch 0; kop manual ✓ TR/R42/2026/10; footer ✓; currency Rp ✓. PASS.
+- tr43 R4.3 Utilisasi Carrier: th=8=8=8 rows=6 (5 data + TOTAL, exp 5 ✓) + ringkasan th=7=7=7 rows=6, mismatch 0; kop manual ✓ TR/R43/2026/10; footer ✓; currency Rp ✓. PASS.
+- FILTER UI (R1.1): "Ubah Parameter" → panel 4 filter (JENIS PERJALANAN/STATUS PENGAJUAN/CABANG/DIVISI) → STATUS PENGAJUAN="Disetujui" → Generate → baris 10→6 data (TOTAL "6 PENGAJUAN", semua baris status Disetujui) ✓; chip kop "STATUS PENGAJUAN — Disetujui" ✓; network GET /documents?id=tr11&from=2026-01-01&to=2026-10-09&status=Approved → 200 ✓ (filter diteruskan server-side). PASS.
+- XLSX: tombol "Unduh XLSX" ada di toolbar dokumen ✓. PRINT: window.print dioverride counter → klik "Cetak / PDF" → __pc=1 ✓; afterprint → document.querySelectorAll('.rk-printing').length=0 (cleanup kelas print ✓).
+- MOBILE 375x812: reload → tab Dokumen Laporan → R2.1 → Generate → scrollWidth−innerWidth = 30 (BUKAN ≤2 → CATAT): root cause teridentifikasi = grup tombol toolbar dokumen "Segarkan | Unduh XLSX | Cetak / PDF" (div.flex.items-center.gap-2 di dalam parent flex-wrap) tidak wrap di 375px (L33→R405); tabel 14-kolom sendiri scroll internal di dalam kertas (div.doc-scroll overflow-auto) sesuai aturan; katalog di 375 = overflow 0; screenshot trv-mobile.png → viewport dikembalikan 1440x900. MINOR DEFECT responsif (30px).
+- CONSOLE: errors = 0; hanya info dev (React DevTools, HMR, Fast Refresh, pwa SW). Tidak ada [error]/Uncaught/exception.
+- Catatan umum: label kop company/printedAt/downloadedBy/docNo false-negative di script eval (CSS uppercase) — diverifikasi manual via innerText di 12/12 (label asli ADA). Logo = monogram teks "MI" (konsisten modul lain). Prefix "A" pada heading ("ARINGKASAN PENGAJUAN") = badge span marker kecil, bukan typo.
+- CLEANUP: session aud-trv DITUTUP (RAM dibebaskan). Tidak ada file source diubah, tidak ada commit, dev server tidak disentuh (hidup 200 dari awal sampai akhir).
+
+Stage Summary:
+- AUD-2f SELESAI: 12/12 laporan Travel TER-AUDIT & PASS struktur (th=tdFirst=totalRow mismatch=0 di SEMUA tabel; 23 tabel total). Row-count cocok exp: 10/7/3/8/12/4/2/10/4 (+masing-masing 1 TOTAL); tr41 = 1 klaim + 12 tren bulanan (API items=1 monthly=12, UI=API konsisten; exp-12 = baris tren); tr42 = 5 detail (+3 kota); tr43 = 5 (+ringkasan). Kop 12/12 lengkap: company+NPWP+badge R1.x–R4.x+PENERIMA DOKUMEN+PERIODE+TANGGAL DICETAK+NAMA PENGUNDUH+NO. DOKUMEN TR/Rxx/2026/10 SEMUA BENAR (R11–R43 satu-satu dicek; tidak ada salah-numerik seperti Leave R3.1)+Lokasi Cabang. Footer 12/12 "DOKUMEN INTERNAL PERUSAHAAN (CONFIDENTIAL CORPORATE TRAVEL LOG)" + signoff3 peran travel (Karyawan/Travel Admin → Finance/Auditor Internal → Kepala Departemen). Currency TRUE di semua laporan uang. FILTER UI ✓ (R1.1 Status=Disetujui: 10→6 baris + chip kop + query status=Approved 200). XLSX ✓, PRINT ✓ (__pc=1, cleanup ✓), CONSOLE 0 error. 1 MINOR DEFECT: mobile 375 doc-view overflow 30px (grup tombol Segarkan/XLSX/Cetak tidak wrap; tabel sendiri scroll internal sesuai aturan; katalog=0) — saran fix: izinkan wrap / ukuran tombol lebih kecil di <400px. Screenshots: trv-catalog.png, trv-tr21.png, trv-mobile.png.
+
+---
+Task ID: AUD-3 + AUD-4
+Agent: Z.ai (orkestrator utama)
+Task: "audit semua report di semua module secara lengkap dan detail dari semua sisi" — audit menyeluruh 76 laporan distribusi di 6 modul (HR 16, Payroll 12, Attendance 12, Leave 12, Medical 12, Travel 12) + perbaikan temuan + commit.
+
+Work Log:
+- AUD-0 inventaris: 6 modul punya laporan dokumen (hr/attendance/leave/medical/travel via ?id= + payroll via ?report=); total 76 laporan. Sandbox reset kambuh (.env SQLite) → pemulihan §896 penuh (env → db:generate → db:push → restore-demo → migrasi sandi → 5 enrich script idempoten) → server 200.
+- AUD-1 API layer (scripts/audit-all-report-documents.ts, idempoten, boleh diulang): login → pilih workspace → 169/169 PASS — _params ×6, 76 dokumen 200 dgn bentuk+meta benar, XLSX PK ×60, id tak dikenal → 400 ×6, tanpa sesi → 401 ×6, varian filter ×6, pool payroll (runs/periods/years/banks) + 3 ekspor legacy (monthly XLSX 45KB, bpjs XLSX 11KB, SPT CSV). Baris terverifikasi: hr r11=44/r42=44/r44=18, att ar13=374/ar41=81, leave lr21=65/lr33=42, med mr11=420, trv tr11=10/tr22=12; payroll r23 (PPh26) & r33 (Tapera) = 0 baris LEGIT (demo tanpa ekspatriat/Tapera).
+- AUD-1b aritmetika invarian (scripts/audit-report-arithmetic.ts): payroll r12 Σ17 komponen × 42 baris = totals.perColumn + totals.employees=42; payroll r31 Σ8 kolom uang = totals; medical mr11 plafon−used=remaining 420/420; leave lr11 carried+earned+adj−cashed−taken−applied=remaining 42/42 (rumus computeParts diverifikasi di source); travel tr21 R=Σexpenses+loss−(a) dan b/c=max(0,R−advance)/max(0,advance−R) 8/8; att ar31 ΣverifiedHours=total; hr r41 Σbucket=44=totalAll — SEMUA PASS.
+- AUD-2 browser E2E per modul (subagent general-purpose, 1 browser session terisolasi per modul + 2 sesi verifikasi fix oleh orkestrator; eval generik colSpan-aware .audit-tmp/rk-audit-eval.js):
+  · HR (AUD-2a): 16/16 struktur PASS (25 tabel mismatch 0); kop/footer lengkap; filter R1.1 Permanent 44→35 + chip + query server-side; XLSX/print/mobile/console 0 error. Temuan: R3.4 UI kosong vs API 4.
+  · Payroll (AUD-2b): 11/12 PASS; FAIL r22 (1721-A1) — PDF engine 502.
+  · Attendance (AUD-2c): 11/12 PASS (3 sesi karena server OOM 2×); FAIL ar41 — client crash.
+  · Leave (AUD-2d): 12/12 struktur PASS; defect docNo R3.1 tampil LV/R33 (copy-paste).
+  · Medical (AUD-2e): 12/12 PASS penuh; privasi mr33 PASS (pasien anonim, disclaimer eksplisit, tidak ada nama karyawan bocor); docNo 12/12 benar.
+  · Travel (AUD-2f): 12/12 PASS; minor defect mobile 375 — toolbar "Unduh XLSX" tidak wrap (overflow 30px).
+- INFRA TEMUAN PENTING (lintas sesi): dev server berkali-kali mati diam-diam → ROOT CAUSE TERBUKTI dmesg = OOM-killer membunuh next-server (RAM sandbox 4GB; baseline next-server 2,5GB; Chrome ~0,7GB; tsc/lint ~1GB). Mitigasi terbukti: (1) maksimal 1 browser saat audit; (2) JANGAN edit file/jalankan tsc/build selama browser audit berjalan (Fast Refresh recompile memicu OOM); (3) restart server antar batch bila perlu.
+- FIX (AUD-3) — 5 perbaikan, semua diverifikasi ulang di browser oleh orkestrator:
+  1. r22 payroll 1721-A1 502: vendor/jasper/cache/ tidak pernah dibuat (di-gitignore tapi tak dibuat runtime) → JRSaver gagal FileOutputStream. Fix: mkdir -p cache di route sebelum spawn java → PDF 200 (1 halaman) + UI render blob iframe ✓.
+  2. R3.4 HR kosong: defaultsFor from/to = tahun berjalan menyembunyikan riwayat 2022 (log pergerakan = laporan RIWAYAT). Fix: r34 default full history (from/to kosong) → 2 baris 2022 render, th=td=9 ✓.
+  3. ar41 attendance crash: API severity "rendah" vs view map SEV_LABEL hanya "ringan" → t(...undefined) exception. Fix: map menerima kedua alias (ringan+rendah) → 114 baris render, mismatch 0 ✓.
+  4. lr31 leave docNo LV/R33 → fix mkDocNo("lr31") ✓. Scan proximity seluruh modul: tidak ada mismatch lain.
+  5. Mobile 375 travel toolbar overflow 30px: grup tombol tanpa flex-wrap → fix flex-wrap di 4 modul (travel/att/leave/hr; medical sudah benar) → tr21 overflow 0 ✓; mr11 medical overflow 0 ✓ (diselesaikan setelah server dipulihkan).
+- CATATAN non-defect terdokumentasi: (a) label kop CSS-UPPERCASE membuat eval case-sensitive false-negative — diverifikasi manual per modul, semua label ada; (b) logo = monogram teks (demo tanpa aset logo); (c) payroll dokumen tanpa field docNo/audience — identitas via No. Run + badge (perbedaan desain doc-kit payroll); (d) payroll r31 thead 2-baris bergrup — audit colSpan-aware manual PASS; (e) mr12 UI=API live=1 karyawan (angka audit awal 4 = array bucket berbeda); (f) r23/r33 payroll kosong legit; (g) ekspektasi baris API vs DOM berbeda metode hitung (tree-flatten/bulan-vs-divisi) — dicatat, bukan defect; (h) interaksi Radix tab perlu real click.
+- VERIFIKASI FINAL: tsc 0 error; lint 0 error (2 warning pre-existing e2e-browser-subdomain.mjs); tsc mematikan server sekali lagi (OOM) → restart menjelang commit.
+
+Stage Summary:
+- HASIL AUDIT TOTAL: 76 laporan — API 169/169 PASS; aritmetika 10/10 invarian PASS; browser E2E: HR 16/16, Payroll 12/12 (setelah fix r22), Attendance 12/12 (setelah fix ar41), Leave 12/12 (setelah fix docNo), Medical 12/12, Travel 12/12 (setelah fix wrap) = 76/76 PASS STRUKTUR+KOP+FOOTER.
+- 5 bug ditemukan & diperbaiki (r22 engine cache, R3.4 default window, ar41 severity alias crash, lr31 docNo, toolbar wrap 4 modul); semua fix diverifikasi browser ulang oleh orkestrator (ar41 114 baris mismatch 0; r34 2 baris; r22 blob PDF; tr21 & mr11 mobile overflow 0).
+- Artefak: scripts/audit-all-report-documents.ts + scripts/audit-report-arithmetic.ts (regresi, idempoten) + .audit-tmp/ screenshot bukti (2,2MB, di-gitignore).
+- Pelajaran ops: OOM 4GB — audit browser HARUS 1 sesi; jangan compile saat audit; restart server antar batch.
