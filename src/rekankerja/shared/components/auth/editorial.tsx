@@ -5,7 +5,7 @@
 // bersih; aksen biru #2563EB; marquee putih-biru di atas gradient.
 // ============================================================================
 import { motion } from "framer-motion";
-import { AlertCircle, Waypoints } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Tekstur noise film SVG inline — kedalaman "kertas premium" tanpa aset. */
@@ -26,33 +26,17 @@ export function NoiseOverlay({ opacity = 0.035, className }: { opacity?: number;
  * default (biru solid di atas latar terang). */
 export function EditorialLogo({ compact = false, variant = "default" }: { compact?: boolean; variant?: "default" | "hero" }) {
   const hero = variant === "hero";
+  // Brand asset resmi (Task logo-1): lockup PNG transparan hasil generator
+  // scripts/generate-brand-logo.ts. Varian "hero" = versi putih agar menyatu
+  // (blend) dengan panel gradient biru — tanpa kotak latar, hanya gambar.
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className={cn(
-          hero
-            ? "bg-white/15 text-white shadow-none backdrop-blur ring-1 ring-white/25"
-            : "bg-primary text-primary-foreground shadow-[0_10px_28px_-12px_rgba(37,99,235,0.55)]",
-          "flex items-center justify-center rounded-2xl",
-          compact ? "h-10 w-10" : "h-12 w-12",
-        )}
-      >
-        <Waypoints className={compact ? "h-5 w-5" : "h-6 w-6"} aria-hidden />
-      </div>
-      <div>
-        <p
-          className={cn(
-            "font-extrabold tracking-tight",
-            hero ? "text-white" : "text-slate-900 dark:text-slate-100",
-            compact ? "text-base" : "text-lg",
-          )}
-        >
-          Rekan<span className={hero ? "text-blue-200" : "text-brand-deep dark:text-brand"}>Kerja</span>
-        </p>
-        <p className={cn("text-[9px] font-bold uppercase tracking-[0.32em]", hero ? "text-blue-200/80" : "text-slate-400 dark:text-slate-500")}>
-          HR Suite
-        </p>
-      </div>
+    <div className="flex items-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={hero ? "/brand/rekankerja-lockup-white.png" : "/brand/rekankerja-lockup.png"}
+        alt="RekanKerja — Human Resource Information System"
+        className={cn("w-auto", compact ? "h-9" : hero ? "h-14" : "h-12")}
+      />
     </div>
   );
 }

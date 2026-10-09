@@ -418,14 +418,18 @@ function ItemWidget({ mod, item, meta, accent }: { mod: string; item: NavItem; m
 }
 
 // ============ LOGO MARK ============
+// Task logo-1: gunakan aset resmi putih transparan (perisai+panah) di atas
+// tombol rail berwarna aksen — menggantikan mark geometrik generik.
 function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="5" r="2.6" />
-      <circle cx="5" cy="17" r="2.6" />
-      <circle cx="19" cy="17" r="2.6" />
-      <path d="M12 7.6 6.6 14.6M12 7.6l5.4 7M7.6 17h8.8" />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/brand/rekankerja-mark-white.png"
+      alt=""
+      aria-hidden
+      className={cn("object-contain", className)}
+      draggable={false}
+    />
   );
 }
 

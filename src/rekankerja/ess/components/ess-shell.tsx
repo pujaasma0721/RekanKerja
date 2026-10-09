@@ -105,27 +105,19 @@ function essRoleLabel(role: string, t: (id: string, en: string) => string): stri
   return m ? t(m.id, m.en) : role;
 }
 
-// ============ LOGO ESS (pola lockup editorial: kotak tinta + aksen brand "Kerja") ============
+// ============ LOGO ESS (Task logo-1: lockup PNG resmi, warna asli) ============
 function EssLogo({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className={cn(
-          "flex items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_10px_28px_-12px_var(--ov-accent-glow,rgba(37,99,235,0.28))]",
-          compact ? "h-9 w-9" : "h-10 w-10",
-        )}
-      >
-        <Waypoints className={compact ? "h-4 w-4" : "h-5 w-5"} aria-hidden />
-      </div>
-      <div className="min-w-0">
-        <p className={cn("font-extrabold tracking-tight text-slate-900 dark:text-slate-100", compact ? "text-[15px]" : "text-base")}>
-          Rekan<span className="text-brand-deep dark:text-brand">Kerja</span>
-        </p>
-        <p className="text-[9px] font-bold uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">
-          {t("Self Service", "Self Service")}
-        </p>
-      </div>
+    <div className="flex items-center gap-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/rekankerja-lockup.png"
+        alt="RekanKerja Self Service"
+        className={cn("h-auto w-auto", compact ? "h-8" : "h-9")}
+        draggable={false}
+      />
+      <span className="sr-only">{t("Self Service", "Self Service")}</span>
     </div>
   );
 }

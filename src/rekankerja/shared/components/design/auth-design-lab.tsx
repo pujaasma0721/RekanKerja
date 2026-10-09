@@ -19,7 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle, ArrowRight, BriefcaseBusiness, Building2, CalendarCheck2, Check,
   CheckCircle2, Coins, HeartPulse, Languages, Loader2, Lock, Mail, Palmtree,
-  Plane, ShieldCheck, Sparkles, Users, Waypoints,
+  Plane, ShieldCheck, Sparkles, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -184,28 +184,16 @@ function MeshField() {
 function LogoLockup({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <div
-        className={cn(
-          "flex items-center justify-center rounded-2xl text-white",
-          compact ? "h-10 w-10" : "h-12 w-12",
-          light
-            ? "bg-slate-900 shadow-[0_10px_28px_-12px_rgba(28,25,23,0.7)]"
-            : "bg-gradient-to-br from-brand/40 via-brand to-brand shadow-[0_10px_28px_-10px_rgba(16,185,129,0.75),inset_0_1px_0_rgba(255,255,255,0.35)]",
-        )}
-      >
-        <Waypoints className={compact ? "h-5 w-5" : "h-6 w-6"} />
-      </div>
-      <div>
-        <p className={cn("font-extrabold tracking-tight", compact ? "text-base" : "text-lg", light ? "text-slate-900" : "text-slate-50")}>
-          Rekan
-          {light ? (
-            <span className="text-amber-700">Kerja</span>
-          ) : (
-            <span className="bg-gradient-to-r from-brand/30 to-brand/40 bg-clip-text text-transparent">Kerja</span>
-          )}
-        </p>
-        <p className={cn("text-[9px] font-bold uppercase tracking-[0.32em]", light ? "text-slate-400" : "text-slate-500")}>HR Suite</p>
-      </div>
+      <img
+        src={light ? "/brand/rekankerja-mark.png" : "/brand/rekankerja-mark-white.png"}
+        alt="Perisai RekanKerja"
+        className={compact ? "h-10 w-auto" : "h-12 w-auto"}
+      />
+      <img
+        src={light ? "/brand/rekankerja-lockup.png" : "/brand/rekankerja-lockup-white.png"}
+        alt="RekanKerja — Human Resource Information System"
+        className={compact ? "h-6 w-auto" : "h-7 w-auto"}
+      />
     </div>
   );
 }
@@ -599,13 +587,8 @@ function BaselineLogin({ variant }: { variant: "desktop" | "mobile" }) {
           <div aria-hidden className="pointer-events-none absolute inset-0 bg-[image:linear-gradient(to_right,rgba(214,211,209,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(214,211,209,0.05)_1px,transparent_1px)] bg-[size:36px_36px]" />
           <div className="relative z-10 flex h-full flex-col justify-between gap-10">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand/60 to-brand text-white shadow-lg">
-                <Waypoints className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-lg font-bold tracking-tight text-slate-50">Rekan<span className="text-brand/85">Kerja</span></p>
-                <p className="text-[11px] uppercase tracking-widest text-slate-500">HR Suite</p>
-              </div>
+              <img src="/brand/rekankerja-mark-white.png" alt="Perisai RekanKerja" className="h-10 w-auto" />
+              <img src="/brand/rekankerja-lockup-white.png" alt="RekanKerja — Human Resource Information System" className="h-16 w-auto" />
             </div>
             <div className="max-w-md">
               <span className="rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand/85">SaaS Multi-Tenant</span>
@@ -633,10 +616,8 @@ function BaselineLogin({ variant }: { variant: "desktop" | "mobile" }) {
         <LangPill sim={sim} dark={false} />
         <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/60">
           <div className="mb-3 flex items-center gap-2.5 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand/60 to-brand text-white shadow-md">
-              <Waypoints className="h-5 w-5" />
-            </div>
-            <p className="text-base font-bold tracking-tight text-slate-900">Rekan<span className="text-brand">Kerja</span></p>
+            <img src="/brand/rekankerja-mark.png" alt="Perisai RekanKerja" className="h-9 w-auto" />
+            <img src="/brand/rekankerja-lockup.png" alt="RekanKerja — Human Resource Information System" className="h-14 w-auto" />
           </div>
           <h1 className="text-xl font-bold text-slate-900">{tt("welcome", lang)}</h1>
           <p className="mt-1 text-sm text-slate-500">{tt("welcomeDesc", lang)}</p>
@@ -1523,9 +1504,7 @@ export function AuthDesignLab() {
         {/* header */}
         <header className="flex items-center justify-between gap-4 py-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand/60 to-brand shadow-lg shadow-brand/40">
-              <Waypoints className="h-4 w-4 text-white" />
-            </div>
+            <img src="/brand/rekankerja-mark.png" alt="Perisai RekanKerja" className="h-9 w-auto" />
             <div>
               <p className="text-[15px] font-extrabold leading-tight tracking-tight text-white">
                 RekanKerja <span className="text-brand/85">Design Lab</span>
