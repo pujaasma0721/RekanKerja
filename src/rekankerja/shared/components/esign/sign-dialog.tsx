@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 
 export type EsignDocType = "LetterDocument" | "PersonnelAction" | "PayrollRun";
 
@@ -58,7 +59,7 @@ export function EsignSignDialog({ open, onOpenChange, docType, docId, docLabel, 
       });
       const j = (await r.json()) as ChallengePayload;
       if (j.ok) setFactor(j.factor ?? (status?.hasPin ? "pin" : "otp"));
-      else setError(j.message || t("Gagal memulai tanda tangan", "Failed to start signing"));
+      else setError(trServer(j.message) || t("Gagal memulai tanda tangan", "Failed to start signing"));
     } catch {
       setError(t("Kesalahan jaringan", "Network error"));
     } finally { setBusy(false); }
@@ -75,7 +76,7 @@ export function EsignSignDialog({ open, onOpenChange, docType, docId, docLabel, 
       if (j.ok && j.signatureId) {
         setDone({ id: j.signatureId });
         onSigned?.(j.signatureId);
-      } else setError(j.message || t("Tanda tangan gagal", "Signing failed"));
+      } else setError(trServer(j.message) || t("Tanda tangan gagal", "Signing failed"));
     } catch {
       setError(t("Kesalahan jaringan", "Network error"));
     } finally { setBusy(false); }

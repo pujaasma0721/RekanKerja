@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Semua" },
@@ -132,7 +133,7 @@ export function TravelRequestsPage() {
       ));
       // Task 98 (F1-3) — peringatan budget CC pengaju (server; warning, bukan blokir).
       if (res.budgetWarning) {
-        toast.warning(res.budgetWarning, { duration: 9000 });
+        toast.warning(trServer(res.budgetWarning), { duration: 9000 });
       } else if (res.budget && res.budget.remaining != null) {
         toast.info(t("Sisa budget CC {cc} tahun ini: {amt}", "Remaining budget of CC {cc} this year: {amt}", { cc: res.budget.costCenter ?? "-", amt: fmtIDRShort(res.budget.remaining) }));
       }

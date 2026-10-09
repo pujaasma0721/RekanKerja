@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -138,7 +139,7 @@ export function EssTravelRequest() {
         }),
         { description: t("Estimasi SBI & uang muka mengikuti kebijakan; pantau status di daftar bawah.", "SBI estimate & the advance follow policy; track the status in the list below.") },
       );
-      if (res.budgetWarning) toast.warning(res.budgetWarning, { duration: 9000 });
+      if (res.budgetWarning) toast.warning(trServer(res.budgetWarning), { duration: 9000 });
       setDialog(false);
       api.refresh();
     } catch (e) {

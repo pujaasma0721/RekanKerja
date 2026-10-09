@@ -1,7 +1,7 @@
 "use client";
 // RekanKerja shared API hooks + formatters (client side)
 import { useCallback, useEffect, useState } from "react";
-import { getLang } from "@/rekankerja/shared/lib/i18n-core";
+import { getLang, trServer } from "@/rekankerja/shared/lib/i18n-core";
 
 /**
  * Event global perubahan status brankas uang (Task 56): dikirim money-vault.tsx
@@ -41,7 +41,7 @@ export function useApi<T>(url: string | null, deps: unknown[] = []) {
       setError(null);
       try {
         const r = await fetch(url);
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(trServer((await r.json().catch(() => ({}))).error ?? `HTTP ${r.status}`));
         const d = (await r.json()) as T;
         if (alive) { setData(d); setLoading(false); }
       } catch (e) {
@@ -63,10 +63,13 @@ export async function apiSend<T>(url: string, method: "GET" | "POST" | "PATCH" |
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    // Task 33: error boleh membawa details[] (daftar aturan kebijakan sandi yang gagal)
-    const err = new Error((json as { error?: string }).error ?? `HTTP ${res.status}`) as Error & { details?: string[] };
+    // Task 33: error boleh membawa details[] (daftar aturan kebijakan sandi yang gagal).
+    // BL-ERR: pesan server diterjemahkan TERPUSAT di sini (trServer — kamus
+    // + aturan pola server-errors.ts) supaya semua 596 call site `e.message`
+    // di modul ikut bahasa aktif tanpa perlu diubah satu per satu.
+    const err = new Error(trServer((json as { error?: string }).error ?? `HTTP ${res.status}`)) as Error & { details?: string[] };
     const details = (json as { details?: unknown }).details;
-    if (Array.isArray(details)) err.details = details.map(String);
+    if (Array.isArray(details)) err.details = details.map((d) => trServer(String(d)));
     throw err;
   }
   return json as T;
@@ -78,7 +81,7 @@ export async function apiUpload<T>(url: string, form: FormData): Promise<T> {
   const res = await fetch(url, { method: "POST", body: form });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error((json as { error?: string }).error ?? `HTTP ${res.status}`);
+    throw new Error(trServer((json as { error?: string }).error ?? `HTTP ${res.status}`));
   }
   return json as T;
 }

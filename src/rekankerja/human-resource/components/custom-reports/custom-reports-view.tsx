@@ -17,6 +17,7 @@ import {
 import { useApi, apiSend, fmtDate, fmtDateTime } from "@/rekankerja/shared/lib/api";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -300,7 +301,7 @@ export function CustomReportsView() {
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error ?? `HTTP ${res.status}`);
+        throw new Error(trServer(j.error ?? `HTTP ${res.status}`));
       }
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") ?? "";

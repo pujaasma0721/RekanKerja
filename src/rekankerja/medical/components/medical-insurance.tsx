@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { INS_STATE_LABEL, INS_STATE_LABEL_EN, InsReceivableUI, fmtIDR, fmtDateID } from "./medical-types";
 import { Coins, Send, HandCoins, Eraser, Building2 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { toast } from "sonner";
 
 type InsRow = InsReceivableUI;
@@ -88,7 +89,7 @@ export function MedicalInsurancePage() {
         setDialog(null);
         await api.refresh();
       } else {
-        toast.error(String(j?.error ?? t("Gagal ({code})", "Failed ({code})", { code: res.status })));
+        toast.error(j?.error ? trServer(String(j.error)) : t("Gagal ({code})", "Failed ({code})", { code: res.status }));
       }
     } finally {
       setBusy(false);

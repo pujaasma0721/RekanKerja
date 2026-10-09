@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toDataURL } from "qrcode";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { Button } from "@/components/ui/button";
 import { Loader2, QrCode as QrCodeIcon, X, RefreshCw, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,7 +41,7 @@ export function AttendanceKioskPage() {
     try {
       const r = await fetch(KIOSK_TOKEN_URL, { cache: "no-store" });
       const j = (await r.json().catch(() => ({}))) as { payload?: string; expiresAt?: string; error?: string };
-      if (!r.ok || !j.payload) throw new Error(j.error ?? `HTTP ${r.status}`);
+      if (!r.ok || !j.payload) throw new Error(trServer(j.error ?? `HTTP ${r.status}`));
       setPayload(j.payload);
       setExpiresAt(j.expiresAt ?? null);
       setError(null);

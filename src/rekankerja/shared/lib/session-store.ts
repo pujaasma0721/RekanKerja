@@ -3,6 +3,7 @@
 // Status: loading → anonymous (login/daftar) → select-tenant (pilih workspace) → ready.
 // JANGAN impor tipe dari src/lib/rekankerja/auth.ts (modul server) — tipe didefinisikan lokal.
 import { create } from "zustand";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 
 export interface SessionUser {
   id: string;
@@ -77,6 +78,9 @@ async function postJson<T>(url: string, body: unknown): Promise<{ ok: boolean; s
     body: JSON.stringify(body),
   });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  // BL-ERR: pesan error auth server ("Email atau kata sandi salah" dsb.)
+  // diterjemahkan terpusat agar layar login ikut bahasa aktif (EN default).
+  if (!res.ok && data.error) data.error = trServer(data.error);
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -130,7 +134,7 @@ export const useSession = create<SessionState>((set) => ({
       password,
     });
     if (!ok) {
-      set({ busy: false, error: data.error ?? "Gagal masuk" });
+      set({ busy: false, error: data.error ?? trServer("Gagal masuk") });
       // Task 78: login lewat subdomain workspace lain → redirect ke host utama
       // (di sana layar pilih workspace tersedia). Cookie TIDAK di-set server.
       if (data.host) {
@@ -153,7 +157,7 @@ export const useSession = create<SessionState>((set) => ({
     set({ busy: true, error: null });
     const { ok, data } = await postJson<SessionInfo>("/api/auth/mfa/verify", { mfaToken, token });
     if (!ok) {
-      set({ busy: false, error: data.error ?? "Verifikasi gagal" });
+      set({ busy: false, error: data.error ?? trServer("Verifikasi gagal") });
       return false;
     }
     set({ busy: false, ...applyInfo(data) });
@@ -164,7 +168,7 @@ export const useSession = create<SessionState>((set) => ({
     set({ busy: true, error: null });
     const { ok, data } = await postJson<SessionInfo>("/api/auth/register", input);
     if (!ok) {
-      set({ busy: false, error: data.error ?? "Gagal membuat workspace" });
+      set({ busy: false, error: data.error ?? trServer("Gagal membuat workspace") });
       return false;
     }
     set({ busy: false, ...applyInfo(data) });
@@ -175,7 +179,7 @@ export const useSession = create<SessionState>((set) => ({
     set({ busy: true, error: null });
     const { ok, data } = await postJson<SessionInfo>("/api/auth/select-tenant", { tenantId });
     if (!ok) {
-      set({ busy: false, error: data.error ?? "Gagal memilih workspace" });
+      set({ busy: false, error: data.error ?? trServer("Gagal memilih workspace") });
       return false;
     }
     set({ busy: false, ...applyInfo(data) });

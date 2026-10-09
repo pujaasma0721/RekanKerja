@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 
 // ---------- tipe ----------
 interface KeyRow {
@@ -112,7 +113,7 @@ export function EsignAdminView() {
       const r = await apiSend<{ ok: boolean; message: string }>("/api/rekankerja/esign-admin", "POST", {
         action: confirm.kind, appUserId: confirm.row.appUserId,
       });
-      toast.success(r.message ?? t("Berhasil", "Done"));
+      toast.success(r.message ? trServer(r.message) : t("Berhasil", "Done"));
       setConfirm(null);
       reloadAll();
     } catch (e) {

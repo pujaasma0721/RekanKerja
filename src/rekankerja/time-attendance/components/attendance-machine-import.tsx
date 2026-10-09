@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useApi, fmtDateTime, apiSend } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -208,7 +209,7 @@ export function AttendanceMachineImportPage() {
     fd.append("dryRun", String(dryRun));
     const res = await fetch(IMPORT_URL, { method: "POST", body: fd });
     const json = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+    if (!res.ok) throw new Error(trServer(json.error ?? `HTTP ${res.status}`));
     return json as DryRunReport | CommitReport;
   };
 

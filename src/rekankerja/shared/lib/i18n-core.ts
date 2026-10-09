@@ -9,6 +9,8 @@
 // helper non-React (fmtDate/fmtIDR/tenure di api.ts) bisa ikut bahasa aktif.
 // Provider (i18n.tsx) yang memanggil setGlobalLang saat bahasa berganti.
 
+import { SERVER_ERR_EN, SERVER_MSG_FRAGMENTS, SERVER_MSG_RULES } from "./server-errors";
+
 export type Lang = "id" | "en";
 
 /** Bahasa default aplikasi untuk pengguna baru / first login (tanpa preferensi
@@ -155,6 +157,53 @@ const REPORT_LABEL_RULES = [...REPORT_LABEL_PHRASES]
     const tail = /\s$/.test(id) ? "" : "(?![\\p{L}\\p{N}])";
     return { re: new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(id)}${tail}`, "gu"), en };
   });
+
+/** Regex fragmen pesan server (kompilasi sekali, urut terpanjang-dulu). */
+const SERVER_FRAG_RULES: { re: RegExp; en: string }[] = [...SERVER_MSG_FRAGMENTS]
+  .sort((a, b) => b[0].length - a[0].length)
+  .map(([id, en]) => {
+    const tail = /\s$/.test(id) ? "" : "(?![\\p{L}\\p{N}])";
+    return { re: new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(id)}${tail}`, "gu"), en };
+  });
+
+// ============ TERJEMAHAN PESAN SERVER (error/warning/info) ============
+// Audit BL-ERR: pesan yang LAHIR DI SERVER (NextResponse.json({error:"…"}) /
+// throw new Error("…") di api/services) hardcoded Indonesia, dan ditampilkan
+// client mentah lewat 596 call site `e.message` → mode EN tetap Indonesia.
+// trServer() menerjemahkannya TERPUSAT di titik masuk client (apiSend/
+// apiUpload/useApi/essGet/useEssMe/session-store) + titik tampil pesan sukses
+// server (res.message / budgetWarning / warnings[]).
+// Urutan: (1) kamus statis SERVER_ERR_EN → BASE_EN; (2) prefiks "Baris N:" →
+// "Row N:" + rekursi isi (validasi per-baris klaim ESS); (3) aturan regex
+// berjangkar (SERVER_MSG_RULES — data di-capture lalu dipancangkan ulang);
+// (4) fragmen frasa baku (SERVER_MSG_FRAGMENTS); (5) fallback identity.
+// Pesan hasil terjemahan JANGAN diterjemahkan lagi (idempoten: hasil EN tidak
+// ada sebagai key kamus Indonesia).
+
+/** Terjemahkan pesan server → bahasa EKSPLISIT (aman utk server & client). */
+export function trServerFor(lang: Lang, msg: string | null | undefined): string {
+  if (msg == null || msg === "") return msg ?? "";
+  if (lang !== "en") return msg;
+  // (1) kamus statis
+  const hit = SERVER_ERR_EN[msg] ?? BASE_EN[msg];
+  if (hit) return hit;
+  // (2) prefiks per-baris klaim ESS: "Baris N: <isi>" → "Row N: <isi diterjemahkan>"
+  const row = msg.match(/^Baris (\d+):\s*([\s\S]*)$/);
+  if (row) return `Row ${row[1]}: ${trServerFor(lang, row[2])}`;
+  // (3) aturan dinamis berjangkar — match pertama menang
+  for (const { re, en } of SERVER_MSG_RULES) {
+    if (re.test(msg)) return msg.replace(re, en);
+  }
+  // (4) fragmen frasa baku
+  let out = msg;
+  for (const { re, en } of SERVER_FRAG_RULES) out = out.replace(re, en);
+  return out;
+}
+
+/** trServer versi client — mengikuti bahasa aktif (reaktif via useI18n). */
+export function trServer(msg: string | null | undefined): string {
+  return trServerFor(globalLang, msg);
+}
 
 /** Lokalisasi periodLabel dokumen laporan (bulan + frasa anotasi) — bahasa eksplisit. */
 export function locReportFor(lang: Lang, s: string | null | undefined): string {

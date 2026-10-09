@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Paperclip, FileText, Image as ImageIcon, Eye, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { cn } from "@/lib/utils";
 
 /** Metadata lampiran tersimpan (dari API — tanpa storagePath). */
@@ -209,7 +210,7 @@ export function DeleteAttachmentButton({
           const res = await fetch(`/api/rekankerja/attachments/${id}`, { method: "DELETE" });
           if (!res.ok) {
             const json = (await res.json().catch(() => ({}))) as { error?: string };
-            throw new Error(json.error ?? `HTTP ${res.status}`);
+            throw new Error(trServer(json.error ?? `HTTP ${res.status}`));
           }
           onDeleted();
         } catch {

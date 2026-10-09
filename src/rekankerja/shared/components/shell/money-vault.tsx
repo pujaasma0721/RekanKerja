@@ -21,6 +21,7 @@ import { Vault, KeyRound, Users, ShieldCheck, LockKeyhole, LockKeyholeOpen, Tria
 import { cn } from "@/lib/utils";
 import { useSession } from "@/rekankerja/shared/lib/session-store";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { fmtDateTime, VAULT_CHANGED_EVENT } from "@/rekankerja/shared/lib/api";
 import { PasswordInput } from "@/rekankerja/shared/components/password-ui";
 import { Button } from "@/components/ui/button";
@@ -176,7 +177,7 @@ export function MoneyVaultButton() {
       const r = await fetch(VAULT_MEMBERS);
       if (!r.ok) {
         const json = (await r.json().catch(() => ({}))) as { error?: string };
-        setMembersError(json.error ?? `HTTP ${r.status}`);
+        setMembersError(trServer(json.error ?? `HTTP ${r.status}`));
         setMembers(null);
         return;
       }
@@ -282,9 +283,9 @@ export function MoneyVaultButton() {
     };
     if (e.code && map[e.code]) {
       // LOCKOUT membawa retryAfterSeconds pada pesan server — tampilkan.
-      return e.code === "LOCKOUT" && e.message ? `${map[e.code]} — ${e.message}` : map[e.code]!;
+      return e.code === "LOCKOUT" && e.message ? `${map[e.code]} — ${trServer(e.message)}` : map[e.code]!;
     }
-    return e.message ?? t("Permintaan gagal", "Request failed");
+    return e.message ? trServer(e.message) : t("Permintaan gagal", "Request failed");
   };
 
   const myViewLabel = (v: VaultStatus["myView"]): string =>

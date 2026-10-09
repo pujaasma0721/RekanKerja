@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { placeholdersOf, DEFAULT_TEMPLATES_PLACEHOLDER } from "@/rekankerja/shared/services/email-defaults";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 
 // ---------- tipe ----------
 
@@ -135,8 +136,8 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
     setTesting(true);
     try {
       const res = await apiSend("/api/rekankerja/email-config", "POST", { to: testTo }) as { ok?: boolean; message?: string };
-      if (res?.ok) toast.success(res.message ?? t("Email uji terkirim", "Test email sent"));
-      else toast.error(res?.message ?? t("Pengiriman gagal", "Send failed"));
+      if (res?.ok) toast.success(res?.message ? trServer(res.message) : t("Email uji terkirim", "Test email sent"));
+      else toast.error(res?.message ? trServer(res.message) : t("Pengiriman gagal", "Send failed"));
       refresh();
     } catch (e) {
       toast.error((e as Error).message);

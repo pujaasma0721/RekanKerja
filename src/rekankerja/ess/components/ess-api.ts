@@ -4,6 +4,7 @@
 // tidak dirinci kontrak dibaca defensif via pickStr/pickNum agar tampilan tetap rapi.
 import { useCallback, useEffect, useState } from "react";
 import { apiSend, apiUpload } from "@/rekankerja/shared/lib/api";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import type {
   EssAttendanceData,
   EssClaimsData,
@@ -90,7 +91,8 @@ export async function essGet<T>(path: string): Promise<T> {
   const res = await fetch(`${ESS_BASE}${path}`);
   const json = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) {
-    const err = new Error(json.error ?? `HTTP ${res.status}`) as Error & { status?: number };
+    // BL-ERR: pesan error server diterjemahkan terpusat (kamus/pola EN).
+    const err = new Error(trServer(json.error ?? `HTTP ${res.status}`)) as Error & { status?: number };
     err.status = res.status;
     throw err;
   }
@@ -212,10 +214,10 @@ export function useEssMe(): { state: EssMeState; retry: () => void } {
               canAdmin = !!(md.all || (md.menus ?? []).length > 0 || md.isSuperAdmin);
             }
           } catch { /* biarkan true */ }
-          if (alive) setState({ phase: "no-employee", canAdmin, message: body.error ?? null });
+          if (alive) setState({ phase: "no-employee", canAdmin, message: trServer(body.error) });
           return;
         }
-        if (alive) setState({ phase: "error", message: body.error ?? `HTTP ${res.status}` });
+        if (alive) setState({ phase: "error", message: trServer(body.error ?? `HTTP ${res.status}`) });
       } catch {
         if (alive) setState({ phase: "error", message: null });
       }

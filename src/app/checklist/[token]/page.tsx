@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Check, CircleDashed, ListChecks, Mail, MinusCircle } from "lucide-react";
 import { I18nProvider, useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 
 interface TaskRow { id: string; seq: number; title: string; status: string; notes: string | null; completedAt: string | null }
 interface ChecklistData {
@@ -73,7 +74,7 @@ function ChecklistInner() {
     try {
       const res = await fetch(`/api/public/checklist?token=${encodeURIComponent(token)}&t=${encodeURIComponent(tenant)}`);
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? t("Gagal memuat", "Failed to load"));
+      if (!res.ok) throw new Error(trServer(body.error) || t("Gagal memuat", "Failed to load"));
       setData(body as ChecklistData);
     } catch (e) {
       const raw = e instanceof Error ? e.message : t("Gagal memuat", "Failed to load");
@@ -92,7 +93,7 @@ function ChecklistInner() {
         body: JSON.stringify({ token, tenant, taskId, status }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? t("Gagal menyimpan", "Failed to save"));
+      if (!res.ok) throw new Error(trServer(body.error) || t("Gagal menyimpan", "Failed to save"));
       await load();
     } catch (e) {
       const raw = e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save");

@@ -28,6 +28,7 @@ import {
   FileText, Plus, Search, ChevronDown, ChevronRight, Trash2, Activity, Calculator, Paperclip,
 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS = [
@@ -213,7 +214,7 @@ export function MedicalClaimsPage() {
       // AMBER non-blocking setelah submit sukses (nama tak cocok data keluarga /
       // jumlah dependent melebihi batas jenis benefit).
       for (const w of res.warnings ?? []) {
-        toast.warning(w, { duration: 7000 });
+        toast.warning(trServer(w), { duration: 7000 });
       }
       setDialog(false);
       api.refresh();

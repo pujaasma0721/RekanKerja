@@ -16,6 +16,7 @@ import { BookOpen, FileDown, Sparkles, ChevronRight, Scale, Landmark } from "luc
 import { JournalRow, JournalLine, MissingRunRow } from "@/rekankerja/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
 import { useI18n, loc, locActivity } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 
 interface JournalsData {
   journals: JournalRow[];
@@ -58,7 +59,7 @@ export function PayrollJournalsPage() {
   const openDetail = async (j: JournalRow) => {
     try {
       const res = await fetch(`/api/rekankerja/payroll-journals?id=${j.id}`).then((r) => r.json());
-      if (res?.error) throw new Error(res.error);
+      if (res?.error) throw new Error(trServer(String(res.error)));
       setDetail(res.journal ?? null);
     } catch (e) {
       toast.error((e as Error).message);

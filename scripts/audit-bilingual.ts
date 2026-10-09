@@ -71,6 +71,9 @@ const RUNTIME_TRANSLATED = [
   "src/rekankerja/travel/api/reports.ts",
   // Kamus itu sendiri = sumber terjemahan (ID key + EN value per baris).
   "src/rekankerja/shared/lib/i18n-core.ts",
+  // Kamus pesan server (BL-ERR): ID key + EN value + aturan regex — sumber
+  // terjemahan terpusat utk trServer(), bukan teks UI.
+  "src/rekankerja/shared/lib/server-errors.ts",
   // Data internal (bukan UI runtime): blueprint PRD (tidak diimpor komponen).
   "src/lib/prd-data.ts",
   // Format REGULATOR wajib Indonesia: upload BPJS + e-SPT/SPT 1721-A1.

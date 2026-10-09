@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useApi, apiSend, apiUpload, fmtIDR, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import {
   AttachmentUploadArea,
@@ -181,13 +182,13 @@ function MedicalClaimDialog({
       });
       toast.success(
         t("Klaim {doc} diajukan — menunggu persetujuan {who}", "Claim {doc} submitted — awaiting {who}", { doc: res.docNo, who: res.firstApprover ?? "approver" }),
-        { description: res.receiptNote },
+        { description: trServer(res.receiptNote) },
       );
       // Task 82-b (audit T10): warning validasi lembut klaim dependent — toast
       // AMBER non-blocking setelah submit sukses (nama tak cocok data keluarga /
       // jumlah dependent melebihi batas jenis benefit).
       for (const w of res.warnings ?? []) {
-        toast.warning(w, { duration: 7000 });
+        toast.warning(trServer(w), { duration: 7000 });
       }
       onOpenChange(false);
       onDone();
@@ -595,7 +596,7 @@ function TravelClaimDialog({
       });
       toast.success(
         t("Klaim {doc} diajukan — {who}", "Claim {doc} submitted — {who}", { doc: res.docNo, who: res.firstApprover ?? "awaiting approval" }),
-        { description: res.receiptNote },
+        { description: trServer(res.receiptNote) },
       );
       onOpenChange(false);
       onDone();

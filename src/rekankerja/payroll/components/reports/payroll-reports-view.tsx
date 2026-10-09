@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { PageHeader, EmptyState, LoadingCards } from "@/rekankerja/shared/components/ui-kit";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -78,7 +79,7 @@ export function PayrollReportsPage() {
         const res = await fetch(`/api/rekankerja/payroll-reports/spt1721a1?year=${encodeURIComponent(v.year)}&employeeId=${encodeURIComponent(v.employee)}`);
         if (!res.ok) {
           const j = (await res.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(j?.error ?? `Gagal merender PDF 1721-A1 (${res.status})`);
+          throw new Error(trServer(j?.error ?? `Gagal merender PDF 1721-A1 (${res.status})`));
         }
         const blob = await res.blob();
         const cd = res.headers.get("Content-Disposition") ?? "";

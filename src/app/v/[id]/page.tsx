@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { BadgeCheck, ShieldAlert, FileSignature, Fingerprint } from "lucide-react";
+import { trServerFor } from "@/rekankerja/shared/lib/i18n-core";
 
 // ============ HALAMAN VERIFIKASI PUBLIK e-SIGN (Task 80) ====================
 // /v/[id] — diakses dari QR code pada dokumen/PDF. Tanpa login. Hanya
@@ -132,7 +133,7 @@ export default async function VerifyPage({ params }: {
               <ShieldAlert className="h-5 w-5" /> {tr("TANDA TANGAN TIDAK VALID", "SIGNATURE INVALID")}
             </div>
             <p className="mt-2 text-sm text-rose-600">
-              {data?.reason ?? tr(
+              {data?.reason ? trServerFor(lang, data.reason) : tr(
                 "Verifikasi gagal — dokumen kemungkinan telah diubah setelah ditandatangani.",
                 "Verification failed — the document may have been altered after signing.",
               )}

@@ -12,6 +12,7 @@ import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN } from "./types";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { toast } from "sonner";
@@ -130,7 +131,7 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
     fd.append("dryRun", String(dryRun));
     const res = await fetch(IMPORT_URL, { method: "POST", body: fd });
     const json = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+    if (!res.ok) throw new Error(trServer(json.error ?? `HTTP ${res.status}`));
     return json as DryRunReport | CommitReport;
   };
 
@@ -289,9 +290,9 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                             </td>
                             <td className="px-3 py-1.5 text-slate-600 dark:text-slate-300">
                               {r.errors.length > 0 ? (
-                                <span className="text-rose-700 dark:text-rose-300">{r.errors.join(" · ")}</span>
+                                <span className="text-rose-700 dark:text-rose-300">{r.errors.map((m) => trServer(m)).join(" · ")}</span>
                               ) : r.warnings && r.warnings.length > 0 ? (
-                                <span className="flex items-start gap-1 text-amber-700 dark:text-amber-300"><TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />{r.warnings.join(" · ")}</span>
+                                <span className="flex items-start gap-1 text-amber-700 dark:text-amber-300"><TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />{r.warnings.map((m) => trServer(m)).join(" · ")}</span>
                               ) : (
                                 <span className="text-slate-400">—</span>
                               )}
