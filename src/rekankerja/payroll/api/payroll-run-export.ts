@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
+import { trFor, locFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 
 // GET /api/rekankerja/payroll-run-export?id=&bank=umum|bca|mandiri|bni
 // File transfer bank (pattern "Transfer Bank Payment": file per bank).
@@ -25,6 +26,10 @@ export async function GET(req: NextRequest) {
 
     const id = req.nextUrl.searchParams.get("id");
     const bankKey = (req.nextUrl.searchParams.get("bank") ?? "umum").toLowerCase();
+    // BL-5 (tier-2 export): bahasa header/judul file — default EN (pola BL-4).
+    const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
+    // header CSV manual → trFor per kolom (exact-match BASE_EN, fallback identity).
+    const H = (h: string) => trFor(lang, h);
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const run = await db.payrollRun.findUnique({
       where: { id },
@@ -72,13 +77,13 @@ export async function GET(req: NextRequest) {
 
     if (bankKey === "umum") {
       // Rekap umum (semua karyawan) — format lama.
-      const header = ["NO", "EMPLOYEE_ID", "NAMA", "UNIT", "BANK", "NO_REKENING", "BRUTO", "POTONGAN", "PPh21", "NETTO"].join(";");
+      const header = ["NO", "EMPLOYEE_ID", "NAMA", "UNIT", "BANK", "NO_REKENING", "BRUTO", "POTONGAN", "PPh21", "NETTO"].map(H).join(";");
       const rows = lines.map((l, i) => [
         i + 1, l.employeeNo, `"${l.employeeName}"`, `"${l.orgUnitName ?? ""}"`, bankOf(l), accountOf(l),
         Math.round(l.bruto), Math.round(l.deduction), Math.round(l.taxRegular + l.taxIrregular), Math.round(l.net),
       ].join(";"));
-      const totals = ["", "", `"TOTAL (${run.employeeCount} karyawan)"`, "", "", "", Math.round(runTotals.totalBruto), Math.round(runTotals.totalDeduction), Math.round(runTotals.totalTax), Math.round(runTotals.totalNet)].join(";");
-      const csv = [`RekanKerja Payroll Transfer — ${run.runNo} (${run.period.name} / ${run.processType.name})`, header, ...rows, totals].join("\n");
+      const totals = ["", "", `"${trFor(lang, "TOTAL ({n} karyawan)", "TOTAL ({n} employees)", { n: run.employeeCount })}"`, "", "", "", Math.round(runTotals.totalBruto), Math.round(runTotals.totalDeduction), Math.round(runTotals.totalTax), Math.round(runTotals.totalNet)].join(";");
+      const csv = [`${trFor(lang, "RekanKerja Payroll Transfer")} — ${run.runNo} (${locFor(lang, run.period.name)} / ${run.processType.name})`, header, ...rows, totals].join("\n");
       await db.activityLog.create({ data: { action: "Exported", entity: "PayrollRun", entityId: run.id, detail: `Ekspor CSV umum run ${run.runNo}` } });
       return csvResponse(csv, `rekankerja-transfer-${run.runNo}.csv`);
     }
@@ -94,24 +99,30 @@ export async function GET(req: NextRequest) {
       );
     }
     const totalNet = matched.reduce((s, l) => s + l.net, 0);
+    // Format bank = format SISTEM EKSTERNAL (portal BCA/Mandiri/BNI mengharapkan
+    // header & field persis) → SELALU Indonesia, jangan ikut bahasa UI (satu
+    // prinsip dgn format regulator BPJS/e-SPT). Hanya rekap "umum" yang bilingual.
     const ket = `GAJI ${run.period.name} ${run.runNo}`;
+    // baris judul file bank: “PR-001 · 5 pegawai · Rp …” — “pegawai” diterjemahkan.
+    const bankTitle = (label: string) =>
+      `${label} — ${run.runNo} · ${matched.length} pegawai · Rp ${Math.round(totalNet).toLocaleString("id-ID")}`;
 
     let csv: string;
     if (bankKey === "bca") {
       // BCA payroll: NO;NO_REKENING;NAMA;NOMINAL;KETERANGAN
       const header = ["NO", "NO_REKENING", "NAMA", "NOMINAL", "KETERANGAN"].join(";");
       const rows = matched.map((l, i) => [i + 1, accountOf(l), `"${l.employeeName}"`, Math.round(l.net), `"${ket}"`].join(";"));
-      csv = [`BCA PAYROLL TRANSFER — ${run.runNo} · ${matched.length} pegawai · Rp ${Math.round(totalNet).toLocaleString("id-ID")}`, header, ...rows].join("\n");
+      csv = [bankTitle("BCA PAYROLL TRANSFER"), header, ...rows].join("\n");
     } else if (bankKey === "mandiri") {
       // Mandiri: NO;NO_REKENING;NAMA_PENERIMA;NOMINAL;BERITA1;BERITA2
       const header = ["NO", "NO_REKENING", "NAMA_PENERIMA", "NOMINAL", "BERITA1", "BERITA2"].join(";");
       const rows = matched.map((l, i) => [i + 1, accountOf(l), `"${l.employeeName}"`, Math.round(l.net), `"${ket}"`, `"${l.employeeNo}"`].join(";"));
-      csv = [`MANDIRI TRANSFER — ${run.runNo} · ${matched.length} pegawai · Rp ${Math.round(totalNet).toLocaleString("id-ID")}`, header, ...rows].join("\n");
+      csv = [bankTitle("MANDIRI TRANSFER"), header, ...rows].join("\n");
     } else {
       // BNI: NO;NO_REKENING;NAMA;NOMINAL;REF
       const header = ["NO", "NO_REKENING", "NAMA", "NOMINAL", "REF"].join(";");
       const rows = matched.map((l, i) => [i + 1, accountOf(l), `"${l.employeeName}"`, Math.round(l.net), `"${l.employeeNo}"`].join(";"));
-      csv = [`BNI PAYROLL TRANSFER — ${run.runNo} · ${matched.length} pegawai · Rp ${Math.round(totalNet).toLocaleString("id-ID")}`, header, ...rows].join("\n");
+      csv = [bankTitle("BNI PAYROLL TRANSFER"), header, ...rows].join("\n");
     }
 
     await db.activityLog.create({

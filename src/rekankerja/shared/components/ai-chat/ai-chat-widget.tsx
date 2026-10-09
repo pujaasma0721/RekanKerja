@@ -67,8 +67,9 @@ function Bubble({ mine, children, accent }: { mine: boolean; children: React.Rea
 }
 
 function TypingDots() {
+  const { t } = useI18n();
   return (
-    <div className="flex justify-start" aria-label="sedang mengetik">
+    <div className="flex justify-start" aria-label={t("sedang mengetik", "typing…")}>
       <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         {[0, 1, 2].map((i) => (
           <motion.span

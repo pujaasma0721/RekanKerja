@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { toCsv, csvResponse, exportFilename, type ExportCell } from "@/rekankerja/shared/lib/export";
+import { type Lang } from "@/rekankerja/shared/lib/i18n-core";
 import { claimReport, medicalStats } from "@/rekankerja/medical/services/medical-service";
 
 // GET /api/rekankerja/medical/reports?from=&to=&employeeId=&year= — laporan klaim
@@ -37,6 +38,9 @@ export async function GET(req: NextRequest) {
     // Task 82-c: mode export — CSV daftar klaim rentang (kolom uang sudah
     // digate claimReport via MoneyView: masked → null → dikosongkan di CSV).
     if (sp.get("export") === "csv") {
+      // BL-5 (tier-2 export): bahasa header CSV — default EN (pola BL-4;
+      // baris data tetap apa adanya — toCsv hanya menerjemahkan header).
+      const lang: Lang = sp.get("lang") === "id" ? "id" : "en";
       // provider (rumah sakit/klinik) dari rincian perawatan — digabung per
       // klaim (query baca murni di route, service tidak diubah).
       const docNos = rows.map((r) => r.docNo);
@@ -83,7 +87,7 @@ export async function GET(req: NextRequest) {
         : rows.reduce((s, r) => s + (r.totalApproved ?? 0), 0);
       lines.push(["", "", `TOTAL (${rows.length} klaim)`, "", "", "", billSum, approvedSum, "", ""]);
       return csvResponse(
-        toCsv(columns, lines),
+        toCsv(columns, lines, lang),
         exportFilename("rekankerja-medical", "csv", `${from}_${to}`),
       );
     }

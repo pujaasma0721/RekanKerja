@@ -59,7 +59,7 @@ const isoToLocalKey = (s: string) => {
 const YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 2 + i);
 
 export function LeaveReportsPage() {
-  const { t, locale } = useI18n();
+  const { t, locale, lang } = useI18n();
   const now = new Date();
   const [view, setView] = useState<"tabel" | "kalender">("tabel");
   const [from, setFrom] = useState(iso(new Date(now.getFullYear(), now.getMonth(), 1)));
@@ -179,9 +179,10 @@ export function LeaveReportsPage() {
                   <SelectContent>{YEAR_OPTIONS.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              {/* Task 99 (F1-3) — unduh CSV karyawan cuti (filter saat ini) */}
+              {/* Task 99 (F1-3) — unduh CSV karyawan cuti (filter saat ini).
+                  BL-5: ?lang= diteruskan — ekspor bilingual. */}
               <a
-                href={`/api/rekankerja/leave/reports?from=${from}&to=${to}&year=${year}&export=csv`}
+                href={`/api/rekankerja/leave/reports?from=${from}&to=${to}&year=${year}&export=csv&lang=${lang}`}
                 className="inline-flex h-8 items-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
                 aria-label={t("Unduh daftar karyawan cuti sebagai CSV", "Download the on-leave list as CSV")}
               >

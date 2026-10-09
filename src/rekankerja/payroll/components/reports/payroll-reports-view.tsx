@@ -314,13 +314,15 @@ function ParamChips({ report, values, pools }: { report: ReportDef; values: Para
 
 /** Unduh XLSX → endpoint ekspor existing (register & rekap BPJS). */
 function XlsxExportButton({ report, values }: { report: ReportDef; values: ParamValues }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const href = useMemo(() => {
-    if (report.id === "r12" && values.run) return `/api/rekankerja/payroll-reports/monthly?runId=${encodeURIComponent(values.run)}&export=xlsx`;
+    // BL-4: monthly (r12) bilingual via ?lang= — bpjs (r31) & e-SPT (r22) adalah
+    // format REGULATOR yang wajib bahasa Indonesia (tidak dikirim lang).
+    if (report.id === "r12" && values.run) return `/api/rekankerja/payroll-reports/monthly?runId=${encodeURIComponent(values.run)}&export=xlsx&lang=${lang}`;
     if (report.id === "r31" && values.run) return `/api/rekankerja/payroll-reports/bpjs?runId=${encodeURIComponent(values.run)}&export=xlsx`;
     if (report.id === "r22" && values.year) return `/api/rekankerja/payroll-spt?year=${encodeURIComponent(values.year)}&export=a1`;
     return null;
-  }, [report.id, values.run, values.year]);
+  }, [report.id, values.run, values.year, lang]);
   if (!href) return null;
   const isCsv = report.id === "r22";
   return (

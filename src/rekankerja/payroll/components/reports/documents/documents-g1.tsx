@@ -218,7 +218,7 @@ export function RegisterDoc({ data }: { data: RegisterPayload }) {
             {data.rows.map((r, idx) => (
               <tr key={r.employeeNo} className={cn(idx % 2 === 1 && "bg-slate-50/70")}>
                 <td className="border border-slate-300 px-1.5 py-0.5 font-mono">{r.employeeNo}</td>
-                <td className="whitespace-nowrap border border-slate-300 px-1.5 py-0.5 font-semibold">{r.employeeName}{r.umkWarning && <span title="Di bawah UMP/UMK"> †</span>}</td>
+                <td className="whitespace-nowrap border border-slate-300 px-1.5 py-0.5 font-semibold">{r.employeeName}{r.umkWarning && <span title={t("Di bawah UMP/UMK", "Below UMP/UMK")}> †</span>}</td>
                 <td className="whitespace-nowrap border border-slate-300 px-1.5 py-0.5">{r.orgUnitName}</td>
                 <td className="whitespace-nowrap border border-slate-300 px-1.5 py-0.5">{r.positionName}</td>
                 <td className="border border-slate-300 px-1.5 py-0.5 text-center tabular-nums">{r.ptkpStatus}</td>
@@ -324,7 +324,7 @@ export function BankTransferDoc({ data }: { data: BankPayload }) {
         <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10.5px]">
           <thead>
             <tr className="bg-slate-800 text-white">
-              <th className="w-8 border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">No</th>
+              <th className="w-8 border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">{t("No", "No.")}</th>
               <th className="border border-slate-700 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("No. Karyawan", "Emp. No.")}</th>
               <th className="border border-slate-700 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("Nama Penerima", "Beneficiary Name")}</th>
               <th className="border border-slate-700 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("Unit Kerja", "Unit")}</th>

@@ -28,7 +28,7 @@ interface ReportRow {
 }
 
 export function MedicalReportsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const currentYear = new Date().getFullYear();
   const [from, setFrom] = useState(`${currentYear}-01-01`);
   const [to, setTo] = useState(`${currentYear}-12-31`);
@@ -88,9 +88,10 @@ export function MedicalReportsPage() {
           </Select>
         </div>
         {/* Task 82-c: unduh CSV — filter saat ini (rentang + karyawan); kolom uang
-            mengikuti money-vault (masked → dikosongkan oleh server). */}
+            mengikuti money-vault (masked → dikosongkan oleh server).
+            BL-5: ?lang= diteruskan — ekspor bilingual. */}
         <a
-          href={`/api/rekankerja/medical/reports?from=${from}&to=${to}&year=${currentYear}${employeeId !== "all" ? `&employeeId=${employeeId}` : ""}&export=csv`}
+          href={`/api/rekankerja/medical/reports?from=${from}&to=${to}&year=${currentYear}${employeeId !== "all" ? `&employeeId=${employeeId}` : ""}&export=csv&lang=${lang}`}
           className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
           aria-label={t("Unduh daftar klaim medis sebagai CSV", "Download the medical claim list as CSV")}
         >

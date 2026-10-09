@@ -72,9 +72,10 @@ const TOOLTIP_STYLE = { borderRadius: 12, border: "1px solid var(--color-border)
 /** Urutan tampil bucket pendidikan terakhir (S3 → tanpa data). */
 const EDU_ORDER = ["S3", "S2", "S1", "Diploma (D1–D4)", "SMA & Sederajat", "Tanpa data"];
 
-/** Buka unduhan export XLSX dari API (Content-Disposition attachment). */
-function downloadExport(kind: "turnover" | "demografi") {
-  window.location.href = `/api/rekankerja/hr/reports?export=${kind}`;
+/** Buka unduhan export XLSX dari API (Content-Disposition attachment).
+ *  BL-5: ?lang= diteruskan — ekspor bilingual. */
+function downloadExport(kind: "turnover" | "demografi", lang: string) {
+  window.location.href = `/api/rekankerja/hr/reports?export=${kind}&lang=${lang}`;
 }
 
 export default HrReportsView;
@@ -83,7 +84,7 @@ export default HrReportsView;
  *  Dipanggil koordinator: `import HrReportsView from "@/rekankerja/human-resource/components/hr-reports-view"`
  *  (menu item + routing modul HR di-wire di luar file ini). */
 export function HrReportsView() {
-  const { t, locale } = useI18n();
+  const { t, locale, lang } = useI18n();
   const api = useApi<ReportsData>("/api/rekankerja/hr/reports");
   const data = api.data;
 
@@ -109,10 +110,10 @@ export function HrReportsView() {
             <Button variant="outline" onClick={() => api.refresh()} className="gap-2 font-bold">
               <RefreshCw className="h-4 w-4" /> {t("Segarkan")}
             </Button>
-            <Button onClick={() => downloadExport("turnover")} className="gap-2 font-bold">
+            <Button onClick={() => downloadExport("turnover", lang)} className="gap-2 font-bold">
               <Download className="h-4 w-4" /> {t("Export Turnover (XLSX)")}
             </Button>
-            <Button variant="outline" onClick={() => downloadExport("demografi")} className="gap-2 font-bold">
+            <Button variant="outline" onClick={() => downloadExport("demografi", lang)} className="gap-2 font-bold">
               <Download className="h-4 w-4" /> {t("Export Demografi (XLSX)")}
             </Button>
           </>
@@ -230,7 +231,7 @@ export function HrReportsView() {
                   <p className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                     <BarChart3 className="h-4 w-4 ov-text-accent" /> {t("Headcount & Turnover per Divisi", "Headcount & Turnover per Division")} {data.year}
                   </p>
-                  <Button size="sm" variant="outline" onClick={() => downloadExport("turnover")} className="h-7 gap-1.5 px-2.5 text-[11px] font-bold">
+                  <Button size="sm" variant="outline" onClick={() => downloadExport("turnover", lang)} className="h-7 gap-1.5 px-2.5 text-[11px] font-bold">
                     <Download className="h-3.5 w-3.5" /> {t("Export XLSX")}
                   </Button>
                 </div>
@@ -295,7 +296,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
  *  organisasi (gender/usia/pendidikan chart, cross-tab gender×status, dan
  *  kartu distribusi per dimensi penempatan). */
 function DemografiTab({ data }: { data: ReportsData }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const d = data.demografi;
 
   // pendidikan: urutan bucket tetap (API sudah berurutan — sort defensif
@@ -322,7 +323,7 @@ function DemografiTab({ data }: { data: ReportsData }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" variant="outline" onClick={() => downloadExport("demografi")} className="h-7 gap-1.5 px-2.5 text-[11px] font-bold">
+        <Button size="sm" variant="outline" onClick={() => downloadExport("demografi", lang)} className="h-7 gap-1.5 px-2.5 text-[11px] font-bold">
           <Download className="h-3.5 w-3.5" /> {t("Export Demografi (XLSX)")}
         </Button>
       </div>

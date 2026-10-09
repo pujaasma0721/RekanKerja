@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { toCsv, csvResponse, exportFilename, type ExportCell } from "@/rekankerja/shared/lib/export";
+import { type Lang } from "@/rekankerja/shared/lib/i18n-core";
 import { claimReport } from "@/rekankerja/travel/services/travel-service";
 
 // GET /api/rekankerja/travel/reports?from=&to=&employeeId= — laporan klaim per
@@ -41,6 +42,9 @@ export async function GET(req: NextRequest) {
     // Task 82-c: mode export — CSV rincian klaim (satu baris per rincian biaya,
     // kolom klaim diulang) + baris TOTAL + ringkasan per kelompok (pola leave).
     if (sp.get("export") === "csv") {
+      // BL-5 (tier-2 export): bahasa header CSV — default EN (pola BL-4;
+      // baris data tetap apa adanya — toCsv hanya menerjemahkan header).
+      const lang: Lang = sp.get("lang") === "id" ? "id" : "en";
       // 45-b: gerbang vault uang — aktor requireMenuViewAny (pola travel/api/claims.ts);
       // masked → seluruh kolom nominal dikosongkan (unduhan tidak boleh membocorkan angka).
       const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
@@ -97,7 +101,7 @@ export async function GET(req: NextRequest) {
         lines.push(["", kindLabel[kind] ?? kind, "", "", "", "", `(${v.lines} baris)`, money(v.amount), "", "", ""]);
       }
       return csvResponse(
-        toCsv(columns, lines),
+        toCsv(columns, lines, lang),
         exportFilename("rekankerja-travel", "csv", `${from.toISOString().slice(0, 10)}_${to.toISOString().slice(0, 10)}`),
       );
     }

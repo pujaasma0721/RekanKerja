@@ -54,8 +54,9 @@ export default async function VerifyPage({ params }: {
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const { data, status } = await verify(id, host);
 
-  // Preferensi bahasa via cookie rklang (default Indonesia).
-  const lang = (await cookies()).get("rklang")?.value === "en" ? "en" : "id";
+  // Preferensi bahasa via cookie rklang (default EN utk pengunjung baru —
+  // konsisten dgn default first-login aplikasi; cookie ditulis I18nProvider).
+  const lang = (await cookies()).get("rklang")?.value === "id" ? "id" : "en";
   const tr = (id: string, en: string) => (lang === "en" ? en : id);
 
   const fmt = (iso?: string) => {

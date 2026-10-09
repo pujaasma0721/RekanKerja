@@ -352,7 +352,7 @@ export function R41View({ data, meta }: { data: R41Data; meta: DocMeta }) {
       <DocSection no="IV" title={t("Kepesertaan Jaminan Sosial (C)", "Social Security Membership (C)")} />
       <DocTable head={<><TH>Program</TH><TH align="number">{t("Terdaftar", "Registered")}</TH><TH align="number">{t("Belum Terdaftar", "Not Registered")}</TH><TH align="center">{t("Keterangan", "Note")}</TH></>}>
         <tr className="hover:bg-slate-50">
-          <TD className="font-semibold">C.1 BPJS Kesehatan</TD>
+          <TD className="font-semibold">{t("C.1 BPJS Kesehatan", "C.1 BPJS Health")}</TD>
           <TD align="number">{f.num(data.bpjs.healthRegistered)}</TD>
           <TD align="number" className={data.bpjs.healthMissing > 0 ? "font-bold text-rose-600" : ""}>{f.num(data.bpjs.healthMissing)}</TD>
           <TD align="center">{data.bpjs.healthMissing > 0 ? <DocBadge tone="rose">{t("Perlu Tindak Lanjut", "Action Needed")}</DocBadge> : <DocBadge tone="green">{t("Sesuai", "Matched")}</DocBadge>}</TD>

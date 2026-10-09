@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
 export function BankExportMenu({ runId, runNo, compact }: { runId: string; runNo: string; compact?: boolean }) {
-  const { t } = useI18n();
-  const base = `/api/rekankerja/payroll-run-export?id=${runId}`;
+  const { t, lang } = useI18n();
+  const base = `/api/rekankerja/payroll-run-export?id=${runId}&lang=${lang}`;
   const items = [
     { key: "umum", label: t("Rekap Umum (semua bank)", "General Recap (all banks)"), hint: t("kolom lengkap + total", "full columns + total") },
     { key: "bca", label: "BCA Payroll", hint: t("hanya rekening BCA", "BCA accounts only") },

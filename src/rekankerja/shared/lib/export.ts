@@ -7,8 +7,15 @@
 //   return xlsxResponse(buf, "nama-file.xlsx");
 // atau CSV:
 //   return csvResponse(toCsv(columns, rows), "nama-file.csv");
+//
+// BL-4 (bilingual): semua helper menerima `lang` ("id" | "en", default "id" —
+// perilaku lama TIDAK berubah bila ops tidak dikirim). lang "en" → nama sheet,
+// judul, header kolom & sel string yang exact-match kamus BASE_EN diterjemahkan
+// via trFor (fallback identity — data user seperti nama karyawan tak tersentuh);
+// locFor menukar nama bulan ID→EN pada judul komposit (mis. "… — Oktober 2026").
 import { NextResponse } from "next/server";
 import * as ExcelJS from "exceljs";
+import { trFor, locFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 
 export interface ExportColumn {
   header: string;
@@ -36,19 +43,40 @@ export async function toXlsx(
   sheetName: string,
   columns: ExportColumn[],
   rows: ExportCell[][],
-  opts: { title?: string } = {},
+  opts: { title?: string; lang?: Lang } = {},
 ): Promise<Buffer> {
-  return toXlsxMulti([{ name: sheetName, title: opts.title, columns, rows }]);
+  return toXlsxMulti([{ name: sheetName, title: opts.title, columns, rows }], { lang: opts.lang });
 }
 
 /** Susun workbook XLSX BANYAK sheet (laporan agregat multi-tabel). */
-export async function toXlsxMulti(sheets: ExportSheet[]): Promise<Buffer> {
+export async function toXlsxMulti(
+  sheets: ExportSheet[],
+  opts: { lang?: Lang } = {},
+): Promise<Buffer> {
+  const lang: Lang = opts.lang ?? "id";
   const wb = new ExcelJS.Workbook();
   wb.creator = "RekanKerja HRIS";
   wb.created = new Date();
-  for (const def of sheets) buildSheet(wb, def);
+  for (const def of sheets) buildSheet(wb, localizeSheet(def, lang));
   const out = await wb.xlsx.writeBuffer();
   return Buffer.from(out);
+}
+
+/** BL-4: terjemahkan definisi sheet ke EN (nama, judul, header kolom, sel string
+ *  yang exact-match kamus). lang "id" → jalan cepat tanpa lookup (perilaku lama). */
+function localizeSheet(def: ExportSheet, lang: Lang): ExportSheet {
+  if (lang !== "en") return def;
+  // Judul komposit: trFor dulu (exact-match kamus), lalu locFor pada hasilnya
+  // utk swap nama bulan ID→EN (aman dijalankan keduanya — keduanya idempoten).
+  const title = def.title == null ? undefined : locFor("en", trFor("en", def.title));
+  return {
+    name: trFor("en", def.name),
+    title,
+    columns: def.columns.map((c) => ({ ...c, header: trFor("en", c.header) })),
+    // Sel string HANYA diterjemahkan bila exact-match kamus (trFor fallback
+    // identity) — nama karyawan dsb. tak tersentuh; number/Date/null diabaikan.
+    rows: def.rows.map((r) => r.map((cell) => (typeof cell === "string" ? trFor("en", cell) : cell))),
+  };
 }
 
 /** Tulis satu sheet ke workbook (dipakai toXlsx & toXlsxMulti). */
@@ -101,13 +129,15 @@ function buildSheet(wb: ExcelJS.Workbook, def: ExportSheet): ExcelJS.Worksheet {
  * karakter non-ASCII tampil benar saat dibuka langsung).
  * Nilai di-quote bila mengandung ; " atau newline.
  */
-export function toCsv(columns: ExportColumn[], rows: ExportCell[][]): string {
+export function toCsv(columns: ExportColumn[], rows: ExportCell[][], lang: Lang = "id"): string {
   const esc = (v: ExportCell): string => {
     if (v === null || v === undefined) return "";
     const s = v instanceof Date ? v.toISOString().slice(0, 10) : String(v);
     return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const head = columns.map((c) => esc(c.header)).join(";");
+  // BL-4: hanya header kolom diterjemahkan saat EN — baris CSV = data user.
+  const cols = lang === "en" ? columns.map((c) => ({ ...c, header: trFor("en", c.header) })) : columns;
+  const head = cols.map((c) => esc(c.header)).join(";");
   const body = rows.map((r) => r.map(esc).join(";")).join("\n");
   return `\uFEFF${head}\n${body}\n`;
 }

@@ -4,6 +4,7 @@ import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/servi
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
+import { trFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 import {
   computeNonEmployeeTax, ledgerOfPayments, taxPeriodOf, canTransition, nextDocNo,
 } from "@/rekankerja/payroll/services/non-employee-payment-service";
@@ -48,8 +49,12 @@ export async function GET(req: NextRequest) {
       });
       const tc = tenantCryptoForDb(db);
       const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+      // BL-5 (tier-2 export): bahasa header CSV kertas kerja — default EN (pola
+      // BL-4; baris data mitra tetap apa adanya).
+      const lang: Lang = sp.get("lang") === "id" ? "id" : "en";
+      const H = (h: string) => trFor(lang, h);
       const lines = [
-        ["DokNo", "Tanggal Bayar", "Masa Pajak", "Kode Mitra", "Nama Mitra", "Jenis Id", "Nomor Id (mask)", "Jenis Jasa", "Uraian", "Bruto", "Dikeluarkan (12(4)b)", "DPP (50%)", "PPh21 Dipotong", "Neto"].join(";"),
+        ["DokNo", "Tanggal Bayar", "Masa Pajak", "Kode Mitra", "Nama Mitra", "Jenis Id", "Nomor Id (mask)", "Jenis Jasa", "Uraian", "Bruto", "Dikeluarkan (12(4)b)", "DPP (50%)", "PPh21 Dipotong", "Neto"].map(H).join(";"),
         ...rows.map((r) => {
           const idNum = tc.decryptText(r.partner.idNumber) ?? "";
           const masked = idNum ? `${"*".repeat(Math.max(0, idNum.length - 4))}${idNum.slice(-4)}` : "-";

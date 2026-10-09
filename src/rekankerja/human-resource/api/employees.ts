@@ -11,6 +11,7 @@ import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot, decryptBaseSalary, type DbOrTx } from "@/rekankerja/human-resource/services/assignment";
 import { validateSalaryAgainstGrade, PATargetError } from "@/rekankerja/human-resource/services/pa-targets";
 import { toXlsxMulti, xlsxResponse, exportFilename, type ExportColumn } from "@/rekankerja/shared/lib/export";
+import { type Lang } from "@/rekankerja/shared/lib/i18n-core";
 
 /** Sanitasi kode perusahaan/slug → prefix nomor karyawan (A-Z0-9). */
 function codePrefix(code: string | null | undefined): string {
@@ -1315,6 +1316,10 @@ export async function employeesExportGet(req: NextRequest): Promise<NextResponse
     const m = await requireMenuAction(req, "hr:directory", "view");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
+    // BL-5 (tier-2 export): bahasa header direktori XLSX — default EN (pola BL-4).
+    // Template IMPORT (employeesImportGet) TIDAK di-wire — header-nya anchor
+    // parser import (HEADER_ALIASES) dan wajib konsisten ID (by-design).
+    const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
 
     const scope = await resolveAccessScope(db, {
       appUserId: m.actor.appUserId,
@@ -1377,7 +1382,8 @@ export async function employeesExportGet(req: NextRequest): Promise<NextResponse
           case "employeeNo": return e.employeeNo;
           case "nik": return e.nationalId ?? "";
           case "joinDate": return e.joinDate instanceof Date ? e.joinDate.toISOString().slice(0, 10) : "";
-          case "gender": return g === "F" ? "P" : "L";
+          // kode gender mengikuti bahasa header: ID L/P ↔ EN M/F.
+          case "gender": return lang === "en" ? (g === "F" ? "F" : "M") : (g === "F" ? "P" : "L");
           case "marital": return e.maritalStatus ? MARITAL_FROM_DB[e.maritalStatus] ?? e.maritalStatus : "";
           case "orgUnitCode": return e.orgUnit?.code ?? "";
           case "orgUnitName": return e.orgUnit?.name ?? "";
@@ -1398,7 +1404,7 @@ export async function employeesExportGet(req: NextRequest): Promise<NextResponse
 
     const buf = await toXlsxMulti([
       { name: "Karyawan", columns: columns.map(({ header, width }) => ({ header, width })), rows },
-    ]);
+    ], { lang });
 
     try {
       await db.activityLog.create({

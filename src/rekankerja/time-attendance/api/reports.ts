@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { toXlsxMulti, xlsxResponse, exportFilename, type ExportSheet } from "@/rekankerja/shared/lib/export";
+import { trFor, locFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 import { dayStart } from "@/rekankerja/time-attendance/services/attendance-service";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 
@@ -256,13 +257,15 @@ export async function GET(req: NextRequest) {
       if (exportMode !== "kpi") {
         return NextResponse.json({ error: "Parameter export tidak dikenal — gunakan ?export=kpi" }, { status: 400 });
       }
+      // BL-5 (tier-2 export): bahasa header/sheet — default EN (pola BL-4).
+      const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
       const sheets: ExportSheet[] = [
         {
           name: "Ringkasan",
-          title: `Laporan Attendance — ${monthLabelOf(monthParam)}`,
+          title: `${trFor(lang, "Laporan Attendance")} — ${locFor(lang, monthLabelOf(monthParam))}`,
           columns: [{ header: "Indikator", width: 30 }, { header: "Nilai", width: 16 }],
           rows: [
-            ["Bulan", monthLabelOf(monthParam)],
+            ["Bulan", locFor(lang, monthLabelOf(monthParam))],
             ["Karyawan Terjadwal", kpi.headcount],
             ["Hadir (incl. Telat)", kpi.present],
             ["Telat", kpi.late],
@@ -278,12 +281,12 @@ export async function GET(req: NextRequest) {
         },
         {
           name: "Tren 12 Bulan",
-          title: "Hadir vs Tidak Hadir — 12 Bulan",
+          title: trFor(lang, "Hadir vs Tidak Hadir — 12 Bulan", "Present vs Absent — 12 Months"),
           columns: [
             { header: "Bulan", width: 12 }, { header: "Hadir", width: 10 },
             { header: "Absen + Izin", width: 13 }, { header: "Cuti", width: 10 }, { header: "Off/Libur", width: 12 },
           ],
-          rows: trend.map((t) => [t.month, t.present, t.absent, t.onLeave, t.off]),
+          rows: trend.map((t) => [locFor(lang, t.month), t.present, t.absent, t.onLeave, t.off]),
         },
         {
           name: "Komposisi Status",
@@ -292,7 +295,7 @@ export async function GET(req: NextRequest) {
         },
         {
           name: "Top Pelanggaran",
-          title: "Top 10 Telat & Absen Terbanyak",
+          title: trFor(lang, "Top 10 Telat & Absen Terbanyak", "Top 10 Most Late & Absent"),
           columns: [
             { header: "No. Karyawan", width: 14 }, { header: "Nama", width: 28 }, { header: "Unit Kerja", width: 24 },
             { header: "Telat (hari)", width: 12 }, { header: "Telat (menit)", width: 13 },
@@ -329,7 +332,7 @@ export async function GET(req: NextRequest) {
           ]),
         },
       ];
-      const buf = await toXlsxMulti(sheets);
+      const buf = await toXlsxMulti(sheets, { lang });
       await logExport(db, m.actor.appUserId);
       return xlsxResponse(buf, exportFilename("rekankerja-attendance", "xlsx", monthParam));
     }

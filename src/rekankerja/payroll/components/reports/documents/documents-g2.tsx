@@ -55,7 +55,7 @@ export function Pph21MonthlyDoc({ data }: { data: Pph21Payload }) {
         <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10.5px]">
           <thead>
             <tr className="bg-slate-800 text-white">
-              <th className="w-8 border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">No</th>
+              <th className="w-8 border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">{t("No", "No.")}</th>
               <th className="border border-slate-700 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("No. Karyawan", "Emp. No.")}</th>
               <th className="border border-slate-700 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("Nama Karyawan", "Employee Name")}</th>
               <th className="border border-slate-700 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("Unit Kerja", "Unit")}</th>
@@ -167,7 +167,7 @@ export function Pph26Doc({ data }: { data: Pph26Payload }) {
         <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[11px]">
           <thead>
             <tr className="bg-slate-800 text-white">
-              <th className="w-8 border border-slate-700 px-2 py-1 text-center text-[9px] font-bold uppercase">No</th>
+              <th className="w-8 border border-slate-700 px-2 py-1 text-center text-[9px] font-bold uppercase">{t("No", "No.")}</th>
               <th className="border border-slate-700 px-2 py-1 text-left text-[9px] font-bold uppercase">{t("No. Karyawan", "Emp. No.")}</th>
               <th className="border border-slate-700 px-2 py-1 text-left text-[9px] font-bold uppercase">{t("Nama", "Name")}</th>
               <th className="border border-slate-700 px-2 py-1 text-left text-[9px] font-bold uppercase">{t("Unit Kerja", "Unit")}</th>

@@ -74,7 +74,7 @@ type Phase = "idle" | "checking" | "preview" | "committing" | "done";
  * `onImported` dipanggil setelah komit sukses agar daftar karyawan dimuat ulang.
  */
 export function EmployeeImportDialog({ onImported }: { onImported?: () => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const perms = useMenuPerms();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -183,7 +183,7 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
       )}
       {canExport && (
         <Button
-          onClick={() => { window.location.href = EXPORT_URL; }}
+          onClick={() => { window.location.href = `${EXPORT_URL}?lang=${lang}`; }}
           size="sm" variant="outline" className="h-9 gap-1.5 px-3.5 font-medium"
           aria-label={t("Unduh direktori karyawan sebagai Excel", "Download the employee directory as Excel")}
         >

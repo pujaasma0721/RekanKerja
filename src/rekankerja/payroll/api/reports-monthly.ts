@@ -4,6 +4,7 @@ import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { toXlsxMulti, xlsxResponse, exportFilename } from "@/rekankerja/shared/lib/export";
 import type { ExportColumn, ExportCell } from "@/rekankerja/shared/lib/export";
+import { trFor, locFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 
 // GET /api/rekankerja/payroll-reports/monthly?runId=&export=xlsx
 // LAPORAN PAYROLL BULANAN LENGKAP (Task 64) — dipanggil dari detail run
@@ -146,6 +147,9 @@ export async function GET(req: NextRequest) {
     };
 
     if (req.nextUrl.searchParams.get("export") === "xlsx") {
+      // BL-4: bahasa ekspor — default EN (frontend selalu mengirim ?lang=;
+      // "id" eksplisit → Indonesia, tanpa param pun → EN utk kompatibilitas maju).
+      const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
       // ---------- Sheet 1: Ringkasan ----------
       const rcols: ExportColumn[] = [
         { header: "Item", width: 34 },
@@ -158,7 +162,7 @@ export async function GET(req: NextRequest) {
         ["Alamat", [company?.address, company?.city].filter(Boolean).join(", ") || "-"],
         ["Telepon", company?.phone ?? "-"],
         ["Run Payroll", run.runNo],
-        ["Periode", run.period.name],
+        ["Periode", locFor(lang, run.period.name)],
         ["Tipe Proses", run.processType.name],
         ["Status", RUN_STATUS_ID[run.status] ?? run.status],
         ["Dibuat", dstr(run.createdAt)],
@@ -308,7 +312,8 @@ export async function GET(req: NextRequest) {
       const buf = await toXlsxMulti([
         {
           name: "Ringkasan",
-          title: `Laporan Payroll Bulanan — ${run.runNo} · ${run.period.name} · ${run.processType.name}`,
+          // BL-4: judul dua-bahasa — prefix via kamus, nama periode swap bulan ID→EN.
+          title: `${trFor(lang, "Laporan Payroll Bulanan")} — ${run.runNo} · ${locFor(lang, run.period.name)} · ${run.processType.name}`,
           columns: rcols,
           rows: rrows,
         },
@@ -316,7 +321,7 @@ export async function GET(req: NextRequest) {
         { name: "Detail Komponen", columns: dcols, rows: drows },
         { name: "Rekap Komponen", columns: ccols, rows: crows },
         { name: "Pembayaran", columns: pcols, rows: prows },
-      ]);
+      ], { lang });
 
       try {
         await db.activityLog.create({

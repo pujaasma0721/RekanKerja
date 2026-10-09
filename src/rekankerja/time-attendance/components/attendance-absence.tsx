@@ -32,7 +32,7 @@ const monthIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).pad
 
 export function AttendanceAbsencePage() {
   const { navigate } = useNav();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const now = new Date();
   const [month, setMonth] = useState(monthIso(now));
   const [query, setQuery] = useState("");
@@ -138,9 +138,10 @@ export function AttendanceAbsencePage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {/* G8: Export CSV — API /attendance/absence-export (T12, guard M-6) mengikuti
-                  jendela filter bulan halaman (pola anchor leave-reports). */}
+                  jendela filter bulan halaman (pola anchor leave-reports).
+                  BL-5: ?lang= diteruskan — ekspor bilingual. */}
               <a
-                href={`/api/rekankerja/attendance/absence-export?from=${from}&to=${to}`}
+                href={`/api/rekankerja/attendance/absence-export?from=${from}&to=${to}&lang=${lang}`}
                 className="inline-flex h-8 items-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
                 aria-label={t("Unduh rekap absensi rentang ini sebagai CSV", "Download this range's attendance recap as CSV")}
               >

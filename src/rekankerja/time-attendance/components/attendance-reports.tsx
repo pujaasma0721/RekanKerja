@@ -77,13 +77,14 @@ const statusLabel = (s: string, t: (id: string, en?: string) => string) => {
   return pair ? t(pair[0], pair[1]) : s;
 };
 
-/** Buka unduhan export XLSX (Content-Disposition attachment — pola hr/reports). */
-function downloadExport(month: string) {
-  window.location.href = `/api/rekankerja/attendance/reports?month=${month}&export=kpi`;
+/** Buka unduhan export XLSX (Content-Disposition attachment — pola hr/reports).
+ *  BL-5: ?lang= diteruskan — ekspor bilingual. */
+function downloadExport(month: string, lang: string) {
+  window.location.href = `/api/rekankerja/attendance/reports?month=${month}&export=kpi&lang=${lang}`;
 }
 
 export function AttendanceReportsPage() {
-  const { t, locale } = useI18n();
+  const { t, locale, lang } = useI18n();
   const now = new Date();
   const [month, setMonth] = useState(() => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
   const [empQuery, setEmpQuery] = useState("");
@@ -123,7 +124,7 @@ export function AttendanceReportsPage() {
             <Button variant="outline" onClick={() => api.refresh()} className="gap-2 font-bold">
               <RefreshCw className="h-4 w-4" /> {t("Segarkan", "Refresh")}
             </Button>
-            <Button onClick={() => downloadExport(month)} className="gap-2 font-bold">
+            <Button onClick={() => downloadExport(month, lang)} className="gap-2 font-bold">
               <Download className="h-4 w-4" /> {t("Export XLSX")}
             </Button>
           </div>
@@ -310,7 +311,7 @@ export function AttendanceReportsPage() {
                   <p className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                     <BarChart3 className="h-4 w-4 ov-text-accent" /> {t("Rekap per Unit Kerja", "Recap per Org Unit")} — {data.kpi.month}
                   </p>
-                  <Button size="sm" variant="outline" onClick={() => downloadExport(month)} className="h-7 gap-1.5 px-2.5 text-[11px] font-bold">
+                  <Button size="sm" variant="outline" onClick={() => downloadExport(month, lang)} className="h-7 gap-1.5 px-2.5 text-[11px] font-bold">
                     <Download className="h-3.5 w-3.5" /> {t("Export XLSX")}
                   </Button>
                 </div>

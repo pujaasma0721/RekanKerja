@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { recapPeriod } from "@/rekankerja/time-attendance/services/attendance-service";
 import { toCsv, csvResponse, exportFilename } from "@/rekankerja/shared/lib/export";
+import { type Lang } from "@/rekankerja/shared/lib/i18n-core";
 
 // GET /api/rekankerja/attendance/absence-export?from=&to= — rekap absensi per
 // karyawan dalam rentang → CSV (T12-REPORTS).
@@ -67,8 +68,12 @@ export async function GET(req: NextRequest) {
       Math.round(sum((r) => r.absenceDeduction)), Math.round(sum((r) => r.attendanceAllowance)),
     ]);
 
+    // BL-5 (tier-2 export): bahasa header CSV — default EN (pola BL-4; baris
+    // data tetap apa adanya — toCsv hanya menerjemahkan header).
+    const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
+
     return csvResponse(
-      toCsv(columns, rows),
+      toCsv(columns, rows, lang),
       exportFilename("rekankerja-absence", "csv", `${from.toISOString().slice(0, 10)}_${to.toISOString().slice(0, 10)}`),
     );
   } catch (e) {

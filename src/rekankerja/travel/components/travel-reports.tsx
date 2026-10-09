@@ -40,7 +40,7 @@ const yearStartISO = () => `${new Date().getFullYear()}-01-01`;
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function TravelReportsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [from, setFrom] = useState(yearStartISO());
   const [to, setTo] = useState(todayISO());
   const [employeeId, setEmployeeId] = useState("");
@@ -95,9 +95,10 @@ export function TravelReportsPage() {
               </div>
               <div className="flex items-end gap-2">
                 {/* Task 82-c: unduh CSV — filter saat ini (rentang + karyawan), server
-                    menghormati money-vault (nominal dikosongkan bila masked). */}
+                    menghormati money-vault (nominal dikosongkan bila masked).
+                    BL-5: ?lang= diteruskan — ekspor bilingual. */}
                 <a
-                  href={`/api/rekankerja/travel/reports?from=${from}&to=${to}${employeeId ? `&employeeId=${employeeId}` : ""}&export=csv`}
+                  href={`/api/rekankerja/travel/reports?from=${from}&to=${to}${employeeId ? `&employeeId=${employeeId}` : ""}&export=csv&lang=${lang}`}
                   className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
                   aria-label={t("Unduh daftar klaim sebagai CSV", "Download the claim list as CSV")}
                 >

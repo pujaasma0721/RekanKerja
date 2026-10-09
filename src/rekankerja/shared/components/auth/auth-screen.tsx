@@ -447,7 +447,7 @@ export function AuthScreen() {
                             : "text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300",
                         )}
                       >
-                        {k === "login" ? t("Masuk") : t("Buat Workspace", "Create Workspace")}
+                        {k === "login" ? t("Masuk", "Log in") : t("Buat Workspace", "Create Workspace")}
                       </span>
                       <span
                         aria-hidden

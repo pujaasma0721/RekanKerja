@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { listOnLeave, typeUsageSummary } from "@/rekankerja/leave/services/leave-service";
 import { toCsv, csvResponse, exportFilename } from "@/rekankerja/shared/lib/export";
+import { type Lang } from "@/rekankerja/shared/lib/i18n-core";
 
 // GET /api/rekankerja/leave/reports?from=&to=&year= — laporan:
 //   onLeave (padanan Query - Employee on Leave) + typeUsage (Summary Based on Leave Type)
@@ -25,6 +26,9 @@ export async function GET(req: NextRequest) {
 
     // mode export — CSV karyawan cuti (rentang) + ringkasan per jenis
     if (sp.get("export") === "csv") {
+      // BL-5 (tier-2 export): bahasa header CSV — default EN (pola BL-4;
+      // baris data tetap apa adanya — toCsv hanya menerjemahkan header).
+      const lang: Lang = sp.get("lang") === "id" ? "id" : "en";
       const columns = [
         { header: "No. Dokumen", width: 16 },
         { header: "No. Karyawan", width: 14 },
@@ -52,7 +56,7 @@ export async function GET(req: NextRequest) {
         rows.push(["", ty.code, ty.name, "", "", "", "", "", ty.taken, ty.unit, `${ty.employees} karyawan`]);
       }
       return csvResponse(
-        toCsv(columns, rows),
+        toCsv(columns, rows, lang),
         exportFilename("rekankerja-leave", "csv", `${from.toISOString().slice(0, 10)}_${to.toISOString().slice(0, 10)}`),
       );
     }

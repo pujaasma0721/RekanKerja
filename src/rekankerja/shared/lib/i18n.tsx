@@ -3,17 +3,18 @@
 // API: const { t, lang, setLang, locale, monthShort } = useI18n();
 //   t("Simpan")                          → ID: "Simpan" | EN: kamus dasar
 //   t("Gajikan periode {p}?", "Pay period {p}?", { p }) → interpolasi {token}
-// Bahasa tersimpan localStorage "rekankerja:lang" + cookie, default "id".
+// Bahasa tersimpan localStorage "rekankerja:lang" + cookie, default EN untuk
+// pengguna baru / first login (tanpa preferensi tersimpan).
 // <html lang> ikut diperbarui (aksesibilitas). Selain React context, state
 // juga disinkronkan ke modul i18n-core agar helper non-React (fmtDate dll.)
 // mengikuti bahasa aktif.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   setGlobalLang, translate, monthsShort as monthsShortOf,
-  type Lang,
+  DEFAULT_LANG, type Lang,
 } from "@/rekankerja/shared/lib/i18n-core";
 
-export { LANG_OPTIONS, BASE_EN, type Lang, loc, locActivity } from "@/rekankerja/shared/lib/i18n-core";
+export { LANG_OPTIONS, BASE_EN, type Lang, loc, locActivity, locReport } from "@/rekankerja/shared/lib/i18n-core";
 export { translate } from "@/rekankerja/shared/lib/i18n-core";
 
 const STORAGE_KEY = "rekankerja:lang";
@@ -33,26 +34,32 @@ export interface I18nApi {
 
 const I18nContext = createContext<I18nApi | null>(null);
 
+// Default bahasa EN dijalankan di scope modul (bukan hanya useState) supaya
+// translate() — yang membaca state i18n-core — akurat SEJAK render pertama
+// (SSR maupun hidrasi klien). Modul ini hanya diimpor komponen halaman klien,
+// bukan API server — jadi tidak ada efek samping ke bundle route server.
+setGlobalLang(DEFAULT_LANG);
+
 const FALLBACK: I18nApi = {
-  lang: "id",
+  lang: DEFAULT_LANG,
   setLang: () => undefined,
   toggleLang: () => undefined,
   t: (id) => id,
-  locale: "id-ID",
+  locale: "en-US",
   monthShort: monthsShortOf(),
 };
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("id");
+  const [lang, setLangState] = useState<Lang>(DEFAULT_LANG);
 
-  // Muat preferensi tersimpan (render pertama selalu "id" agar hydration stabil,
-  // lalu beralih begitu localStorage terbaca — hanya kedipan singkat bagi user EN).
+  // Muat preferensi tersimpan (render pertama selalu default EN agar hydration stabil,
+  // lalu beralih begitu localStorage terbaca — hanya kedipan singkat bagi user ID).
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored === "en" || stored === "id") {
         setGlobalLang(stored); // sinkron SEBELUM setState agar render pertama EN akurat
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- rehidrasi preferensi dari localStorage memang harus terjadi pasca-mount: render server (SSR) selalu "id" supaya hydration aman, lalu beralih sekali ke preferensi tersimpan.
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- rehidrasi preferensi dari localStorage memang harus terjadi pasca-mount: render server (SSR) selalu default EN supaya hydration aman, lalu beralih sekali ke preferensi tersimpan.
         setLangState(stored);
       }
     } catch {
@@ -98,6 +105,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
 export function useI18n(): I18nApi {
   const ctx = useContext(I18nContext);
-  // Di luar provider (mis. mockup Design Lab yang terisolasi) → fallback Indonesia.
+  // Di luar provider (mis. mockup Design Lab yang terisolasi) → fallback default (EN).
   return ctx ?? FALLBACK;
 }

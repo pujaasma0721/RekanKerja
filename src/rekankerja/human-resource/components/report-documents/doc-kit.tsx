@@ -8,10 +8,10 @@
 // varian dark:) — dokumen adalah "kertas" di segala mode. Print: elemen root
 // diberi id="rk-print-area"; tab mem-clone node ini ke body saat window.print()
 // (lihat report-documents-tab.tsx + @media print di globals.css).
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { useI18n, locReport } from "@/rekankerja/shared/lib/i18n";
 import { fmtDate } from "@/rekankerja/shared/lib/api";
 import { cn } from "@/lib/utils";
 import type { DocMeta } from "./types";
@@ -55,7 +55,7 @@ function CompanyLogo({ name, logoUrl }: { name: string; logoUrl: string | null }
 export function DocMetaStrip({ meta, docNo }: { meta: DocMeta; docNo: string }) {
   const { t } = useI18n();
   const cells: { label: string; value: ReactNode }[] = [
-    { label: t("Periode Laporan", "Report Period"), value: meta.periodLabel },
+    { label: t("Periode Laporan", "Report Period"), value: locReport(meta.periodLabel) },
     { label: t("Tanggal Dicetak", "Printed On"), value: fmtDate(meta.generatedAt) },
     { label: t("Nama Pengunduh / HR Officer", "Downloaded By / HR Officer"), value: meta.printedBy },
     { label: t("No. Dokumen", "Document No."), value: docNo },
@@ -124,15 +124,19 @@ export function DocHeader({ meta, reportNo, title, subtitle, audience, docNo }: 
   );
 }
 
-/** Judul seksi dalam badan dokumen. */
+/** Judul seksi dalam badan dokumen.
+ * BL-3: title & note di-auto-translate via t() — safety identity untuk teks
+ * yang sudah EN (hasil t() pemanggil tidak ada di BASE_EN → dikembalikan
+ * apa adanya; double-t aman). */
 export function DocSection({ no, title, note }: { no?: string; title: string; note?: string }) {
+  const { t } = useI18n();
   return (
     <div className="mb-2 mt-5 first:mt-0">
       <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-slate-800">
         {no && <span className="mr-1.5 rounded bg-slate-200 px-1.5 py-px text-[9px]">{no}</span>}
-        {title}
+        {t(title)}
       </p>
-      {note && <p className="mt-0.5 text-[9.5px] italic text-slate-400">{note}</p>}
+      {note && <p className="mt-0.5 text-[9.5px] italic text-slate-400">{t(note)}</p>}
     </div>
   );
 }
@@ -153,14 +157,34 @@ export function DocTable({ head, children, className }: { head: ReactNode; child
   );
 }
 
-/** <th> dokumen — align: text | center | number. */
+/** <th> dokumen — align: text | center | number.
+ * BL-3 (auto-translate): children string murni → t(children) (single-arg =
+ * lookup BASE_EN, fallback identity). Children campuran (mis.
+ * `<TH>TOTAL — {data.total} KARYAWAN</TH>` → ["TOTAL — ", expr, " KARYAWAN"])
+ * → tiap segmen string di-trim lalu di-lookup; bila tidak ada di kamus
+ * kembalikan segmen asli, bila ada terjemahan ganti HANYA bagian trimmed
+ * (whitespace di sekitar dipertahankan). Segmen non-string (ekspresi/
+ * elemen React) dibiarkan apa adanya — jangan sentuh data. */
 export function TH({ children, align = "text" }: { children: ReactNode; align?: "text" | "center" | "number" }) {
+  const { t } = useI18n();
+  const trSeg = (s: string): string => {
+    const key = s.trim();
+    if (!key) return s;
+    const en = t(key); // t dari useI18n — fallback identity bila tak ada di kamus
+    // replace dgn fungsi agar karakter `$` pada terjemahan tidak dianggap pola.
+    return en === key ? s : s.replace(key, () => en);
+  };
+  const inner: ReactNode = typeof children === "string"
+    ? t(children)
+    : Array.isArray(children)
+      ? children.map((c, i) => (typeof c === "string" ? <Fragment key={i}>{trSeg(c)}</Fragment> : c))
+      : children;
   return (
     <TableHead className={cn(
       "whitespace-nowrap border-b border-slate-300 px-2.5 py-2 text-[9px] font-extrabold uppercase tracking-[0.06em] text-slate-600",
       align === "center" && "text-center", align === "number" && "text-right", align === "text" && "text-left",
     )}>
-      {children}
+      {inner}
     </TableHead>
   );
 }
@@ -178,11 +202,14 @@ export function TD({ children, align = "text", className, colSpan }: { children?
   );
 }
 
-/** Baris total dokumen. */
+/** Baris total dokumen.
+ * BL-3: label di-auto-translate (t single-arg — double-t aman: pemanggil yang
+ * sudah lewat t() mendapat identity karena hasilnya tak ada di BASE_EN). */
 export function TotalRow({ label, cells, spanLabel = 1 }: { label: string; cells: ReactNode[]; spanLabel?: number }) {
+  const { t } = useI18n();
   return (
     <TableRow className="bg-slate-100/90 hover:bg-slate-100/90">
-      <TD colSpan={spanLabel} className="text-[10.5px] font-black uppercase text-slate-900">{label}</TD>
+      <TD colSpan={spanLabel} className="text-[10.5px] font-black uppercase text-slate-900">{t(label)}</TD>
       {cells.map((c, i) => (
         <TD key={i} className="text-[10.5px] font-black text-slate-900" align={i === cells.length - 1 ? "number" : "center"}>{c}</TD>
       ))}
@@ -190,13 +217,16 @@ export function TotalRow({ label, cells, spanLabel = 1 }: { label: string; cells
   );
 }
 
-/** Kotak ringkasan metrik (summary block) — dipakai sebelum sign-off. */
+/** Kotak ringkasan metrik (summary block) — dipakai sebelum sign-off.
+ * BL-3: it.label di-auto-translate saat render (double-t aman — identity utk
+ * teks yang sudah EN). key React tetap label mentah agar stabil. */
 export function SummaryBox({ items, className }: { items: { label: string; value: ReactNode; accent?: boolean }[]; className?: string }) {
+  const { t } = useI18n();
   return (
     <div className={cn("grid gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200", className)}>
       {items.map((it) => (
         <div key={it.label} className={cn("flex items-baseline justify-between gap-3 px-3.5 py-2", it.accent ? "bg-slate-800" : "bg-slate-50")}>
-          <span className={cn("text-[9.5px] font-bold uppercase tracking-wide", it.accent ? "text-slate-300" : "text-slate-500")}>{it.label}</span>
+          <span className={cn("text-[9.5px] font-bold uppercase tracking-wide", it.accent ? "text-slate-300" : "text-slate-500")}>{t(it.label)}</span>
           <span className={cn("text-[12px] font-black tabular-nums", it.accent ? "text-white" : "text-slate-900")}>{it.value}</span>
         </div>
       ))}

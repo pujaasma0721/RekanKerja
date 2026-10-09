@@ -130,7 +130,7 @@ function ReportDocument({ doc }: { doc: DocResponse<unknown> }) {
 }
 
 export function TravelReportDocumentsTab() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   // Tahap: null = katalog · selected + showParams = form parameter ·
   // query terisi & !showParams = dokumen hasil generate.
   const [selected, setSelected] = useState<string | null>(null);
@@ -182,7 +182,7 @@ export function TravelReportDocumentsTab() {
               <Button variant="outline" size="sm" onClick={() => api.refresh()} disabled={api.loading} className="gap-1.5 font-bold">
                 <RefreshCw className={cn("h-3.5 w-3.5", api.loading && "animate-spin")} /> {t("Segarkan")}
               </Button>
-              <Button variant="outline" size="sm" onClick={() => { window.location.href = `${DOC_BASE}?${query}&export=xlsx`; }} className="gap-1.5 font-bold">
+              <Button variant="outline" size="sm" onClick={() => { window.location.href = `${DOC_BASE}?${query}&export=xlsx&lang=${lang}`; }} className="gap-1.5 font-bold">
                 <FileSpreadsheet className="h-3.5 w-3.5" /> {t("Unduh XLSX", "Download XLSX")}
               </Button>
               <Button size="sm" onClick={printDocument} disabled={!api.data} className="gap-1.5 font-bold">

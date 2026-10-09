@@ -3,6 +3,7 @@ import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { resolveAccessScope, scopeWhere } from "@/rekankerja/shared/services/access-scope";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { toXlsxMulti, xlsxResponse, exportFilename, type ExportSheet } from "@/rekankerja/shared/lib/export";
+import { trFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 
 // GET /api/rekankerja/hr/reports — laporan HR agregat:
 //   • Turnover & Tenure: KPI (headcount aktif, hires YTD, exits YTD,
@@ -313,6 +314,8 @@ export async function GET(req: NextRequest) {
     // ===== mode export =====
     const exportMode = req.nextUrl.searchParams.get("export");
     if (exportMode) {
+      // BL-5 (tier-2 export): bahasa header/sheet/judul — default EN (pola BL-4).
+      const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
       const k = turnover.kpi;
       let sheets: ExportSheet[];
       let filename: string;
@@ -320,7 +323,7 @@ export async function GET(req: NextRequest) {
         sheets = [
           {
             name: "Ringkasan",
-            title: `Laporan Turnover & Tenure ${year}`,
+            title: `${trFor(lang, "Laporan Turnover & Tenure", "Turnover & Tenure Report")} ${year}`,
             columns: [{ header: "Indikator", width: 30 }, { header: "Nilai", width: 18 }],
             rows: [
               ["Headcount Aktif", k.headcount],
@@ -334,7 +337,7 @@ export async function GET(req: NextRequest) {
           },
           {
             name: "Per Divisi",
-            title: `Headcount & Turnover per Divisi — ${year}`,
+            title: `${trFor(lang, "Headcount & Turnover per Divisi", "Headcount & Turnover per Division")} — ${year}`,
             columns: [{ header: "Divisi", width: 32 }, { header: "Headcount", width: 14 }, { header: "Exits YTD", width: 12 }, { header: "Turnover %", width: 13 }],
             rows: byDivision.map((d) => [d.division, d.headcount, d.exits, d.turnoverRate]),
           },
@@ -386,7 +389,7 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      const buf = await toXlsxMulti(sheets);
+      const buf = await toXlsxMulti(sheets, { lang });
       await logExport(db, exportMode, m.actor.appUserId);
       return xlsxResponse(buf, filename);
     }

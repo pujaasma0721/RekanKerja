@@ -585,7 +585,7 @@ function LogsPanel() {
             <History className="h-4 w-4 ov-text-accent" /> {t("Riwayat Pengiriman", "Delivery History")}
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="rounded-full font-mono text-[10px]">total {data?.total ?? 0}</Badge>
+            <Badge variant="secondary" className="rounded-full font-mono text-[10px]">{t("total", "total")} {data?.total ?? 0}</Badge>
             <Button variant="outline" size="sm" onClick={refresh} className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px] font-bold">
               <History className="h-3 w-3" /> {t("Muat Ulang")}
             </Button>

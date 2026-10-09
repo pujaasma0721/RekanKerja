@@ -3,6 +3,7 @@ import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { toXlsx, xlsxResponse, exportFilename } from "@/rekankerja/shared/lib/export";
+import { trFor, locFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 
 // GET /api/rekankerja/payroll-reports/register?runId= — payroll register
 // (rekap gaji per unit kerja) untuk satu run (T12-REPORTS):
@@ -95,6 +96,8 @@ export async function GET(req: NextRequest) {
     };
 
     if (req.nextUrl.searchParams.get("export") === "xlsx") {
+      // BL-5 (tier-2 export): bahasa header/judul register — default EN (pola BL-4).
+      const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
       const columns = [
         { header: "Unit Kerja", width: 24 },
         { header: "No.", width: 6 },
@@ -106,18 +109,20 @@ export async function GET(req: NextRequest) {
       ];
       const body: (number | string)[][] = [];
       let no = 0;
+      const empWord = trFor(lang, "karyawan", "employees");
       for (const g of byUnit) {
         // sub-header unit + ringkasan unit
-        body.push([g.unit, "", "", `${g.employees} karyawan`, g.totalGross, g.totalDeduction, g.totalNet]);
+        body.push([g.unit, "", "", `${g.employees} ${empWord}`, g.totalGross, g.totalDeduction, g.totalNet]);
         for (const e of g.rows) {
           no += 1;
           body.push([g.unit, no, e.employeeNo, e.fullName, e.gross, e.deduction, e.net]);
         }
-        body.push([`Subtotal ${g.unit}`, "", "", "", g.totalGross, g.totalDeduction, g.totalNet]);
+        body.push([`${trFor(lang, "Subtotal")} ${g.unit}`, "", "", "", g.totalGross, g.totalDeduction, g.totalNet]);
       }
-      body.push(["GRAND TOTAL", "", "", `${no} karyawan`, totals.totalGross, totals.totalDeduction, totals.totalNet]);
+      body.push([trFor(lang, "GRAND TOTAL"), "", "", `${no} ${empWord}`, totals.totalGross, totals.totalDeduction, totals.totalNet]);
       const buf = await toXlsx("Register", columns, body, {
-        title: `Payroll Register — ${run.runNo} · ${run.period.name} · ${run.processType.name}`,
+        title: `Payroll Register — ${run.runNo} · ${locFor(lang, run.period.name)} · ${run.processType.name}`,
+        lang,
       });
       await logExport(db, run.runNo, m.actor.appUserId);
       return xlsxResponse(buf, exportFilename("rekankerja-register", "xlsx", run.runNo));

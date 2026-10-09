@@ -81,7 +81,7 @@ export function BpjsTkDoc({ data }: { data: BpjsTkPayload }) {
               <th colSpan={1} className="border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white" />
             </tr>
             <tr className="bg-slate-700 text-white">
-              <th className="w-8 border border-slate-600 px-1.5 py-1 text-center text-[9px] font-bold uppercase">No</th>
+              <th className="w-8 border border-slate-600 px-1.5 py-1 text-center text-[9px] font-bold uppercase">{t("No", "No.")}</th>
               <th className="w-[20mm] border border-slate-600 px-1.5 py-1 text-left text-[9px] font-bold uppercase">NIK</th>
               <th className="border border-slate-600 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("No. Karyawan", "Emp. No.")}</th>
               <th className="border border-slate-600 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("Nama", "Name")}</th>
@@ -185,7 +185,7 @@ export function BpjsKesehatanDoc({ data }: { data: BpjsKesPayload }) {
         <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[10.5px]">
           <thead>
             <tr className="bg-slate-800 text-white">
-              <th className="w-8 border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">No</th>
+              <th className="w-8 border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">{t("No", "No.")}</th>
               <th className="w-[20mm] border border-slate-700 px-1.5 py-1 text-left text-[9px] font-bold uppercase">NIK</th>
               <th className="w-[20mm] border border-slate-700 px-1.5 py-1 text-center text-[9px] font-bold uppercase">{t("No. Kartu", "Card No.")}</th>
               <th className="border border-slate-700 px-1.5 py-1 text-left text-[9px] font-bold uppercase">{t("Nama Peserta", "Participant Name")}</th>
@@ -272,7 +272,7 @@ export function TaperaDoc({ data }: { data: TaperaPayload }) {
         <div className="rk-doc-table overflow-x-auto"><table className="w-full border-collapse text-[11px]">
           <thead>
             <tr className="bg-slate-800 text-white">
-              <th className="w-8 border border-slate-700 px-2 py-1 text-center text-[9px] font-bold uppercase">No</th>
+              <th className="w-8 border border-slate-700 px-2 py-1 text-center text-[9px] font-bold uppercase">{t("No", "No.")}</th>
               <th className="border border-slate-700 px-2 py-1 text-left text-[9px] font-bold uppercase">{t("No. Karyawan", "Emp. No.")}</th>
               <th className="border border-slate-700 px-2 py-1 text-left text-[9px] font-bold uppercase">{t("Nama", "Name")}</th>
               <th className="border border-slate-700 px-2 py-1 text-left text-[9px] font-bold uppercase">{t("Unit Kerja", "Unit")}</th>

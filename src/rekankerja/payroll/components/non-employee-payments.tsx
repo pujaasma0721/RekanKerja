@@ -51,7 +51,7 @@ interface LedgerDetail {
 const MONTHS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
 export function NonEmployeePaymentsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [tab, setTab] = useState<"payments" | "partners" | "ledger">("payments");
   const [q, setQ] = useState("");
   const [year, setYear] = useState<string>("all");
@@ -134,7 +134,7 @@ export function NonEmployeePaymentsPage() {
         )}
         {tab === "ledger" && (
           <a
-            href={`/api/rekankerja/non-employee-payments?export=csv${yearQ}${monthQ}`}
+            href={`/api/rekankerja/non-employee-payments?export=csv${yearQ}${monthQ}&lang=${lang}`}
             className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3.5 text-[12px] font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300"
           >
             <FileDown className="h-3.5 w-3.5" /> CSV

@@ -4,6 +4,7 @@ import { resolveAccessScope, scopeWhere } from "@/rekankerja/shared/services/acc
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { toXlsxMulti, xlsxResponse, exportFilename, type ExportSheet, type ExportCell } from "@/rekankerja/shared/lib/export";
+import { trFor, locFor, locReportFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 // KONTRAK payload — tipe dipakai compile-time supaya field TIDAK BISA menyimpang
 // dari src/rekankerja/medical/components/report-documents/types.ts (MED-1-b).
@@ -433,8 +434,11 @@ export async function GET(req: NextRequest) {
 
     // ---- mode export XLSX ----
     if (sp.get("export") === "xlsx") {
-      const sheets = buildSheets(id, data, data.periodLabel);
-      const buf = await toXlsxMulti(sheets);
+      // BL-4: bahasa ekspor — default EN (frontend selalu mengirim ?lang=;
+      // "id" eksplisit → Indonesia, tanpa param pun → EN utk kompatibilitas maju).
+      const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
+      const sheets = buildSheets(id, data, data.periodLabel, lang);
+      const buf = await toXlsxMulti(sheets, { lang });
       try {
         await db.activityLog.create({
           data: {
@@ -1187,9 +1191,15 @@ const d = (isoStr: string | null | undefined): string => {
 /** Uang null (brankas terkunci) → "" — BUKAN 0 (aturan audit kolom R1.2/LR3.1). */
 const rp = (n: unknown) => (n == null ? "" : n as number);
 
-function buildSheets(id: string, built: { periodLabel: string; payload: unknown }, periodLabel: string): ExportSheet[] {
+function buildSheets(
+  id: string,
+  built: { periodLabel: string; payload: unknown },
+  periodLabel: string,
+  lang: Lang = "id",
+): ExportSheet[] {
   const p = built.payload as AnyRec;
-  const title = `${REPORT_TITLES[id]}${periodLabel ? ` — ${periodLabel}` : ""}`;
+  // BL-4: judul dua-bahasa — nama laporan via kamus, label periode swap bulan ID→EN.
+  const title = `${trFor(lang, REPORT_TITLES[id])}${periodLabel ? ` — ${locReportFor(lang, periodLabel)}` : ""}`;
   switch (id) {
     case "mr11": {
       const rows = (p.rows as AnyRec[]) ?? [];

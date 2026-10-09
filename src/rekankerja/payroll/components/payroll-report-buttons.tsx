@@ -87,10 +87,10 @@ export function BpjsExportButton({ runId, runNo, compact }: { runId: string; run
 }
 
 export function PayrollRegisterExportButton({ runId, runNo, compact }: { runId: string; runNo?: string; compact?: boolean }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   return (
     <a
-      href={`/api/rekankerja/payroll-reports/register?runId=${runId}&export=xlsx`}
+      href={`/api/rekankerja/payroll-reports/register?runId=${runId}&export=xlsx&lang=${lang}`}
       className={btnCls(compact)}
       aria-label={t("Ekspor register payroll run {no}", "Export payroll register for run {no}", { no: runNo ?? runId })}
     >
@@ -102,11 +102,12 @@ export function PayrollRegisterExportButton({ runId, runNo, compact }: { runId: 
 
 // Task 64 — laporan payroll bulanan LENGKAP: 5 sheet (Ringkasan, Rekap Gaji
 // per komponen, Detail Komponen, Rekap Komponen, Pembayaran & Pajak).
+// BL-4/BL-5: ?lang= diteruskan — ekspor bilingual (bpjs = REGULATOR tetap ID).
 export function MonthlyReportExportButton({ runId, runNo, compact }: { runId: string; runNo?: string; compact?: boolean }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   return (
     <a
-      href={`/api/rekankerja/payroll-reports/monthly?runId=${runId}&export=xlsx`}
+      href={`/api/rekankerja/payroll-reports/monthly?runId=${runId}&export=xlsx&lang=${lang}`}
       className={btnCls(compact)}
       aria-label={t("Unduh laporan bulanan payroll run {no}", "Download monthly payroll report for run {no}", { no: runNo ?? runId })}
     >
