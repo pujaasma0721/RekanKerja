@@ -133,7 +133,14 @@ export function toCsv(columns: ExportColumn[], rows: ExportCell[][], lang: Lang 
   const esc = (v: ExportCell): string => {
     if (v === null || v === undefined) return "";
     const s = v instanceof Date ? v.toISOString().slice(0, 10) : String(v);
-    return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    // AUD-DEPLOY (2-b MED-4) — CSV formula injection: string user yang
+    // diawali = + - @ (atau tab/CR) diprefix "'" agar tidak dieksekusi
+    // Excel/Sheets saat file dibuka. Hanya sel type string — angka
+    // (termasuk negatif) & tanggal tidak tersentuh. Jalur XLSX exceljs
+    // aman (string ditulis dengan tipe eksplisit, bukan formula —
+    // diverifikasi round-trip write+load).
+    const guarded = typeof v === "string" && /^[=+\-@\t\r]/.test(v) ? `'${s}` : s;
+    return /[";\n]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
   };
   // BL-4: hanya header kolom diterjemahkan saat EN — baris CSV = data user.
   const cols = lang === "en" ? columns.map((c) => ({ ...c, header: trFor("en", c.header) })) : columns;

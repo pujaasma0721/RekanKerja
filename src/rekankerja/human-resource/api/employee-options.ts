@@ -3,7 +3,6 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { resolveMenuPerms } from "@/rekankerja/shared/services/menu-access";
-import { flattenEmployee } from "@/rekankerja/human-resource/services/assignment";
 
 // GET /api/rekankerja/employee-options — select options for wizard/detail.
 // M-11 (audit 42, follow-up 43-g): managers[] memuat NIK + gaji pokok
@@ -38,14 +37,21 @@ export async function GET(req: NextRequest) {
       db.orgUnit.findMany({ where: { active: true }, select: { id: true, name: true, level: true, code: true }, orderBy: { code: "asc" } }),
       db.position.findMany({ where: { active: true }, select: { id: true, title: true, code: true, orgUnitId: true }, orderBy: { code: "asc" } }),
       db.grade.findMany({ where: { active: true }, select: { id: true, code: true, name: true, minSalary: true, maxSalary: true }, orderBy: { sortOrder: "asc" } }),
+      // AUD-DEPLOY (3-a H-8 + 2-a HIGH-2 follow-up): SELECT sempit — dulu
+      // `include` SEMUA kolom karyawan lalu flattenEmployee men-dekripsi
+      // NIK/NPWP/rekening dan menyebarkannya (…rest) ke managers[] untuk
+      // sekadar dropdown wizard/PA/bonus/approval (150–300 KB PII per buka
+      // dialog). Konsumen hanya memakai: id/employeeNo/fullName/position/
+      // employmentStatus/status/joinDate/endDate/baseSalary/workShift.
       db.employee.findMany({
         where: { status: "Active" },
-        include: {
+        select: {
+          id: true, employeeNo: true, fullName: true, status: true, joinDate: true, endDate: true,
           assignments: {
             where: { validTo: null },
             orderBy: { validFrom: "desc" },
             take: 1,
-            include: { position: { select: { title: true } } },
+            select: { employmentStatus: true, baseSalary: true, workShift: true, position: { select: { title: true } } },
           },
         },
         orderBy: { employeeNo: "asc" },
@@ -54,20 +60,22 @@ export async function GET(req: NextRequest) {
       db.lookup.findMany({ where: { active: true }, select: { category: true, code: true, label: true }, orderBy: { sortOrder: "asc" } }),
     ]);
 
-    // flatten assignment aktif → bentuk lama (position/orgUnitId).
-    // 28-c / follow-up 43-b: NIK/NPWP/rekening + gaji pokok TERENKRIPSI di DB —
-    // kirim konteks crypto agar flattenEmployee men-dekripsi di batas serializer
-    // (decryptText meloloskan plaintext legacy; tanpa tc, karyawan yang pernah
-    // di-PATCH pasca-enkripsi mengembalikan ciphertext enc:v1:… ke klien).
-    // 45-b: gerbang vault uang (requireTenant → resolve via sesi) — gaji pokok
-    // managers → null saat masked (PII tetap terdekripsi — vault hanya uang).
-    const tc = tenantCryptoForDb(db);
+    // 45-b: gerbang vault uang — gaji pokok managers → null saat masked.
+    // (Bentuk flat kompatibel konsumen: PA-create/bonus-massal memakai
+    // baseSalary + employmentStatus + workShift; picker lain cukup identitas.)
     const mv = await moneyViewForReq(req, db);
+    const tc = tenantCryptoForDb(db);
     const employees = employeesRaw.map((e) => {
-      const flat = flattenEmployee(e, tc);
-      const { assignments, ...rest } = flat as Record<string, unknown>;
-      if (!mv.canSee) rest.baseSalary = null;
-      return rest;
+      const a = e.assignments[0];
+      return {
+        id: e.id, employeeNo: e.employeeNo, fullName: e.fullName, status: e.status,
+        joinDate: e.joinDate, endDate: e.endDate,
+        employmentStatus: a?.employmentStatus ?? "Tanpa data",
+        workShift: a?.workShift ?? "Regular",
+        // 28-c: baseSalary TERENKRIPSI — dekripsi di batas serializer.
+        baseSalary: a?.baseSalary ? (mv.canSee ? tc.decryptMoney(a.baseSalary) ?? 0 : null) : 0,
+        position: a?.position ?? null,
+      };
     });
 
     const lookupMap: Record<string, { code: string; label: string }[]> = {};

@@ -171,6 +171,33 @@ export async function GET(req: NextRequest) {
     const mv = await moneyViewForReq(req, db);
     const now = new Date();
 
+    // ---- AUD-DEPLOY (3-a CRIT-2): pre-filter SQL window -------------------
+    // Dulu: leaveRequest + attendanceDaily dimuat FULL HISTORY lalu difilter
+    // di JS (vektor OOM paralel). Default window semua laporan lr2x–lr4x =
+    // [1 Jan tahun berjalan, now] (basis lokal — lr21/31/41) / bulan berjalan
+    // (lr22/23) → default [1 Jan min(tahun lokal, UTC), now]. EXCEPTION:
+    // lr42 Long Leave memindai CT-BESAR SEPANJANG MASA (pem eligibility) →
+    // leaveRequest TIDAK di-window untuk laporan itu. Cuti diambil yang
+    // BERIRISAN window (permintaan panjang yang melintasi tetap masuk).
+    const boundsFrom: number[] = [];
+    const boundsTo: number[] = [];
+    if (fp.month) {
+      const [yy, mm] = fp.month.split("-").map(Number);
+      boundsFrom.push(Date.UTC(yy, mm - 1, 1));
+      boundsTo.push(Date.UTC(yy, mm, 1));
+    }
+    if (fp.year != null) {
+      boundsFrom.push(Date.UTC(fp.year, 0, 1));
+      boundsTo.push(Date.UTC(fp.year + 1, 0, 1));
+    }
+    if (fp.from) boundsFrom.push(new Date(`${fp.from}T00:00:00Z`).getTime());
+    if (fp.to) boundsTo.push(new Date(`${fp.to}T23:59:59.999Z`).getTime() + 1);
+    const defFrom = Date.UTC(Math.min(now.getUTCFullYear(), Number(now.getFullYear())), 0, 1);
+    const defTo = now.getTime();
+    const winFrom = new Date(Math.min(defFrom, ...boundsFrom));
+    const winToEx = new Date(Math.max(defTo, ...boundsTo));
+    const leaveWindowed = id !== "lr42";
+
     // ---- fetch utama ----
     const [rawEmps, typesAll, unitsAll, officesAll, reqsAll, attDaily, company] = await Promise.all([
       db.employee.findMany({
@@ -190,6 +217,12 @@ export async function GET(req: NextRequest) {
       db.orgUnit.findMany({ select: { id: true, code: true, name: true, parentId: true, level: true } }),
       db.companyOffice.findMany({ select: { id: true, code: true, name: true, city: true, active: true } }),
       db.leaveRequest.findMany({
+        ...(leaveWindowed
+          ? {
+              // overlap window — permintaan yang melintasi batas tetap masuk.
+              where: { AND: [{ dateTo: { gte: winFrom } }, { dateFrom: { lt: winToEx } }] },
+            }
+          : {}),
         select: {
           id: true, docNo: true, employeeId: true, leaveTypeId: true, year: true, requestDate: true,
           dateFrom: true, sessionFrom: true, dateTo: true, sessionTo: true, workingDays: true,
@@ -198,6 +231,7 @@ export async function GET(req: NextRequest) {
         orderBy: [{ dateFrom: "desc" }, { docNo: "desc" }],
       }),
       db.attendanceDaily.findMany({
+        where: { workDate: { gte: winFrom, lt: winToEx } },
         select: { employeeId: true, workDate: true, status: true, notes: true },
         // semua status termasuk Off/Holiday — mayoritas-nonOff menentukan
         // hari kerja efektif (R3.1); Off/Holiday tidak masuk baris mana pun.

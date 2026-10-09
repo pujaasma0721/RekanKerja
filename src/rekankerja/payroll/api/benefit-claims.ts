@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import {
   submitClaim, approveClaim, rejectClaim, scheduleClaim, markClaimPaidCash, cancelClaim,
 } from "@/rekankerja/payroll/services/benefit-service";
@@ -22,8 +22,10 @@ const CLAIM_INCLUDE = {
 // GET /api/rekankerja/benefit-claims?status=&employeeId= — daftar + statistik.
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // AUD-DEPLOY (2-a MED-1): guard menu — sebelumnya requireTenant saja.
+    const m = await requireMenuViewAny(req, ["payroll:benefits"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const status = req.nextUrl.searchParams.get("status");
     const employeeId = req.nextUrl.searchParams.get("employeeId");

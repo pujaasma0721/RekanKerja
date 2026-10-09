@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 
 // ============ RIWAYAT KIRIM EMAIL (Task 34) ============
 // GET ?limit=50 — log pengiriman terbaru (Sent/Failed/Skipped)
 
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // AUD-DEPLOY (2-b MED-2): guard menu — sebelumnya requireTenant saja,
+    // log email (penerima + subject berisi OTP e-sign) terbaca semua anggota.
+    const m = await requireMenuViewAny(req, ["settings:email"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const url = new URL(req.url);
     const limit = Math.max(1, Math.min(200, Math.floor(Number(url.searchParams.get("limit")) || 50)));

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { getTenantClient, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
@@ -115,8 +116,12 @@ export async function GET(req: NextRequest) {
     }
 
     // ---- daftar pengguna + konfigurasi (untuk editor Hak Akses) ----
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // AUD-DEPLOY (2-a HIGH-1): guard menu — sebelumnya requireTenant saja,
+    // membuat seluruh konfigurasi hak akses (email, mode, bawahan) terbaca
+    // anggota tenant biasa.
+    const m = await requireMenuViewAny(req, ["settings:security"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const [users, configs, ruleRows, assignRows] = await Promise.all([
       db.appUser.findMany({
@@ -201,7 +206,10 @@ export async function GET(req: NextRequest) {
 // menus: string[] (izin penuh) | Record<key, {create,update,delete,ops}>
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // AUD-DEPLOY (2-a HIGH-1): guard menu — sebelumnya requireMutator saja.
+    // Sebuah Approver/HR Staff bisa self-grant mode ALL lalu lolos guard
+    // settings:security di app-users → eskalasi ke super admin tenant.
+    const m = await requireMenuAction(req, "settings:security", "update");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -256,7 +264,8 @@ export async function POST(req: NextRequest) {
 // DELETE /api/rekankerja/user-menu-access?userId= → hapus konfigurasi (default semua menu)
 export async function DELETE(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // AUD-DEPLOY (2-a HIGH-1): guard menu — sebelumnya requireMutator saja.
+    const m = await requireMenuAction(req, "settings:security", "delete");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 

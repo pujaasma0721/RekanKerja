@@ -18,7 +18,14 @@
  *  · sisanya → passthrough network.
  * Semua dibungkus defensif: SW gagal = aplikasi tetap jalan normal.
  */
-const CACHE = "rekankerja-sw-v2";
+/*
+ * AUD-DEPLOY (3-b M2): cache /_next/static dibatasi MAX_CHUNK_ENTRIES
+ * (FIFO — entri tertua dihapus duluan). Tanpa ini chunk ter-hash dari TIAP
+ * deploy menumpuk tanpa batas di satu nama cache tetap — semakin terasa
+ * sejak code-splitting per modul (chunk per deploy jauh lebih banyak).
+ */
+const CACHE = "rekankerja-sw-v3";
+const MAX_CHUNK_ENTRIES = 200;
 
 const PRECACHE = [
   "/manifest.webmanifest",
@@ -98,7 +105,20 @@ self.addEventListener("fetch", (event) => {
           if (res && res.ok) {
             try {
               const cache = await caches.open(CACHE);
-              cache.put(req, res.clone()).catch(() => {});
+              await cache.put(req, res.clone());
+              // AUD-DEPLOY (3-b M2): eviksi FIFO bila cache chunk membengkak.
+              try {
+                const keys = await cache.keys();
+                if (keys.length > MAX_CHUNK_ENTRIES) {
+                  // keys() urut penyisipan — hapus tertua sampai di bawah batas
+                  // (precache /icons/* + /offline.html bisa ikut tergeser saat
+                  // pembengkakan — aman: precache dijalankan ulang tiap install,
+                  // dan aset /icons/* di-serve cache-first terisi ulang on-demand).
+                  for (let i = 0; i < keys.length - MAX_CHUNK_ENTRIES; i++) {
+                    await cache.delete(keys[i]);
+                  }
+                }
+              } catch (_evict) { /* non-fatal */ }
             } catch (_err) { /* body sudah dipakai — abaikan */ }
           }
           return res;

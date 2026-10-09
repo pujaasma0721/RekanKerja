@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
+import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { PTKP_ANNUAL } from "@/rekankerja/payroll/services/payroll-engine";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import {
@@ -21,7 +21,7 @@ import {
 // (EmployeeWageTemplateHistory) untuk satu karyawan — ditampilkan modul
 // Payroll (Profil Payroll → tombol Riwayat). Uang digate MoneyView; alasan
 // & dokumen sumber tampil apa adanya.
-async function historyHandler(req: NextRequest, db: NonNullable<Awaited<ReturnType<typeof requireTenant>>>) {
+async function historyHandler(req: NextRequest, db: TenantDb) {
   const employeeId = req.nextUrl.searchParams.get("employeeId");
   if (!employeeId) return NextResponse.json({ error: "employeeId wajib" }, { status: 400 });
   const mv = await moneyViewForReq(req, db);
@@ -78,8 +78,15 @@ async function historyHandler(req: NextRequest, db: NonNullable<Awaited<ReturnTy
 
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // AUD-DEPLOY (2-a HIGH-2): guard menu — sebelumnya requireTenant saja,
+    // NPWP + rekening bank (dekripsi) seluruh karyawan terbaca anggota
+    // tenant biasa. Daftar ini dipakai lintas layar payroll (profil, transaksi,
+    // benefit, overview) → ViewAny multi-menu.
+    const m = await requireMenuViewAny(req, [
+      "payroll:profiles", "payroll:transactions", "payroll:benefits", "payroll:runs",
+    ]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     if (req.nextUrl.searchParams.get("history") === "1") return await historyHandler(req, db);
 
     const q = req.nextUrl.searchParams.get("q")?.trim();

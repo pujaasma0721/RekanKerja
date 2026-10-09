@@ -183,6 +183,42 @@ export async function GET(req: NextRequest) {
     const mv = await moneyViewForReq(req, db);
     const now = new Date();
 
+    // ---- AUD-DEPLOY (3-a CRIT-2): pre-filter SQL window -------------------
+    // Dulu: attendanceDaily/clockLog/overtimeOrder/holiday/leaveRequest
+    // dimuat FULL HISTORY lalu difilter di JS — 200 karyawan × 1 tahun ≈
+    // 73k baris daily + 300k clock log (±100–300 MB) PER REQUEST (vektor
+    // OUM pada render paralel). Semua fungsi ar1x–ar43 menurunkan jendela
+    // tanggalnya dari fp (default bulan berjalan — campuran basis UTC
+    // (ar13+) dan lokal (ar11) → default diperlebar ±1 bulan agar selalu
+    // SUPERSET ketat). Window = union SEMUA bound fp; clock log diberi
+    // buffer ±1 hari (shift lintas tengah malam); cuti diambil yang
+    // BERIRISAN window (permintaan panjang yang melintasi tetap masuk).
+    const boundsFrom: number[] = [];
+    const boundsTo: number[] = [];
+    if (fp.date) {
+      const t = new Date(`${fp.date}T00:00:00Z`).getTime();
+      boundsFrom.push(t); boundsTo.push(t + 86_400_000);
+    }
+    if (fp.month) {
+      const [yy, mm] = fp.month.split("-").map(Number);
+      boundsFrom.push(Date.UTC(yy, mm - 1, 1));
+      boundsTo.push(Date.UTC(yy, mm, 1));
+    }
+    if (fp.year != null) {
+      boundsFrom.push(Date.UTC(fp.year, 0, 1));
+      boundsTo.push(Date.UTC(fp.year + 1, 0, 1));
+    }
+    if (fp.from) boundsFrom.push(new Date(`${fp.from}T00:00:00Z`).getTime());
+    if (fp.to) boundsTo.push(new Date(`${fp.to}T23:59:59.999Z`).getTime() + 1);
+    // default: bulan berjalan (UTC) diperlebar ±1 bulan — menutup perbedaan
+    // basis bulan lokal vs UTC di semua timezone saat fp kosong.
+    const defFrom = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);
+    const defTo = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 1);
+    const winFrom = new Date(Math.min(defFrom, ...boundsFrom));
+    const winToEx = new Date(Math.max(defTo, ...boundsTo));
+    const winClockFrom = new Date(winFrom.getTime() - 86_400_000);
+    const winClockToEx = new Date(winToEx.getTime() + 86_400_000);
+
     // ---- fetch utama ----
     const [rawEmps, unitsAll, officesAll, attsAll, clocksAll, otsAll, dayTypesAll, holidaysAll, leaveReqsAll, leaveTypesAll, company] = await Promise.all([
       db.employee.findMany({
@@ -201,6 +237,7 @@ export async function GET(req: NextRequest) {
       db.orgUnit.findMany({ select: { id: true, code: true, name: true, parentId: true, level: true } }),
       db.companyOffice.findMany({ select: { id: true, code: true, name: true, city: true, active: true } }),
       db.attendanceDaily.findMany({
+        where: { workDate: { gte: winFrom, lt: winToEx } },
         select: {
           employeeId: true, workDate: true, dayTypeId: true, status: true, presence: true,
           checkIn: true, checkOut: true, lateMinutes: true, earlyMinutes: true,
@@ -210,10 +247,12 @@ export async function GET(req: NextRequest) {
         orderBy: [{ workDate: "asc" }, { employeeId: "asc" }],
       }),
       db.attendanceClockLog.findMany({
+        where: { timestamp: { gte: winClockFrom, lt: winClockToEx } },
         select: { employeeId: true, timestamp: true, direction: true, source: true, latitude: true, longitude: true },
         orderBy: { timestamp: "asc" },
       }),
       db.overtimeOrder.findMany({
+        where: { overtimeDate: { gte: winFrom, lt: winToEx } },
         select: {
           id: true, orderNo: true, employeeId: true, overtimeDate: true, timeFrom: true, timeTo: true,
           planMinutes: true, actualMinutes: true, verifiedMinutes: true, dayCategory: true, rateMultiplier: true,
@@ -224,9 +263,13 @@ export async function GET(req: NextRequest) {
       db.workDayType.findMany({
         select: { id: true, code: true, name: true, category: true, timeIn: true, timeOut: true, nextDay: true, normalMinutes: true, toleranceLateMinutes: true, toleranceEarlyMinutes: true, flexible: true },
       }),
-      db.holidayDate.findMany({ select: { date: true, name: true, kind: true } }),
+      db.holidayDate.findMany({ where: { date: { gte: winFrom, lt: winToEx } }, select: { date: true, name: true, kind: true } }),
       db.leaveRequest.findMany({
-        where: { status: { in: ["Approved", "MassLeave"] } },
+        where: {
+          status: { in: ["Approved", "MassLeave"] },
+          // AUD-DEPLOY: overlap window — permintaan yang melintasi batas tetap masuk.
+          AND: [{ dateTo: { gte: winFrom } }, { dateFrom: { lt: winToEx } }],
+        },
         select: { employeeId: true, dateFrom: true, dateTo: true, workingDays: true, leaveTypeId: true },
       }),
       db.leaveType.findMany({ select: { id: true, code: true, name: true } }),

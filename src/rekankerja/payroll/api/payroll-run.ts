@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 
 // GET /api/rekankerja/payroll-run?id= — detail run + lines + items
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // AUD-DEPLOY (2-a HIGH-3): guard menu — sebelumnya requireTenant saja,
+    // seluruh detail run (gaji semua karyawan) terbaca anggota biasa.
+    const m = await requireMenuViewAny(req, ["payroll:runs"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

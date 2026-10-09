@@ -11,13 +11,35 @@
 // scripts/restore-demo.ts fresh-install bila bun tersedia. Poll GET untuk
 // progres; parity.ok = true berarti seluruh tenant paritas penuh.
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { demoSeedToken, platformCounts, seedRuntimeStatus, startDemoSeed } from "@/rekankerja/shared/lib/demo-seed";
 
 export const dynamic = "force-dynamic";
 
+// AUD-DEPLOY (2-b LOW-4): bandingkan token secara konstan-waktu (timingSafeEqual)
+// + batasi percobaan gagal per IP (429) agar brute-force token tidak lewat
+// unlimited; token tetap hanya via HEADER (query terhapus — rentan tercatat di
+// log akses proxy).
+const seedFail = new Map<string, { n: number; until: number }>();
+
 function authorized(req: NextRequest): boolean {
-  const provided = req.headers.get("x-seed-token") || new URL(req.url).searchParams.get("token") || "";
-  return provided.length > 0 && provided === demoSeedToken();
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  const now = Date.now();
+  const st = seedFail.get(ip);
+  if (st && st.n >= 5 && now < st.until) return false;
+  const provided = req.headers.get("x-seed-token") || "";
+  const expected = demoSeedToken();
+  const ok =
+    provided.length > 0 &&
+    expected.length > 0 &&
+    provided.length === expected.length &&
+    timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  if (!ok) {
+    seedFail.set(ip, st && now < st.until ? { n: st.n + 1, until: st.until } : { n: 1, until: now + 15 * 60_000 });
+  } else {
+    seedFail.delete(ip);
+  }
+  return ok;
 }
 
 export async function GET(req: NextRequest) {

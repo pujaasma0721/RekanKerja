@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
@@ -21,8 +22,10 @@ import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-servi
 // GET /api/rekankerja/loans?employeeId=&status=
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // AUD-DEPLOY (2-a MED-1): guard menu — sebelumnya requireTenant saja.
+    const m = await requireMenuViewAny(req, ["payroll:transactions"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     const status = req.nextUrl.searchParams.get("status");

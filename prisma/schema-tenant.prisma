@@ -287,6 +287,10 @@ model Employee {
   // relasi approval berjenjang
   structureLevelsAsApprover ApprovalStructureLevel[] @relation("LevelApproverEmployee")
   approvalStepsAsApprover   ApprovalStep[]           @relation("StepApproverEmployee")
+
+  // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
+  // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
+  @@index([status])
 }
 
 // Riwayat penempatan kerja — setiap perubahan (mutasi/promosi/penyesuaian upah)
@@ -337,6 +341,10 @@ model EmployeeFamily {
   isDependent Boolean   @default(true)
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // AUD-DEPLOY (3-a M-13): include family per karyawan (profil payroll,
+  // derivasi PTKP) tanpa seq scan.
+  @@index([employeeId])
 }
 
 model EmployeeEducation {
@@ -887,6 +895,10 @@ model PayrollRunItem {
   sortOrder       Int     @default(0)
 
   line PayrollRunLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+
+  // AUD-DEPLOY (3-a H-4): include items orderBy sortOrder per payslip/view/
+  // email batch — tabel tumbuh ~20 item × karyawan × run/tahun.
+  @@index([lineId])
 }
 
 // Pinjaman karyawan — cicilan dipotong otomatis via komponen Loan.
@@ -908,6 +920,10 @@ model EmployeeLoan {
 
   employee     Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   installments LoanInstallment[]
+
+  // AUD-DEPLOY (3-a M-13): engine payroll ambil pinjaman aktif per karyawan
+  // (buildRunRows) + riwayat pinjaman per karyawan (UI transaksi).
+  @@index([employeeId, status])
 }
 
 model LoanInstallment {
@@ -984,6 +1000,9 @@ model PayrollJournalLine {
   wageCode    String? // komponen asal (Salary Chart of Account)
 
   journal PayrollJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  // AUD-DEPLOY (3-a M-13): include lines orderBy sequence per jurnal.
+  @@index([journalId])
 }
 
 model AccountGroup {
@@ -1093,6 +1112,12 @@ model BenefitClaim {
   benefitType BenefitType    @relation(fields: [benefitTypeId], references: [id])
   employee    Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   period      PayrollPeriod? @relation(fields: [periodId], references: [id])
+
+  // AUD-DEPLOY (3-a M-13): daftar per status (UI klaim), histori per
+  // karyawan, dan penjadwalan pay-in-payroll per period.
+  @@index([status])
+  @@index([employeeId])
+  @@index([periodId])
 }
 
 // ============ GENERAL SETTING (lookup) ============
@@ -1175,6 +1200,11 @@ model AppUser {
   menuAccess      UserMenuAccess?     @relation("UserMenuAccess")
   passwordHistory PasswordHistory[]   @relation("PasswordHistory")
   notifications   Notification[]
+
+  // AUD-DEPLOY (3-a H-3): AppUser.email dicari findFirst(by email) di SETIAP
+  // request yang memakai guard menu/sesi (resolveMenuPerms, resolveMe,
+  // requireMutator) — tanpa index ini = seq scan per request.
+  @@index([email])
 }
 
 // Pusat notifikasi per AppUser (T7-ESS) — diisi lintas modul via helper

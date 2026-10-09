@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNav, useUiMode } from "@/rekankerja/shared/lib/store";
@@ -9,33 +10,50 @@ import { AuthGate } from "@/rekankerja/shared/components/auth/auth-gate";
 import { AppShell } from "@/rekankerja/shared/components/shell/app-shell";
 import { EssShell } from "@/rekankerja/ess/components/ess-shell";
 import { I18nProvider, useI18n } from "@/rekankerja/shared/lib/i18n";
-// Design Lab — mockup desain menu (terisolasi, akses ?mockup=menu; bukan produksi)
-import { MenuDesignLab } from "@/rekankerja/shared/components/design/menu-design-lab";
-// Design Lab — mockup desain halaman masuk (terisolasi, akses ?mockup=auth)
-import { AuthDesignLab } from "@/rekankerja/shared/components/design/auth-design-lab";
 import { DashboardModule } from "@/rekankerja/shared/components/dashboard/dashboard-module";
 // PWA (Task 27-d) — registrasi service worker + banner instal aplikasi
 import { PwaRegister } from "@/rekankerja/shared/components/pwa/pwa-register";
-// Task 96 — widget chat AI mengambang (admin + ESS, self-gate via sesi)
-import { AiChatWidget } from "@/rekankerja/shared/components/ai-chat/ai-chat-widget";
-import { OrgModule } from "@/rekankerja/human-resource/components/org/org-module";
-import { PositionModule } from "@/rekankerja/human-resource/components/position/position-module";
-import { EmployeeModule } from "@/rekankerja/human-resource/components/employee/employee-module";
-import { HrReportsView } from "@/rekankerja/human-resource/components/hr-reports-view";
-// wave 28 stub — report builder kustom (Task 28-b)
-import { CustomReportsView } from "@/rekankerja/human-resource/components/custom-reports/custom-reports-view";
-import { ActionsModule } from "@/rekankerja/human-resource/components/actions/actions-module";
-import { PayrollModule } from "@/rekankerja/payroll/components/payroll-module";
-import { AttendanceModule } from "@/rekankerja/time-attendance/components/attendance-module";
-import { LeaveModule } from "@/rekankerja/leave/components/leave-module";
-import { TravelModule } from "@/rekankerja/travel/components/travel-module";
-import { MedicalModule } from "@/rekankerja/medical/components/medical-module";
-// Task 52-f — modul whistleblowing (TPKS UU 12/2022): kanal laporan anonim
-// + penanganan (triase) oleh tim berwenang.
-import { WhistleblowModule } from "@/rekankerja/whistleblow/components/whistleblow-module";
-import { SettingsModule } from "@/rekankerja/shared/components/settings/settings-module";
 import { isPublicMenuKey } from "@/rekankerja/shared/lib/public-menus";
 import { Loader2, Waypoints } from "lucide-react";
+
+// ============ AUD-DEPLOY (3-b CRIT-1): code splitting per modul ============
+// Dulu: 13 modul (±50K LOC client: payroll/attendance/travel/medical/…)
+// + 2 design lab + widget AI (react-markdown) di-import STATIS ke SATU
+// bundle — semua pengguna mengunduh semua modul sebelum interaktif.
+// kini: next/dynamic ssr:false (halaman sepenuhnya client-render di balik
+// AuthGate — modul tak pernah bermakna di SSR) → chunk per modul dimuat
+// saat pertama dibuka; login/dashboard tetap instan. Fallback: skeleton.
+const ModuleLoading = () => (
+  <div className="grid min-h-[60vh] place-items-center" role="status" aria-label="Loading">
+    <Loader2 className="h-6 w-6 animate-spin text-amber-700 dark:text-amber-500" aria-hidden />
+  </div>
+);
+
+// Human Resource
+const OrgModule = dynamic(() => import("@/rekankerja/human-resource/components/org/org-module").then((m) => ({ default: m.OrgModule })), { ssr: false, loading: ModuleLoading });
+const PositionModule = dynamic(() => import("@/rekankerja/human-resource/components/position/position-module").then((m) => ({ default: m.PositionModule })), { ssr: false, loading: ModuleLoading });
+const EmployeeModule = dynamic(() => import("@/rekankerja/human-resource/components/employee/employee-module").then((m) => ({ default: m.EmployeeModule })), { ssr: false, loading: ModuleLoading });
+const ActionsModule = dynamic(() => import("@/rekankerja/human-resource/components/actions/actions-module").then((m) => ({ default: m.ActionsModule })), { ssr: false, loading: ModuleLoading });
+const HrReportsView = dynamic(() => import("@/rekankerja/human-resource/components/hr-reports-view").then((m) => ({ default: m.HrReportsView })), { ssr: false, loading: ModuleLoading });
+// wave 28 stub — report builder kustom (Task 28-b)
+const CustomReportsView = dynamic(() => import("@/rekankerja/human-resource/components/custom-reports/custom-reports-view").then((m) => ({ default: m.CustomReportsView })), { ssr: false, loading: ModuleLoading });
+// Modul lain
+const PayrollModule = dynamic(() => import("@/rekankerja/payroll/components/payroll-module").then((m) => ({ default: m.PayrollModule })), { ssr: false, loading: ModuleLoading });
+const AttendanceModule = dynamic(() => import("@/rekankerja/time-attendance/components/attendance-module").then((m) => ({ default: m.AttendanceModule })), { ssr: false, loading: ModuleLoading });
+const LeaveModule = dynamic(() => import("@/rekankerja/leave/components/leave-module").then((m) => ({ default: m.LeaveModule })), { ssr: false, loading: ModuleLoading });
+const TravelModule = dynamic(() => import("@/rekankerja/travel/components/travel-module").then((m) => ({ default: m.TravelModule })), { ssr: false, loading: ModuleLoading });
+const MedicalModule = dynamic(() => import("@/rekankerja/medical/components/medical-module").then((m) => ({ default: m.MedicalModule })), { ssr: false, loading: ModuleLoading });
+// Task 52-f — modul whistleblowing (TPKS UU 12/2022): kanal laporan anonim
+// + penanganan (triase) oleh tim berwenang.
+const WhistleblowModule = dynamic(() => import("@/rekankerja/whistleblow/components/whistleblow-module").then((m) => ({ default: m.WhistleblowModule })), { ssr: false, loading: ModuleLoading });
+const SettingsModule = dynamic(() => import("@/rekankerja/shared/components/settings/settings-module").then((m) => ({ default: m.SettingsModule })), { ssr: false, loading: ModuleLoading });
+// Task 96 — widget chat AI mengambang (admin + ESS, self-gate via sesi):
+// stack react-markdown/SDK dimuat off the critical path.
+const AiChatWidget = dynamic(() => import("@/rekankerja/shared/components/ai-chat/ai-chat-widget").then((m) => ({ default: m.AiChatWidget })), { ssr: false, loading: ModuleLoading });
+// Design Lab — mockup desain (terisolasi, ?mockup=menu / ?mockup=auth;
+// bukan produksi) — chunk hanya dimuat bila mode mockup dipakai.
+const MenuDesignLab = dynamic(() => import("@/rekankerja/shared/components/design/menu-design-lab").then((m) => ({ default: m.MenuDesignLab })), { ssr: false, loading: ModuleLoading });
+const AuthDesignLab = dynamic(() => import("@/rekankerja/shared/components/design/auth-design-lab").then((m) => ({ default: m.AuthDesignLab })), { ssr: false, loading: ModuleLoading });
 
 export default function Page() {
   // useSearchParams butuh boundary Suspense pada halaman statis (Next 16)

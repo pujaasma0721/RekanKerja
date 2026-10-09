@@ -177,7 +177,11 @@ export async function POST(req: NextRequest) {
     if (e instanceof SlugTakenError) {
       return NextResponse.json({ error: "Alamat workspace ini sudah dipakai — pilih alamat lain." }, { status: 409 });
     }
-    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+    // AUD-DEPLOY (2-b MED-1): endpoint UNAUTHENTICATED — detail exception
+    // (Prisma: nama tabel/kolom/host DB) tidak boleh bocor ke pemanggil
+    // anonim; log server-side tetap lengkap.
+    console.error("[register] gagal provisioning tenant:", e);
+    return NextResponse.json({ error: "Pendaftaran gagal — silakan coba lagi. Bila berulang, hubungi dukungan." }, { status: 500 });
   }
 }
 

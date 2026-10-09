@@ -32,13 +32,20 @@ export async function GET(req: NextRequest) {
       if (!journal) return NextResponse.json({ error: "Jurnal tidak ditemukan" }, { status: 404 });
 
       if (exportCsv === "csv") {
+        // AUD-DEPLOY (2-b MED-4) — CSV formula injection: string user yang
+        // diawali = + - @ (atau tab/CR) diprefix "'" (mengapit "…" hanya
+        // escape CSV, bukan proteksi formula). Angka & kolom sistem aman.
+        const gi = (s: string | null | undefined): string => {
+          const v = s ?? "";
+          return /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+        };
         const header = ["SEQ", "AKUN", "NAMA_AKUN", "POSISI", "NOMINAL", "MEMO", "KOMPONEN"].join(";");
         const rows = journal.lines.map((l) => [
-          l.sequence, l.accountCode, `"${l.accountName}"`, l.position, Math.round(dm(l.amount)),
-          `"${l.memo ?? ""}"`, l.wageCode ?? "",
+          l.sequence, l.accountCode, `"${gi(l.accountName)}"`, l.position, Math.round(dm(l.amount)),
+          `"${gi(l.memo)}"`, l.wageCode ?? "",
         ].join(";"));
-        const totals = ["", "", `"TOTAL (${journal.journalNo})"`, "D", Math.round(dm(journal.totalDebit)), `"C = ${Math.round(dm(journal.totalCredit))} (balance ✓)"`, ""].join(";");
-        const csv = [`RekanKerja Payroll Journal — ${journal.journalNo} (${journal.runNo ?? "-"})`, header, ...rows, totals].join("\n");
+        const totals = ["", "", `"TOTAL (${gi(journal.journalNo)})"`, "D", Math.round(dm(journal.totalDebit)), `"C = ${Math.round(dm(journal.totalCredit))} (balance ✓)"`, ""].join(";");
+        const csv = [`RekanKerja Payroll Journal — ${gi(journal.journalNo)} (${gi(journal.runNo ?? "-")})`, header, ...rows, totals].join("\n");
         return new NextResponse(csv, {
           headers: {
             "Content-Type": "text/csv; charset=utf-8",

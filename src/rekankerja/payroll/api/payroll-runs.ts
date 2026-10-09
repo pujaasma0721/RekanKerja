@@ -3,7 +3,7 @@ import { requireTenant, UNAUTHORIZED_MSG, type TenantDb } from "@/rekankerja/sha
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { nextRunNo, calculateAndSaveRun, confirmRun, recalcEmployeesForConfirmedRun } from "@/rekankerja/payroll/services/payroll-service";
 import { notifyEmailEvent, approverEmailsOf, sendPayslipEmail } from "@/rekankerja/shared/services/email-service";
 import { sendWa } from "@/rekankerja/shared/services/wa-service";
@@ -14,8 +14,10 @@ import { buildPayslipPdfByLineId, fmtRupiah } from "@/rekankerja/payroll/service
 // GET /api/rekankerja/payroll-runs?periodId=&status=
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // AUD-DEPLOY (2-a HIGH-3): guard menu — sebelumnya requireTenant saja.
+    const m = await requireMenuViewAny(req, ["payroll:runs"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const periodId = req.nextUrl.searchParams.get("periodId");
     const status = req.nextUrl.searchParams.get("status");

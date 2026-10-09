@@ -128,7 +128,10 @@ export async function createChallenge(db: TenantDb, appUserId: string, email: st
   const sent = await sendSystemEmail(db, {
     event: "esign.challenge",
     to: { email, name: fullName },
-    subject: `Kode tanda tangan RekanKerja: ${code}`,
+    // AUD-DEPLOY (2-b MED-2): kode OTP TIDAK lagi di subject — EmailLog
+    // menyimpan subject apa adanya (hanya body yang di-redact), sehingga kode
+    // 5 menit terekspos ke log yang dulu bisa dibaca seluruh anggota tenant.
+    subject: "Kode tanda tangan RekanKerja",
     body: `Halo ${fullName},\n\nKode verifikasi tanda tangan elektronik Anda:\n\n${code}\n\nBerlaku 5 menit untuk 1 dokumen. Jangan bagikan kode ini kepada siapa pun.\n\n--- Email otomatis RekanKerja HRIS.`,
     secrets: [code],
   });

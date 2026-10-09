@@ -45,7 +45,13 @@ async function main(): Promise<void> {
   }
 
   // ===== PAYROLL r12: totals.perColumn == Σ rows[].per[comp] =====
-  const p12 = (await jget("/api/rekankerja/payroll-reports/documents?report=r12&runId=cmv05bac30178pw8f0ofcyhf4")) as unknown as {
+  // AUD-DEPLOY: runId tidak lagi hard-coded (basi setelah re-seed demo) —
+  // ambil run terbaru milik tenant dari API runs.
+  const runsJ = (await jget("/api/rekankerja/payroll-runs")) as unknown as { runs: { id: string; status?: string }[] };
+  // r12 menolak run Draft (harus sudah dihitung) — pilih run terbaru non-Draft.
+  const runId = runsJ.runs?.find((r) => r.status && r.status !== "Draft" && r.status !== "Cancelled")?.id ?? runsJ.runs?.[0]?.id;
+  if (!runId) throw new Error("tidak ada payroll run utk audit aritmetika r12");
+  const p12 = (await jget(`/api/rekankerja/payroll-reports/documents?report=r12&runId=${encodeURIComponent(runId)}`)) as unknown as {
     rows: { per: Record<string, number> }[]; totals: { perColumn: Record<string, number>; employees: number };
   };
   {
@@ -59,7 +65,7 @@ async function main(): Promise<void> {
   }
 
   // ===== PAYROLL r31 BPJS TK: total premi == Σ baris =====
-  const p31 = (await jget("/api/rekankerja/payroll-reports/documents?report=r31&runId=cmv05bac30178pw8f0ofcyhf4")) as unknown as {
+  const p31 = (await jget(`/api/rekankerja/payroll-reports/documents?report=r31&runId=${encodeURIComponent(runId)}`)) as unknown as {
     rows: Record<string, number | string>[]; totals: Record<string, number>;
   };
   {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { db as platformDb } from "@/lib/db";
 import { getTenantClient, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { dayStart, addDays, regenerateDaily } from "@/rekankerja/time-attendance/services/attendance-service";
@@ -28,6 +29,8 @@ import { dayStart, addDays, regenerateDaily } from "@/rekankerja/time-attendance
 const MAX_PUNCHES = 200;
 const FUTURE_TOLERANCE_MS = 5 * 60_000;
 const BACKDATE_MAX_MS = 30 * 86_400_000;
+// AUD-DEPLOY (2-b LOW-2): penghitung percobaan key gagal per IP (in-memory).
+const devKeyFail = new Map<string, { n: number; until: number }>();
 const KEY_PREFIX = "ovdev_";
 
 /** Satu punch ternormalisasi. */
@@ -97,7 +100,13 @@ async function resolveTenantByKey(
       // di DB → Prisma error → coba kandidat berikutnya (fail-closed 401).
       const rule = await client.attendanceRule.findFirst({ orderBy: { id: "asc" } });
       const stored = rule?.deviceApiKey ?? null;
-      if (stored && stored === key) return { db: client, slug: t.slug };
+      // AUD-DEPLOY (2-b LOW): timing-safe compare — key perangkat di-brute
+      // force per tenant tidak boleh bisa diurutkan lewat waktu respons.
+      if (
+        stored &&
+        stored.length === key.length &&
+        timingSafeEqual(Buffer.from(stored), Buffer.from(key))
+      ) return { db: client, slug: t.slug };
     } catch {
       // baca rule gagal (tenant belum termigrasi) → coba kandidat berikutnya
     }
@@ -123,6 +132,16 @@ export async function POST(req: NextRequest) {
     }
     const resolved = await resolveTenantByKey(key);
     if (!resolved) {
+      // AUD-DEPLOY (2-b LOW-2): rate-limit percobaan key gagal per IP —
+      // tanpa ini resolusi multi-tenant (query per kandidat slug) bisa
+      // dipakai utk flooding DoS ringan.
+      const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+      const st = devKeyFail.get(ip) ?? { n: 0, until: 0 };
+      const now = Date.now();
+      if (st.n >= 30 && now < st.until) {
+        return NextResponse.json({ error: "Terlalu banyak percobaan API key perangkat — coba lagi nanti" }, { status: 429 });
+      }
+      devKeyFail.set(ip, now >= st.until ? { n: 1, until: now + 15 * 60_000 } : { n: st.n + 1, until: st.until });
       return NextResponse.json(
         { error: "API key perangkat tidak valid — periksa format ovdev_{tenantSlug}_{secret} dan konfigurasi Pengaturan Kehadiran (Device Push)" },
         { status: 401 },

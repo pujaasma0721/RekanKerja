@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
   // PWA (Task 27-d): service worker di-root scope & tidak boleh di-cache
   // oleh perantara mana pun — versi baru harus aktif segera setelah deploy.
   async headers() {
-    return [
+    const swHeaders = [
       {
         source: "/sw.js",
         headers: [
@@ -30,6 +30,41 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
         ],
       },
+    ];
+    // AUD-DEPLOY (2-b HIGH-1) — security headers global.
+    // HANYA PRODUCTION (NODE_ENV=production): di sandbox dev, aplikasi
+    // di-embed iframe oleh panel preview (origin chat) — XFO/frame-ancestors
+    // akan memutus preview. Saat `next build`, header keamanan penuh aktif.
+    if (process.env.NODE_ENV !== "production") return swHeaders;
+    const securityHeaders = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+      // ESS clock & kiosk memakai kamera (QR) + geolokasi — scoping per-fitur.
+      { key: "Permissions-Policy", value: "camera=(self), geolocation=(self), microphone=(), payment=(), usb=()" },
+      {
+        key: "Content-Security-Policy",
+        value: [
+          "default-src 'self'",
+          // Tanpa infrastruktur nonce, Next.js butuh inline utk bootstrap script
+          // & style Tailwind/Radix — connect-src 'self' menutup exfiltrasi.
+          "script-src 'self' 'unsafe-inline'",
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: blob:",
+          "font-src 'self' data:",
+          "connect-src 'self'",
+          "media-src 'self' blob:",
+          "frame-ancestors 'self'",
+          "object-src 'none'",
+          "base-uri 'self'",
+          "form-action 'self'",
+        ].join("; "),
+      },
+    ];
+    return [
+      ...swHeaders,
+      { source: "/:path*", headers: securityHeaders },
     ];
   },
 };

@@ -2392,10 +2392,16 @@ CREATE UNIQUE INDEX "Position_code_key" ON "Position"("code");
 CREATE UNIQUE INDEX "Employee_employeeNo_key" ON "Employee"("employeeNo");
 
 -- CreateIndex
+CREATE INDEX "Employee_status_idx" ON "Employee"("status");
+
+-- CreateIndex
 CREATE INDEX "EmployeeAssignment_employeeId_validTo_idx" ON "EmployeeAssignment"("employeeId", "validTo");
 
 -- CreateIndex
 CREATE INDEX "EmployeeAssignment_validTo_idx" ON "EmployeeAssignment"("validTo");
+
+-- CreateIndex
+CREATE INDEX "EmployeeFamily_employeeId_idx" ON "EmployeeFamily"("employeeId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PersonnelAction_docNo_key" ON "PersonnelAction"("docNo");
@@ -2458,7 +2464,13 @@ CREATE INDEX "PayrollRunLine_employeeId_idx" ON "PayrollRunLine"("employeeId");
 CREATE UNIQUE INDEX "PayrollRunLine_runId_employeeId_key" ON "PayrollRunLine"("runId", "employeeId");
 
 -- CreateIndex
+CREATE INDEX "PayrollRunItem_lineId_idx" ON "PayrollRunItem"("lineId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "EmployeeLoan_letterNo_key" ON "EmployeeLoan"("letterNo");
+
+-- CreateIndex
+CREATE INDEX "EmployeeLoan_employeeId_status_idx" ON "EmployeeLoan"("employeeId", "status");
 
 -- CreateIndex
 CREATE INDEX "EmployeeComponentAssignment_periodId_processTypeId_kind_idx" ON "EmployeeComponentAssignment"("periodId", "processTypeId", "kind");
@@ -2468,6 +2480,9 @@ CREATE UNIQUE INDEX "PayrollJournal_journalNo_key" ON "PayrollJournal"("journalN
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PayrollJournal_runId_key" ON "PayrollJournal"("runId");
+
+-- CreateIndex
+CREATE INDEX "PayrollJournalLine_journalId_idx" ON "PayrollJournalLine"("journalId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AccountGroup_code_key" ON "AccountGroup"("code");
@@ -2485,6 +2500,15 @@ CREATE UNIQUE INDEX "BenefitType_code_key" ON "BenefitType"("code");
 CREATE UNIQUE INDEX "BenefitClaim_claimNo_key" ON "BenefitClaim"("claimNo");
 
 -- CreateIndex
+CREATE INDEX "BenefitClaim_status_idx" ON "BenefitClaim"("status");
+
+-- CreateIndex
+CREATE INDEX "BenefitClaim_employeeId_idx" ON "BenefitClaim"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "BenefitClaim_periodId_idx" ON "BenefitClaim"("periodId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Lookup_category_code_key" ON "Lookup"("category", "code");
 
 -- CreateIndex
@@ -2498,6 +2522,9 @@ CREATE INDEX "EmployeeDocument_expiresAt_idx" ON "EmployeeDocument"("expiresAt")
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AppUser_username_key" ON "AppUser"("username");
+
+-- CreateIndex
+CREATE INDEX "AppUser_email_idx" ON "AppUser"("email");
 
 -- CreateIndex
 CREATE INDEX "Notification_appUserId_createdAt_idx" ON "Notification"("appUserId", "createdAt");

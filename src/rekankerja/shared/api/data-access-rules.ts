@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import {
   resolveAccessScope, scopeWhere,
 } from "@/rekankerja/shared/services/access-scope";
@@ -46,8 +46,10 @@ function normalizeRule(b: Record<string, unknown>) {
 // GET /api/rekankerja/data-access-rules?action=preview&userId=
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // AUD-DEPLOY (2-a HIGH-1): guard menu — sebelumnya requireTenant saja.
+    const m = await requireMenuViewAny(req, ["settings:security"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const sp = req.nextUrl.searchParams;
 
     // ---- simulasi akses efektif seorang pengguna ----
@@ -139,7 +141,7 @@ export async function GET(req: NextRequest) {
 // POST /api/rekankerja/data-access-rules { code, name, appUserId, kriteria…, priority, active }
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "settings:security", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -162,7 +164,7 @@ export async function POST(req: NextRequest) {
 // PATCH /api/rekankerja/data-access-rules?id=
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "settings:security", "update");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -199,7 +201,7 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/rekankerja/data-access-rules?id=
 export async function DELETE(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "settings:security", "delete");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
