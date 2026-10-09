@@ -199,22 +199,25 @@ export function AR33View({ data, meta }: { data: AR33Data; meta: DocMeta }) {
       <DocHeader meta={meta} reportNo="R3.3" title="Working Hours Compliance Audit" subtitle={t(`Pemantauan Cap Lembur — ${data.month} · Mode ${data.modeLabel}`, `Overtime Cap Monitoring — ${data.month} · ${data.modeLabel} mode`)} audience={t("HR · Legal/Kepatuhan · Auditor", "HR · Legal/Compliance · Auditor")} docNo={mkDocNo("ar33", meta)} />
 
       <DocSection no="A" title={t("Ringkasan Kepatuhan", "Compliance Summary")} note={`${data.basis} — cap ${data.caps.dailyHours} ${t("jam/hari", "hrs/day")} · ${data.caps.weeklyHours} ${t("jam/minggu", "hrs/week")}${data.caps.monthlyHours ? ` · ${data.caps.monthlyHours} ${t("jam/bulan", "hrs/month")}` : ""}.`} />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
         <SummaryBox className="grid-cols-1" items={[{ label: t("Karyawan Lembur", "Overtime Employees"), value: f.num(data.withOt), accent: true }]} />
         <SummaryBox className="grid-cols-1" items={[{ label: t("Patuh", "Compliant"), value: f.num(data.compliant) }]} />
         <SummaryBox className="grid-cols-1" items={[{ label: t("Perhatian (≥80% cap)", "Watch (≥80% cap)"), value: f.num(data.watch) }]} />
         <SummaryBox className="grid-cols-1" items={[{ label: t("Pelanggaran", "Violations"), value: f.num(data.violation), accent: data.violation > 0 }]} />
         <SummaryBox className="grid-cols-1" items={[{ label: t("Tingkat Kepatuhan", "Compliance Rate"), value: data.complianceRate != null ? f.pct(data.complianceRate) : <Dash />, accent: true }]} />
+        <SummaryBox className="grid-cols-1" items={[{ label: t("Lembur Hari Libur† (j)", "Rest-Day OT† (h)"), value: f.num(data.restDayHours ?? 0) }]} />
         <SummaryBox className="grid-cols-1" items={[{ label: t("Mode Cap", "Cap Mode"), value: data.modeLabel }]} />
       </div>
 
-      <DocSection no="B" title={t("Audit per Karyawan (pelanggaran di atas)", "Audit per Employee (violations first)")} note={t("Menit efektif = order Pending (rencana) + Approved/Paid (terverifikasi). Temuan wajib ditindaklanjuti sebelum periode payroll ditutup.", "Effective minutes = Pending orders (plan) + Approved/Paid (verified). Findings must be resolved before the payroll period closes.")} />
+      <DocSection no="B" title={t("Audit per Karyawan (pelanggaran di atas)", "Audit per Employee (violations first)")} note={t("Menit efektif = order Pending (rencana) + Approved/Paid (terverifikasi). Cap 4 j/hari & 18 j/minggu HANYA menghitung lembur hari kerja — †lembur hari istirahat mingguan/libur resmi dikecualikan sesuai PP 35/2021 Ps.26 ayat (2). Temuan wajib ditindaklanjuti sebelum periode payroll ditutup.", "Effective minutes = Pending orders (plan) + Approved/Paid (verified). The 4 h/day & 18 h/week caps count WEEKDAY overtime only — †rest-day/public-holiday overtime is excluded per GR 35/2021 Art.26 (2). Findings must be resolved before the payroll period closes.")} />
       <div className="doc-scroll max-h-[520px] overflow-auto rounded-lg border border-slate-200">
         <table className="doc-table w-full border-collapse text-left">
           <thead className="sticky top-0 z-10">
             <tr className="bg-slate-100">
               <TH>No. Karyawan</TH><TH>Nama</TH><TH>Unit</TH>
-              <TH align="number">Total Lembur (jam)</TH>
+              <TH align="number">Hari Kerja (j)</TH>
+              <TH align="number">Hari Libur† (j)</TH>
+              <TH align="number">Total (j)</TH>
               <TH align="center">Puncak Harian</TH><TH align="center">Puncak Mingguan</TH>
               <TH>Temuan Pelanggaran</TH><TH align="center">Status</TH>
             </tr>
@@ -225,7 +228,9 @@ export function AR33View({ data, meta }: { data: AR33Data; meta: DocMeta }) {
                 <TD className="font-bold text-slate-800">{r.employeeNo}</TD>
                 <TD className="font-semibold text-slate-800">{r.name}</TD>
                 <TD>{r.unit ?? <Dash />}</TD>
-                <TD align="number" className="font-black">{f.num(r.monthlyHours)}</TD>
+                <TD align="number" className="font-black">{f.num(r.weekdayHours ?? 0)}</TD>
+                <TD align="number" className="text-slate-500">{f.num(r.restDayHours ?? 0)}</TD>
+                <TD align="number" className="font-bold">{f.num(r.monthlyHours)}</TD>
                 <TD align="center" className="font-mono text-[9.5px]">{r.peakDaily ? `${f.dt(r.peakDaily.date)} · ${f.num(r.peakDaily.hours)} j` : <Dash />}</TD>
                 <TD align="center" className="font-mono text-[9px]">{r.peakWeekly ? `${r.peakWeekly.weekLabel} · ${f.num(r.peakWeekly.hours)} j` : <Dash />}</TD>
                 <TD className="max-w-72 text-[9px] leading-snug">
@@ -241,13 +246,13 @@ export function AR33View({ data, meta }: { data: AR33Data; meta: DocMeta }) {
               </tr>
             ))}
             {data.rows.length === 0 && (
-              <tr><TD colSpan={8} className="py-6 text-center text-[11px] font-bold text-slate-400">{t("Tidak ada perintah lembur pada bulan ini.", "No overtime orders in this month.")}</TD></tr>
+              <tr><TD colSpan={10} className="py-6 text-center text-[11px] font-bold text-slate-400">{t("Tidak ada perintah lembur pada bulan ini.", "No overtime orders in this month.")}</TD></tr>
             )}
           </tbody>
         </table>
       </div>
 
-      <DocFooter meta={meta} signNote={t("Dasar hukum: UU 13/2003 Ps.78 (waktu kerja 40 jam/minggu), PP 35/2021 Ps.26–27 (lembur maks 4 jam/hari & 18 jam/minggu), Kepmen 102/2004. Pelanggaran berulang berpotensi sanksi administratif Depnaker.", "Legal basis: Law 13/2003 Art.78 (40-hour week), GR 35/2021 Art.26–27 (max 4 hrs/day & 18 hrs/week), Kepmen 102/2004. Repeat violations risk labour-office administrative sanctions.")} />
+      <DocFooter meta={meta} signNote={t("Dasar hukum: UU 13/2003 Ps.78 (waktu kerja 40 jam/minggu), PP 35/2021 Ps.26–27 (lembur maks 4 jam/hari & 18 jam/minggu — TIDAK termasuk lembur hari istirahat mingguan/libur resmi, Ps.26 ayat 2), Kepmen 102/2004. Pelanggaran berulang berpotensi sanksi administratif Depnaker.", "Legal basis: Law 13/2003 Art.78 (40-hour week), GR 35/2021 Art.26–27 (max 4 hrs/day & 18 hrs/week — EXCLUDING rest-day/public-holiday overtime, Art.26 (2)), Kepmen 102/2004. Repeat violations risk labour-office administrative sanctions.")} />
     </ReportSheet>
   );
 }

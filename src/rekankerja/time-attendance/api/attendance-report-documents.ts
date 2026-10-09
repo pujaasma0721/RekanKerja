@@ -4,7 +4,7 @@ import { resolveAccessScope, scopeWhere } from "@/rekankerja/shared/services/acc
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { toXlsxMulti, xlsxResponse, exportFilename, type ExportSheet } from "@/rekankerja/shared/lib/export";
-import { getRule, overtimeCaps, overtimePayFor } from "@/rekankerja/time-attendance/services/attendance-service";
+import { getRule, overtimeCaps, overtimePayFor, otBasisContext, otBasisFor } from "@/rekankerja/time-attendance/services/attendance-service";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 
 // =============================================================================
@@ -359,6 +359,9 @@ export async function GET(req: NextRequest) {
     const rule = await getRule(db);
     const caps = await overtimeCaps(db);
     const capsModeLabel = caps.otCapMode === "KEPMEN102" ? "Kepmen 102/2004" : caps.otCapMode === "CUSTOM" ? "Kebijakan Khusus" : "PP 35/2021";
+    // AUD-OT: dasar upah + model minggu kerja utk tabel rate Ps.31.
+    const otBasis = await otBasisContext(db, active.map((e) => e.id));
+    const workweekDays = rule.otWorkweekDays === 6 ? 6 : 5;
 
     // ---- chip parameter terpasang (kop dokumen) ----
     const filterChips: { label: string; value: string }[] = [];
@@ -404,7 +407,7 @@ export async function GET(req: NextRequest) {
     // ---- konteks builder ----
     const ctx: Ctx = {
       db, scoped, active, atts, clocks, ots, now, fp, meta, tc, mv,
-      unitName, sortByNo, fromD, toD, holidayByDate, rule, caps, capsModeLabel, geoLocs,
+      unitName, sortByNo, fromD, toD, holidayByDate, rule, caps, capsModeLabel, otBasis, workweekDays, geoLocs,
       otStatuses: Object.keys(OT_STATUS_LABELS),
       sickReqs,
     };
@@ -485,6 +488,10 @@ interface Ctx {
   rule: Awaited<ReturnType<typeof getRule>>;
   caps: Awaited<ReturnType<typeof overtimeCaps>>;
   capsModeLabel: string;
+  // AUD-OT (PP 35/2021 Ps.31-32): tabel rate minggu kerja 5/6 hari + dasar
+  // upah lembur (BASE / BASE_FIXED) — dipakai builder ar32 (estimasi upah).
+  otBasis: Awaited<ReturnType<typeof otBasisContext>>;
+  workweekDays: number;
   geoLocs: { name: string; latitude: number; longitude: number; radiusMeters: number | null }[];
   otStatuses: string[];
   /** permintaan cuti sakit ter-scope (R1.1 kolom Sakit). */
@@ -913,35 +920,48 @@ function ar32OtPay(ctx: Ctx) {
 
   const items = orders.map((o) => {
     const effMin = otEffectiveMinutes(o);
-    const pay = canSee && o.emp.monthlySalary > 0
-      ? overtimePayFor(o.emp.monthlySalary, effMin, o.dayCategory, {
+    // AUD-OT (PP 35/2021 Ps.32): dasar upah = pokok (BASE) / pokok + tunjangan
+    // tetap (BASE_FIXED) — konsisten rekap/transfer & API lembur.
+    const basis = otBasisFor(ctx.otBasis, o.emp.monthlySalary, o.emp.id);
+    const pay = canSee && basis > 0
+      ? overtimePayFor(basis, effMin, o.dayCategory, {
         roundingMinutes: ctx.rule.overtimeRoundingMinutes, minMinutes: ctx.rule.minOvertimeMinutes,
+        workweekDays: ctx.workweekDays,
       })
       : null;
     const hourIndex = Math.ceil(effMin / 60);
+    // AUD-OT: label tabel rate sesuai model minggu kerja (Ps.31 ayat 2/3).
+    const rateNote = o.dayCategory === "Weekday"
+      ? "1,5× jam ke-1, 2× berikutnya"
+      : ctx.workweekDays === 6
+        ? "2× jam 1–7, 3× jam ke-8, 4× jam 9–11"
+        : "2× jam 1–8, 3× jam ke-9, 4× jam 10–12";
     return {
       orderNo: o.orderNo, date: dayStartU(o.overtimeDate).toISOString().slice(0, 10),
       employeeNo: o.emp.employeeNo, name: o.emp.fullName, unit: ctx.unitName(o.emp.orgUnitId),
       dayCategory: o.dayCategory,
       verifiedHours: round1(effMin / 60),
       monthlySalary: canSee && o.emp.monthlySalary > 0 ? Math.round(o.emp.monthlySalary) : null,
-      hourlyRate: canSee && o.emp.monthlySalary > 0 ? Math.round(o.emp.monthlySalary / 173) : null,
+      hourlyRate: canSee && basis > 0 ? Math.round(basis / 173) : null,
       estimatedPay: pay,
-      indexNote: `${DAYCAT_LABELS[o.dayCategory] ?? o.dayCategory} — maks ${hourIndex} jam: ${o.dayCategory === "Weekday" ? "1,5× jam ke-1, 2× berikutnya" : o.dayCategory === "Weekend" ? "2× 8 jam pertama, 3× berikutnya" : "2× 7 jam pertama, 3× jam ke-8, 4× berikutnya"}`,
+      indexNote: `${DAYCAT_LABELS[o.dayCategory] ?? o.dayCategory} — maks ${hourIndex} jam: ${rateNote}`,
       status: o.status,
     };
   }).sort((a, b) => a.date.localeCompare(b.date) || a.orderNo.localeCompare(b.orderNo));
 
   const totalPay = canSee ? items.reduce((s, i) => s + (i.estimatedPay ?? 0), 0) : null;
+  const basisModeLabel = ctx.otBasis.mode === "BASE_FIXED"
+    ? `dasar = gaji pokok + tunjangan tetap (${["TJAB","TKEL","TTRANS","TMAKAN"].filter((c) => ctx.otBasis.components.has(c) && ctx.otBasis.codes.includes(c)).join(",") || ctx.otBasis.codes.join(",") || "-"})`
+    : "dasar = gaji pokok";
   return {
-    periodLabel: `${dateID(from)} – ${dateID(to)} — indeks PP 35/2021 (upah/jam = gaji ÷ 173)`,
+    periodLabel: `${dateID(from)} – ${dateID(to)} — indeks PP 35/2021 (upah/jam = dasar upah ÷ 173)`,
     payload: {
       masked: !canSee,
       items,
       totalHours: round1(items.reduce((s, i) => s + i.verifiedHours, 0)),
       totalPay,
       orders: items.length,
-      basisNote: "Estimasi = 1/173 × upah/jam × indeks progresif (PP 35/2021 Ps.31). Nilai final mengikuti payroll run.",
+      basisNote: `Estimasi = 1/173 × ${basisModeLabel} × indeks progresif (PP 35/2021 Ps.31–32; minggu kerja ${ctx.workweekDays} hari). Nilai final mengikuti payroll run.`,
     },
   };
 }
@@ -951,20 +971,28 @@ function ar33OtCompliance(ctx: Ctx) {
   const ym = ctx.fp.month ?? `${ctx.now.getFullYear()}-${String(ctx.now.getMonth() + 1).padStart(2, "0")}`;
   const { from, to } = monthRange(ym);
   // order lembur AKTIF (Pending/Approved/Paid) — padanan helper cap service.
+  // AUD-OT (PP 35/2021 Ps.26 ayat 2): lembur pada hari istirahat mingguan /
+  // libur resmi DIKECUALIKAN dari cap 4 jam/hari & 18 jam/minggu — hanya
+  // lembur HARI KERJA yang masuk bucket cap; lembur hari libur ditampilkan
+  // sebagai kolom informasi tersendiri (bukan pelanggaran).
   const orders = ctx.ots.filter((o) =>
     ["Pending", "Approved", "Paid"].includes(o.status) && o.overtimeDate >= from && o.overtimeDate <= to);
 
-  const perEmp = new Map<string, { emp: EnrEmp2; byDate: Map<string, number> }>();
+  const perEmp = new Map<string, { emp: EnrEmp2; byDate: Map<string, number>; restDayMinutes: number }>();
   for (const o of orders) {
     let c = perEmp.get(o.emp.id);
-    if (!c) { c = { emp: o.emp, byDate: new Map() }; perEmp.set(o.emp.id, c); }
+    if (!c) { c = { emp: o.emp, byDate: new Map(), restDayMinutes: 0 }; perEmp.set(o.emp.id, c); }
     const k = dayStartU(o.overtimeDate).toISOString().slice(0, 10);
-    c.byDate.set(k, (c.byDate.get(k) ?? 0) + otEffectiveMinutes(o));
+    if (o.dayCategory === "Weekday") {
+      c.byDate.set(k, (c.byDate.get(k) ?? 0) + otEffectiveMinutes(o));
+    } else {
+      c.restDayMinutes += otEffectiveMinutes(o);
+    }
   }
 
   const rows = [...perEmp.values()].map((c) => {
     const monthlyMinutes = [...c.byDate.values()].reduce((s, v) => s + v, 0);
-    // bucket mingguan (Senin–Minggu)
+    // bucket mingguan (Senin–Minggu) — hanya lembur hari kerja
     const byWeek = new Map<string, number>();
     for (const [d, min] of c.byDate) {
       const day = new Date(`${d}T00:00:00Z`);
@@ -994,15 +1022,16 @@ function ar33OtCompliance(ctx: Ctx) {
         violations.push({ type: "weekly", detail: `Minggu ${dateID(w)} – ${dateID(addDaysU(w, 6))}: ${round1(min / 60)} jam > cap ${ctx.caps.weeklyHours} jam/minggu` });
       }
     }
-    if (ctx.caps.monthlyHours && monthlyMinutes / 60 > ctx.caps.monthlyHours) {
-      violations.push({ type: "monthly", detail: `Bulan: ${round1(monthlyMinutes / 60)} jam > cap ${ctx.caps.monthlyHours} jam/bulan` });
+    if (ctx.caps.monthlyHours && (monthlyMinutes + c.restDayMinutes) / 60 > ctx.caps.monthlyHours) {
+      violations.push({ type: "monthly", detail: `Bulan: ${round1((monthlyMinutes + c.restDayMinutes) / 60)} jam > cap ${ctx.caps.monthlyHours} jam/bulan` });
     }
-    const monthlyHours = round1(monthlyMinutes / 60);
+    const monthlyHours = round1((monthlyMinutes + c.restDayMinutes) / 60);
     const weeklyCap = ctx.caps.weeklyHours;
     const status = violations.length > 0 ? "violation" : peakWeekly && peakWeekly.hours >= weeklyCap * 0.8 ? "watch" : "compliant";
     return {
       employeeNo: c.emp.employeeNo, name: c.emp.fullName, unit: ctx.unitName(c.emp.orgUnitId),
-      monthlyHours, peakDaily, peakWeekly, violations,
+      monthlyHours, weekdayHours: round1(monthlyMinutes / 60), restDayHours: round1(c.restDayMinutes / 60),
+      peakDaily, peakWeekly, violations,
       status: status as "compliant" | "watch" | "violation",
     };
   }).sort((a, b) => (a.status === "violation" ? -1 : 1) - (b.status === "violation" ? -1 : 1) || b.monthlyHours - a.monthlyHours || a.employeeNo.localeCompare(b.employeeNo, "id", { numeric: true }));
@@ -1010,16 +1039,17 @@ function ar33OtCompliance(ctx: Ctx) {
   const compliant = rows.filter((r) => r.status === "compliant").length;
   const violation = rows.filter((r) => r.status === "violation").length;
   const watch = rows.filter((r) => r.status === "watch").length;
+  const restDayHours = round1(rows.reduce((s, r) => s + r.restDayHours, 0));
   const [yy, mm] = ym.split("-").map(Number);
   return {
-    periodLabel: `${MONTHS_ID[mm - 1]} ${yy} — mode ${ctx.capsModeLabel} (${ctx.caps.dailyHours} jam/hari · ${ctx.caps.weeklyHours} jam/minggu)`,
+    periodLabel: `${MONTHS_ID[mm - 1]} ${yy} — mode ${ctx.capsModeLabel} (${ctx.caps.dailyHours} jam/hari · ${ctx.caps.weeklyHours} jam/minggu, hari kerja)`,
     payload: {
       month: `${MONTHS_ID[mm - 1]} ${yy}`, modeLabel: ctx.capsModeLabel,
       caps: { dailyHours: ctx.caps.dailyHours, weeklyHours: ctx.caps.weeklyHours, monthlyHours: ctx.caps.monthlyHours },
       rows,
-      withOt: rows.length, compliant, watch, violation,
+      withOt: rows.length, compliant, watch, violation, restDayHours,
       complianceRate: rows.length ? round1((compliant / rows.length) * 100) : null,
-      basis: "UU 13/2003 Ps.78 · PP 35/2021 Ps.26–27 · Kepmen 102/2004",
+      basis: "UU 13/2003 Ps.78 · PP 35/2021 Ps.26–27 (cap tidak termasuk lembur hari istirahat/libur resmi — Ps.26 ayat 2) · Kepmen 102/2004",
     },
   };
 }
@@ -1338,13 +1368,16 @@ function buildSheets(id: string, built: { periodLabel: string; payload: unknown 
       const st: Record<string, string> = { compliant: "Patuh", watch: "Perhatian", violation: "PELANGGARAN" };
       return [{
         name: "Audit Cap Lembur",
-        title,
+        // AUD-OT: catatan pengecualian dibawa di judul sheet (ExportSheet tanpa
+        // footer native) — † hari istirahat/libur resmi tak dihitung ke cap.
+        title: `${title} — †dikecualikan dari cap 4 j/hari & 18 j/mgg (PP 35/2021 Ps.26 ayat 2)`,
         columns: [
-          { header: "No. Karyawan", width: 14 }, { header: "Nama", width: 24 }, { header: "Unit", width: 22 }, { header: "Total Lembur (jam)", width: 15 },
+          { header: "No. Karyawan", width: 14 }, { header: "Nama", width: 24 }, { header: "Unit", width: 22 },
+          { header: "Hari Kerja (jam)", width: 15 }, { header: "Hari Libur† (jam)", width: 15 }, { header: "Total Lembur (jam)", width: 15 },
           { header: "Puncak Harian", width: 16 }, { header: "Puncak Mingguan", width: 24 }, { header: "Temuan Pelanggaran", width: 52 }, { header: "Status", width: 14 },
         ],
         rows: ((p.rows as AnyRec[]) ?? []).map((r) => [
-          s(r.employeeNo), s(r.name), s(r.unit), (r.monthlyHours as number) ?? 0,
+          s(r.employeeNo), s(r.name), s(r.unit), (r.weekdayHours as number) ?? 0, (r.restDayHours as number) ?? 0, (r.monthlyHours as number) ?? 0,
           r.peakDaily ? `${d((r.peakDaily as AnyRec).date as string)}: ${(r.peakDaily as AnyRec).hours} jam` : "—",
           r.peakWeekly ? `${(r.peakWeekly as AnyRec).weekLabel}: ${(r.peakWeekly as AnyRec).hours} jam` : "—",
           ((r.violations as AnyRec[]) ?? []).map((v) => v.detail as string).join(" · ") || "—",

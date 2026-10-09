@@ -82,6 +82,9 @@ export interface OvertimeRow {
   status: string; approverId: string | null; decidedAt: string | null; decisionNote: string | null; paidRunNo: string | null;
   employee: { employeeNo: string; fullName: string; assignments: { baseSalary: number; orgUnit: { name: string } | null }[] };
   baseSalary: number; orgUnitName: string | null; estPay: number; effectiveMinutes: number;
+  /** AUD-OT (PP 35/2021 Ps.32): dasar upah lembur — gaji pokok (BASE) atau
+   *  gaji pokok + tunjangan tetap (BASE_FIXED); null bila money-view masked. */
+  otBasis?: number | null;
   /** T15-CHAIN-EXT: ringkasan jalur approval berjenjang (jenjang aktif + approver menunggu) */
   approval?: { status: string; currentLevel: number; totalLevels: number; currentApprover: string | null } | null;
 }
@@ -117,6 +120,11 @@ export interface AttendanceRule {
   otCapMode?: string;
   otCapDayHours?: number | null;
   otCapWeekHours?: number | null;
+  /** AUD-OT (PP 35/2021 Ps.31) — model minggu kerja (5|6) utk tabel rate. */
+  otWorkweekDays?: number;
+  /** AUD-OT (PP 35/2021 Ps.32 ayat 3) — dasar upah lembur (BASE|BASE_FIXED). */
+  otBasisMode?: string;
+  otBasisComponentCodes?: string | null;
   fatigueMaxConsecutiveNights?: number | null;
   fatigueMinRestHours?: number | null;
   burnoutOtHoursMonthly?: number | null;
@@ -142,7 +150,9 @@ export const ATT_STATUS_LABEL: Record<string, string> = {
 };
 
 export const OT_CATEGORY_LABEL: Record<string, string> = {
-  Weekday: "Hari Kerja (1,5×/2×)", Weekend: "Hari Libur Mingguan (2×/3×)", Holiday: "Libur Nasional (2×/3×/4×)",
+  // AUD-OT (PP 35/2021 Ps.31): hari kerja 1,5×/2×; hari istirahat mingguan &
+  // libur resmi 2×/3×/4× bertingkat per model minggu kerja (5/6 hari).
+  Weekday: "Hari Kerja (1,5×/2×)", Weekend: "Hari Libur Mingguan (2×/3×/4×)", Holiday: "Libur Nasional (2×/3×/4×)",
 };
 
 // label EN (peta paralel — render: t(MAP[k], MAP_EN[k]))
@@ -156,5 +166,5 @@ export const ATT_STATUS_LABEL_EN: Record<string, string> = {
 };
 
 export const OT_CATEGORY_LABEL_EN: Record<string, string> = {
-  Weekday: "Weekday (1.5×/2×)", Weekend: "Weekly Day Off (2×/3×)", Holiday: "National Holiday (2×/3×/4×)",
+  Weekday: "Weekday (1.5×/2×)", Weekend: "Weekly Day Off (2×/3×/4×)", Holiday: "National Holiday (2×/3×/4×)",
 };

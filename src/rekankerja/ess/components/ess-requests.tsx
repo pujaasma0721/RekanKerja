@@ -359,6 +359,14 @@ export function EssRequests({ intent }: EssRequestsProps) {
                 placeholder={t("mis. closing bulanan, rilis produksi…", "e.g. month-end closing, production release…")}
               />
             </div>
+            {/* AUD-OT (PP 35/2021 Ps.28): pengajuan mandiri ESS = pernyataan
+                kesediaan bekerja lembur secara digital (tersirat di tombol). */}
+            <p className="rounded-lg bg-amber-50/70 px-3 py-2 text-[10px] leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
+              {t(
+                "Dengan mengajukan, Anda menyatakan kesediaan bekerja lembur pada tanggal & jam rencana di atas (PP 35/2021 Pasal 28 ayat 1). Rencana ≥ 4 jam: Anda berhak istirahat secukupnya (min. 30 menit setelah 4 jam berturut-turut) dan makan-minum ≥ 1.400 kkal (Pasal 29).",
+                "By submitting, you declare your willingness to work overtime on the planned date & hours above (GR 35/2021 Art. 28 (1)). Plans ≥ 4 hours: you are entitled to adequate rest (min. 30 minutes after 4 consecutive hours) and meals ≥ 1,400 kcal (Art. 29).",
+              )}
+            </p>
             <FormError message={oError} />
           </div>
           <DialogFooter>

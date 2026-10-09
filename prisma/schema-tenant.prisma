@@ -1681,6 +1681,16 @@ model AttendanceRule {
   otCapMode                        String   @default("PP35") // PP35|KEPMEN102|CUSTOM
   otCapDayHours                    Int? // CUSTOM — cap harian (jam)
   otCapWeekHours                   Int? // CUSTOM — cap mingguan (jam)
+  // AUD-OT (PP 35/2021 Pasal 31) — model minggu kerja perusahaan: 5 hari × 8
+  // jam atau 6 hari × (7+40/6). Menentukan TABEL RATE upah lembur pada hari
+  // istirahat mingguan / libur resmi (Ps.31 ayat (2) vs ayat (3)).
+  otWorkweekDays                   Int      @default(5) // 5|6
+  // AUD-OT (PP 35/2021 Pasal 32 ayat (3)) — dasar perhitungan upah lembur:
+  // BASE = gaji pokok saja (default, kompatibel); BASE_FIXED = gaji pokok +
+  // tunjangan tetap (100% upah sesuai statuta) — komponen dihitung dari
+  // otBasisComponentCodes (Fixed amount / formula linear BASE_SALARY*k).
+  otBasisMode                      String   @default("BASE") // BASE|BASE_FIXED
+  otBasisComponentCodes            String? // "TJAB,TKEL,TTRANS,TMAKAN" (koma)
   // Task 100 F1 (G23) — fatigue rules: maks shift malam berturut-turut +
   // jeda istirahat minimum antar hari kerja (jam). 0 = nonaktif.
   fatigueMaxConsecutiveNights      Int      @default(4)

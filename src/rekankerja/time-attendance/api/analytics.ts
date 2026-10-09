@@ -3,7 +3,7 @@ import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import {
-  dayStart, addDays, getRule, overtimePayFor, attendanceCoverage,
+  dayStart, addDays, getRule, overtimePayFor, otBasisContext, otBasisFor, attendanceCoverage,
 } from "@/rekankerja/time-attendance/services/attendance-service";
 
 // Task 100 F1 (G15) — Analytics absensi bulanan.
@@ -118,13 +118,18 @@ export async function GET(req: NextRequest) {
       },
     });
     const otByOrgMap = new Map<string, { org: string; minutes: number; pay: number }>();
+    // AUD-OT (PP 35/2021 Ps.31-32): tabel rate per model minggu kerja + dasar
+    // upah (BASE / BASE_FIXED) — konsisten dgn rekap & API lembur.
+    const otBasisCtx = await otBasisContext(db, [...new Set(otOrders.map((o) => o.employeeId))]);
+    const workweekDays = rule.otWorkweekDays === 6 ? 6 : 5;
     for (const o of otOrders) {
       const org = o.employee.assignments[0]?.orgUnit?.name ?? "(tanpa unit)";
       // 28-c: baseSalary terenkripsi — dekripsi utk perhitungan (display digate)
       const baseSalary = tenantCryptoForDb(db).decryptMoney(o.employee.assignments[0]?.baseSalary) ?? 0;
       const minutes = o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes;
-      const pay = overtimePayFor(baseSalary, minutes, o.dayCategory, {
+      const pay = overtimePayFor(otBasisFor(otBasisCtx, baseSalary, o.employeeId), minutes, o.dayCategory, {
         roundingMinutes: rule.overtimeRoundingMinutes, minMinutes: rule.minOvertimeMinutes,
+        workweekDays,
       });
       const cell = otByOrgMap.get(org) ?? { org, minutes: 0, pay: 0 };
       cell.minutes += minutes;

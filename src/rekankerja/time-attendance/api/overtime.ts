@@ -5,7 +5,7 @@ import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/servi
 import { attachChainSummaries, DecisionConflictError, DecisionForbiddenError } from "@/rekankerja/shared/services/approval-engine";
 import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-service";
 import { submitOvertimeOrder, decideOvertimeOrder } from "@/rekankerja/time-attendance/services/attendance-service";
-import { overtimePayFor, getRule } from "@/rekankerja/time-attendance/services/attendance-service";
+import { overtimePayFor, getRule, otBasisContext, otBasisFor } from "@/rekankerja/time-attendance/services/attendance-service";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/rekankerja/shared/services/email-service";
 
@@ -48,6 +48,11 @@ export async function GET(req: NextRequest) {
       orderBy: OT_SORT[sortByParam] ?? [{ overtimeDate: "desc" }, { orderNo: "desc" }],
     });
 
+    // AUD-OT (PP 35/2021 Ps.32): dasar upah lembur dibangun SEKALI utk semua
+    // order — gaji pokok, atau pokok + tunjangan tetap bila BASE_FIXED.
+    const otBasisCtx = await otBasisContext(db, [...new Set(orders.map((o) => o.employeeId))]);
+    const workweekDays = rule.otWorkweekDays === 6 ? 6 : 5;
+
     // T15-CHAIN-EXT: ringkasan approval berjenjang per order (badge "Jenjang X/Y"
     // + approver menunggu) — satu query batch (pola workoffs).
     const chainMap = await attachChainSummaries(db, "Overtime", orders.map((o) => ({ id: o.id })));
@@ -58,19 +63,24 @@ export async function GET(req: NextRequest) {
     const all = orders.map((o) => {
       // 28-c: baseSalary terenkripsi — dekripsi utk perhitungan uang lembur.
       const baseSalary = tenantCryptoForDb(db).decryptMoney(o.employee.assignments[0]?.baseSalary) ?? 0;
+      // AUD-OT (Ps.32): dasar upah = pokok (BASE) / pokok + tunjangan tetap
+      // (BASE_FIXED) — estimasi konsisten dgn rekap & transfer payroll.
+      const otBasis = otBasisFor(otBasisCtx, baseSalary, o.employeeId);
       // fix M-7: order yang sudah disetujui tanpa bukti clock → jam efektif = verified/actual
       // (bukan plan) — konsisten dengan rekap uang; Pending menampilkan rencana (plan).
       const minutes = o.status === "Pending"
         ? o.planMinutes
         : o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes;
       const estPay = ["Approved", "Paid"].includes(o.status)
-        ? overtimePayFor(baseSalary, minutes, o.dayCategory, {
+        ? overtimePayFor(otBasis, minutes, o.dayCategory, {
             roundingMinutes: rule.overtimeRoundingMinutes, minMinutes: rule.minOvertimeMinutes,
+            workweekDays,
           })
         : 0;
       return {
         ...o,
         baseSalary: mv.canSee ? baseSalary : null,
+        otBasis: mv.canSee ? otBasis : null,
         orgUnitName: o.employee.assignments[0]?.orgUnit?.name ?? null,
         estPay: mv.canSee ? estPay : null,
         effectiveMinutes: minutes,
@@ -112,6 +122,9 @@ export async function POST(req: NextRequest) {
       letterNo: b.letterNo ?? null,
       reason: b.reason ?? null,
       actorName: m.actor.name,
+      // AUD-OT (PP 35/2021 Ps.28): persetujuan karyawan — jalur admin wajib
+      // mengonfirmasi (checkbox UI); absent/false = tolak 400.
+      consentConfirmed: b.consentConfirmed !== false,
     });
 
     // ===== Notifikasi in-app (T11-NOTIF) + email approver (T15, pola leave) —

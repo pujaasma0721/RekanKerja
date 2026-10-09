@@ -722,15 +722,18 @@ export async function regenerateRange(db: TenantDb, from: Date, to: Date, employ
   return total;
 }
 
-// ============ upah lembur (PP 35/2021 + KEP-102: 1/173 upah bulanan) ============
+// ============ upah lembur (PP 35/2021 Pasal 31–32 + KEP-102: 1/173 upah) ============
 
 /**
- * Upah lembur — mengikuti regulasi Indonesia:
- * - Weekday (hari kerja): jam ke-1 = 1,5×; jam berikutnya = 2×
- * - Weekend (hari istirahat mingguan): 8 jam pertama = 2×; setelahnya = 3×
- * - Holiday (libur nasional, PP 35/2021 Pasal 28): 7 jam pertama = 2×,
- *   jam ke-8 = 3×, jam ke-9 dst = 4× (fix M-1 — dulu 2×/3×/4× pada jam 1-5/6-7/8+)
- * upah sejam = 1/173 × upah bulanan; perhitungan per interval 30 menit.
+ * Upah lembur — mengikuti PP 35/2021 Pasal 31 (tabel rate resmi, AUD-OT):
+ * - Hari kerja (ayat 1): jam ke-1 = 1,5×; jam berikutnya = 2× (kedua model minggu).
+ * - Hari istirahat mingguan / libur resmi, minggu kerja 5 hari × 40 jam
+ *   (ayat 3): jam 1–8 = 2×; jam ke-9 = 3×; jam 10–12 = 4×.
+ * - Hari istirahat mingguan / libur resmi, minggu kerja 6 hari × 40 jam
+ *   (ayat 2): jam 1–7 = 2×; jam ke-8 = 3×; jam 9–11 = 4×.
+ * upah sejam = 1/173 × dasar upah (Pasal 32 ayat 2); dasar upah = gaji pokok,
+ * atau gaji pokok + tunjangan tetap 100% upah bila otBasisMode BASE_FIXED
+ * (Pasal 32 ayat 3 — lihat otBasisFor). Perhitungan per interval 30 menit.
  *
  * T5-TA-FIX (D-6a — rule plasebo): parameter aturan AttendanceRule dieksekusi —
  * - minMinutes (rule.minOvertimeMinutes, default 30): menit di bawah ambang
@@ -740,17 +743,25 @@ export async function regenerateRange(db: TenantDb, from: Date, to: Date, employ
  *   30 menit = perilaku lama; interval 15/30/60 = pembagi 60 → multiplier jam
  *   eksak pada batas jam).
  * Pemanggil lama tanpa opts → perilaku default 30/30 (kompatibel).
+ *
+ * AUD-OT: varian "hari libur resmi jatuh pada hari kerja terpendek" (Ps.31
+ * ayat 2 huruf b — 2× 5 jam pertama) TIDAK didukung (butuh konfigurasi jam
+ * kerja per hari); didokumentasikan sebagai keterbatasan.
  */
 export interface OvertimePayOptions {
   /** interval pembulatan menit lembur — rule.overtimeRoundingMinutes (default 30) */
   roundingMinutes?: number;
   /** ambang minimum menit agar lembur dibayar — rule.minOvertimeMinutes (default 30) */
   minMinutes?: number;
+  /** model minggu kerja (5|6) — menentukan tabel rate Ps.31 ayat (2) vs (3) (default 5) */
+  workweekDays?: number;
 }
 
 export function overtimePayFor(baseSalary: number, minutes: number, dayCategory: string, opts: OvertimePayOptions = {}): number {
   const rounding = Math.max(1, Math.round(opts.roundingMinutes ?? 30));
   const minMinutes = Math.max(0, Math.round(opts.minMinutes ?? 30));
+  // AUD-OT: 5 = minggu kerja 5 hari (tabel Ps.31 ayat 3); 6 = 6 hari (ayat 2).
+  const workweekDays = opts.workweekDays === 6 ? 6 : 5;
   if (minutes <= 0 || baseSalary <= 0) return 0;
   if (minutes < minMinutes) return 0; // ambang minimum — di bawah ini tidak dibayar
   const paidMinutes = Math.ceil(minutes / rounding) * rounding; // pembulatan ke atas ke interval
@@ -759,12 +770,132 @@ export function overtimePayFor(baseSalary: number, minutes: number, dayCategory:
   for (let m = 0; m < paidMinutes; m += rounding) {
     const hourIndex = Math.floor(m / 60) + 1; // jam ke-berapa (1-based) pembuka blok
     let multiplier: number;
-    if (dayCategory === "Weekend") multiplier = hourIndex <= 8 ? 2 : 3;
-    else if (dayCategory === "Holiday") multiplier = hourIndex <= 7 ? 2 : hourIndex === 8 ? 3 : 4;
-    else multiplier = hourIndex === 1 ? 1.5 : 2;
+    if (dayCategory === "Weekend" || dayCategory === "Holiday") {
+      // PP 35/2021 Pasal 31 ayat (2)/(3) — hari istirahat mingguan & libur resmi
+      // diperlakukan sama dalam tabel rate per model minggu kerja.
+      const twoUntil = workweekDays === 6 ? 7 : 8; // jam terakhir ber-rate 2×
+      multiplier = hourIndex <= twoUntil ? 2 : hourIndex === twoUntil + 1 ? 3 : 4;
+    } else {
+      multiplier = hourIndex === 1 ? 1.5 : 2;
+    }
     pay += hourly * multiplier * (rounding / 60);
   }
   return Math.round(pay);
+}
+
+// ---- AUD-OT: dasar upah lembur PP 35/2021 Pasal 32 ayat (3) ------------------
+// "Dalam hal komponen Upah terdiri dari Upah pokok dan tunjangan tetap maka
+//  dasar perhitungan Upah Kerja Lembur 100% dari Upah."
+// Mode BASE (default): gaji pokok saja — kompatibel tenant lama. Mode
+// BASE_FIXED: gaji pokok + tunjangan tetap dari rule.otBasisComponentCodes;
+// nilai komponen = assignment periodik per karyawan bila ada, atau default
+// komponen (Fixed amount / formula linear BASE_SALARY×k). Varian 75% (Ps.32
+// ayat 4, tunjangan tidak tetap) tidak didukung — didokumentasikan.
+
+export interface OtBasisComponent {
+  code: string;
+  calcMethod: string;
+  amount: number;
+  formula: string | null;
+}
+
+export interface OtBasisContext {
+  mode: "BASE" | "BASE_FIXED";
+  codes: string[];
+  components: Map<string, OtBasisComponent>;
+  /** employeeId → kode → nilai periodik per karyawan (override default) */
+  periodicByEmp?: Map<string, Map<string, number>>;
+}
+
+/** parse "TJAB,TKEL,TTRANS" → ["TJAB","TKEL","TTRANS"] (kosong/invalid → []) */
+export function parseOtBasisCodes(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  return [...new Set(
+    raw.split(/[,;\s]+/).map((s) => s.trim().toUpperCase()).filter(Boolean),
+  )].slice(0, 12);
+}
+
+/**
+ * Bangun konteks dasar upah lembur dari AttendanceRule + WageComponent.
+ * employeeIds opsional: bila diberikan, assignment komponen PERIODIC aktif
+ * karyawan tsb ikut dibaca (nilai per karyawan menang atas default komponen).
+ */
+export async function otBasisContext(
+  db: TaClient,
+  employeeIds?: string[],
+): Promise<OtBasisContext> {
+  let rule: { otBasisMode: string | null; otBasisComponentCodes: string | null } | null = null;
+  try {
+    rule = await db.attendanceRule.findFirst({
+      orderBy: { id: "asc" },
+      select: { otBasisMode: true, otBasisComponentCodes: true },
+    });
+  } catch {
+    rule = null; // kolom belum termigrasi (tenant remote) → BASE
+  }
+  const mode = rule?.otBasisMode === "BASE_FIXED" ? "BASE_FIXED" : "BASE";
+  const codes = mode === "BASE_FIXED" ? parseOtBasisCodes(rule?.otBasisComponentCodes) : [];
+  const ctx: OtBasisContext = { mode, codes, components: new Map() };
+  if (codes.length === 0) return ctx;
+
+  const comps = await db.wageComponent.findMany({
+    where: { code: { in: codes }, active: true, type: "Earning" },
+    select: { code: true, calcMethod: true, amount: true, formula: true },
+  });
+  for (const c of comps) {
+    ctx.components.set(c.code, { code: c.code, calcMethod: c.calcMethod, amount: c.amount, formula: c.formula });
+  }
+
+  // override periodik per karyawan (nilai terenkripsi — dekripsi tenant).
+  // CATATAN: dekripsi butuh brand schema — JANGAN panggil otBasisContext dari
+  // dalam $transaction (pola transferToPayroll: tangkap konteks di luar tx).
+  if (employeeIds && employeeIds.length > 0) {
+    const tc = tenantCryptoForDb(db);
+    const assigns = await db.employeeComponentAssignment.findMany({
+      where: {
+        active: true, kind: "Periodic",
+        employeeId: { in: employeeIds },
+        wageComponent: { code: { in: codes }, active: true },
+      },
+      select: { employeeId: true, amount: true, wageComponent: { select: { code: true } } },
+    });
+    const byEmp = new Map<string, Map<string, number>>();
+    for (const a of assigns) {
+      const val = a.amount ? tc.decryptMoney(a.amount) : null;
+      if (val == null) continue;
+      let m = byEmp.get(a.employeeId);
+      if (!m) { m = new Map(); byEmp.set(a.employeeId, m); }
+      m.set(a.wageComponent.code, val);
+    }
+    ctx.periodicByEmp = byEmp;
+  }
+  return ctx;
+}
+
+/** Nilai default komponen terhadap gaji pokok (Fixed / BASE_SALARY×k linear). */
+function otComponentValue(c: OtBasisComponent, baseSalary: number): number | null {
+  if (c.calcMethod === "Fixed") return c.amount;
+  if (c.calcMethod === "Formula" && c.formula) {
+    const m = /^BASE_SALARY\s*\*\s*([0-9]*\.?[0-9]+)\s*$/i.exec(c.formula.trim());
+    if (m) return Number(m[1]) * baseSalary;
+  }
+  return null; // formula non-linear tidak dievaluasi di sini
+}
+
+/** Dasar upah lembur karyawan: BASE → gaji pokok; BASE_FIXED → + tunjangan tetap. */
+export function otBasisFor(ctx: OtBasisContext, baseSalary: number, employeeId?: string): number {
+  if (ctx.mode !== "BASE_FIXED" || ctx.codes.length === 0) return baseSalary;
+  let basis = baseSalary;
+  const periodic = employeeId ? ctx.periodicByEmp?.get(employeeId) : undefined;
+  for (const code of ctx.codes) {
+    const comp = ctx.components.get(code);
+    if (!comp) continue;
+    const override = periodic?.get(code);
+    if (override != null) { basis += override; continue; }
+    const def = otComponentValue(comp, baseSalary);
+    if (def != null) basis += def;
+  }
+  return Math.round(basis);
 }
 
 // ============ rekap period (padanan Query - Employee Attendance/Absence/Tidiness) ============
@@ -847,6 +978,9 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
   const out: RecapRow[] = [];
   // 28-c: gaji pokok tersimpan terenkripsi — dekripsi utk rekap uang.
   const tc = tenantCryptoForDb(db);
+  // AUD-OT (PP 35/2021 Ps.32): konteks dasar upah lembur (BASE / BASE_FIXED)
+  // dibangun SEKALI di luar loop — assignment periodik per karyawan ikut dibaca.
+  const otBasisCtx = await otBasisContext(db, employees.map((e) => e.id));
   for (const emp of employees) {
     const empRows = byEmp.get(emp.id) ?? [];
     const baseSalary = emp.assignments[0] ? tc.decryptMoney(emp.assignments[0].baseSalary) ?? 0 : 0;
@@ -893,12 +1027,16 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
     // bobot fraksional — setengah hari unpaid dipotong 0,5 × perDay, bukan
     // sehari penuh (audit C-03: over-deduction TABS).
     const absenceDeduction = Math.round((absentDays + workoffUnpaid + leaveUnpaid) * perDay);
+    // AUD-OT (PP 35/2021 Ps.32 ayat 3): dasar upah lembur = gaji pokok, ATAU
+    // gaji pokok + tunjangan tetap (100% upah) bila rule.otBasisMode BASE_FIXED.
+    const otBasis = otBasisFor(otBasisCtx, baseSalary, emp.id);
     const otPay = (otByEmp.get(emp.id) ?? []).reduce(
       (s, o) => s + overtimePayFor(
-        baseSalary, o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes, o.dayCategory,
+        otBasis, o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes, o.dayCategory,
         // T5-TA-FIX (D-6a): rekap uang memakai rule (minimum + rounding), bukan
         // hardcode 30 menit — konsisten dgn tampilan estimasi API overtime.
-        { roundingMinutes: rule.overtimeRoundingMinutes, minMinutes: rule.minOvertimeMinutes },
+        // AUD-OT: workweekDays menentukan tabel rate Ps.31 ayat (2)/(3).
+        { roundingMinutes: rule.overtimeRoundingMinutes, minMinutes: rule.minOvertimeMinutes, workweekDays: rule.otWorkweekDays },
       ),
       0,
     );
@@ -1284,12 +1422,15 @@ export async function overtimeCaps(db: TaClient): Promise<{
   }
 }
 
-/** Total menit lembur AKTIF (Pending/Approved/Paid) karyawan pada satu tanggal. */
+/** Total menit lembur AKTIF (Pending/Approved/Paid) karyawan pada satu tanggal
+ *  — HANYA order hari kerja (Weekday). AUD-OT: lembur hari istirahat mingguan /
+ *  libur resmi DIKECUALIKAN dari akumulasi cap (PP 35/2021 Ps.26 ayat 2). */
 async function activeOvertimeMinutesOnDate(db: TaClient, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
   const rows = await db.overtimeOrder.findMany({
     where: {
       employeeId,
       overtimeDate: dayStart(date),
+      dayCategory: "Weekday",
       status: { in: ["Pending", "Approved", "Paid"] },
       ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}),
     },
@@ -1311,6 +1452,10 @@ function weekStartMonday(d: Date): Date {
 /**
  * Fix audit 40 M-6 — total menit lembur AKTIF (Pending/Approved/Paid) karyawan
  * sepanjang minggu (Senin 00:00 s/d Minggu 24:00) yang memuat tanggal tsb.
+ * AUD-OT: hanya order HARI KERJA (Weekday) yang dijumlahkan — lembur hari
+ * istirahat mingguan / libur resmi TIDAK termasuk kuota 18 jam/minggu
+ * (PP 35/2021 Pasal 26 ayat (2): "tidak termasuk kerja lembur yang dilakukan
+ * pada waktu istirahat mingguan dan/atau hari libur resmi").
  * Menit efektif per order = otEffectiveMinutes (Pending → rencana/planMinutes,
  * sudah diputus → verifiedMinutes bila >0, else actualMinutes) — konsisten
  * dengan rekap uang recapPeriod/transferToPayroll dan helper cap harian/bulanan.
@@ -1322,6 +1467,7 @@ async function activeOvertimeMinutesInWeek(db: TaClient, employeeId: string, dat
     where: {
       employeeId,
       overtimeDate: { gte: weekFrom, lt: weekTo },
+      dayCategory: "Weekday",
       status: { in: ["Pending", "Approved", "Paid"] },
       ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}),
     },
@@ -1353,13 +1499,22 @@ async function activeOvertimeMinutesInMonth(db: TaClient, employeeId: string, da
  *  manusia (submit/approve/verify) — bukan saat regen rekap, agar order yang
  *  sudah approved tidak ikut ditolak oleh proses otomatis (konsistensi M-6).
  *  Task 100 (G7a, audit A-04): parameter db dilebarkan ke TaClient — caller
- *  memanggilnya DALAM $transaction (re-assert atomik dengan tulis status). */
+ *  memanggilnya DALAM $transaction (re-assert atomik dengan tulis status).
+ *
+ * AUD-OT (PP 35/2021 Pasal 26 ayat 2): order dengan kategori hari Week-end /
+ *  Holiday DIKECUALIKAN dari cap harian 4 jam & mingguan 18 jam — statuta
+ *  menyatakan kedua batas itu "tidak termasuk kerja lembur yang dilakukan
+ *  pada waktu istirahat mingguan dan/atau hari libur resmi". Sebagai gantinya
+ *  order hari libur dijaga maksimum 12 jam (cakupan tabel rate Ps.31: kerja
+ *  penuh + lembur). Cap bulanan kustom tetap dihitung (kebijakan anggaran
+ *  perusahaan, bukan statuta).
+ */
 async function assertOvertimeCaps(
   db: TaClient,
   employeeId: string,
   overtimeDate: Date,
   planMinutes: number,
-  opts: { excludeOrderId?: string; verifiedMinutes?: number } = {},
+  opts: { excludeOrderId?: string; verifiedMinutes?: number; dayCategory?: string } = {},
 ): Promise<{ dailyHours: number }> {
   // Task 100 F1 (G14) — cap kini KONFIGURATIF per rule.otCapMode (PP35 |
   // KEPMEN102 | CUSTOM); pesan error menyebut mode supaya jelas dasar aturan.
@@ -1368,29 +1523,45 @@ async function assertOvertimeCaps(
   const capLabel =
     otCapMode === "KEPMEN102" ? "Kepmen 102/2004" : otCapMode === "CUSTOM" ? "kebijakan kustom" : "PP 35/2021";
 
-  // jam yang akan dibayar (bila diketahui) tak boleh melebihi cap harian
+  // AUD-OT: kategori hari order — hari istirahat mingguan/libur resmi dikecualikan
+  // dari cap harian + mingguan (PP 35/2021 Ps.26 ayat 2).
+  const restDay = opts.dayCategory === "Weekend" || opts.dayCategory === "Holiday";
   const payable = opts.verifiedMinutes ?? planMinutes;
-  if (payable > dailyCap) {
-    throw new Error(
-      `Lembur ${Math.ceil(payable / 60 * 10) / 10} jam melebihi batas maksimal ${dailyHours} jam/hari (${capLabel})` +
-        (opts.verifiedMinutes != null ? " — kurangi jam terverifikasi ke dalam batas" : ""),
-    );
-  }
-  const othersToday = await activeOvertimeMinutesOnDate(db, employeeId, overtimeDate, opts.excludeOrderId);
-  if (othersToday + payable > dailyCap) {
-    throw new Error(
-      `Total lembur tanggal ${fmtDate(overtimeDate)} melampaui batas ${dailyHours} jam/hari (${capLabel}) — ` +
-        `sudah terdaftar ${Math.round(othersToday / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
-    );
-  }
-  // Fix audit 40 M-6 + Task 100 F1 (G14) — cap MINGGUAN kini mengikuti mode:
-  // PP35 = 18 jam statutory Ps.26; KEPMEN102 = 14 jam; CUSTOM = otCapWeekHours.
-  // Jendela tetap Senin 00:00 s/d Minggu 24:00 yang memuat tanggal order.
-  const othersWeek = await activeOvertimeMinutesInWeek(db, employeeId, overtimeDate, opts.excludeOrderId);
-  if (othersWeek + payable > weeklyHours * 60) {
-    throw new Error(
-      `${capLabel}: maksimum ${weeklyHours} jam lembur per minggu — minggu ini sudah terdaftar ${Math.round(othersWeek / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
-    );
+
+  if (restDay) {
+    // Tidak dikenai cap 4 j/hari & 18 j/mgg — tetapi dibatasi 12 jam karena
+    // tabel rate PP 35/2021 Ps.31 hanya sampai jam ke-12 (kerja penuh + lembur).
+    if (payable > 720) {
+      throw new Error(
+        `Lembur ${Math.ceil(payable / 60 * 10) / 10} jam pada hari istirahat mingguan/libur resmi melebihi 12 jam — di luar cakupan tabel upah PP 35/2021 Pasal 31 (cap 4 j/hari & 18 j/mgg tidak berlaku di hari libur sesuai Ps.26 ayat 2)`,
+      );
+    }
+  } else {
+    // jam yang akan dibayar (bila diketahui) tak boleh melebihi cap harian
+    if (payable > dailyCap) {
+      throw new Error(
+        `Lembur ${Math.ceil(payable / 60 * 10) / 10} jam melebihi batas maksimal ${dailyHours} jam/hari (${capLabel})` +
+          (opts.verifiedMinutes != null ? " — kurangi jam terverifikasi ke dalam batas" : ""),
+      );
+    }
+    const othersToday = await activeOvertimeMinutesOnDate(db, employeeId, overtimeDate, opts.excludeOrderId);
+    if (othersToday + payable > dailyCap) {
+      throw new Error(
+        `Total lembur tanggal ${fmtDate(overtimeDate)} melampaui batas ${dailyHours} jam/hari (${capLabel}) — ` +
+          `sudah terdaftar ${Math.round(othersToday / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
+      );
+    }
+    // Fix audit 40 M-6 + Task 100 F1 (G14) — cap MINGGUAN mengikuti mode:
+    // PP35 = 18 jam statutory Ps.26; KEPMEN102 = 14 jam; CUSTOM = otCapWeekHours.
+    // Jendela tetap Senin 00:00 s/d Minggu 24:00 yang memuat tanggal order.
+    // AUD-OT: akumulasi mingguan hanya menghitung lembur HARI KERJA — lembur
+    // hari istirahat/libur resmi tidak mengonsumsi kuota (Ps.26 ayat 2).
+    const othersWeek = await activeOvertimeMinutesInWeek(db, employeeId, overtimeDate, opts.excludeOrderId);
+    if (othersWeek + payable > weeklyHours * 60) {
+      throw new Error(
+        `${capLabel}: maksimum ${weeklyHours} jam lembur per minggu (hari kerja; lembur hari istirahat/libur resmi tidak dihitung — Ps.26 ayat 2) — minggu ini sudah terdaftar ${Math.round(othersWeek / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
+      );
+    }
   }
   if (monthlyHours != null) {
     const othersMonth = await activeOvertimeMinutesInMonth(db, employeeId, overtimeDate, opts.excludeOrderId);
@@ -1674,6 +1845,10 @@ export async function submitOvertimeOrder(
     employeeId: string; overtimeDate: string; timeFrom: string; timeTo: string;
     planMinutes?: number; letterNo?: string | null; reason?: string | null;
     actorName?: string | null;
+    /** AUD-OT (PP 35/2021 Ps.28 ayat 1): persetujuan pekerja secara tertulis/
+     *  media digital — wajib dicatat utk pengajuan jalur admin; ESS = pengajuan
+     *  diri sendiri (persetujuan melekat). default true (kompatibilitas). */
+    consentConfirmed?: boolean;
   },
 ): Promise<OvertimeSubmitResult> {
   if (!input.employeeId) throw new Error("Karyawan wajib dipilih");
@@ -1681,6 +1856,11 @@ export async function submitOvertimeOrder(
   // Fix audit 40 minor #3 — "25:99" dkk ditolak ketat (jam 00–23, menit 00–59)
   if (!isValidTimeStr(input.timeFrom) || !isValidTimeStr(input.timeTo)) {
     throw new Error("Jam mulai/selesai harus format HH:MM dengan jam 00–23 dan menit 00–59");
+  }
+  // AUD-OT (PP 35/2021 Ps.28): tanpa persetujuan karyawan, perintah lembur
+  // tidak boleh dibuat (persetujuan pekerja = syarat formil statuta).
+  if (input.consentConfirmed === false) {
+    throw new Error("Persetujuan karyawan wajib dicatat sebelum mengajukan lembur (PP 35/2021 Pasal 28 ayat 1)");
   }
 
   const date = new Date(`${input.overtimeDate}T00:00:00`);
@@ -1701,10 +1881,12 @@ export async function submitOvertimeOrder(
   // dalam SATU $transaction (interaktif): dua submit paralel tidak bisa
   // sama-sama lolos cap harian/mingguan (baca othersToday/othersWeek → tulis
   // order atomik); dibungkus retry P2002 bila orderNo unik kalah race.
+  // AUD-OT: dayCategory ikut di-pass → lembur hari istirahat/libur resmi
+  // dikecualikan dari cap (PP 35/2021 Ps.26 ayat 2).
   const order = await withDocNoRetry(
     () => nextOrderNo(db),
     (orderNo) => db.$transaction(async (tx) => {
-      await assertOvertimeCaps(tx, input.employeeId, date, plan);
+      await assertOvertimeCaps(tx, input.employeeId, date, plan, { dayCategory });
       return tx.overtimeOrder.create({
         data: {
           orderNo, employeeId: input.employeeId, overtimeDate: date,
@@ -1724,6 +1906,16 @@ export async function submitOvertimeOrder(
   // persetujuan sesuai struktur "Overtime" yang cocok dengan penempatan
   // pemohon — fallback atasan langsung → Admin/HR. Tanpa ini, perintah lembur
   // diputus satu langkah datar oleh siapa pun.
+  // AUD-OT (PP 35/2021 Ps.29 + UU 13/2003 Ps.79/Kepmen 102): kewajiban
+  // pengusaha selama lembur — pengingat dijejak di ActivityLog + catatan
+  // pengembalian agar approver & HR tidak lalai (bukan blokir).
+  const advisories: string[] = [];
+  if (plan >= 240) {
+    advisories.push("beri kesempatan istirahat secukupnya min. 30 menit setelah 4 jam berturut-turut (Ps.29 b / UU 13/2003 Ps.79)");
+    advisories.push("sediakan makan-minum ≥1.400 kkal (tidak dapat diganti uang — Ps.29 ayat 2)");
+  }
+  const advisoryNote = advisories.length > 0 ? ` — kewajiban: ${advisories.join("; ")}` : "";
+
   const chain = await startApprovalChain(db, {
     docType: "Overtime", docId: order.id, employeeId: input.employeeId,
     createdBy: input.actorName ?? null,
@@ -1731,12 +1923,12 @@ export async function submitOvertimeOrder(
   await db.activityLog.create({
     data: {
       action: "Submitted", entity: "OvertimeOrder", entityId: orderNo,
-      detail: `${orderNo}: ${order.employee.fullName} — lembur ${fmtIso(date)} ${input.timeFrom}–${input.timeTo} (${dayCategory}, rencana ${plan} menit) — approval berjenjang ${chain.totalLevels} level`,
+      detail: `${orderNo}: ${order.employee.fullName} — lembur ${fmtIso(date)} ${input.timeFrom}–${input.timeTo} (${dayCategory}, rencana ${plan} menit) — persetujuan karyawan tercatat (PP 35/2021 Ps.28) — approval berjenjang ${chain.totalLevels} level${advisoryNote}`,
     },
   });
   return {
     order,
-    note: `Perintah lembur ${orderNo} diajukan (${dayCategory}, rencana ${plan} menit) — menunggu persetujuan ${chain.totalLevels} jenjang`,
+    note: `Perintah lembur ${orderNo} diajukan (${dayCategory}, rencana ${plan} menit) — menunggu persetujuan ${chain.totalLevels} jenjang${advisoryNote}`,
     approvalLevels: chain.totalLevels,
     firstApprover: chain.steps[0]?.approverLabel ?? null,
   };
@@ -1799,10 +1991,10 @@ export async function decideOvertimeOrder(
     // update status di bawah menutup race dua approve paralel (baca→tulis atomik).
     if (verified > 0) {
       await assertOvertimeCaps(db, order.employeeId, order.overtimeDate, order.planMinutes, {
-        excludeOrderId: id, verifiedMinutes: verified,
+        excludeOrderId: id, verifiedMinutes: verified, dayCategory: order.dayCategory,
       });
     } else {
-      await assertOvertimeCaps(db, order.employeeId, order.overtimeDate, order.planMinutes, { excludeOrderId: id });
+      await assertOvertimeCaps(db, order.employeeId, order.overtimeDate, order.planMinutes, { excludeOrderId: id, dayCategory: order.dayCategory });
     }
     if (chain && chain.status === "InProgress") {
       const res = await decideApprovalChain(db, {
@@ -1839,10 +2031,10 @@ export async function decideOvertimeOrder(
     const updated = await db.$transaction(async (tx) => {
       if (verified > 0) {
         await assertOvertimeCaps(tx, order.employeeId, order.overtimeDate, order.planMinutes, {
-          excludeOrderId: id, verifiedMinutes: verified,
+          excludeOrderId: id, verifiedMinutes: verified, dayCategory: order.dayCategory,
         });
       } else {
-        await assertOvertimeCaps(tx, order.employeeId, order.overtimeDate, order.planMinutes, { excludeOrderId: id });
+        await assertOvertimeCaps(tx, order.employeeId, order.overtimeDate, order.planMinutes, { excludeOrderId: id, dayCategory: order.dayCategory });
       }
       return tx.overtimeOrder.update({
         where: { id },
@@ -1908,6 +2100,7 @@ export async function decideOvertimeOrder(
       await assertOvertimeCaps(tx, order.employeeId, order.overtimeDate, order.planMinutes, {
         excludeOrderId: id,
         verifiedMinutes: verified,
+        dayCategory: order.dayCategory,
       });
       return tx.overtimeOrder.update({
         where: { id },

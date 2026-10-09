@@ -685,7 +685,7 @@ function RulesTab() {
                   <SelectItem value="CUSTOM">{t("Kustom", "Custom")}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] text-slate-400">{t("Preset kepatuhan lembur — divalidasi ulang saat submit & approve.", "Compliance overtime preset — re-validated on submit & approve.")}</p>
+              <p className="text-[10px] text-slate-400">{t("Cap 4 j/hari & 18 j/minggu hanya menghitung lembur HARI KERJA — lembur hari istirahat mingguan/libur resmi dikecualikan (PP 35/2021 Ps.26 ayat 2). Divalidasi ulang saat submit, approve & verifikasi.", "The 4 h/day & 18 h/week caps count weekday overtime only — rest-day/public-holiday overtime is excluded (GR 35/2021 Art. 26 (2)). Re-validated on submit, approve & verify.")}</p>
             </div>
             {(rule.otCapMode ?? "PP35") === "CUSTOM" && (
               <>
@@ -698,6 +698,43 @@ function RulesTab() {
                   <Input type="number" min={1} max={40} value={rule.otCapWeekHours ?? 18} onChange={(e) => set({ otCapWeekHours: Math.max(1, Math.min(40, parseInt(e.target.value, 10) || 18)) })} className="text-sm" />
                 </div>
               </>
+            )}
+            {/* AUD-OT (PP 35/2021 Ps.31) — model minggu kerja → tabel rate
+                upah lembur hari istirahat mingguan / libur resmi. */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Minggu kerja perusahaan *", "Company work week *")}</Label>
+              <Select value={String(rule.otWorkweekDays ?? 5)} onValueChange={(v) => set({ otWorkweekDays: Number(v) })}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">{t("5 hari × 8 jam (40 jam/minggu)", "5 days × 8 hours (40 h/week)")}</SelectItem>
+                  <SelectItem value="6">{t("6 hari × ±7 jam (40 jam/minggu)", "6 days × ~7 hours (40 h/week)")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-slate-400">{t("Menentukan tabel rate hari libur (PP 35/2021 Ps.31): 5 hari — 2× jam 1–8, 3× jam ke-9, 4× jam 10–12; 6 hari — 2× jam 1–7, 3× jam ke-8, 4× jam 9–11.", "Sets the rest-day rate table (GR 35/2021 Art. 31): 5-day — 2× hours 1–8, 3× hour 9, 4× hours 10–12; 6-day — 2× hours 1–7, 3× hour 8, 4× hours 9–11.")}</p>
+            </div>
+            {/* AUD-OT (PP 35/2021 Ps.32 ayat 3) — dasar upah lembur. */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Dasar upah lembur *", "Overtime pay basis *")}</Label>
+              <Select value={rule.otBasisMode ?? "BASE"} onValueChange={(v) => set({ otBasisMode: v })}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BASE">{t("Gaji pokok saja", "Base salary only")}</SelectItem>
+                  <SelectItem value="BASE_FIXED">{t("Gaji pokok + tunjangan tetap (Ps.32 ayat 3)", "Base salary + fixed allowances (Art. 32 (3))")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-slate-400">{t("Upah/jam = dasar ÷ 173 (Ps.32 ayat 2). Ps.32 ayat 3: bila upah terdiri dari pokok + tunjangan tetap, dasar perhitungan = 100% upah — pilih komponen tunjangan tetap bila mode kedua.", "Hourly pay = basis ÷ 173 (Art. 32 (2)). Art. 32 (3): when pay consists of base + fixed allowances, the basis is 100% of pay — pick the fixed-allowance components in the second mode.")}</p>
+            </div>
+            {(rule.otBasisMode ?? "BASE") === "BASE_FIXED" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold">{t("Komponen tunjangan tetap (kode)", "Fixed-allowance components (codes)")}</Label>
+                <Input
+                  value={rule.otBasisComponentCodes ?? ""}
+                  onChange={(e) => set({ otBasisComponentCodes: e.target.value.toUpperCase() })}
+                  placeholder={t("mis. TJAB,TKEL,TTRANS,TMAKAN", "e.g. TJAB,TKEL,TTRANS,TMAKAN")}
+                  className="font-mono text-sm"
+                />
+                <p className="text-[10px] text-slate-400">{t("Pisahkan dengan koma — maks 12 kode. Nilai = assignment periodik karyawan (bila ada) atau default komponen (amount tetap / formula BASE_SALARY×k).", "Comma-separated — max 12 codes. Value = the employee's periodic assignment (if any) or the component default (fixed amount / BASE_SALARY×k formula).")}</p>
+              </div>
             )}
             {/* G23 — fatigue rules */}
             <div className="space-y-1.5">

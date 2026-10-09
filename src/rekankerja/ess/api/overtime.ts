@@ -41,6 +41,10 @@ export async function POST(req: Request) {
       // supaya chain/ActivityLog mencatat pengaju (parity jalur admin
       // time-attendance/api/overtime.ts:94-123).
       actorName: fullName,
+      // AUD-OT (PP 35/2021 Ps.28 ayat 1): pengajuan ESS = karyawan mengajukan
+      // DIRINYI sendiri → persetujuan melekat secara digital (media digital
+      // sesuai statuta); ActivityLog mencatat jejak persetujuan ini.
+      consentConfirmed: true,
     });
     const order = res.order as
       | { id: string; orderNo: string; employeeId: string; overtimeDate: Date; planMinutes: number; employee: { fullName: string } | null }

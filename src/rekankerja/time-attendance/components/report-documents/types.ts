@@ -151,6 +151,10 @@ export interface AR33Data {
   caps: { dailyHours: number; weeklyHours: number; monthlyHours: number | null };
   rows: {
     employeeNo: string; name: string; unit: string | null; monthlyHours: number;
+    /** AUD-OT: jam lembur hari kerja (dihitung ke cap) vs hari istirahat/
+     *  libur resmi (DIKECUALIKAN dari cap — PP 35/2021 Ps.26 ayat 2). */
+    weekdayHours: number;
+    restDayHours: number;
     peakDaily: { date: string; hours: number } | null;
     peakWeekly: { weekLabel: string; hours: number } | null;
     violations: { type: "daily" | "weekly" | "monthly"; detail: string }[];
@@ -160,6 +164,8 @@ export interface AR33Data {
   compliant: number;
   watch: number;
   violation: number;
+  /** total jam lembur hari istirahat/libur resmi (dikecualikan dari cap). */
+  restDayHours: number;
   complianceRate: number | null;
   basis: string;
 }

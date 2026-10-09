@@ -57,7 +57,7 @@ export function AttendanceOvertimePage() {
   const [cancelBusy, setCancelBusy] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
   const [verifyMinutes, setVerifyMinutes] = useState("120");
-  const [form, setForm] = useState({ employeeId: "", overtimeDate: todayISO(), timeFrom: "17:00", timeTo: "20:00", letterNo: "", reason: "" });
+  const [form, setForm] = useState({ employeeId: "", overtimeDate: todayISO(), timeFrom: "17:00", timeTo: "20:00", letterNo: "", reason: "", consent: false });
   const [busy, setBusy] = useState(false);
 
   // ===== Task 100 F1 (G25): pilihan massal utk bulk decide =====
@@ -131,10 +131,26 @@ export function AttendanceOvertimePage() {
     pay: (o) => o.estPay,
   }, { defaultKey: "pay", defaultDir: "desc" });
 
+  // AUD-OT (PP 35/2021 Ps.29): estimasi durasi rencana (jam) dari jam mulai–
+  // selesai (mendukung lintas tengah malam) — menyalakan advisory kewajiban
+  // istirahat 30 menit + konsumsi ≥1.400 kkal saat rencana ≥ 4 jam.
+  const planHours = useMemo(() => {
+    const [fh, fm] = form.timeFrom.split(":").map(Number);
+    const [th, tm] = form.timeTo.split(":").map(Number);
+    if (!Number.isFinite(fh) || !Number.isFinite(th)) return 0;
+    let mins = (th * 60 + (tm || 0)) - (fh * 60 + (fm || 0));
+    if (mins <= 0) mins += 24 * 60;
+    return mins / 60;
+  }, [form.timeFrom, form.timeTo]);
+
   const submit = async () => {
     setBusy(true);
     try {
-      const res = await apiSend<{ note: string }>("/api/rekankerja/attendance/overtime", "POST", form);
+      // AUD-OT (PP 35/2021 Ps.28): persetujuan karyawan wajib dicatat jalur admin.
+      const res = await apiSend<{ note: string }>("/api/rekankerja/attendance/overtime", "POST", {
+        ...form,
+        consentConfirmed: form.consent,
+      });
       toast.success(res.note);
       setOrderDialog(false);
       api.refresh();
@@ -186,7 +202,7 @@ export function AttendanceOvertimePage() {
       <PageHeader
         eyebrow={t("MODUL ATTENDANCE", "ATTENDANCE MODULE")}
         title={t("Lembur (Overtime Work Order)", "Overtime (Work Order)")}
-        description={t("Perintah lembur Plan → Actual → Verified — upah 1/173 × gaji pokok dengan multiplier per kategori hari (PP 35/2021)", "Overtime work orders Plan → Actual → Verified — pay 1/173 × base salary with a multiplier per day category (PP 35/2021)")}
+        description={t("Perintah lembur Plan → Actual → Verified — upah 1/173 × dasar upah (gaji pokok, atau pokok + tunjangan tetap sesuai pengaturan) dengan multiplier per kategori hari (PP 35/2021 Ps.31–32). Cap 4 j/hari & 18 j/minggu hanya untuk lembur hari kerja — hari istirahat/libur resmi dikecualikan (Ps.26 ayat 2).", "Overtime work orders Plan → Actual → Verified — pay 1/173 × the pay basis (base salary, or base + fixed allowances per settings) with a multiplier per day category (GR 35/2021 Art.31–32). The 4 h/day & 18 h/week caps apply to weekday overtime only — rest days/public holidays are excluded (Art.26 (2)).")}
         actions={
           <Button onClick={() => { setForm({ ...form, employeeId: employeesApi.data?.employees[0]?.id ?? "" }); setOrderDialog(true); }} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> {t("Ajukan Lembur", "Submit Overtime")}
@@ -415,13 +431,38 @@ export function AttendanceOvertimePage() {
               <Label className="text-xs font-bold">{t("Alasan / Pekerjaan", "Reason / Work")}</Label>
               <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={t("mis. penyelesaian order ekspor unit #47", "e.g. completing export order unit #47")} className="min-h-16 text-sm" />
             </div>
+            {/* AUD-OT (PP 35/2021 Ps.28 ayat 1): persetujuan pekerja — jalur
+                admin WAJIB mencatat kesediaan karyawan sebelum mengajukan. */}
+            <label className="flex cursor-pointer select-none items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/50">
+              <Checkbox
+                checked={form.consent}
+                onCheckedChange={(v) => setForm({ ...form, consent: v === true })}
+                aria-label={t("Persetujuan karyawan", "Employee consent")}
+                className="mt-0.5"
+              />
+              <span className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+                <b>{t("Karyawan telah menyatakan kesediaan bekerja lembur", "The employee has consented to work overtime")}</b>
+                {t(" — wajib dicatat secara tertulis/media digital (PP 35/2021 Pasal 28 ayat 1). ESS: pengajuan mandiri = persetujuan melekat.", " — must be recorded in writing/digital media (GR 35/2021 Art. 28 (1)). ESS: self-submission = consent attached.")}
+              </span>
+            </label>
             <p className="rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500 dark:bg-slate-900/60">
-              {t("Kategori hari otomatis dari jadwal karyawan (weekday / hari libur mingguan / libur nasional) → menentukan multiplier upah. Lembur dibatasi maksimal 4 jam/hari (PP 35/2021) dan disetujui berjenjang — jam aktual diambil dari clocking saat disetujui.", "The day category is automatic from the employee's schedule (weekday / weekly day off / national holiday) → determines the pay multiplier. Overtime is capped at 4 hours/day (PP 35/2021) and goes through tiered approval — actual hours are taken from clocking on approval.")}
+              {t(
+                "Kategori hari otomatis dari jadwal karyawan (weekday / hari libur mingguan / libur nasional) → menentukan multiplier upah (PP 35/2021 Ps.31). Cap 4 jam/hari & 18 jam/minggu berlaku untuk lembur HARI KERJA — lembur hari istirahat mingguan/libur resmi tidak dihitung ke kuota (Ps.26 ayat 2). Disetujui berjenjang — jam aktual diambil dari clocking.",
+                "The day category is automatic from the employee's schedule (weekday / weekly day off / national holiday) → determines the pay multiplier (GR 35/2021 Art.31). The 4 h/day & 18 h/week caps apply to WEEKDAY overtime — rest-day/public-holiday overtime is excluded from the quota (Art.26 (2)). Tiered approval — actual hours come from clocking.",
+              )}
             </p>
+            {planHours >= 4 && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                {t(
+                  "Rencana ≥ 4 jam — kewajiban pengusaha: beri kesempatan istirahat secukupnya (min. 30 menit setelah 4 jam berturut-turut) & sediakan makan-minum ≥ 1.400 kkal yang tidak dapat diganti uang (PP 35/2021 Ps.29; UU 13/2003 Ps.79).",
+                  "Plan ≥ 4 hours — employer duties: adequate rest (min. 30 minutes after 4 consecutive hours) & provide meals ≥ 1,400 kcal that cannot be replaced by money (GR 35/2021 Art.29; Law 13/2003 Art.79).",
+                )}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOrderDialog(false)}>{t("Batal")}</Button>
-            <Button onClick={submit} disabled={busy || !form.employeeId} className="font-bold">
+            <Button onClick={submit} disabled={busy || !form.employeeId || !form.consent} className="font-bold">
               {busy ? t("Mengirim…", "Sending…") : t("Ajukan Lembur", "Submit Overtime")}
             </Button>
           </DialogFooter>

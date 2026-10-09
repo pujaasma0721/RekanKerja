@@ -127,6 +127,32 @@ export async function PATCH(req: NextRequest) {
         data[key] = Number.isFinite(v) && v >= 1 && v <= 40 ? v : null;
       }
     }
+    // AUD-OT (PP 35/2021 Ps.31) — model minggu kerja: menentukan tabel rate
+    // upah lembur hari istirahat mingguan/libur resmi (5 hari: 2× j1-8/3× j9/
+    // 4× j10-12; 6 hari: 2× j1-7/3× j8/4× j9-11).
+    if (b.otWorkweekDays !== undefined) {
+      const v = parseInt(b.otWorkweekDays, 10);
+      if (v !== 5 && v !== 6) {
+        return NextResponse.json({ error: "otWorkweekDays harus 5 atau 6" }, { status: 400 });
+      }
+      data.otWorkweekDays = v;
+    }
+    // AUD-OT (PP 35/2021 Ps.32 ayat 3) — dasar upah lembur: BASE = gaji pokok;
+    // BASE_FIXED = gaji pokok + tunjangan tetap (100% upah).
+    if (b.otBasisMode !== undefined) {
+      const mode = String(b.otBasisMode);
+      if (mode !== "BASE" && mode !== "BASE_FIXED") {
+        return NextResponse.json({ error: "otBasisMode harus BASE atau BASE_FIXED" }, { status: 400 });
+      }
+      data.otBasisMode = mode;
+    }
+    if (b.otBasisComponentCodes !== undefined) {
+      // sanitasi: uppercase, koma/pemisah bebas, maks 12 kode — diverifikasi
+      // ulang terhadap WageComponent di bawah (kode tak dikenal diabaikan).
+      const codes = String(b.otBasisComponentCodes)
+        .split(/[,;\s]+/).map((s) => s.trim().toUpperCase()).filter(Boolean).slice(0, 12);
+      data.otBasisComponentCodes = codes.join(",");
+    }
     // Task 100 F1 (G23) — fatigue rules (0 = nonaktif).
     if (b.fatigueMaxConsecutiveNights !== undefined) {
       const v = parseInt(b.fatigueMaxConsecutiveNights, 10);
