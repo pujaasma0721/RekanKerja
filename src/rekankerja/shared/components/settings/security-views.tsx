@@ -75,13 +75,13 @@ export function SecurityView() {
       />
       <Tabs defaultValue="users" className="space-y-5">
         <TabsList className="h-12 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/70">
-          <TabsTrigger value="users" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
+          <TabsTrigger value="users" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:ov-fill">
             <UserCog className="h-4 w-4" /> {t("Pengguna", "Users")}
           </TabsTrigger>
-          <TabsTrigger value="groups" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
+          <TabsTrigger value="groups" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:ov-fill">
             <ShieldCheck className="h-4 w-4" /> {t("Access Group", "Access Group")}
           </TabsTrigger>
-          <TabsTrigger value="scheme" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
+          <TabsTrigger value="scheme" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:ov-fill">
             <Network className="h-4 w-4" /> {t("Data Scheme", "Data Scheme")}
           </TabsTrigger>
         </TabsList>

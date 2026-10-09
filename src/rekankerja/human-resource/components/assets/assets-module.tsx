@@ -154,10 +154,10 @@ export function AssetsModule() {
       />
       <Tabs defaultValue="inventory">
         <TabsList className="mb-4 h-11 rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
-          <TabsTrigger value="inventory" className="gap-1.5 rounded-lg px-4 text-[12px] font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-50">
+          <TabsTrigger value="inventory" className="gap-1.5 rounded-lg px-4 text-[12px] font-bold data-[state=active]:ov-fill">
             <Package className="h-4 w-4" aria-hidden /> {t("Inventaris", "Inventory")}
           </TabsTrigger>
-          <TabsTrigger value="assignments" className="gap-1.5 rounded-lg px-4 text-[12px] font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-50">
+          <TabsTrigger value="assignments" className="gap-1.5 rounded-lg px-4 text-[12px] font-bold data-[state=active]:ov-fill">
             <ClipboardList className="h-4 w-4" aria-hidden /> {t("Penugasan", "Assignments")}
           </TabsTrigger>
         </TabsList>

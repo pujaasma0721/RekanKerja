@@ -66,13 +66,13 @@ export function ApprovalEngineView() {
       />
       <Tabs defaultValue="structure" className="space-y-5">
         <TabsList className="h-12 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/70">
-          <TabsTrigger value="structure" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
+          <TabsTrigger value="structure" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:ov-fill">
             <GitBranch className="h-4 w-4" /> {t("Struktur Berjenjang", "Tiered Structure")}
           </TabsTrigger>
-          <TabsTrigger value="templates" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
+          <TabsTrigger value="templates" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:ov-fill">
             <Layers className="h-4 w-4" /> {t("Template PA", "PA Templates")}
           </TabsTrigger>
-          <TabsTrigger value="temp" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
+          <TabsTrigger value="temp" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:ov-fill">
             <UserRound className="h-4 w-4" /> Temporary Approver
           </TabsTrigger>
         </TabsList>

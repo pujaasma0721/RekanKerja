@@ -248,7 +248,7 @@ export function EmployeeDetail({ id }: { id: string }) {
               <TabsTrigger
                 key={tb.v}
                 value={tb.v}
-                className="h-11 gap-2 rounded-xl px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900"
+                className="h-11 gap-2 rounded-xl px-4 text-[13px] font-semibold data-[state=active]:ov-fill"
               >
                 <tb.icon className="h-4 w-4" aria-hidden /> {tb.label}
               </TabsTrigger>

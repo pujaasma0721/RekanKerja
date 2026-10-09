@@ -330,7 +330,7 @@ function EmployeeDetail() {
             ["discipline", "Disiplin", Scale],
             ["letters", "Surat", FileText],
           ] as const).map(([id, label, Icon]) => (
-            <TabsTrigger key={id} value={id} className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-900/[0.06] dark:text-slate-400 dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:ring-slate-100/10 [&[data-state=active]_[data-count]]:ov-tile">
+            <TabsTrigger key={id} value={id} className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:ov-fill [&[data-state=active]_[data-count]]:ov-tile">
               <Icon className="h-4 w-4" aria-hidden /> {t(label, TAB_LABEL_EN[id])}
               {id === "work" && e.assignments.length > 1 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.assignments.length}</span>}
               {id === "family" && e.family.length > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.family.length}</span>}

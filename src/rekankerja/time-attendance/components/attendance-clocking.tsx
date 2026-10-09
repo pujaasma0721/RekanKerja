@@ -231,10 +231,10 @@ export function AttendanceClockingPage() {
           <Tabs defaultValue="recap">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
               <TabsList className="h-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
-                <TabsTrigger value="recap" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
+                <TabsTrigger value="recap" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:ov-fill">
                   <Activity className="h-3.5 w-3.5" /> {t("Rekap ({n})", "Recap ({n})", { n: api.data?.rows.length ?? 0 })}
                 </TabsTrigger>
-                <TabsTrigger value="logs" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
+                <TabsTrigger value="logs" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:ov-fill">
                   <Clock className="h-3.5 w-3.5" /> {t("Log Mentah ({n})", "Raw Logs ({n})", { n: api.data?.logs.length ?? 0 })}
                 </TabsTrigger>
               </TabsList>

@@ -57,13 +57,13 @@ export function PayrollTransactionsPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
-          <TabsTrigger value="loans" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
+          <TabsTrigger value="loans" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
             <Landmark className="h-3.5 w-3.5" /> {t("Pinjaman", "Loans")} ({loansApi.data?.loans.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="components" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
+          <TabsTrigger value="components" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
             <Coins className="h-3.5 w-3.5" /> {t("Komponen Khusus & Periodik", "Special & Periodic Components")} ({compsApi.data?.assignments.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="rapel" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
+          <TabsTrigger value="rapel" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
             <History className="h-3.5 w-3.5" /> {t("Rapel / Back-Pay", "Retro Pay / Back-Pay")}
           </TabsTrigger>
         </TabsList>

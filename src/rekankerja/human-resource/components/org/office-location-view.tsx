@@ -124,10 +124,10 @@ export function OfficeLocationView() {
 
       <Tabs defaultValue="offices">
         <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
-          <TabsTrigger value="offices" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
+          <TabsTrigger value="offices" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
             <Building2 className="h-3.5 w-3.5" /> {t("Kantor Perusahaan", "Company Offices")}
           </TabsTrigger>
-          <TabsTrigger value="locations" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
+          <TabsTrigger value="locations" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
             <MapPin className="h-3.5 w-3.5" /> {t("Lokasi Kerja", "Work Locations")}
           </TabsTrigger>
         </TabsList>

@@ -314,17 +314,17 @@ export function LetterTemplatesView() {
       {/* tab katalog / permintaan masuk (26-a) */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-slate-100/90 p-1 dark:bg-slate-800/70">
-          <TabsTrigger value="catalog" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-900/[0.06] dark:text-slate-400 dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:ring-slate-100/10">
+          <TabsTrigger value="catalog" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:ov-fill">
             <FileText className="h-4 w-4" aria-hidden /> {t("Katalog Template", "Template Catalog")}
           </TabsTrigger>
           {/* Task 80f — tab Dokumen Terbit: semua surat terbit + status eSign */}
-          <TabsTrigger value="documents" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-900/[0.06] dark:text-slate-400 dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:ring-slate-100/10">
+          <TabsTrigger value="documents" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:ov-fill">
             <FileSignature className="h-4 w-4" aria-hidden /> {t("Dokumen Terbit", "Issued Documents")}
             <span className="ml-1 rounded-full bg-brand/15 px-1.5 py-px text-[10px] font-bold tabular-nums text-brand-deep dark:bg-brand/15 dark:text-brand/85">
               {signedCount}/{(issued.data?.letters ?? []).length}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="requests" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-900/[0.06] dark:text-slate-400 dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:ring-slate-100/10">
+          <TabsTrigger value="requests" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:ov-fill">
             <Inbox className="h-4 w-4" aria-hidden /> {t("Permintaan Masuk", "Incoming Requests")}
             {pendingCount > 0 && (
               <span data-count className="ml-1 rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-bold tabular-nums text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">

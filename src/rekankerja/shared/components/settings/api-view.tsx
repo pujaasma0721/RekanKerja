@@ -84,7 +84,7 @@ const SCOPE_HINT: Record<string, string> = {
 export function ApiKeysView() {
   const { t } = useI18n();
   const [tab, setTab] = useState("keys");
-  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800";
+  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill";
 
   return (
     <div>

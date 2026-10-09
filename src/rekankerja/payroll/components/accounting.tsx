@@ -45,13 +45,13 @@ export function AccountingPage() {
         <div className="space-y-4">
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
-              <TabsTrigger value="accounts" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
+              <TabsTrigger value="accounts" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
                 <Landmark className="h-3.5 w-3.5" /> {t("Akun", "Accounts")} ({data?.accounts.length ?? 0})
               </TabsTrigger>
-              <TabsTrigger value="postings" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
+              <TabsTrigger value="postings" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
                 <ArrowLeftRight className="h-3.5 w-3.5" /> {t("Event Posting", "Posting Events")} ({data?.postings.length ?? 0})
               </TabsTrigger>
-              <TabsTrigger value="journal" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
+              <TabsTrigger value="journal" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
                 <BookOpen className="h-3.5 w-3.5" /> {t("Jurnal Payroll")} ({journals.length})
               </TabsTrigger>
             </TabsList>

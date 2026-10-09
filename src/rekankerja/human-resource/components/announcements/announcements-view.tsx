@@ -258,7 +258,7 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
                   ["draft", t("Draft", "Draft")],
                   ["expired", t("Kedaluwarsa", "Expired")],
                 ] as const).map(([key, label]) => (
-                  <TabsTrigger key={key} value={key} className="rounded-lg px-3.5 text-[12px] font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-50">
+                  <TabsTrigger key={key} value={key} className="rounded-lg px-3.5 text-[12px] font-bold data-[state=active]:ov-fill">
                     {label}
                   </TabsTrigger>
                 ))}
