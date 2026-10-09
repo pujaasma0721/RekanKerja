@@ -155,7 +155,7 @@ export function LeaveReportsPage() {
             {(["tabel", "kalender"] as const).map((v) => (
               <button key={v} onClick={() => setView(v)} className={cn(
                 "rounded-full px-3 py-1 text-[11px] font-bold transition",
-                view === v ? "ov-fill shadow-sm" : "bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
+                view === v ? "ov-fill shadow-sm" : "ov-tile hover:ov-soft text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white",
               )}>
                 {v === "tabel" ? t("Tabel", "Table") : t("Kalender", "Calendar")}
               </button>

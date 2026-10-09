@@ -563,7 +563,7 @@ export function OrgMapView() {
               onClick={() => switchMode("orang")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition",
-                mode === "orang" ? "ov-fill shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                mode === "orang" ? "ov-fill shadow-sm" : "ov-tile text-slate-700 dark:text-slate-200"
               )}
             >
               <Users className="h-3.5 w-3.5" /> {t("Orang", "People")}
@@ -575,7 +575,7 @@ export function OrgMapView() {
               onClick={() => switchMode("unit")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition",
-                mode === "unit" ? "ov-fill shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                mode === "unit" ? "ov-fill shadow-sm" : "ov-tile text-slate-700 dark:text-slate-200"
               )}
             >
               <Building2 className="h-3.5 w-3.5" /> {t("Unit", "Units")}

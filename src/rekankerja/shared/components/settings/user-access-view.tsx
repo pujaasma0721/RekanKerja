@@ -532,7 +532,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                               onClick={() => { setDraftMode(m.v); setDirty(true); }}
                               className={cn(
                                 "rounded-lg px-3 py-1.5 text-[12px] font-bold transition",
-                                draftMode === m.v ? "ov-fill shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
+                                draftMode === m.v ? "ov-fill shadow-sm" : "ov-tile text-slate-700 dark:text-slate-200",
                               )}
                             >
                               {m.label}

@@ -192,7 +192,7 @@ export function TravelRequestsPage() {
               "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
               statusFilter === f.key
                 ? "ov-fill shadow-sm"
-                : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
+                : "ov-tile hover:ov-soft text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white",
             )}
           >
             {t(f.label)}
