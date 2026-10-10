@@ -5425,3 +5425,20 @@ Stage Summary:
 - Solusi server: Temurin JDK 17.0.20.1+1 di ~/opt (JRE dicoba dulu - GAGAL: source-launcher "java JasperRunner.java" butuh modul jdk.compiler, JRE -> InternalError).
 - Solusi kode: resolveJavaBin() - JAVA_BIN env > scan ~/opt/jdk-* BUKAN varian -jre (sort leksikal tadinya memilih -jre di atas JDK karena prefix) > /usr/bin, /usr/local/bin > "java" PATH.
 - E2E prod (sesi hrd@mii.co.id): GET spt1721a1?year=2026 = 200 application/pdf 4.59 MB header %PDF-. Sebelumnya 503.
+
+---
+Task ID: c945228-sync
+Agent: main (Z.ai Code)
+Task: User "perbaikan sudah di push semua?" — verifikasi push + pulihkan environment sandbox yang ter-reset ulang.
+
+Work Log:
+- git fetch: origin/main pindah 0eb2496 → c945228 (20 commit: ESS role, deploy-readiness audit, i18n server bilingual, brand logo, TabsList tema, parity lembur, advance search &, riwayat penempatan 722e693, fix iReport JDK). Lokal tertinggal di snapshot 0eb2496 → merge --ff-only → sinkron penuh c945228, worktree bersih, 0 commit lokal yang belum di-push (JAWABAN USER: semua sudah ter-push).
+- Penemuan: sandbox ter-reset ulang sejak giliran sebelumnya — dev server mati, dev.log hilang, .env terpotong jadi stub sqlite 50 byte, PostgreSQL volume kosong (db onevity tanpa tabel).
+- Recovery DB: kredensial ditemukan onevity/onevity_dev (probe). .env ditulis ulang (4 URL postgres + SESSION_SECRET random + DEMO_AUTOSEED=1 + REKANKERJA_ALLOW_DEMO_SEED=1; ONEVITY_ENCRYPTION_KEY tidak diperlukan — vault per-tenant di DB, enc:v2).
+- Urutan pemulihan: db:generate → db:push (platform) → restore-demo.ts (3 tenant provision+seed, migrasi sandi gagal di dalamnya) → migrate-password-security.ts manual (sukses) → enrich-{attendance,hr,leave,medical,travel}-reports-demo → migrate-ot-compliance.ts (idempoten) → migrate-audit-deploy-indexes.ts (12/12 index).
+- Hasil data: MII 47 karyawan / 51 assignment / 6 AppUser; platform 3 user; Cahaya & Sentra referensi saja. Login E2E (hrd@mii.co.id) → MII → Employee Directory 47 → Rina Maulida → profil → tab Work: "Work History · 2 periods · 1 promotions", periode CURRENT Promotion Jul 2022—present · PA-2022-0101 · Office Kantor Pusat Jakarta · Location Lantai 5 · Manager: Sri Wahyuni ✓.
+- Dev server :3000 = 200, log bersih, [demo-seed] pipeline parity exit 0.
+
+Stage Summary:
+- SEMUA perbaikan sudah ter-push (origin/main = c945228; lokal kini identik). Sandbox sempat ter-reset (env+DB kosong) — dipulihkan penuh mengikuti DEPLOY-RUNBOOK: .env 4 URL, schema push, restore-demo, migrasi sandi, 5 enrich, OT compliance, 12 index; E2E login+direktori+riwayat penempatan terverifikasi.
+- Kredensial DB: onevity/onevity_dev@127.0.0.1:5432/onevity (bukan onevity/onevity).
