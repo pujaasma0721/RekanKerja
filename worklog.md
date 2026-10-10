@@ -5442,3 +5442,22 @@ Work Log:
 Stage Summary:
 - SEMUA perbaikan sudah ter-push (origin/main = c945228; lokal kini identik). Sandbox sempat ter-reset (env+DB kosong) — dipulihkan penuh mengikuti DEPLOY-RUNBOOK: .env 4 URL, schema push, restore-demo, migrasi sandi, 5 enrich, OT compliance, 12 index; E2E login+direktori+riwayat penempatan terverifikasi.
 - Kredensial DB: onevity/onevity_dev@127.0.0.1:5432/onevity (bukan onevity/onevity).
+
+---
+Task ID: rec-1
+Agent: main (Z.ai Code) + subagent general-purpose (parsial, timeout — dilanjutkan manual)
+Task: User minta pelajari modul Recruitment oranHR (demo.oranhr.com) → analisa → development plan untuk adopsi di RekanKerja. RESEARCH-ONLY — tanpa perubahan kode aplikasi.
+
+Work Log:
+- Subagent (Task rec-1 awal) login demo.oranhr.com (MII000001/MII1, company MII, v11.08.00 JSP+ExtJS) → 29 screenshot .tmp-research/rec-00..28.png + skrip ekstraksi extract/extract2.js; timeout sebelum menulis dokumen.
+- Lanjutan manual via agent-browser --session oran (sesi masih hidup): ekstraksi tree navigasi ExtJS lengkap → peta modul Recruitment 54 halaman admin (8 grup + 2 mandiri) + 6 ESS (MyJobOpportunity, MyEmpAppliedJobOpportunity, MySelectionProcess, MyPersonnelRequisition, MyPersonnelRequisitionToApprove, MysRecruitmentPlanning) = 60 halaman; semua URL .jsp dicatat.
+- Batch ekstraksi store ExtJS 50 halaman (rec-data/*.json): kolom grid + field model + sample data nyata. Enum terverifikasi: PR.state=Approved/Fulfilled, JO.state=Active/Obsolete, Applicant.state=Employed + blacklist/suspend/password+activation_ref (portal pelamar), candidate.state=Nominated, source=Internal/External, resultType=Quantitative/Qualitative, keep_on_file=12 bln, auto_jop flag, period sub-periode (2025_B).
+- Analisa VLM (z-ai vision) 7 screenshot kunci: PR form (field lengkap 2 kolom), Applicant form, Candidate Appointment grid (New Assign Employee/Person/User/Role Group — titik integrasi ke HR Base), Std Selection, Selection Calendar (monthly view), Recruitment Activity (funnel query), Applicant Engine (query builder Parameter×Operand×Value multi-kondisi + Find/Print).
+- Temuan arsitektur: rantai nilai Plan(budget)→PR(approval)→JO+slot per PR+method(cost)→Applicant(talent pool, engine, web staging, outdated, blacklist)→JobCandidate→Selection chain(std process+SLA+acknowledgement+psikotest)→Appointment(surat+buat Employee+User+Role)→PR Fulfilled; integrasi letter/notifier/email/ESS; engine psikotest online 5 instrumen dengan capture kamera (DIPUTUSKAN tidak diadopsi 5 fase pertama).
+- Tulis /home/z/my-project/ANALISA-RECRUITMENT.md: peta 60 halaman, analisis 9 grup + ESS, data model inferensi + enum, workflow & status machine, integrasi, gap analysis vs RekanKerja (modal kuat: approval parametrik, onboarding wizard, letter engine, ESS portal, EmployeeDocument pattern), rekomendasi desain (skema Prisma 20+ model, API routes, UI views, integrasi appointment→onboarding wizard prefill), roadmap P1-P5 + backlog XL (psikotest online, AI screening), risiko & mitigasi (UU PDP, upload, scope creep), keputusan open untuk user.
+- 0 baris kode aplikasi berubah: git status hanya .tmp-research/ (untracked, gitignored pattern riset) + ANALISA-RECRUITMENT.md baru.
+
+Stage Summary:
+- Deliverable: ANALISA-RECRUITMENT.md (analisa lengkap modul Recruitment oranHR + development plan 5 fase: P1 PR+approval (L) → P2 JO+pelamar/talent pool (L) → P3 seleksi (L) → P4 appointment+integrasi onboarding (M) → P5 ESS+portal publik+anggaran (M-L); backlog: psikotest online, AI screening, job board).
+- Diferensiator rencana vs oranHR: integrasi appointment→onboarding wizard (seamless, oranHR double-entry), dwibahasa, enkripsi PII pelamar + consent UU PDP, penomoran docNo konvensi proyek (tanpa RecruitmentIdentity).
+- Menunggu keputusan user §10 dokumen (portal publik internal-dulu?, budget di P5?, kandidat internal di P3?, plan ringkas?, psikotest backlog?) sebelum eksekusi P1.
