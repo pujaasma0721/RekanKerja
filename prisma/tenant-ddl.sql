@@ -2364,6 +2364,157 @@ CREATE TABLE "NonEmployeePayment" (
     CONSTRAINT "NonEmployeePayment_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "RecruitmentMethod" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "scope" TEXT NOT NULL DEFAULT 'External',
+    "description" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RecruitmentMethod_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AdMediaType" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AdMediaType_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EmploymentAgency" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "address" TEXT,
+    "contact" TEXT,
+    "note" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmploymentAgency_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RecruitmentCostItem" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RecruitmentCostItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Skill" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "criteria" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Skill_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RequiredDocument" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "fileType" TEXT,
+    "mandatory" BOOLEAN NOT NULL DEFAULT false,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RequiredDocument_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EvaluationCategory" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EvaluationCategory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EvaluationScale" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "ranking" INTEGER NOT NULL DEFAULT 1,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EvaluationScale_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SlaGroup" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "days" INTEGER NOT NULL DEFAULT 30,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SlaGroup_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SelectionProcess" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "mandatory" BOOLEAN NOT NULL DEFAULT true,
+    "resultType" TEXT NOT NULL DEFAULT 'Qualitative',
+    "appliesInternal" BOOLEAN NOT NULL DEFAULT true,
+    "appliesExternal" BOOLEAN NOT NULL DEFAULT true,
+    "minResultPass" DOUBLE PRECISION,
+    "processOrder" INTEGER NOT NULL DEFAULT 1,
+    "slaDays" INTEGER,
+    "needAcknowledgement" BOOLEAN NOT NULL DEFAULT false,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SelectionProcess_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -2921,6 +3072,36 @@ CREATE INDEX "NonEmployeePayment_taxYear_taxMonth_idx" ON "NonEmployeePayment"("
 
 -- CreateIndex
 CREATE INDEX "NonEmployeePayment_status_idx" ON "NonEmployeePayment"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RecruitmentMethod_code_key" ON "RecruitmentMethod"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AdMediaType_code_key" ON "AdMediaType"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EmploymentAgency_code_key" ON "EmploymentAgency"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RecruitmentCostItem_code_key" ON "RecruitmentCostItem"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Skill_code_key" ON "Skill"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RequiredDocument_code_key" ON "RequiredDocument"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EvaluationCategory_code_key" ON "EvaluationCategory"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EvaluationScale_code_key" ON "EvaluationScale"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SlaGroup_code_key" ON "SlaGroup"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SelectionProcess_code_key" ON "SelectionProcess"("code");
 
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

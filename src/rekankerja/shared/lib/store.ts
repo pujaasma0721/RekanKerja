@@ -10,7 +10,8 @@ export type ModuleId =
   | "leave"
   | "travel"
   | "medical"
-  | "whistleblowing";
+  | "whistleblowing"
+  | "recruitment";
 
 export type SectionId =
   | "dashboard"
@@ -25,7 +26,8 @@ export type SectionId =
   | "leave"
   | "travel"
   | "medical"
-  | "whistleblowing";
+  | "whistleblowing"
+  | "recruitment";
 
 export interface NavState {
   module: ModuleId;
@@ -38,8 +40,8 @@ export interface NavState {
   syncFromUrl: () => void;
 }
 
-const VALID_MODULES: ModuleId[] = ["hr", "payroll", "attendance", "leave", "travel", "medical", "whistleblowing"];
-const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "reports", "payroll", "settings", "attendance", "leave", "travel", "medical", "whistleblowing"];
+const VALID_MODULES: ModuleId[] = ["hr", "payroll", "attendance", "leave", "travel", "medical", "whistleblowing", "recruitment"];
+const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "reports", "payroll", "settings", "attendance", "leave", "travel", "medical", "whistleblowing", "recruitment"];
 
 export const MODULE_LABEL: Record<ModuleId, string> = {
   hr: "Human Resource Base",
@@ -49,6 +51,7 @@ export const MODULE_LABEL: Record<ModuleId, string> = {
   travel: "Travel",
   medical: "Medical",
   whistleblowing: "Whistleblowing",
+  recruitment: "Recruitment",
 };
 
 export function moduleOfSection(section: SectionId): ModuleId {
@@ -65,6 +68,8 @@ export function moduleOfSection(section: SectionId): ModuleId {
       return "medical";
     case "whistleblowing":
       return "whistleblowing";
+    case "recruitment":
+      return "recruitment";
     default:
       return "hr"; // dashboard, org, position, employee, actions, settings
   }
@@ -84,6 +89,8 @@ export function defaultSectionOfModule(m: ModuleId): SectionId {
       return "medical";
     case "whistleblowing":
       return "whistleblowing";
+    case "recruitment":
+      return "recruitment";
     default:
       return "dashboard";
   }
@@ -103,6 +110,7 @@ export function defaultView(section: SectionId): string {
     case "travel": return "requests";
     case "medical": return "claims";
     case "whistleblowing": return "report";
+    case "recruitment": return "overview";
     default: return "overview";
   }
 }

@@ -279,6 +279,11 @@ const STEPS: Step[] = [
   // prod error getRule: "column otWorkweekDays does not exist" padan tab Pengaturan
   // Schedule templates). Append-only kronologis.
   { key: "ot-compliance", label: "Kepatuhan PP 35/2021 — kolom AttendanceRule.otWorkweekDays/otBasisMode/otBasisComponentCodes", run: (s) => import("../../../../scripts/migrate-ot-compliance").then((m) => m.main(s)) },
+  // F0-REC (DEVELOPMENT-PLAN-RECRUITMENT.md §7) — modul Rekrutmen: 10 tabel
+  // master (metode/media/agency/pos-biaya/skill/dokumen-wajib/kategori+skala
+  // penilaian/SLA group) + katalog SelectionProcess + seed default rantai
+  // Interview HR → Psikotes → Interview User → Offering → Medical.
+  { key: "recruitment-f0", label: "F0 Rekrutmen — 10 tabel master + SelectionProcess + seed default", run: (s) => import("../../../../scripts/migrate-recruitment-f0").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -507,7 +512,16 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (otWorkweekOk < schemas.length)
       reasons.push(`${schemas.length - otWorkweekOk} tenant tanpa kolom AttendanceRule.otWorkweekDays (kepatuhan PP 35/2021)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk) };
+    // F0-REC — modul Rekrutmen: tabel master RecruitmentMethod/SelectionProcess
+    // belum ada = gap (tenant existing dibuat sebelum F0 → step recruitment-f0
+    // membuat tabel + seed default rantai seleksi).
+    const recMastersOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'SelectionProcess' AND table_schema = ANY($1::text[])`,
+    );
+    if (recMastersOk < schemas.length)
+      reasons.push(`${schemas.length - recMastersOk} tenant tanpa tabel master Rekrutmen (F0 — modul Recruitment)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk) };
   } finally {
     await c.end();
   }

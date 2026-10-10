@@ -48,13 +48,16 @@ export type { TenantPrismaClient };
 // (sumber PTKP auto|manual — turunan data keluarga) masuk client hasil generate.
 // TASK 52: versi dinaikkan lagi (T52A) — PayrollRegulation +jkp* (JKP PP 6/2025)
 // dan tabel WhistleblowReport (Task 52-f) masuk client hasil generate.
+// F0-REC: versi dinaikkan lagi (F0REC) — 10 model master Recruitment (F0
+// DEVELOPMENT-PLAN-RECRUITMENT.md) masuk client hasil generate; instance lama
+// (pra-F0REC, DMMF tanpa db.recruitmentMethod dst.) tidak boleh dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  rekankerjaTenantClientsT52A: Map<string, TenantPrismaClient> | undefined;
+  rekankerjaTenantClientsF0REC: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.rekankerjaTenantClientsT52A ?? new Map();
-globalForTenants.rekankerjaTenantClientsT52A = tenantClients;
+  globalForTenants.rekankerjaTenantClientsF0REC ?? new Map();
+globalForTenants.rekankerjaTenantClientsF0REC = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

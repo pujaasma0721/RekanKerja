@@ -137,6 +137,8 @@ const VIEW_LABELS: Record<string, string> = {
   "medical-reports": "Laporan Medis",
   // Whistleblowing
   "report": "Laporkan Pelanggaran", "triage": "Kelola Laporan",
+  // Recruitment (F0-REC) — "overview" memakai label generik line atas (Dashboard)
+  "masters": "Master Rekrutmen",
   // Settings
   "lookups": "Data Master", "security": "Keamanan & Akses", "approval": "Approval Berjenjang",
   "email": "Konfigurasi Email", "whatsapp": "Notifikasi WhatsApp", "api": "API & Integrasi",

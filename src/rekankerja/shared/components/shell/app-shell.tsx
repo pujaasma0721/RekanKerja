@@ -38,7 +38,7 @@ import {
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
-  MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode,
+  MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +86,9 @@ export const MODULES: ModuleMeta[] = [
   // Task 52-f — kanal whistleblowing TPKS (UU 12/2022 Ps.22-24): laporan
   // anonim + penanganan (triase) oleh tim yang berwenang.
   { id: "whistleblowing", label: "Whistleblowing", short: "Lapor", desc: "Kanal pelaporan anonim & penanganan (TPKS)", icon: Siren, ready: true, hex: "#e11d48" },
+  // F0-REC (DEVELOPMENT-PLAN-RECRUITMENT.md) — modul Rekrutmen: PR → lowongan
+  // → talent pool → seleksi → appointment→onboarding. F0: master + overview.
+  { id: "recruitment", label: "Recruitment", short: "Rekrutmen", desc: "Permintaan karyawan, seleksi & pengangkatan", icon: UserRoundSearch, ready: true, hex: "#ea580c" },
 ];
 
 export const SETTINGS_META = {
@@ -271,6 +274,19 @@ const WHISTLEBLOW_NAV: NavGroup[] = [
   ] },
 ];
 
+// F0-REC — modul Rekrutmen (DEVELOPMENT-PLAN-RECRUITMENT.md §7.1): navigasi
+// tumbuh per fase. F0: Ringkasan + Master Rekrutmen (10 master + katalog
+// tahap seleksi). F1+: pr (permintaan karyawan), pr-approval, openings,
+// applicants, candidates, selection, appointments, reports.
+const RECRUITMENT_NAV: NavGroup[] = [
+  { section: "recruitment", children: [
+    { id: "overview", label: "Ringkasan", icon: LayoutDashboard },
+  ] },
+  { section: "recruitment", label: "Pengaturan Rekrutmen", children: [
+    { id: "masters", label: "Master Rekrutmen", icon: Boxes },
+  ] },
+];
+
 // Pengaturan sistem — cross-module, tampil di panel semua modul + rail bawah.
 export const SETTINGS_NAV: NavGroup[] = [
   { section: "settings", label: "Pengaturan Sistem", children: [
@@ -301,6 +317,7 @@ export function navOfModule(m: ModuleId): NavGroup[] {
     case "travel": return TRAVEL_NAV;
     case "medical": return MEDICAL_NAV;
     case "whistleblowing": return WHISTLEBLOW_NAV;
+    case "recruitment": return RECRUITMENT_NAV;
     default: return HR_NAV;
   }
 }
@@ -1287,6 +1304,7 @@ function defaultSectionOfModuleFor(m: ModuleId): SectionId {
     case "leave": return "leave";
     case "travel": return "travel";
     case "medical": return "medical";
+    case "recruitment": return "recruitment";
     default: return "dashboard";
   }
 }

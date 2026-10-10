@@ -3107,3 +3107,149 @@ model NonEmployeePayment {
   @@index([taxYear, taxMonth])
   @@index([status])
 }
+
+// ============================================================================
+// RECRUITMENT — F0 Fondasi Modul & Master
+// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F0; basis ANALISA-RECRUITMENT.md §7.2)
+// Master rekrutmen per tenant — konvensi proyek: cuid PK, code unik, tanpa
+// tipe list primitif, active + sortOrder untuk pengurutan stabil.
+// SelectionProcess = katalog tahap seleksi (padanan Standard Selection
+// Process oranHR §2.6) — per-tenant, dapat diedit (config-over-code P6).
+// ============================================================================
+
+// Metode rekrutmen (padanan RecruitmentMethodDesc oranHR: Internal Job
+// Posting, Matching Recommendation [Internal]; advertensi/agency [Eksternal]).
+model RecruitmentMethod {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  scope       String   @default("External") // Internal | External | Both
+  description String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Media advertensi lowongan (padanan AdMediaType oranHR: Koran, Portal…).
+model AdMediaType {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Vendor agency/tenaga eksternal (padanan EmpAgency oranHR: nama+alamat+note).
+model EmploymentAgency {
+  id      String   @id @default(cuid())
+  code    String   @unique
+  name    String
+  address String?
+  contact String?
+  note    String?
+  active  Boolean  @default(true)
+  sortOrder Int    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Pos biaya rekrutmen (padanan RecruitmentCostItem oranHR: Advertisment,
+// General (non-budget), …) — dipakai JobOpeningMethod (F2) → budget (F5).
+model RecruitmentCostItem {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Skill/kemampuan kandidat (padanan Skill oranHR: "Bahasa Inggris (menulis)"…).
+model Skill {
+  id       String   @id @default(cuid())
+  code     String   @unique
+  name     String
+  criteria String?
+  active   Boolean  @default(true)
+  sortOrder Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Dokumen wajib pelamar (padanan RequirementDocument oranHR: CV & KTP mandatory).
+model RequiredDocument {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  title     String
+  fileType  String? // hint validasi (mis. "pdf,jpg")
+  mandatory Boolean  @default(false)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Kategori penilaian (padanan ApplicantEvalCategory oranHR) — basis scorecard F3.
+model EvaluationCategory {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Skala penilaian + ranking (padanan Applicant Evaluation Scale oranHR: Low(1)…).
+model EvaluationScale {
+  id       String   @id @default(cuid())
+  code     String   @unique
+  name     String
+  ranking  Int      @default(1)
+  active   Boolean  @default(true)
+  sortOrder Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Grup SLA seleksi (padanan SLA Group oranHR: "Interview" 30 hari).
+model SlaGroup {
+  id       String   @id @default(cuid())
+  code     String   @unique
+  name     String
+  days     Int      @default(30)
+  active   Boolean  @default(true)
+  sortOrder Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Tahap seleksi standar (padanan Standard Selection Process oranHR §2.6):
+// katalog per-tenant — urutan (processOrder), SLA (slaDays), tipe hasil
+// (Quantitative/Qualitative), nilai minimal lulus, berlaku utk kandidat
+// internal/eksternal, perlu acknowledgement. Seed default F0: Interview HR
+// → Psikotes (manual) → Interview User → Offering Salary → Medical Check Up.
+model SelectionProcess {
+  id                  String   @id @default(cuid())
+  code                String   @unique
+  name                String
+  description         String?
+  mandatory           Boolean  @default(true)
+  resultType          String   @default("Qualitative") // Quantitative | Qualitative
+  appliesInternal     Boolean  @default(true)
+  appliesExternal     Boolean  @default(true)
+  minResultPass       Float?
+  processOrder        Int      @default(1)
+  slaDays             Int?
+  needAcknowledgement Boolean  @default(false)
+  active              Boolean  @default(true)
+  sortOrder           Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}

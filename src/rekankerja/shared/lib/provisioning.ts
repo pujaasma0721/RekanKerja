@@ -412,6 +412,152 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
   }
 
   await ensureAttendanceReference(db);
+
+  // F0-REC — master Rekrutmen + katalog tahap seleksi default (tenant baru).
+  // Tenant existing di-heal scripts/migrate-recruitment-f0.ts via parity-runner
+  // (seed identik — insert-only per code; lihat DEVELOPMENT-PLAN-RECRUITMENT.md §7 F0).
+  await ensureRecruitmentReference(db);
+}
+
+// ============ RECRUITMENT REFERENCE (F0 — DEVELOPMENT-PLAN-RECRUITMENT.md) ============
+
+/** Master rekrutmen + rantai tahap seleksi standar (idempoten per code). */
+export async function ensureRecruitmentReference(db: TenantDb): Promise<void> {
+  // Metode rekrutmen (padanan RecruitmentMethodDesc oranHR §2.8)
+  const methods: { code: string; name: string; scope: string; sortOrder: number }[] = [
+    { code: "IJP", name: "Internal Job Posting", scope: "Internal", sortOrder: 1 },
+    { code: "MATCHING", name: "Matching Recommendation", scope: "Internal", sortOrder: 2 },
+    { code: "ADVERT", name: "Advertensi", scope: "External", sortOrder: 3 },
+    { code: "AGENCY", name: "Employment Agency", scope: "External", sortOrder: 4 },
+    { code: "CAMPUS", name: "Rekrutmen Kampus", scope: "External", sortOrder: 5 },
+    { code: "REFERRAL", name: "Referal Karyawan", scope: "Both", sortOrder: 6 },
+    { code: "WEBPORTAL", name: "Portal Web Perusahaan", scope: "External", sortOrder: 7 },
+  ];
+  for (const m of methods) {
+    const before = await db.recruitmentMethod.findUnique({ where: { code: m.code }, select: { id: true } });
+    if (!before) await db.recruitmentMethod.create({ data: m });
+  }
+
+  // Media advertensi (padanan AdMediaType oranHR)
+  const media: { code: string; name: string; sortOrder: number }[] = [
+    { code: "KORAN", name: "Koran", sortOrder: 1 },
+    { code: "PORTAL", name: "Portal Lowongan", sortOrder: 2 },
+    { code: "LINKEDIN", name: "LinkedIn", sortOrder: 3 },
+    { code: "MEDSOS", name: "Media Sosial", sortOrder: 4 },
+    { code: "LAINNYA", name: "Lainnya", sortOrder: 5 },
+  ];
+  for (const m of media) {
+    const before = await db.adMediaType.findUnique({ where: { code: m.code }, select: { id: true } });
+    if (!before) await db.adMediaType.create({ data: m });
+  }
+
+  // Pos biaya rekrutmen (padanan RecruitmentCostItem oranHR)
+  const costItems: { code: string; name: string; description: string; sortOrder: number }[] = [
+    { code: "IKLAN", name: "Biaya Iklan", description: "Advertensi lowongan (media/portal)", sortOrder: 1 },
+    { code: "FEE_AGENCY", name: "Fee Agency", description: "Fee konsultansi/penempatan vendor", sortOrder: 2 },
+    { code: "PSIKOTES", name: "Psikotes", description: "Tes psikologi kandidat (vendor/manual)", sortOrder: 3 },
+    { code: "MEDICAL", name: "Medical Check-Up", description: "Pemeriksaan kesehatan pra-kerja", sortOrder: 4 },
+    { code: "BONUS_REFERRAL", name: "Bonus Referal", description: "Insentif karyawan perujuk", sortOrder: 5 },
+    { code: "GENERAL", name: "General (non-budget)", description: "Biaya umum di luar anggaran rekrutmen", sortOrder: 6 },
+  ];
+  for (const m of costItems) {
+    const before = await db.recruitmentCostItem.findUnique({ where: { code: m.code }, select: { id: true } });
+    if (!before) await db.recruitmentCostItem.create({ data: m });
+  }
+
+  // Skill (padanan Skill oranHR: "Bahasa Inggris (menulis)", "Others")
+  const skills: { code: string; name: string; sortOrder: number }[] = [
+    { code: "INGGRIS_LISAN", name: "Bahasa Inggris (lisan)", sortOrder: 1 },
+    { code: "INGGRIS_TULIS", name: "Bahasa Inggris (menulis)", sortOrder: 2 },
+    { code: "KOMPUTER", name: "Operasional Komputer", sortOrder: 3 },
+    { code: "OTHERS", name: "Others", sortOrder: 4 },
+  ];
+  for (const m of skills) {
+    const before = await db.skill.findUnique({ where: { code: m.code }, select: { id: true } });
+    if (!before) await db.skill.create({ data: m });
+  }
+
+  // Dokumen wajib pelamar (padanan RequirementDocument oranHR: CV & KTP mandatory)
+  const docs: { code: string; title: string; fileType: string; mandatory: boolean; sortOrder: number }[] = [
+    { code: "CV", title: "Curriculum Vitae (CV)", fileType: "pdf,doc,docx", mandatory: true, sortOrder: 1 },
+    { code: "KTP", title: "Kartu Tanda Penduduk (KTP)", fileType: "jpg,jpeg,png,pdf", mandatory: true, sortOrder: 2 },
+    { code: "IJAZAH", title: "Ijazah Terakhir", fileType: "jpg,pdf", mandatory: false, sortOrder: 3 },
+    { code: "TRANSKRIP", title: "Transkrip Nilai", fileType: "pdf", mandatory: false, sortOrder: 4 },
+    { code: "NPWP", title: "Kartu NPWP", fileType: "jpg,pdf", mandatory: false, sortOrder: 5 },
+    { code: "SKCK", title: "Surat Keterangan Catatan Kepolisian", fileType: "pdf", mandatory: false, sortOrder: 6 },
+    { code: "FOTO", title: "Pas Foto Terbaru", fileType: "jpg,png", mandatory: false, sortOrder: 7 },
+    { code: "SURAT_LAMARAN", title: "Surat Lamaran", fileType: "pdf,doc", mandatory: false, sortOrder: 8 },
+    { code: "PAKLARING", title: "Surat Keterangan Bekerja (Paklaring)", fileType: "pdf", mandatory: false, sortOrder: 9 },
+  ];
+  for (const m of docs) {
+    const before = await db.requiredDocument.findUnique({ where: { code: m.code }, select: { id: true } });
+    if (!before) await db.requiredDocument.create({ data: m });
+  }
+
+  // Kategori + skala penilaian (padanan ApplicantEvalCategory/EvaluationScale)
+  const evalCategories: { code: string; name: string; description: string; sortOrder: number }[] = [
+    { code: "TEKNIS", name: "Kemampuan Teknis", description: "Kompetensi teknis sesuai posisi", sortOrder: 1 },
+    { code: "KOMUNIKASI", name: "Komunikasi", description: "Kemampuan komunikasi & presentasi", sortOrder: 2 },
+    { code: "KERJASAMA", name: "Kerja Sama Tim", description: "Kolaborasi dalam tim", sortOrder: 3 },
+    { code: "ANALITIS", name: "Berpikir Analitis", description: "Penalaran & pemecahan masalah", sortOrder: 4 },
+    { code: "KEPEMIMPINAN", name: "Kepemimpinan", description: "Inisiatif & memimpin (untuk posisi supervisory)", sortOrder: 5 },
+  ];
+  for (const m of evalCategories) {
+    const before = await db.evaluationCategory.findUnique({ where: { code: m.code }, select: { id: true } });
+    if (!before) await db.evaluationCategory.create({ data: m });
+  }
+  const evalScales: { code: string; name: string; ranking: number; sortOrder: number }[] = [
+    { code: "SK1", name: "Rendah", ranking: 1, sortOrder: 1 },
+    { code: "SK2", name: "Di Bawah Rata-rata", ranking: 2, sortOrder: 2 },
+    { code: "SK3", name: "Cukup", ranking: 3, sortOrder: 3 },
+    { code: "SK4", name: "Baik", ranking: 4, sortOrder: 4 },
+    { code: "SK5", name: "Sangat Baik", ranking: 5, sortOrder: 5 },
+  ];
+  for (const m of evalScales) {
+    const before = await db.evaluationScale.findUnique({ where: { code: m.code }, select: { id: true } });
+    if (!before) await db.evaluationScale.create({ data: m });
+  }
+
+  // SLA group (padanan SLA Group oranHR: "Interview" 30 hari)
+  const slas: { code: string; name: string; days: number; sortOrder: number }[] = [
+    { code: "ADMIN", name: "Administrasi", days: 7, sortOrder: 1 },
+    { code: "PSIKOTES", name: "Psikotes", days: 14, sortOrder: 2 },
+    { code: "OFFERING", name: "Offering", days: 14, sortOrder: 3 },
+    { code: "MEDICAL", name: "Medical", days: 14, sortOrder: 4 },
+    { code: "INTERVIEW", name: "Interview", days: 30, sortOrder: 5 },
+  ];
+  for (const m of slas) {
+    const before = await db.slaGroup.findUnique({ where: { code: m.code }, select: { id: true } });
+    if (!before) await db.slaGroup.create({ data: m });
+  }
+
+  // Katalog tahap seleksi standar (padanan Standard Selection Process oranHR
+  // §2.6) — rantai default F0: Interview HR → Psikotes → Interview User →
+  // Offering → Medical. Per-tenant, dapat diedit (config-over-code P6).
+  const selections: {
+    code: string; name: string; description: string; resultType: string;
+    processOrder: number; slaDays: number; needAcknowledgement: boolean;
+  }[] = [
+    { code: "INTERVIEW_HR", name: "Interview HR", description: "Wawancara awal oleh HR (penyaringan umum, kesesuaian ekspektasi)", resultType: "Qualitative", processOrder: 1, slaDays: 30, needAcknowledgement: true },
+    { code: "PSIKOTES", name: "Psikotes", description: "Tes psikologi (catat hasil manual / unggah laporan — engine online = backlog)", resultType: "Quantitative", processOrder: 2, slaDays: 14, needAcknowledgement: true },
+    { code: "INTERVIEW_USER", name: "Interview User", description: "Wawancara oleh user/atasan langsung bidangnya", resultType: "Qualitative", processOrder: 3, slaDays: 30, needAcknowledgement: true },
+    { code: "OFFERING", name: "Offering Salary", description: "Penawaran gaji & benefit (lanjut ke manajemen offer F4)", resultType: "Qualitative", processOrder: 4, slaDays: 14, needAcknowledgement: false },
+    { code: "MEDICAL", name: "Medical Check Up", description: "Pemeriksaan kesehatan pra-kerja (MCU)", resultType: "Qualitative", processOrder: 5, slaDays: 14, needAcknowledgement: false },
+  ];
+  for (const s of selections) {
+    const before = await db.selectionProcess.findUnique({ where: { code: s.code }, select: { id: true } });
+    if (!before) {
+      await db.selectionProcess.create({
+        data: {
+          code: s.code, name: s.name, description: s.description,
+          resultType: s.resultType, processOrder: s.processOrder,
+          slaDays: s.slaDays, needAcknowledgement: s.needAcknowledgement,
+          mandatory: true, appliesInternal: true, appliesExternal: true,
+          sortOrder: s.processOrder,
+        },
+      });
+    }
+  }
 }
 
 // ============ TIME ATTENDANCE REFERENCE (ref: ANALISA-ATTENDANCE.md) ============
