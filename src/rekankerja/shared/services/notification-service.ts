@@ -107,7 +107,7 @@ async function resolveDocId(db: TenantDb, docType: string, docNo: string): Promi
         return (await db.travelClaim.findUnique({ where: { docNo }, select: { id: true } }))?.id ?? null;
       // F1-REC — PR rekrutmen (prNo unik per schema tenant)
       case "RecruitmentPR":
-        return (await db.personnelRequisition.findUnique({ where: { prNo }, select: { id: true } }))?.id ?? null;
+        return (await db.personnelRequisition.findUnique({ where: { prNo: docNo }, select: { id: true } }))?.id ?? null;
       default:
         return null;
     }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny, type MenuActionRef } from "@/rekankerja/shared/services/menu-access";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { parseAdvSearchReq } from "@/rekankerja/shared/services/adv-search-server";
 import { tenantSlugOfSession } from "@/rekankerja/shared/api/attachments";
@@ -127,7 +127,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const b = await req.json().catch(() => ({}));
     const action = String(b.action ?? "update");
-    const op: string =
+    const op: MenuActionRef =
       action === "blacklist" || action === "unblacklist" ? "op:blacklist" :
       action === "suspend" || action === "unsuspend" ? "op:blacklist" :
       action === "apply" ? "op:apply" :

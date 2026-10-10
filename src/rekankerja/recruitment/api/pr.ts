@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny, type MenuActionRef } from "@/rekankerja/shared/services/menu-access";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { parseAdvSearchReq } from "@/rekankerja/shared/services/adv-search-server";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
@@ -101,8 +101,8 @@ export async function POST(req: NextRequest) {
       await fireSubmittedSideEffects(db, {
         prId: res.id, prNo: res.prNo, requesterId: input.requestedById,
         requesterName: m.actor.name, positionTitle: String(b.positionTitle ?? "-"),
-        requiredNo: input.requiredNo, employmentStatus: input.employmentStatus, reason: input.reason ?? "",
-      }, res.approvalLevels, res.firstApprover);
+        requiredNo: input.requiredNo ?? 1, employmentStatus: input.employmentStatus, reason: input.reason ?? "",
+      }, res.approvalLevels ?? 0, res.firstApprover ?? null);
     }
     return NextResponse.json(res, { status: submit ? 201 : 201 });
   } catch (e) {
@@ -118,7 +118,7 @@ export async function PATCH(req: NextRequest) {
 
     // guard berdasarkan aksi (body dibaca SEBELUM guard — pola leave requests.ts)
     const menuKey = action === "approve" || action === "reject" ? "recruitment:pr-approval" : "recruitment:pr";
-    const op: string =
+    const op: MenuActionRef =
       action === "apply" ? "op:apply" :
       action === "cancel" ? "op:cancel" :
       action === "hold" ? "op:hold" :
@@ -165,7 +165,7 @@ export async function PATCH(req: NextRequest) {
         requesterName: detail?.requesterName ?? m.actor.name, positionTitle: detail?.positionTitle ?? "-",
         requiredNo: detail?.requiredNo ?? 1, employmentStatus: detail?.employmentStatus ?? "Permanent",
         reason: detail?.reason ?? "",
-      }, res.approvalLevels, res.firstApprover);
+      }, res.approvalLevels ?? 0, res.firstApprover ?? null);
       return NextResponse.json({ prNo: res.prNo, status: "Submitted", approvalLevels: res.approvalLevels, firstApprover: res.firstApprover });
     }
 

@@ -1411,6 +1411,7 @@ export async function runAllJobs(
     attendanceClockoutReminded: 0,
     attendanceOtAging: 0,
     attendanceTransferReminders: 0,
+    applicantOutdatedRows: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;

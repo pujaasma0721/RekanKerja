@@ -11,7 +11,7 @@ import { MASTER_DEFS } from "./recruitment-types";
 import type { MasterType } from "@/rekankerja/recruitment/services/recruitment-master-service";
 import {
   UserRoundSearch, Boxes, ListChecks, CheckCircle2, Circle, ArrowRight, Megaphone, BadgeCheck,
-  Handshake, Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList,
+  Handshake, Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList, UsersRound, Inbox, Layers3,
 } from "lucide-react";
 
 const TYPE_ICON: Record<string, React.ElementType> = {
@@ -44,7 +44,7 @@ export function RecruitmentOverview() {
   const phases: { key: string; label: string; labelEn: string; done: boolean }[] = [
     { key: "F0", label: "Fondasi Modul & Master", labelEn: "Module & Master Foundation", done: true },
     { key: "F1", label: "Permintaan Karyawan (PR) + Approval", labelEn: "Personnel Requisition + Approval", done: true },
-    { key: "F2", label: "Lowongan & Pelamar (talent pool)", labelEn: "Openings & Applicants (talent pool)", done: false },
+    { key: "F2", label: "Lowongan & Pelamar (talent pool)", labelEn: "Openings & Applicants (talent pool)", done: true },
     { key: "F3", label: "Kandidat & Proses Seleksi", labelEn: "Candidates & Selection Process", done: false },
     { key: "F4", label: "Offer & Appointment + Onboarding", labelEn: "Offer & Appointment + Onboarding", done: false },
     { key: "F5", label: "ESS, Rencana & Anggaran", labelEn: "ESS, Plan & Budget", done: false },
@@ -52,14 +52,23 @@ export function RecruitmentOverview() {
   const prApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/pr?limit=1");
   const ps = prApi.data?.stats;
 
+  // F2: statistik lowongan / talent pool / staging — 403 (tanpa menu terkait)
+  // dirender "—" tanpa error console (useApi menangkap error sebagai string).
+  const joApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/openings?limit=1");
+  const joSt = joApi.data?.stats;
+  const apApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/applicants?limit=1");
+  const apSt = apApi.data?.stats;
+  const paApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/public-applications?limit=1");
+  const paSt = paApi.data?.stats;
+
   return (
     <div>
       <PageHeader
         eyebrow={t("Recruitment · Ringkasan")}
         title={t("Rekrutmen", "Recruitment")}
         description={t(
-          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F1 (permintaan karyawan + approval).",
-          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F1 (personnel requisition + approval).",
+          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F2 (lowongan, talent pool & lamaran publik).",
+          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F2 (openings, talent pool & public applications).",
         )}
       />
 
@@ -180,6 +189,46 @@ export function RecruitmentOverview() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* ringkasan F2 — lowongan, talent pool & staging */}
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Megaphone className="h-4 w-4 ov-text-accent" aria-hidden />
+              {t("Lowongan & Talent Pool (F2)", "Openings & Talent Pool (F2)")}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {t(
+                "Iklan lowongan per PR disetujui, talent pool pelamar, dan lamaran publik yang menunggu verifikasi. Kelola di menu Lowongan, Talent Pool, dan Lamaran Publik.",
+                "Job ads per approved PR, the applicant talent pool, and public applications awaiting verification. Manage in the Openings, Talent Pool, and Public Applications menus.",
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {([
+                { icon: Megaphone, label: t("JO Terposting", "Posted JOs"), value: joApi.data ? (joSt?.posted ?? 0) : null },
+                { icon: Layers3, label: t("Slot Terbuka", "Open Slots"), value: joApi.data ? (joSt?.openSlots ?? 0) : null },
+                { icon: UsersRound, label: t("Pelamar Aktif", "Active Applicants"), value: apApi.data ? (apSt?.active ?? 0) : null },
+                { icon: Inbox, label: t("Staging Menunggu", "Pending Staging"), value: paApi.data ? (paSt?.pending ?? 0) : null },
+              ] as { icon: React.ElementType; label: string; value: number | null }[]).map((s, i) => {
+                const Icon = s.icon;
+                return (
+                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
+                    title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
+                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
+                      <p className="text-lg font-semibold tabular-nums">{s.value ?? "—"}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
 

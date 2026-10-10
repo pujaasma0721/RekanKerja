@@ -23,7 +23,7 @@ import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import type { AdvSearch, AdvOp } from "@/rekankerja/shared/lib/adv-search";
 import { advPrismaWhere, type AdvServerField } from "@/rekankerja/shared/services/adv-search-server";
 import {
-  saveAttachment, deleteAttachmentByRow, listAttachmentsByEntity, type AttachmentRow,
+  saveAttachment, deleteAttachmentsByEntity, listAttachmentsByEntity,
 } from "@/rekankerja/shared/services/attachment-service";
 
 // ============ konstanta domain ============
@@ -200,7 +200,7 @@ export function fullNameOf(a: { firstName: string; middleName?: string | null; l
 
 /** Hitung kolom turunan dari input education/experience. */
 function deriveHighest(eds: EduInput[]): { level: string | null; gpa: number | null } {
-  let best: { level: string; gpa: number | null; rank: number } | null = null;
+  let best: { level: string | null; gpa: number | null; rank: number } | null = null;
   for (const e of eds) {
     const rank = EDU_RANK[e.level] ?? 0;
     if (!best || rank > best.rank || (rank === best.rank && (e.gpa ?? 0) > (best.gpa ?? 0))) {
@@ -605,7 +605,7 @@ export async function blacklistApplicant(
 ): Promise<void> {
   const reason = note?.trim();
   if (!reason) throw new Error("Alasan blacklist wajib diisi");
-  const a = await db.applicant.findUnique({ where: { id }, select: { applicantNo: true, blacklist: true, fullName: true } });
+  const a = await db.applicant.findUnique({ where: { id }, select: { applicantNo: true, blacklist: true } });
   if (!a) throw new Error("Pelamar tidak ditemukan");
   if (a.blacklist) throw new Error(`Pelamar ${a.applicantNo} sudah di-blacklist`);
   await db.applicant.update({
@@ -700,12 +700,13 @@ export async function applyToOpening(
 
 /** Hapus pelamar + dokumen terkait (file fisik ikut dibersihkan). */
 export async function deleteApplicant(db: TenantDb, id: string, tenantSlug: string, actorName?: string | null): Promise<{ applicantNo: string }> {
+  void tenantSlug;
   const a = await db.applicant.findUnique({ where: { id }, select: { applicantNo: true, firstName: true, middleName: true, lastName: true, displayName: true } });
   if (!a) throw new Error("Pelamar tidak ditemukan");
   const docs = await db.applicantDocument.findMany({ where: { applicantId: id }, select: { id: true } });
   for (const d of docs) {
-    const atts: AttachmentRow[] = await listAttachmentsByEntity(db, "ApplicantDocument", d.id);
-    for (const att of atts) await deleteAttachmentByRow(db, tenantSlug, att).catch(() => {});
+    // file fisik + baris Attachment (helper tepat — meta tanpa storagePath tidak cukup)
+    await deleteAttachmentsByEntity(db, "ApplicantDocument", d.id).catch(() => {});
   }
   await db.applicant.delete({ where: { id } }); // cascade children
   await db.activityLog.create({
@@ -740,10 +741,10 @@ export async function addApplicantDocument(
 }
 
 export async function deleteApplicantDocument(db: TenantDb, tenantSlug: string, docId: string): Promise<void> {
+  void tenantSlug;
   const d = await db.applicantDocument.findUnique({ where: { id: docId }, include: { applicant: { select: { applicantNo: true } } } });
   if (!d) throw new Error("Dokumen tidak ditemukan");
-  const atts = await listAttachmentsByEntity(db, "ApplicantDocument", docId);
-  for (const att of atts) await deleteAttachmentByRow(db, tenantSlug, att).catch(() => {});
+  await deleteAttachmentsByEntity(db, "ApplicantDocument", docId).catch(() => {});
   await db.applicantDocument.delete({ where: { id: docId } });
   await db.activityLog.create({
     data: { action: "Deleted", entity: "ApplicantDocument", entityId: d.applicant.applicantNo, detail: `Dokumen "${d.title}" dihapus dari pelamar ${d.applicant.applicantNo}` },
@@ -792,7 +793,9 @@ export function decryptPayload(tc: ReturnType<typeof tenantCryptoForDb>, json: s
     email: tc.decryptText(p.email ?? null),
     phone: tc.decryptText(p.phone ?? null),
     city: tc.decryptText(p.city ?? null),
-    expectedSalary: p.expectedSalary ? tc.decryptMoney(p.expectedSalary) : null,
+    // expectedSalary tersimpan sbg string cipher (enc:v1:n:…) — input number
+    // hanya sebelum enkripsi; setelah JSON roundtrip tipenya string.
+    expectedSalary: p.expectedSalary != null ? tc.decryptMoney(String(p.expectedSalary)) : null,
   };
 }
 

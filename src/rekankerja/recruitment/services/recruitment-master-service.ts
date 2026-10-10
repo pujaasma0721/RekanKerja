@@ -23,20 +23,20 @@ export function isMasterType(v: unknown): v is MasterType {
 export interface MasterRow {
   id: string;
   code: string;
-  name?: string;          // semua kecuali RequiredDocument (title)
-  title?: string;         // RequiredDocument
-  scope?: string;         // method: Internal|External|Both
-  description?: string;
-  address?: string;       // agency
-  contact?: string;       // agency
-  note?: string;          // agency
-  fileType?: string;      // required-document
-  mandatory?: boolean;    // required-document
-  ranking?: number;       // eval-scale
-  days?: number;          // sla-group
-  resultType?: string;    // selection-process: Quantitative|Qualitative
-  processOrder?: number;  // selection-process
-  slaDays?: number | null;// selection-process
+  name?: string | null;    // semua kecuali RequiredDocument (title)
+  title?: string | null;   // RequiredDocument
+  scope?: string | null;    // method: Internal|External|Both
+  description?: string | null;
+  address?: string | null;  // agency
+  contact?: string | null;  // agency
+  note?: string | null;    // agency
+  fileType?: string | null;// required-document
+  mandatory?: boolean;     // required-document
+  ranking?: number;        // eval-scale
+  days?: number;           // sla-group
+  resultType?: string | null; // selection-process: Quantitative|Qualitative
+  processOrder?: number;   // selection-process
+  slaDays?: number | null; // selection-process
   needAcknowledgement?: boolean; // selection-process
   appliesInternal?: boolean;    // selection-process
   appliesExternal?: boolean;    // selection-process

@@ -117,6 +117,20 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   ],
   "recruitment:pr-approval": [{ key: "approve", label: "Menyetujui / menolak PR", hint: "Aksi Setujui & Tolak pada kotak persetujuan permintaan karyawan" }],
 
+  // Recruitment F2 — lowongan (JO) & talent pool & staging lamaran publik
+  "recruitment:openings": [
+    { key: "post", label: "Mempublikasikan lowongan", hint: "Menerbitkan draft lowongan (JO) ke portal karir" },
+    { key: "close", label: "Menutup lowongan", hint: "Menutup lowongan beserta slot yang masih terbuka" },
+    { key: "obsolete", label: "Menandai lowongan usang", hint: "Mengarsipkan lowongan yang tidak relevan (obsolete)" },
+  ],
+  "recruitment:applicants": [
+    { key: "blacklist", label: "Blacklist / suspend pelamar", hint: "Blacklist (alasan wajib), suspend, atau melepas status pelamar" },
+    { key: "apply", label: "Melamar ke slot", hint: "Mendaftarkan pelamar talent pool ke slot lowongan terbuka" },
+  ],
+  "recruitment:public-staging": [
+    { key: "verify", label: "Memverifikasi lamaran publik", hint: "Verifikasi (upload ke talent pool), tolak, atau tandai spam" },
+  ],
+
   // Travel
   "travel:travel-request": [{ key: "cancel", label: "Membatalkan permintaan travel", hint: "Membatalkan permintaan perjalanan dinas" }],
   "travel:travel-approval": [{ key: "approve", label: "Menyetujui / menolak travel", hint: "Aksi Setujui & Tolak pada persetujuan travel" }],

@@ -154,6 +154,8 @@ export interface SlotInput {
 
 export interface MethodInput {
   id?: string;
+  /** JO target saat create (update memakai id — jobOpportunityId diabaikan). */
+  jobOpportunityId?: string;
   methodId: string;
   adMediaTypeId?: string | null;
   agencyId?: string | null;
@@ -197,7 +199,7 @@ export async function nextJoNo(db: TenantDb): Promise<string> {
   return `${start}${String(max + 1).padStart(4, "0")}`;
 }
 
-function slotRow(s: Prisma.JobOpeningGetPayload<{ include: typeof JO_INCLUDE.openings }>): OpeningSlotRow {
+function slotRow(s: Prisma.JobOpeningGetPayload<typeof JO_INCLUDE.openings>): OpeningSlotRow {
   return {
     id: s.id,
     prId: s.prId,
@@ -225,7 +227,7 @@ function slotRow(s: Prisma.JobOpeningGetPayload<{ include: typeof JO_INCLUDE.ope
 }
 
 function methodRow(
-  m: Prisma.JobOpeningMethodGetPayload<{ include: typeof JO_INCLUDE.methods }>,
+  m: Prisma.JobOpeningMethodGetPayload<typeof JO_INCLUDE.methods>,
   moneyVisible: boolean,
   tc: ReturnType<typeof tenantCryptoForDb>,
 ): MethodRow {
@@ -482,7 +484,8 @@ export async function updateSlot(
 ): Promise<void> {
   const s = await db.jobOpening.findUnique({ where: { id: slotId }, include: { jobOpportunity: { select: { refNo: true } } } });
   if (!s) throw new Error("Slot tidak ditemukan");
-  const data: Prisma.JobOpeningUpdateInput = {};
+  // UncheckedUpdateInput — kolom FK (workLocationId) dipakai langsung, bukan relasi.
+  const data: Prisma.JobOpeningUncheckedUpdateInput = {};
   if (input.titleToShow != null) data.titleToShow = input.titleToShow.trim() || s.titleToShow;
   if (input.workLocationId !== undefined) data.workLocationId = input.workLocationId || null;
   if (input.salaryMin !== undefined) data.salaryMin = input.salaryMin ?? null;

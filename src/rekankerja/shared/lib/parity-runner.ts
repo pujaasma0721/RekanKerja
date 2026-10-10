@@ -288,6 +288,11 @@ const STEPS: Step[] = [
   // (PR rekrutmen: state machine + approval RecruitmentPR) + struktur default
   // AS-PR-STD + demo PR MII (Draft/Submitted/Approved via engine).
   { key: "recruitment-f1", label: "F1 Rekrutmen — tabel PersonnelRequisition + struktur AS-PR-STD + demo PR", run: (s) => import("../../../../scripts/migrate-recruitment-f1").then((m) => m.main(s)) },
+  // F2-REC (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F2) — 11 tabel lowongan +
+  // pelamar (JobOpportunity/JobOpening/JobOpeningMethod/Applicant×5/
+  // PublicApplication/ApplicantConsent) + demo dwibahasa MII (JO Posted via
+  // auto-post, talent pool, staging publik).
+  { key: "recruitment-f2", label: "F2 Rekrutmen — 11 tabel lowongan + pelamar + demo", run: (s) => import("../../../../scripts/migrate-recruitment-f2").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -534,7 +539,16 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (recPrOk < schemas.length)
       reasons.push(`${schemas.length - recPrOk} tenant tanpa tabel PersonnelRequisition (F1 — modul Recruitment)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk) };
+    // F2-REC — tabel JobOpening (slot lowongan rekrutmen) belum ada = gap
+    // (tenant existing dibuat sebelum F2 → step recruitment-f2 membuat 11
+    // tabel lowongan+pelamar + demo).
+    const recJoOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'JobOpening' AND table_schema = ANY($1::text[])`,
+    );
+    if (recJoOk < schemas.length)
+      reasons.push(`${schemas.length - recJoOk} tenant tanpa tabel JobOpening (F2 — modul Recruitment)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk) };
   } finally {
     await c.end();
   }

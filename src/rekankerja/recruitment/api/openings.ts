@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny, type MenuActionRef } from "@/rekankerja/shared/services/menu-access";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { parseAdvSearchReq } from "@/rekankerja/shared/services/adv-search-server";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
@@ -101,7 +101,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const b = await req.json().catch(() => ({}));
     const action = String(b.action ?? "update");
-    const op: string =
+    const op: MenuActionRef =
       action === "post" ? "op:post" :
       action === "close" ? "op:close" :
       action === "obsolete" ? "op:obsolete" :

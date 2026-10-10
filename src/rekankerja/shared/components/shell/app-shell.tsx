@@ -40,6 +40,7 @@ import {
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
   MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -277,13 +278,17 @@ const WHISTLEBLOW_NAV: NavGroup[] = [
 
 // F0-REC — modul Rekrutmen (DEVELOPMENT-PLAN-RECRUITMENT.md §7.1): navigasi
 // tumbuh per fase. F0: Ringkasan + Master Rekrutmen (10 master + katalog
-// tahap seleksi). F1: pr (permintaan karyawan) + pr-approval. F2+: openings,
-// applicants, candidates, selection, appointments, reports.
+// tahap seleksi). F1: pr (permintaan karyawan) + pr-approval. F2: openings
+// (lowongan JO), applicants (talent pool), public-staging (lamaran publik).
+// F3+: candidates, selection, appointments, reports.
 const RECRUITMENT_NAV: NavGroup[] = [
   { section: "recruitment", children: [
     { id: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { id: "pr", label: "Permintaan Karyawan", icon: ClipboardList },
     { id: "pr-approval", label: "Approval PR", icon: ClipboardCheck },
+    { id: "openings", label: "Lowongan", icon: Megaphone },
+    { id: "applicants", label: "Talent Pool", icon: UsersRound },
+    { id: "public-staging", label: "Lamaran Publik", icon: Inbox },
   ] },
   { section: "recruitment", label: "Pengaturan Rekrutmen", children: [
     { id: "masters", label: "Master Rekrutmen", icon: Boxes },
