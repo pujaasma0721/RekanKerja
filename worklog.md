@@ -5350,3 +5350,25 @@ Stage Summary:
 - 10/10 file target ter-wire, tidak ada yang di-skip: HR (employee-documents, assets inventaris, disciplinary, offboarding, position, announcements, actions AllDocuments, letter-templates Dokumen Terbit) + SETTINGS (user-security UsersPanel, user-access).
 - Deviasi kecil (terdokumentasi): (1) assets — field holder memakai fullName pemegang (tabel juga menampilkan employeeNo; 1 field cukup per spec "holder (text)") & value diberi getter null→undefined agar nilai kosong tak dianggap 0; (2) disciplinary — kartu statistik level + "Total Catatan" ikut hasil adv (records menjadi sumber tunggal); (3) offboarding — ditambah field orgUnit (kolom "Posisi & Unit" menampilkan keduanya) + taskTotal/taskDone (spec: taskStats.total/done via getter); (4) position — ditambah holder (kolom "Pemegang"); stats mini & sort ikut hasil adv; (5) announcements — ditambah body/publishedAt/expiresAt (konten & kolom tanggal tabel); (6) actions — ditambah position & createdAt (kolom tabel di bawah nama/dokumen); (7) letter-templates — ditambah category sel (badge kategori) & esign dibuat SELECT signed/unsigned (spec: "text or select"); (8) user-security — active memakai label Aktif/Nonaktif (bukan "Dibatalkan" pill lama yang meminjam map Cancelled); (9) user-access — employee dipecah 2 field employeeNo+employeeName sesuai spec "(nested employeeNo/fullName)".
 - Tidak mengubah satu pun logika filter/search/sort yang sudah ada — adv murni filter TAMBAHAN di atasnya; server q/status/kategori/type/tab/sort tak tersentuh; useTableSort (user-security/position/actions/offboarding-progress) & seleksi baris tetap kompos dengan hasil adv.
+
+---
+Task ID: adv-search-main
+Agent: main (Z.ai Code)
+Task: Advance Search — tombol kecil popup pencarian multi-field + pola karakter unik "@" di semua view list (permintaan user; lanjutan setelah pull GitHub).
+
+Work Log:
+- git pull --rebase (hanya commit worklog e976530 di remote — bersih).
+- Survei menyeluruh (Explore agent): 11 list server-q, 26 client-filter, 18+ tanpa search; useApi refetch saat URL berubah; t() dwibahasa.
+- Infra lib adv-search.ts: AdvSearch (match all/any, maks 12 kondisi), parseAtPattern ("@x" akhiran / "x@" awalan / "@x@" mengandung / plain mengandung; @ tengah literal — email aman), matcher client (text/number/date-hari/select), sanitizeAdv + encodeAdvParam/decodeAdvParam, helper txt/num/dt/sel.
+- Infra UI adv-search.tsx: AdvSearchButton (badge jumlah kondisi aktif + tooltip, TooltipProvider mandiri) + AdvSearchDialog (operator per tipe: pattern/contains/starts/ends/eq/ne/empty/notEmpty + gt/gte/lt/lte/between utk angka & tanggal; between 2 input; hint pola @ di bawah input; panel bantuan dgn contoh; Reset/Batal/Terapkan; Enter = apply; dwibahasa penuh).
+- Infra server adv-search-server.ts: parseAdvSearchReq + advPrismaWhere — fragment Prisma nested (path bertitik + kuantifier "assignments[]"), text mode insensitive, angka rentang, tanggal hari [start,end), whitelist per endpoint.
+- Server-side wiring (paginasi & agregasi ikut terfilter): employees.ts (12 field, penempatan via assignments[].position/orgUnit/grade aktif; gaji terenkripsi dikecualikan — tidak bisa dibandingkan di DB), activity-logs (9 field; where dipakai juga jalur export CSV), esign-admin chain (6 field).
+- Client wiring: employee-directory (URL adv + reset filter), activity-log-view + esign-view (adv param + export), lalu DELEGASI 5 subagent paralel: adv-a (Leave×5 + Travel×4), adv-b (Medical×4 + WB triage + ESS×6), adv-c (Payroll×7 file: profiles/wage/runs/benefits 2 tab/run-detail/non-employee 3 tab/transactions 2 tab), adv-d (Attendance×9), adv-e (HR×8 + Settings×2). Semua agent: tsc 0 error + lint 0 error + worklog appended.
+- Integrasi: tsc bersih; 1 warning infra (unused eslint-disable) dihapus; dev server restart (reaper) 2×.
+- E2E browser (admin MII): direktori dialog lengkap (AND/OR toggle, hint @); '@a' → 11 hasil SEMUA berakhiran a; 'sri@' → hanya Sri Wahyuni; '@ma@' AND employmentStatus=Permanent → 11 hasil mengandung ma & Permanent; any(grade∋3 ∨ no.MII0001@) → 11 benar; request adv ter-encode benar; Leave (client) '@ni' → tabel hanya Tri Handayani (berakhiran ni); spot-check tombol: attendance clocking, payroll profiles, settings users, medical claims+approval+balances ✓. Commit 6c85db1 + push.
+
+Stage Summary:
+- 50+ view list kini punya tombol "Advance Search" (popup multi-field + pola @); 3 endpoint berat (employees/activity-logs/esign chain) dijalankan SERVER-side, sisanya client-side di atas filter lama (perilaku lama 100% utuh).
+- Semantik @: "@x"=berakhiran, "x@"=berawalan, "@x@"=mengandung, plain=mengandung; @ tengah literal (email aman). Kombinasi: Semua kondisi (DAN) / Salah satu (ATAU), operator per tipe field, between dua input.
+- Infra file baru: shared/lib/adv-search.ts, shared/components/adv-search.tsx, shared/services/adv-search-server.ts (murni — tanpa migrasi DB).
+- Pola wiring utk view baru: definisikan ADV_FIELDS (txt/num/dt/sel) + filterRowsByAdv + <AdvSearchButton/> — lihat employee-directory.tsx / leave-requests.tsx sbg contoh.
