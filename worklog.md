@@ -5480,3 +5480,26 @@ Stage Summary:
 - Metode kombinasi: tulang punggung alur bisnis oranHR (Plan→PR→Approval→JO→Pelamar→Kandidat→Seleksi→Appointment→Employee) + lapisan diferensiasi HRX (AI-native explainable, candidate-first, fairness by design, compliance UU PDP) — semua diadaptasi ke arsitektur nyata RekanKerja (Next.js 16 monolith, schema-per-tenant, ai-provider, letter engine, approval parametrik, wizard onboarding).
 - Fase final: F0 fondasi (M) → F1 PR+approval (L) → F2 lowongan+pelamar+form publik (L) → F3 seleksi+scorecard+kanban (L) → F4 offer+appointment+onboarding (M-L) → F5 ESS+plan+budget (M-L) | gelombang 2: F6 AI (XL) → F7 otomasi+e-sign+webhook (L-XL) → F8 analytics (M-L) → F9 compliance UU PDP (M).
 - Menunggu "GO" user untuk mulai F0 (dan konfirmasi/override register keputusan D1-D8).
+
+---
+Task ID: F0-REC
+Agent: main (Z.ai Code)
+Task: User "GO" — eksekusi FASE F0 (Fondasi Modul & Master) modul Rekrutmen per DEVELOPMENT-PLAN-RECRUITMENT.md §7.
+
+Work Log:
+- Recon pola existing: app-shell MODULES/NAV/navOfModule, store.ts SectionId/ModuleId, menu-access guard (requireMenuAction/ViewAny menu-key "module:view"), route→handler pattern (src/app/api/rekankerja/... re-export dari src/rekankerja/{modul}/api), i18n inline t(id,en), master CRUD pattern (medical-benefit-type + work-locations), parity-runner STEPS + checkParityGap, provisioning seedTenantReference, tenant-db client cache ber-versi (WAJIB bump saat model baru).
+- Prisma: +10 model master di schema-tenant.prisma (RecruitmentMethod/AdMediaType/EmploymentAgency/RecruitmentCostItem/Skill/RequiredDocument/EvaluationCategory/EvaluationScale/SlaGroup/SelectionProcess — cuid, code @unique, active+sortOrder, tanpa relasi lintas domain). db:generate + tenant:ddl regenerate (143 tabel).
+- tenant-db.ts: bump cache key T52A → F0REC (instance DMMF baru wajib).
+- scripts/migrate-recruitment-f0.ts: CREATE TABLE IF NOT EXISTS ×10 + index + seed 47 master (7 metode, 5 media, 1 agency demo, 6 pos biaya, 4 skill, 9 dokumen wajib [CV+KTP mandatory], 5 kategori, 5 skala 1-5, 5 SLA group) + rantai SelectionProcess default (Interview HR→Psikotes→Interview User→Offering→Medical; SLA 30/14/30/14/14; ack interview) — idempoten per code; CLI + parity-runner import.
+- parity-runner.ts: +step "recruitment-f0" + deteksi gap (tabel SelectionProcess) → boot auto-heal tenant lama; provisioning.ts: +ensureRecruitmentReference (tenant baru dapat seed sama via Prisma).
+- Service/API/UI: recruitment-master-service.ts (whitelist 10 tipe, validasi per tipe, upsert/delete/count, ActivityLog entity label); api/masters.ts GET/POST/DELETE guard menu recruitment:masters + recruitment:overview; route /api/rekankerja/recruitment/masters. UI: recruitment-module.tsx (router view) + recruitment-overview.tsx (rantai tahap + peta fase F0-F5 + kartu jumlah master) + recruitment-masters.tsx (10 tab CRUD, form generik per tipe, duplikat code ditolak, konfirmasi hapus) + recruitment-types.ts.
+- Shell wiring: store.ts +recruitment (ModuleId/SectionId/VALID/LABEL/moduleOfSection/defaultSectionOfModule/defaultView overview); app-shell.tsx +MODULES entry (UserRoundSearch, hex #ea580c) + RECRUITMENT_NAV (Overview; Pengaturan Rekrutmen→Master Rekrutmen) + navOfModule + defaultSectionOfModuleFor; page.tsx dynamic import + render; ai-chat-service VIEW_LABELS +masters.
+- BUG FIX saat E2E: Prisma runtime menolak orderBy objek 3-kunci ("Expected X[], provided Object") → semua listMasters diubah ke bentuk array (konvensi proyek, lihat tax-parameters.ts).
+- Migrasi dijalankan: 3 tenant × (10 tabel + 47 master + 5 tahap) sukses. Dev server restart — [demo-seed] parity OK.
+- E2E browser (sesi hrd@mii.co.id @ MII): login → switcher tampil 8 modul → Recruitment (?m=recruitment) → overview EN: counts 7/5/1/6/4/9/5/5/5/5 + rantai 5 tahap + peta fase; Masters: tab Selection Process tabel lengkap (#1-5, Qualitative/Quantitative, SLA, needs ack); CRUD skill: create E2E_TEST → edit (v2) → delete (0 baris tersisa); duplikat code INGGRIS_LISAN → 400 "sudah dipakai"; bahasa ID: "Ringkasan/PENGATURAN REKRUTMEN/Master Rekrutmen" + deskripsi ID; ActivityLog MII: Created/Updated/Deleted Skill tercatat; isolasi tenant: Cahaya vs MII masing-masing 7 method/4 skill; switch workspace bolak-balik OK. 0 error console, 0 error runtime di dev.log, lint 0 error (6 warning pre-existing — diverifikasi via git stash baseline).
+- Commit e9122a0 (rebase di atas ae4e237 CSP fix remote) + push. Screenshot: .tmp-research/f0-overview-{en,id}.png.
+
+Stage Summary:
+- F0 SELESAI & terverifikasi E2E: modul Recruitment aktif di switcher (aksen oranye), 10 master CRUD lengkap + guard menu recruitment:masters + ActivityLog, katalog tahap seleksi default per-tenant (config-over-code), seed otomatis untuk tenant baru (provisioning) maupun lama (parity/migrasi idempoten), dwibahasa penuh, isolasi multi-tenant teruji.
+- Fondasi siap untuk F1: menu-key & NAV tinggal tumbuh (pr/pr-approval dst), skema & guard pattern sudah teruji.
+- Menunggu "GO" user untuk lanjut F1 (Permintaan Karyawan + Approval — effort L).
