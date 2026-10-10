@@ -36,6 +36,30 @@ export const runtime = "nodejs";
 
 const VENDOR_JASPER = path.join(process.cwd(), "vendor", "jasper");
 
+// Resolve binary Java: JAVA_BIN env overrides → kandidat umum (termasuk JRE
+// self-hosted ~/opt/jdk-*-jre di .15) → "java" dari PATH PM2 sebagai fallback.
+import { existsSync, readdirSync } from "node:fs";
+import os from "node:os";
+function resolveJavaBin(): string {
+  const envBin = process.env.JAVA_BIN;
+  if (envBin) return envBin;
+  const home = os.homedir();
+  const optDir = path.join(home, "opt");
+  const candidates = [
+    "/usr/bin/java",
+    "/usr/local/bin/java",
+    ...existsSync(optDir)
+      ? readdirSync(optDir)
+          .filter((d) => /jdk-/.test(d))
+          .sort()
+          .reverse()
+          .map((d) => path.join(optDir, d, "bin", "java"))
+      : [],
+  ];
+  for (const c of candidates) if (existsSync(c)) return c;
+  return "java";
+}
+
 function javaError(status: number, stderr: string): NextResponse {
   const tail = stderr.split("\n").filter(Boolean).slice(-6).join(" · ");
   return NextResponse.json(
@@ -101,7 +125,7 @@ export async function GET(req: NextRequest) {
     try {
       const pdf = await new Promise<Buffer>((resolve, reject) => {
         const child = spawn(
-          "java",
+          resolveJavaBin(),
           [
             "-Djava.awt.headless=true",
             "-Duser.language=id", "-Duser.country=ID", // DecimalFormat: pemisah ribuan "."
