@@ -37,6 +37,8 @@ import {
   fetchTravelClaimForm, submitTravelClaim,
 } from "./ess-api";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import type {
   EssClaimsData, EssRecord,
   EssMedicalClaimType,
@@ -49,6 +51,43 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 
 /** Sentinel "klaim mandiri" — Radix Select tidak mengizinkan value string kosong. */
 const MANDIRI = "__mandiri__";
+
+/** Task adv-search — field Advance Search klaim medis saya (client-side).
+ *  Riwayat dibaca defensif pickStr/pickNum (nama field backend bisa varian)
+ *  — aksesor mengikuti cara tabel merender baris. */
+const MED_ADV_FIELDS: AdvFieldDef<EssRecord>[] = [
+  txt("docNo", "No. Dokumen", "Document No.", (c) => pickStr(c, ["docNo", "no", "documentNo", "doc"])),
+  txt("typeName", "Jenis", "Type", (c) => pickStr(c, ["typeName", "type", "benefitType", "jenis"])),
+  num("bill", "Tagihan", "Billed", (c) => pickNum(c, ["bill", "claimAmount", "amount", "billed", "tagihan", "total"])),
+  num("approved", "Disetujui", "Approved", (c) => pickNum(c, ["approvedAmount", "approved", "disetujui", "settled"])),
+  sel("status", "Status", "Status", [
+    ["Draft", "Draft", "Draft"],
+    ["Submitted", "Menunggu", "Pending"],
+    ["Returned", "Dikembalikan", "Returned"],
+    ["Approved", "Disetujui", "Approved"],
+    ["Rejected", "Ditolak", "Rejected"],
+    ["Cancelled", "Dibatalkan", "Cancelled"],
+    ["Settled", "Disetujui & Dibayar", "Approved & Paid"],
+  ], (c) => pickStr(c, ["status"])),
+  dt("submittedAt", "Tanggal", "Date", (c) => pickStr(c, ["submittedAt", "date", "createdAt", "dateLabel", "tanggal", "requestDate"])),
+];
+
+/** Task adv-search — field Advance Search klaim travel saya (client-side;
+ *  status TravelClaim: Submitted|Approved|Rejected|Cancelled|Transferred|Paid). */
+const TRV_ADV_FIELDS: AdvFieldDef<EssRecord>[] = [
+  txt("docNo", "No. Dokumen", "Document No.", (c) => pickStr(c, ["docNo", "no", "documentNo", "doc"])),
+  txt("destination", "Tujuan", "Destination", (c) => pickStr(c, ["purpose", "destination", "tujuan", "destinationCity", "city", "destinationLabel"])),
+  sel("status", "Status", "Status", [
+    ["Submitted", "Diajukan", "Submitted"],
+    ["Approved", "Disetujui", "Approved"],
+    ["Rejected", "Ditolak", "Rejected"],
+    ["Cancelled", "Dibatalkan", "Cancelled"],
+    ["Transferred", "Ditransfer", "Transferred"],
+    ["Paid", "Dibayar", "Paid"],
+  ], (c) => pickStr(c, ["status"])),
+  num("advance", "Uang Muka", "Advance", (c) => pickNum(c, ["advance", "advanceAmount", "uangMuka"])),
+  num("settlement", "Settlement", "Settlement", (c) => pickNum(c, ["settlement", "settlementAmount", "claimAmount", "settled"])),
+];
 
 function ErrorRetry({ message, onRetry }: { message: string | null; onRetry: () => void }) {
   const { t } = useI18n();
@@ -832,9 +871,18 @@ export function EssClaims() {
   const api = useApi<EssClaimsData>(`${ESS_BASE}/claims`);
   const [medDialog, setMedDialog] = useState(false);
   const [trDialog, setTrDialog] = useState(false);
+  // Task adv-search — kondisi advance search per tab (medis / travel).
+  const [medAdv, setMedAdv] = useState<AdvSearch | null>(null);
+  const [trvAdv, setTrvAdv] = useState<AdvSearch | null>(null);
 
-  const medical: EssRecord[] = api.data?.medical ?? [];
-  const travel: EssRecord[] = api.data?.travel ?? [];
+  const medical = useMemo(
+    () => filterRowsByAdv(api.data?.medical ?? [], medAdv, MED_ADV_FIELDS),
+    [api.data, medAdv],
+  );
+  const travel = useMemo(
+    () => filterRowsByAdv(api.data?.travel ?? [], trvAdv, TRV_ADV_FIELDS),
+    [api.data, trvAdv],
+  );
 
   return (
     <div className="space-y-4">
@@ -865,9 +913,12 @@ export function EssClaims() {
                   <HeartPulse className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
                   {t("Klaim Medis Saya", "My Medical Claims")}
                 </CardTitle>
-                <Button onClick={() => setMedDialog(true)} className="shrink-0 gap-1.5 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
-                  <Plus className="h-4 w-4" /> {t("Ajukan Klaim Medis", "Submit Medical Claim")}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <AdvSearchButton fields={MED_ADV_FIELDS} value={medAdv} onChange={setMedAdv} />
+                  <Button onClick={() => setMedDialog(true)} className="shrink-0 gap-1.5 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
+                    <Plus className="h-4 w-4" /> {t("Ajukan Klaim Medis", "Submit Medical Claim")}
+                  </Button>
+                </div>
               </div>
               <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                 {t("Reimbursement medis Anda — plafon per jenis diaudit server.", "Your medical reimbursements — per-type limits are audited server-side.")}
@@ -936,9 +987,12 @@ export function EssClaims() {
                   <Plane className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
                   {t("Klaim Perjalanan Dinas Saya", "My Travel Claims")}
                 </CardTitle>
-                <Button onClick={() => setTrDialog(true)} className="shrink-0 gap-1.5 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
-                  <Plus className="h-4 w-4" /> {t("Ajukan Klaim Travel", "Submit Travel Claim")}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <AdvSearchButton fields={TRV_ADV_FIELDS} value={trvAdv} onChange={setTrvAdv} />
+                  <Button onClick={() => setTrDialog(true)} className="shrink-0 gap-1.5 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
+                    <Plus className="h-4 w-4" /> {t("Ajukan Klaim Travel", "Submit Travel Claim")}
+                  </Button>
+                </div>
               </div>
               <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                 {t("Settlement biaya perjalanan dinas vs uang muka.", "Business travel expense settlement vs advance.")}

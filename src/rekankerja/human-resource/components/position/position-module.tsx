@@ -24,6 +24,8 @@ import {
   ChevronDown, ChevronUp, Layers, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { PositionLevelView } from "./level-view";
 
 export function PositionModule({ view }: { view: string }) {
@@ -51,6 +53,19 @@ interface UnitOpt { id: string; name: string; level: number }
 interface JobOpt { id: string; code: string; title: string; category: string | null; active: boolean; positionCount: number; description: string | null }
 interface GradeOpt { id: string; code: string; name: string; minSalary: number; maxSalary: number; employeeCount: number; positionCount: number; active: boolean }
 
+/** Task adv-e — field Advance Search daftar posisi (client-side di atas query server q/unit/grade). */
+const ADV_FIELDS: AdvFieldDef<Position>[] = [
+  txt("code", "Kode", "Code"),
+  txt("title", "Posisi", "Position"),
+  txt("job", "Job", "Job", (p) => p.job?.title),
+  txt("orgUnit", "Unit Organisasi", "Org Unit", (p) => p.orgUnit?.name),
+  txt("grade", "Grade", "Grade", (p) => p.grade?.code),
+  num("headcount", "Headcount", "Headcount"),
+  num("filled", "Terisi", "Filled"),
+  txt("holder", "Pemegang", "Holder", (p) => p.employees[0]?.fullName),
+  sel("active", "Status", "Status", [["true", "Aktif", "Active"], ["false", "Non-aktif", "Inactive"]], (p) => String(p.active)),
+];
+
 // ================= POSITION LIST =================
 function PositionList() {
   const { navigate } = useNav();
@@ -58,6 +73,8 @@ function PositionList() {
   const [q, setQ] = useState("");
   const [unit, setUnit] = useState("all");
   const [grade, setGrade] = useState("all");
+  // Task adv-e — Advance Search (filter tambahan client-side di atas hasil fetch)
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [selected, setSelected] = useState<Position | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Position | null>(null);
@@ -76,17 +93,20 @@ function PositionList() {
   const units = useApi<{ units: UnitOpt[] }>("/api/rekankerja/org-units");
   const grades = useApi<{ grades: GradeOpt[] }>("/api/rekankerja/grades");
 
+  // Task adv-e — adv di terapkan ke hasil fetch; stats & sort ikut hasil adv.
+  const positions = useMemo(() => filterRowsByAdv(data?.positions ?? [], adv, ADV_FIELDS), [data, adv]);
+
   const stats = useMemo(() => {
-    const ps = data?.positions ?? [];
+    const ps = positions;
     return {
       total: ps.length,
       filled: ps.reduce((a, p) => a + p.filled, 0),
       open: ps.reduce((a, p) => a + Math.max(p.headcount - p.filled, 0), 0),
       inactive: ps.filter((p) => !p.active).length,
     };
-  }, [data]);
+  }, [positions]);
 
-  const sort = useTableSort(data?.positions, {
+  const sort = useTableSort(positions, {
     title: (p) => p.title,
     code: (p) => p.code,
     job: (p) => p.job?.title ?? null,
@@ -139,6 +159,7 @@ function PositionList() {
               {(grades.data?.grades ?? []).map((g) => <SelectItem key={g.id} value={g.id}>Grade {g.code}</SelectItem>)}
             </SelectContent>
           </Select>
+          <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
         </CardContent>
       </Card>
 
@@ -147,7 +168,7 @@ function PositionList() {
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={8} /></div>
-          ) : data && data.positions.length > 0 ? (
+          ) : positions.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

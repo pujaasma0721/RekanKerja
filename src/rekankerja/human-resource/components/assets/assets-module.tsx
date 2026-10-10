@@ -33,6 +33,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 const CATEGORIES = ["Elektronik", "Kendaraan", "Seragam", "Alat Kerja", "Furniture", "Lainnya"] as const;
 // Task 103-f — pasangan EN kategori aset (nilai ID tetap dikirim/disimpan ke server).
@@ -95,6 +97,22 @@ const ASSET_STATUS: Record<string, { label: string; en: string; cls: string; dot
     dot: "bg-rose-500",
   },
 };
+
+/** Task adv-e — opsi select Advance Search (label reuse peta file). */
+const ADV_CATEGORIES: [string, string, string][] = CATEGORIES.map((c) => [c, c, CATEGORY_EN[c] ?? c]);
+const ADV_STATUSES: [string, string, string][] = STATUSES.map((s) => [s, ASSET_STATUS[s].label, ASSET_STATUS[s].en]);
+
+/** Task adv-e — field Advance Search inventaris aset (client-side di atas query server q/kategori/status). */
+const ADV_FIELDS: AdvFieldDef<AssetRow>[] = [
+  txt("code", "Kode", "Code"),
+  txt("name", "Nama", "Name"),
+  txt("serialNumber", "Nomor Seri", "Serial Number"),
+  sel("category", "Kategori", "Category", ADV_CATEGORIES),
+  txt("location", "Lokasi", "Location"),
+  sel("status", "Status", "Status", ADV_STATUSES),
+  num("value", "Nilai", "Value", (a) => a.value ?? undefined),
+  txt("holder", "Pemegang Aktif", "Current Holder", (a) => a.holder?.employee.fullName),
+];
 function AssetStatusPill({ status }: { status: string }) {
   const { t } = useI18n();
   const s = ASSET_STATUS[status] ?? {
@@ -185,6 +203,8 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
   const [assignTarget, setAssignTarget] = useState<AssetRow | null>(null);
   const [deleting, setDeleting] = useState<AssetRow | null>(null);
   const [busyDelete, setBusyDelete] = useState(false);
+  // Task adv-e — Advance Search (filter tambahan client-side di atas hasil fetch)
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
   const url = useMemo(() => {
     const p = new URLSearchParams();
@@ -195,7 +215,7 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
   }, [q, category, status]);
 
   const { data, loading, refresh } = useApi<AssetsData>(url);
-  const assets = data?.assets ?? [];
+  const assets = useMemo(() => filterRowsByAdv(data?.assets ?? [], adv, ADV_FIELDS), [data, adv]);
   const stats = data?.stats ?? { total: 0, assigned: 0, available: 0, totalValue: 0 };
 
   const canCreate = perms.can("hr", "assets", "create");
@@ -261,6 +281,7 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
               ))}
             </SelectContent>
           </Select>
+          <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
           {canCreate && (
             <Button onClick={() => setAssetDialog({ open: true, editing: null })} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> {t("Aset Baru", "New Asset")}

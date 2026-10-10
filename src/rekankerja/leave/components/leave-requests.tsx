@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { RequestRowUI, LeaveTypeRow, EmployeeOption, LEAVE_STATUS_LABEL, SESSION_LABEL, SESSION_LABEL_EN, fmtDay } from "./leave-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { Inbox, Plus, Search, CalendarClock, Send, Ban, CheckCircle2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
@@ -36,6 +38,22 @@ const STATUS_FILTERS_EN: Record<string, string> = {
   all: "All", Submitted: "Pending", Approved: "Approved", MassLeave: "Mass Leave", Rejected: "Rejected", Cancelled: "Cancelled",
 };
 
+/** Task adv-search — field Advance Search Permintaan Cuti (client-side, filter
+ *  TAMBAHAN di atas query & status filter yang sudah ada). */
+const ADV_FIELDS: AdvFieldDef<RequestRowUI>[] = [
+  txt("docNo", "Dokumen", "Document"),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  txt("leaveTypeName", "Jenis", "Type"),
+  dt("dateFrom", "Tanggal Mulai", "Start Date"),
+  dt("dateTo", "Tanggal Selesai", "End Date"),
+  num("workingDays", "Hari Kerja", "Working Days"),
+  num("remainingAtRequest", "Sisa Saldo", "Remaining Balance"),
+  sel("status", "Status", "Status", STATUS_FILTERS.filter((f) => f.key !== "all").map((f): [string, string, string] => [f.key, f.label, STATUS_FILTERS_EN[f.key] ?? f.key])),
+  txt("reason", "Alasan", "Reason"),
+];
+
 interface PreviewResult {
   workingDays: number; balance: number; remaining: number;
   backToWork: string | null; maxPerRequest: number; unit: string;
@@ -49,6 +67,8 @@ export function LeaveRequestsPage() {
   const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
@@ -77,9 +97,9 @@ export function LeaveRequestsPage() {
   );
   const typesApi = useApi<{ types: LeaveTypeRow[]; employees: EmployeeOption[] }>("/api/rekankerja/leave/types");
 
-  const requests = useMemo(() => (api.data?.requests ?? []).filter((r) =>
+  const requests = useMemo(() => filterRowsByAdv((api.data?.requests ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase())
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
 
   // preview auto-compute saat form berubah (debounce)
   useEffect(() => {
@@ -208,9 +228,12 @@ export function LeaveRequestsPage() {
                 </button>
               ))}
             </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. dokumen…", "Search employee / doc no. …")} className="h-8 w-56 pl-8 text-xs" />
+            <div className="flex items-center gap-2">
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. dokumen…", "Search employee / doc no. …")} className="h-8 w-56 pl-8 text-xs" />
+              </div>
             </div>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : requests.length === 0 ? (

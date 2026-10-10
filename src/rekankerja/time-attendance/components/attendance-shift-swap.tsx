@@ -22,6 +22,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { ArrowLeftRight, CheckCircle2, XCircle, Search, Eye, Clock3, CalendarRange, ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +70,23 @@ const STATUS_FILTERS_EN: Record<string, string> = {
   Pending: "Pending", Approved: "Approved", Rejected: "Rejected", Cancelled: "Cancelled", all: "All",
 };
 
+/** Task adv-search — field Advance Search permintaan tukar shift (client-side,
+ *  filter TAMBAHAN di atas query/tanggal/chips status — pemohon & target
+ *  diambil lewat getter bersarang). */
+const ADV_FIELDS: AdvFieldDef<SwapRow>[] = [
+  txt("code", "Kode", "Code"),
+  dt("swapDate", "Tanggal Tukar", "Swap Date"),
+  dt("createdAt", "Dibuat", "Created"),
+  txt("requesterName", "Pemohon", "Requester", (r) => r.requester.fullName),
+  txt("requesterNo", "No. Pemohon", "Requester No.", (r) => r.requester.employeeNo),
+  txt("targetName", "Ditukar Dengan", "Swapped With", (r) => r.target.fullName),
+  txt("targetNo", "No. Ditukar", "Swapped With No.", (r) => r.target.employeeNo),
+  txt("requesterScheduleName", "Jadwal Pemohon", "Requester Schedule"),
+  txt("targetScheduleName", "Jadwal Target", "Target Schedule"),
+  txt("reason", "Alasan", "Reason"),
+  sel("status", "Status", "Status", (["Pending", "Approved", "Rejected", "Cancelled"] as const).map((k): [string, string, string] => [k, STATUS_FILTERS.find((f) => f.key === k)?.label ?? k, STATUS_FILTERS_EN[k] ?? k])),
+];
+
 const SCROLL_CLS = "max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700";
 
 function PersonCell({ p, t, size = "sm" }: { p: SwapPerson; t: (a: string, b: string, v?: Record<string, string | number>) => string; size?: "sm" | "md" }) {
@@ -92,6 +111,8 @@ export function AttendanceShiftSwapPage() {
   const [statusFilter, setStatusFilter] = useState("Pending");
   const [query, setQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query/tanggal).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [approveTarget, setApproveTarget] = useState<SwapRow | null>(null);
   const [approveBusy, setApproveBusy] = useState(false);
@@ -102,7 +123,7 @@ export function AttendanceShiftSwapPage() {
 
   const api = useApi<SwapData>(`/api/rekankerja/attendance/shift-swap?status=${statusFilter}`);
 
-  const rows = useMemo(() => (api.data?.requests ?? []).filter((r) => {
+  const rows = useMemo(() => filterRowsByAdv((api.data?.requests ?? []).filter((r) => {
     const q = query.toLowerCase();
     const matchQ = !q
       || r.code.toLowerCase().includes(q)
@@ -113,7 +134,7 @@ export function AttendanceShiftSwapPage() {
       || (r.reason ?? "").toLowerCase().includes(q);
     const matchD = !dateFilter || r.swapDate === dateFilter;
     return matchQ && matchD;
-  }), [api.data, query, dateFilter]);
+  }), adv, ADV_FIELDS), [api.data, query, dateFilter, adv]);
 
   const canApprove = perms.canOp("attendance", "shift-swap", "approve");
   const stats = api.data?.stats;
@@ -197,6 +218,7 @@ export function AttendanceShiftSwapPage() {
               ))}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
               <Input
                 type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
                 aria-label={t("Filter tanggal tukar", "Filter swap date")}

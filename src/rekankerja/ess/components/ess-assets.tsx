@@ -5,6 +5,7 @@
 // kode, nama, kategori, tanggal penugasan, jatuh tempo + badge Terlambat,
 // catatan) + riwayat pengembalian (kondisi Baik/Rusak/Hilang).
 // Read-only — penugasan & pengembalian dikelola HR (modul Aset Karyawan).
+import { useMemo, useState } from "react";
 import { Package, PackageCheck, History, CalendarClock, CircleAlert, PackageOpen, AlertTriangle, Loader2 } from "lucide-react";
 import { useApi } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -14,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 interface EssAssetAssignment {
   id: string;
@@ -51,6 +54,27 @@ const ASSET_CATEGORY_EN: Record<string, string> = {
   Lainnya: "Other",
 };
 
+/** Task adv-search — field Advance Search aset saya (client-side). Satu
+ *  kondisi dipakai utk dua daftar (aktif & riwayat — bentuk baris sama);
+ *  field aset bersarang → aksesor getter. */
+const ASSET_ADV_FIELDS: AdvFieldDef<EssAssetAssignment>[] = [
+  txt("code", "Kode Aset", "Asset Code", (r) => r.asset.code),
+  txt("name", "Nama Aset", "Asset Name", (r) => r.asset.name),
+  sel("category", "Kategori", "Category", Object.keys(ASSET_CATEGORY_EN).map(
+    (c) => [c, c, ASSET_CATEGORY_EN[c]] as [string, string, string],
+  )),
+  txt("serialNumber", "Nomor Seri", "Serial No.", (r) => r.asset.serialNumber),
+  num("value", "Nilai Aset", "Asset Value", (r) => r.asset.value),
+  dt("assignedAt", "Ditugaskan", "Assigned"),
+  dt("dueAt", "Jatuh Tempo", "Due"),
+  dt("returnedAt", "Dikembalikan", "Returned"),
+  sel("returnCondition", "Kondisi Pengembalian", "Return Condition", [
+    ["Good", "Baik", "Good"],
+    ["Damaged", "Rusak", "Damaged"],
+    ["Lost", "Hilang", "Lost"],
+  ]),
+];
+
 // pil kondisi pengembalian utk riwayat (dot warna ikut kondisi — selaras titik timeline)
 function ConditionPill({ cond }: { cond: string | null }) {
   const { t } = useI18n();
@@ -87,8 +111,16 @@ function ErrorRetry({ title, message, onRetry }: { title: string; message: strin
 export function EssAssets() {
   const { t } = useI18n();
   const api = useApi<EssAssetsData>("/api/rekankerja/ess/assets");
-  const active = api.data?.active ?? [];
-  const history = api.data?.history ?? [];
+  // Task adv-search — kondisi advance search (dipakai daftar aktif & riwayat).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
+  const active = useMemo(
+    () => filterRowsByAdv(api.data?.active ?? [], adv, ASSET_ADV_FIELDS),
+    [api.data, adv],
+  );
+  const history = useMemo(
+    () => filterRowsByAdv(api.data?.history ?? [], adv, ASSET_ADV_FIELDS),
+    [api.data, adv],
+  );
 
   return (
     <div className="space-y-4">
@@ -99,6 +131,7 @@ export function EssAssets() {
           "Aset perusahaan yang sedang Anda pegang — laptop, seragam, alat kerja — beserta riwayat pengembalian.",
           "Company assets you currently hold — laptops, uniforms, work equipment — plus your return history.",
         )}
+        actions={<AdvSearchButton fields={ASSET_ADV_FIELDS} value={adv} onChange={setAdv} />}
       />
 
       {/* ===== sedang dipinjam ===== */}

@@ -3,7 +3,7 @@
 // membuka detail kartu slip: pendapatan & potongan terpisah, gross, total
 // potongan, dan NET besar di bawah + status run. Intent "line:{id}" dari
 // dashboard membuka detail langsung.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, ReceiptText, Loader2, AlertTriangle, TrendingUp, TrendingDown, Wallet, Info, FileDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, fmtIDR, fmtDate } from "@/rekankerja/shared/lib/api";
@@ -14,11 +14,26 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ESS_BASE } from "./ess-api";
 import type { EssPayslipDetail, EssPayslipItem, EssPayslipLine } from "./ess-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 interface EssPayslipsProps { intent: string | null }
 
 const isDeductionKind = (kind: string) => /deduc|potong/i.test(kind);
 const isInfoKind = (kind: string) => /info/i.test(kind);
+
+/** Task adv-search — field Advance Search slip gaji saya (client-side;
+ *  status = status run payroll: Confirmed | Paid). */
+const SLIP_ADV_FIELDS: AdvFieldDef<EssPayslipLine>[] = [
+  txt("periodName", "Periode", "Period"),
+  sel("status", "Status", "Status", [
+    ["Confirmed", "Dikonfirmasi", "Confirmed"],
+    ["Paid", "Dibayar", "Paid"],
+  ]),
+  num("gross", "Gross", "Gross"),
+  num("net", "Net", "Net"),
+  dt("paidAt", "Dibayar Pada", "Paid On"),
+];
 
 function SlipRow({ label, amount, tone }: { label: string; amount: number; tone: "earn" | "deduct" | "info" }) {
   return (
@@ -63,9 +78,15 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
   const { t } = useI18n();
   // intent "line:{lineId}" (dari dashboard) → buka detail langsung
   const [lineId, setLineId] = useState<string | null>(() => (intent && intent.startsWith("line:") ? intent.slice(5) : null));
+  // Task adv-search — kondisi advance search utk daftar slip (personal ESS).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
   const list = useApi<{ slips: EssPayslipLine[] }>(`${ESS_BASE}/payslips`);
   const detail = useApi<EssPayslipDetail>(lineId ? `${ESS_BASE}/payslips/detail?lineId=${encodeURIComponent(lineId)}` : null, [lineId]);
+
+  // Task adv-search — daftar slip + filter advance (dihitung SEBELUM cabang
+  // detail supaya hook dipanggil konsisten di tiap render).
+  const slips = useMemo(() => filterRowsByAdv(list.data?.slips ?? [], adv, SLIP_ADV_FIELDS), [list.data, adv]);
 
   // ===== DETAIL =====
   if (lineId) {
@@ -159,13 +180,13 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
   }
 
   // ===== DAFTAR =====
-  const slips = list.data?.slips ?? [];
   return (
     <div className="space-y-4">
       <PageHeader
         eyebrow={t("Employee Self Service", "Employee Self Service")}
         title={t("Slip Gaji", "Payslips")}
         description={t("Riwayat slip gaji periode Anda — klik untuk melihat rincian.", "Your payslip history by period — click for the breakdown.")}
+        actions={<AdvSearchButton fields={SLIP_ADV_FIELDS} value={adv} onChange={setAdv} />}
       />
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">

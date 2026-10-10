@@ -19,9 +19,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ESS_BASE, submitWorkoff, submitOvertime, essDocTypeLabel, essDocTypeLabelEn } from "./ess-api";
-import type { EssDashboard } from "./ess-types";
+import type { EssDashboard, EssRecentRequest } from "./ess-types";
 // Task 98 (F1-4) — pengajuan dinis self-service (kartu + dialog + daftar).
 import { EssTravelRequest } from "./ess-travel-request";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -37,6 +39,22 @@ function reqStatusLabel(status: string, t: (id: string, en: string) => string): 
   const m = REQ_STATUS_LABEL[status];
   return m ? t(m.id, m.en) : status;
 }
+
+/** Task adv-search — field Advance Search riwayat pengajuan (client-side).
+ *  Payload hanya memuat dateLabel terformat (tidak ada ISO — cek ess/api/
+ *  dashboard.ts) → tanggal dimaknai text; jenis dibatasi WorkOff/Overtime
+ *  karena feed ini sudah di-filter utk kedua jenis tsb. */
+const REQ_ADV_FIELDS: AdvFieldDef<EssRecentRequest>[] = [
+  sel("docType", "Jenis Pengajuan", "Request Type", [
+    ["WorkOff", "Izin Tidak Masuk", "Work Off"],
+    ["Overtime", "Lembur", "Overtime"],
+  ]),
+  txt("docNo", "No. Dokumen", "Document No."),
+  sel("status", "Status", "Status", Object.keys(REQ_STATUS_LABEL).map(
+    (s) => [s, REQ_STATUS_LABEL[s].id, REQ_STATUS_LABEL[s].en] as [string, string, string],
+  )),
+  txt("dateLabel", "Tanggal", "Date"),
+];
 
 interface EssRequestsProps { intent: string | null }
 
@@ -117,6 +135,15 @@ export function EssRequests({ intent }: EssRequestsProps) {
   const recents = dash.data?.recentRequests ?? [];
   const latestWorkoff = recents.find((r) => /work.?off|izin/i.test(r.docType)) ?? null;
   const latestOvertime = recents.find((r) => /overtime|lembur/i.test(r.docType)) ?? null;
+
+  // Task adv-search — kondisi advance search (filter tambahan di atas filter jenis).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
+  // Riwayat tampil = filter jenis bawaan (untuh) + adv.
+  const historyRows = filterRowsByAdv(
+    recents.filter((r) => /work.?off|overtime|lembur|izin/i.test(r.docType)),
+    adv,
+    REQ_ADV_FIELDS,
+  );
 
   // dialog — intent dari aksi cepat dashboard
   const [workoffOpen, setWorkoffOpen] = useState(() => intent === "workoff");
@@ -218,8 +245,9 @@ export function EssRequests({ intent }: EssRequestsProps) {
       {/* riwayat ringkas gabungan */}
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-bold">
+          <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-bold">
             <ClipboardList className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden /> {t("Riwayat Terbaru", "Recent History")}
+            <AdvSearchButton fields={REQ_ADV_FIELDS} value={adv} onChange={setAdv} className="ml-auto" />
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-1">
@@ -231,7 +259,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
               message={dash.error}
               onRetry={dash.refresh}
             />
-          ) : recents.filter((r) => /work.?off|overtime|lembur|izin/i.test(r.docType)).length === 0 ? (
+          ) : historyRows.length === 0 ? (
             <EmptyState
               title={t("Belum ada riwayat", "No history yet")}
               description={t("Pengajuan izin & lembur Anda akan tampil di sini.", "Your permit & overtime submissions will appear here.")}
@@ -239,7 +267,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
             />
           ) : (
             <ul className="divide-y divide-slate-100 dark:divide-slate-800/70">
-              {recents.filter((r) => /work.?off|overtime|lembur|izin/i.test(r.docType)).map((r) => (
+              {historyRows.map((r) => (
                 <li key={r.docNo + r.docType} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">

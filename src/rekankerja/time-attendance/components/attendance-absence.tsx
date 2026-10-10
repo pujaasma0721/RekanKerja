@@ -22,6 +22,8 @@ import { toast } from "sonner";
 import { RecapRow, PeriodOption, WorkoffRow } from "@/rekankerja/time-attendance/components/attendance-types";
 import { ApiErrorState, fmtDays, isoLocal } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 // Task 103-e (B-13) — label status period payroll (pola travel-claim-approval).
 import { PERIOD_STATUS_LABEL, PERIOD_STATUS_LABEL_EN } from "@/rekankerja/payroll/components/payroll-types";
 import { XCircle, ArrowRightLeft, Search, Wallet, Timer, TrendingDown, CheckCircle2, Download } from "lucide-react";
@@ -30,12 +32,33 @@ import { cn } from "@/lib/utils";
 // B-10: bulan zona lokal (toISOString UTC salah bulan pada tgl 1 pkul 00:00–07:00 WIB).
 const monthIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
+/** Task adv-search — field Advance Search rekap absensi bulanan (client-side,
+ *  filter TAMBAHAN di atas query nama/no. karyawan; "Estimasi Potongan" =
+ *  lateDeduction + absenceDeduction selaras kolom tabel). */
+const ADV_FIELDS: AdvFieldDef<RecapRow>[] = [
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  num("scheduledDays", "Hari Terjadwal", "Scheduled Days"),
+  num("presentDays", "Hari Hadir", "Present Days"),
+  num("lateCount", "Telat (kali)", "Late (count)"),
+  num("lateMinutes", "Telat (menit)", "Late (min)"),
+  num("absentDays", "Absen (hari)", "Absent (days)"),
+  num("workoffUnpaidDays", "Izin Unpaid (hari)", "Unpaid Permits (days)"),
+  num("overtimeMinutes", "Lembur (menit)", "Overtime (min)"),
+  num("overtimePay", "Estimasi Lembur", "Est. Overtime"),
+  num("deductions", "Estimasi Potongan", "Est. Deduction", (r) => r.lateDeduction + r.absenceDeduction),
+  num("attendanceAllowance", "Tunjangan Kehadiran", "Attendance Allowance"),
+];
+
 export function AttendanceAbsencePage() {
   const { navigate } = useNav();
   const { t, lang } = useI18n();
   const now = new Date();
   const [month, setMonth] = useState(monthIso(now));
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [transferDialog, setTransferDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [transfer, setTransfer] = useState({
@@ -49,9 +72,9 @@ export function AttendanceAbsencePage() {
   const api = useApi<{ from: string; to: string; recap: RecapRow[]; totals: Record<string, number>; periods: PeriodOption[]; processTypes: { id: string; code: string; name: string }[] }>(`/api/rekankerja/attendance/absence?from=${from}&to=${to}`);
   const workoffApi = useApi<{ permits: WorkoffRow[]; stats: { pending: number } }>(`/api/rekankerja/attendance/workoffs?status=Pending`);
 
-  const rows = useMemo(() => (api.data?.recap ?? []).filter((r) =>
+  const rows = useMemo(() => filterRowsByAdv((api.data?.recap ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.employeeNo.toLowerCase().includes(query.toLowerCase())
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
 
   const totals = api.data?.totals;
   const periods = api.data?.periods ?? [];
@@ -151,6 +174,7 @@ export function AttendanceAbsencePage() {
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan…", "Search employee…")} className="h-8 w-48 pl-8 text-xs" />
               </div>
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
             </div>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={8} /></div> : api.error ? (

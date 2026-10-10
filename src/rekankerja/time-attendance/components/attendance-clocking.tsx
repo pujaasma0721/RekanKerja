@@ -29,6 +29,8 @@ import { toast } from "sonner";
 import { DailyRow, ClockLogRow, EmployeeOption, ATT_STATUS_LABEL, ATT_STATUS_LABEL_EN } from "@/rekankerja/time-attendance/components/attendance-types";
 import { ApiErrorState, todayISO } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { Activity, Plus, RefreshCw, Search, LogIn, LogOut, Clock, Loader2, Trash2, Pencil, CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,12 +50,36 @@ const fmtTime = (d: string | null, locale: string) => {
 // B-10: zona lokal (pola ess-attendance) — toISOString UTC salah hari 00:00–07:00 WIB.
 const todayIso = () => todayISO();
 
+/** Task adv-search — jam "HH:MM" lokal (selaras fmtTime) utk field teks. */
+const hmLocal = (d: string | null) => (d ? new Date(d).toTimeString().slice(0, 5) : d);
+
+/** Task adv-search — field Advance Search rekap harian (client-side, filter
+ *  TAMBAHAN di atas query/status filter yang sudah ada; label mengikuti header
+ *  tabel, opsi status dari peta ATT_STATUS_LABEL file ini). */
+const ADV_FIELDS: AdvFieldDef<DailyRow>[] = [
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  dt("workDate", "Tanggal", "Date"),
+  txt("dayTypeName", "Tipe Hari", "Day Type"),
+  sel("status", "Status", "Status", (["Present", "Late", "Absent", "WorkOff", "Off", "Holiday", "OnLeave"] as const).map((k): [string, string, string] => [k, ATT_STATUS_LABEL[k] ?? k, ATT_STATUS_LABEL_EN[k] ?? k])),
+  txt("presence", "Kehadiran", "Presence"),
+  txt("checkIn", "Jam Masuk", "Clock In", (r) => hmLocal(r.checkIn)),
+  txt("checkOut", "Jam Pulang", "Clock Out", (r) => hmLocal(r.checkOut)),
+  num("lateMinutes", "Telat (menit)", "Late (min)"),
+  num("earlyMinutes", "Pulang Cepat (menit)", "Early Out (min)"),
+  num("workMinutes", "Jam Kerja (menit)", "Work Hours (min)"),
+  num("overtimeMinutes", "Lembur (menit)", "Overtime (min)"),
+];
+
 export function AttendanceClockingPage() {
   const { t, locale } = useI18n();
   const perms = useMenuPerms();
   const [date, setDate] = useState(todayIso());
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query/status).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [clockDialog, setClockDialog] = useState(false);
   const [busy, setBusy] = useState(false); // G11: dialog Catat Clock sedang mengirim
   const [regenBusy, setRegenBusy] = useState(false); // G11: Refresh Clocking (anti double-click)
@@ -72,10 +98,10 @@ export function AttendanceClockingPage() {
 
   const api = useApi<{ date: string; rows: DailyRow[]; logs: ClockLogRow[]; employees: EmployeeOption[]; stats: { total: number; present: number; late: number; absent: number; workoff: number; off: number; lateMinutes: number; overtimeMinutes: number } }>(`/api/rekankerja/attendance/clocking?date=${date}`);
 
-  const rows = useMemo(() => (api.data?.rows ?? []).filter((r) =>
+  const rows = useMemo(() => filterRowsByAdv((api.data?.rows ?? []).filter((r) =>
     (!query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.employeeNo.toLowerCase().includes(query.toLowerCase())) &&
     (statusFilter === "all" || r.status === statusFilter)
-  ), [api.data, query, statusFilter]);
+  ), adv, ADV_FIELDS), [api.data, query, statusFilter, adv]);
 
   const submitClock = async () => {
     setBusy(true);
@@ -239,6 +265,7 @@ export function AttendanceClockingPage() {
                 </TabsTrigger>
               </TabsList>
               <div className="flex flex-wrap items-center gap-2">
+                <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="h-8 w-32 text-xs font-bold"><SelectValue /></SelectTrigger>
                   <SelectContent>

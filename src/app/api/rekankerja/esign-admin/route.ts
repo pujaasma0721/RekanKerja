@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { GENESIS_HASH } from "@/rekankerja/shared/lib/esign-crypto";
 import { clearSignaturePin } from "@/rekankerja/shared/services/esign-service";
+import { parseAdvSearchReq, advPrismaWhere, type AdvServerField } from "@/rekankerja/shared/services/adv-search-server";
+
+/** Task adv-search — whitelist field Advance Search rantai ttd (?adv=). */
+const CHAIN_ADV_FIELDS: Record<string, AdvServerField> = {
+  docRef: { path: "docRef", type: "text" },
+  docType: { path: "docType", type: "text" },
+  signerName: { path: "signerName", type: "text" },
+  signerRole: { path: "signerRole", type: "text" },
+  signerIp: { path: "signerIp", type: "text" },
+  signedAt: { path: "signedAt", type: "date" },
+};
 
 // ============ PENGATURAN → eSIGN (Task 80d) =================================
 // GET  /api/rekankerja/esign-admin                 — ringkasan + daftar kunci pengguna
@@ -31,6 +42,8 @@ export async function GET(req: NextRequest) {
       const where = {
         ...(docType ? { docType } : {}),
         ...(q ? { OR: [{ docRef: { contains: q } }, { signerName: { contains: q } }] } : {}),
+        // Task adv-search — filter advance (?adv=) berlaku utk count + records
+        ...(advPrismaWhere(parseAdvSearchReq(req), CHAIN_ADV_FIELDS) as Record<string, unknown> ?? {}),
       };
       const [total, records] = await Promise.all([
         db.signatureRecord.count({ where }),

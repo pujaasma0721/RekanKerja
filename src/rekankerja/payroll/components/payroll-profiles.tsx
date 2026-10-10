@@ -5,7 +5,7 @@
 // Task 50: PTKP efektif = SNAPSHOT hasil refresh tahunan — perubahan keluarga
 // tengah tahun (tambah/hapus dependen) TIDAK mengubah payroll; hanya berlaku
 // pada refresh 1 Januari tahun berikutnya (hint "→ {s} pada 1 Jan {yr+1}").
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR } from "@/rekankerja/shared/lib/api";
 import { useTableSort } from "@/rekankerja/shared/lib/use-table-sort";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
@@ -21,6 +21,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { IdCard, Pencil, Search, Wallet, Users, RefreshCw, ArrowRight, Info, History, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { ProfileRow, PtkpSyncResponse, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN, TemplateRow, PayrollHistoryResponse, SalaryHistoryEntry, TemplateHistoryEntry } from "@/rekankerja/payroll/components/payroll-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { currentLocale } from "@/rekankerja/shared/lib/i18n-core";
@@ -35,6 +37,33 @@ import { currentLocale } from "@/rekankerja/shared/lib/i18n-core";
 function safeText(v: string | null | undefined): string {
   return v != null && !v.startsWith("enc:") ? v : "";
 }
+
+/** Task adv-search — opsi select PTKP dari TAX_STATUS_OPTIONS (label dwibahasa). */
+const PTKP_ADV_OPTIONS: [string, string, string][] = TAX_STATUS_OPTIONS.map(
+  (o) => [o.value, o.label, TAX_STATUS_OPTION_EN[o.value] ?? o.value],
+);
+
+/** Task adv-search — field Advance Search profil payroll (client-side, filter
+ *  TAMBAHAN di atas query & sort server-side yang sudah ada; field profil
+ *  bersarang diakses lewat getter — nilai terenkripsi/vault null tidak cocok
+ *  utk operator teks/angka, perilaku sesuai kontrak adv-search). */
+const ADV_FIELDS: AdvFieldDef<ProfileRow>[] = [
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  txt("positionName", "Posisi", "Position"),
+  txt("gradeName", "Grade", "Grade"),
+  num("baseSalary", "Gaji Pokok", "Base Salary"),
+  txt("npwp", "NPWP", "NPWP", (r) => r.profile?.npwp),
+  sel("taxStatus", "Status PTKP", "PTKP Status", PTKP_ADV_OPTIONS, (r) => r.profile?.taxStatus),
+  sel("processMethod", "Metode", "Method", [
+    ["GrossToNet", "Gross-to-Net", "Gross-to-Net"],
+    ["NetToGross", "Net-to-Gross", "Net-to-Gross"],
+  ], (r) => r.profile?.processMethod),
+  txt("wageTemplateName", "Template", "Template", (r) => r.profile?.wageTemplateName),
+  txt("bankName", "Bank", "Bank", (r) => r.profile?.bankName),
+  txt("bankAccount", "No. Rekening", "Account No.", (r) => r.profile?.bankAccount),
+];
 
 export function PayrollProfilesPage() {
   const { t } = useI18n();
@@ -59,8 +88,11 @@ export function PayrollProfilesPage() {
   const [editing, setEditing] = useState<ProfileRow | null>(null);
   const [syncOpen, setSyncOpen] = useState(false);
   // Task 64d — riwayat gaji & template per karyawan (dialog dari tombol baris).
-  const [histRow, setHistRow] = useState<ProfileRow | null>(null);  const rows = data?.employees ?? [];
-  const sortedRows = rows;
+  const [histRow, setHistRow] = useState<ProfileRow | null>(null);
+  // Task adv-search — kondisi advance search (filter tambahan di atas query/sort server).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
+  const rows = data?.employees ?? [];
+  const sortedRows = useMemo(() => filterRowsByAdv(rows, adv, ADV_FIELDS), [rows, adv]);
 
   // Header sort memakai state server-side (Task 75) — ikon ↑/↓/↕ konsisten
   const sortHead = (k: string, label: React.ReactNode, className?: string) => (
@@ -90,6 +122,7 @@ export function PayrollProfilesPage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Cari nama atau nomor karyawan…", "Search by name or employee number…")} className="pl-9" />
             </div>
+            <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} className="self-center" />
             <Button variant="outline" onClick={() => setSyncOpen(true)} className="gap-1.5 whitespace-nowrap text-xs font-bold">
               <Users className="h-3.5 w-3.5" />
               {t("Sinkronkan PTKP dari Keluarga", "Sync PTKP from Family")}
@@ -102,7 +135,7 @@ export function PayrollProfilesPage() {
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={8} /></div>
-          ) : rows.length === 0 ? (
+          ) : sortedRows.length === 0 ? (
             <div className="p-5"><EmptyState title={t("Tidak ada karyawan", "No employees")} description={t("Belum ada karyawan aktif dengan profil payroll.", "No active employees with a payroll profile yet.")} icon={<IdCard className="h-6 w-6" />} /></div>
           ) : (
             <div className="overflow-x-auto">

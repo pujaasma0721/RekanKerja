@@ -12,6 +12,28 @@ import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnaps
 import { validateSalaryAgainstGrade, PATargetError } from "@/rekankerja/human-resource/services/pa-targets";
 import { toXlsxMulti, xlsxResponse, exportFilename, type ExportColumn } from "@/rekankerja/shared/lib/export";
 import { type Lang } from "@/rekankerja/shared/lib/i18n-core";
+import { parseAdvSearchReq, advPrismaWhere, type AdvServerField } from "@/rekankerja/shared/services/adv-search-server";
+
+/**
+ * Task adv-search — whitelist field Advance Search GET /employees (?adv=).
+ * Penempatan dicari lewat assignment AKTIF (validTo null — konsisten filter
+ * penempatan lain di endpoint ini). Gaji pokok TIDAK disertakan: kolom
+ * terenkripsi at-rest (tenantCrypto) — perbandingan level DB tidak mungkin.
+ */
+const EMPLOYEE_ADV_FIELDS: Record<string, AdvServerField> = {
+  employeeNo: { path: "employeeNo", type: "text" },
+  fullName: { path: "fullName", type: "text" },
+  email: { path: "email", type: "text" },
+  phone: { path: "phone", type: "text" },
+  gender: { path: "gender", type: "select" },
+  status: { path: "status", type: "select" },
+  employmentStatus: { path: "assignments[].employmentStatus", type: "select" },
+  position: { path: "assignments[].position.title", type: "text" },
+  unit: { path: "assignments[].orgUnit.name", type: "text" },
+  grade: { path: "assignments[].grade.code", type: "text" },
+  joinDate: { path: "joinDate", type: "date" },
+  contractEnd: { path: "contractEnd", type: "date" },
+};
 
 /** Sanitasi kode perusahaan/slug → prefix nomor karyawan (A-Z0-9). */
 function codePrefix(code: string | null | undefined): string {
@@ -285,7 +307,12 @@ export async function GET(req: NextRequest) {
     if (Object.keys(assignSome).length > 1) where.assignments = { some: assignSome };
 
     // gabungkan dengan cakupan skema akses (AND)
-    const scoped: Record<string, unknown> = Object.keys(scopeCond).length > 0 ? { AND: [where, scopeCond] } : where;
+    // Task adv-search — filter Advance Search (?adv=) di-AND-kan SEBELUM scope:
+    // pagination (take/skip), count & seluruh agregasi chip di bawah memakai
+    // `scoped` yang sama → statistik ikut jumlah data terfilter.
+    const advW = advPrismaWhere(parseAdvSearchReq(req), EMPLOYEE_ADV_FIELDS);
+    const withAdv: Record<string, unknown> = advW ? { AND: [where, advW] } : where;
+    const scoped: Record<string, unknown> = Object.keys(scopeCond).length > 0 ? { AND: [withAdv, scopeCond] } : withAdv;
 
     // Task 74 — sorting server-side: sort lintas SELURUH data sebelum take/skip.
     // Kolom diizinkan via whitelist (tidak ada string mentah dari client masuk orderBy).

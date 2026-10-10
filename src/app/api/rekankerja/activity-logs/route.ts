@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { toCsv, csvResponse, exportFilename, type ExportColumn, type ExportCell } from "@/rekankerja/shared/lib/export";
+import { parseAdvSearchReq, advPrismaWhere, type AdvServerField } from "@/rekankerja/shared/services/adv-search-server";
+
+/** Task adv-search — whitelist field Advance Search log aktivitas (?adv=). */
+const LOG_ADV_FIELDS: Record<string, AdvServerField> = {
+  actor: { path: "appUser.fullName", type: "text" },
+  actorUsername: { path: "appUser.username", type: "text" },
+  employee: { path: "employee.fullName", type: "text" },
+  employeeNo: { path: "employee.employeeNo", type: "text" },
+  detail: { path: "detail", type: "text" },
+  entityId: { path: "entityId", type: "text" },
+  action: { path: "action", type: "text" },
+  entity: { path: "entity", type: "text" },
+  createdAt: { path: "createdAt", type: "date" },
+};
 
 // GET /api/rekankerja/activity-logs — VIEWER AUDIT TRAIL (26-b P0) ================
 // =====================================================================
@@ -63,6 +77,10 @@ export async function GET(req: NextRequest) {
         ...(to ? { lte: new Date(`${to}T23:59:59.999`) } : {}),
       };
     }
+    // Task adv-search — filter advance (?adv=) ikut berlaku utk halaman ANDA
+    // ekspor CSV (pemanggil memakai objek where yang sama).
+    const advW = advPrismaWhere(parseAdvSearchReq(req), LOG_ADV_FIELDS);
+    if (advW) where.AND = [...((where.AND as unknown[]) ?? []), advW];
 
     const include = {
       employee: { select: { employeeNo: true, fullName: true } },

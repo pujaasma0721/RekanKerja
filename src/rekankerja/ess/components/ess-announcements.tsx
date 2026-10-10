@@ -10,7 +10,7 @@
 //     detail OTOMATIS menandai sudah dibaca (AnnouncementRead, idempoten)
 //     + toast halus; titik belum-dibaca & chip ikut turun;
 //   · Draft / kedaluwarsa tidak pernah muncul (server memfilter).
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
@@ -25,6 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ESS_BASE } from "./ess-api";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 // ================= TIPE DATA =================
 interface EssAnnouncement {
@@ -59,6 +61,18 @@ const CATEGORY_EN: Record<string, string> = {
   Event: "Event",
   Darurat: "Urgent",
 };
+
+/** Task adv-search — field Advance Search pengumuman (client-side; kategori
+ *  = kunci peta CATEGORY_META/CATEGORY_EN). */
+const ANN_ADV_FIELDS: AdvFieldDef<EssAnnouncement>[] = [
+  txt("title", "Judul", "Title"),
+  sel("category", "Kategori", "Category", Object.keys(CATEGORY_EN).map(
+    (c) => [c, c, CATEGORY_EN[c]] as [string, string, string],
+  )),
+  txt("code", "Kode", "Code"),
+  txt("body", "Isi", "Body"),
+  dt("publishedAt", "Tanggal Terbit", "Published On"),
+];
 function CategoryBadge({ category }: { category: string }) {
   const { t } = useI18n();
   const meta = CATEGORY_META[category] ?? CATEGORY_META.Umum;
@@ -90,8 +104,13 @@ export function EssAnnouncements() {
   const { t } = useI18n();
   const api = useApi<EssAnnouncementsData>(`${ESS_BASE}/announcements`);
   const [detail, setDetail] = useState<EssAnnouncement | null>(null);
+  // Task adv-search — kondisi advance search feed pengumuman (personal ESS).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
-  const announcements = api.data?.announcements ?? [];
+  const announcements = useMemo(
+    () => filterRowsByAdv(api.data?.announcements ?? [], adv, ANN_ADV_FIELDS),
+    [api.data, adv],
+  );
   const unread = api.data?.counts?.unread ?? 0;
 
   // buka detail → TANDAI DIBACA otomatis (idempoten) + toast halus
@@ -130,17 +149,20 @@ export function EssAnnouncements() {
           "Official company news — policies, events, and urgent notices. Opening an announcement automatically records that you have read it.",
         )}
         actions={
-          unread > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" role="status">
-              <Dot className="h-4 w-4 -mx-1 fill-amber-500 text-amber-500" aria-hidden />
-              {t("{n} belum dibaca", "{n} unread", { n: unread })}
-            </span>
-          ) : announcements.length > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand/10 px-2.5 py-1 text-[11px] font-bold text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" role="status">
-              <CheckCheck className="h-3.5 w-3.5" aria-hidden />
-              {t("Semua sudah dibaca", "All read")}
-            </span>
-          ) : undefined
+          <>
+            <AdvSearchButton fields={ANN_ADV_FIELDS} value={adv} onChange={setAdv} />
+            {unread > 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" role="status">
+                <Dot className="h-4 w-4 -mx-1 fill-amber-500 text-amber-500" aria-hidden />
+                {t("{n} belum dibaca", "{n} unread", { n: unread })}
+              </span>
+            ) : announcements.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand/10 px-2.5 py-1 text-[11px] font-bold text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" role="status">
+                <CheckCheck className="h-3.5 w-3.5" aria-hidden />
+                {t("Semua sudah dibaca", "All read")}
+              </span>
+            ) : null}
+          </>
         }
       />
 

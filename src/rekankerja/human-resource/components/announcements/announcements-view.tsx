@@ -35,6 +35,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 const CATEGORIES = ["Umum", "Kebijakan", "Event", "Darurat"] as const;
 // Task 103-f — pasangan EN kategori pengumuman (nilai ID tetap disimpan ke server).
@@ -59,6 +61,26 @@ interface AnnouncementsData {
   announcements: AnnouncementRow[];
   stats: { active: number; draft: number; expired: number; totalReads: number; totalActive: number };
 }
+
+/** Task adv-e — opsi select Advance Search (label reuse peta file). */
+const ADV_CATEGORIES: [string, string, string][] = CATEGORIES.map((c) => [c, c, CATEGORY_EN[c] ?? c]);
+
+/** Task adv-e — field Advance Search pengumuman (client-side di atas query server tab/kategori/q). */
+const ADV_FIELDS: AdvFieldDef<AnnouncementRow>[] = [
+  txt("code", "Kode", "Code"),
+  txt("title", "Judul", "Title"),
+  txt("body", "Isi", "Body"),
+  sel("category", "Kategori", "Category", ADV_CATEGORIES),
+  sel("status", "Status", "Status", [
+    ["draft", "Draft", "Draft"],
+    ["published", "Terbit", "Published"],
+    ["expired", "Kedaluwarsa", "Expired"],
+  ]),
+  sel("pinned", "Sematan", "Pinned", [["true", "Disematkan", "Pinned"], ["false", "Tidak disematkan", "Not pinned"]], (r) => String(r.pinned)),
+  num("reads", "Dibaca", "Reads"),
+  dt("publishedAt", "Tanggal Terbit", "Published At"),
+  dt("expiresAt", "Kedaluwarsa", "Expires At"),
+];
 
 // ================= STATUS PILL LOKAL =================
 const STATUS_META: Record<string, { label: string; en: string; cls: string; dot: string }> = {
@@ -162,6 +184,8 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
   const [category, setCategory] = useState("all");
   const [q, setQ] = useState("");
   const [dq, setDq] = useState(""); // pencarian di-debounce ringan
+  // Task adv-e — Advance Search (filter tambahan client-side di atas hasil fetch)
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [dialog, setDialog] = useState<{ open: boolean; editing: AnnouncementRow | null }>({ open: false, editing: null });
   const [previewing, setPreviewing] = useState<AnnouncementRow | null>(null);
   const [deleting, setDeleting] = useState<AnnouncementRow | null>(null);
@@ -183,7 +207,7 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
   }, [tab, category, dq]);
 
   const { data, loading, refresh } = useApi<AnnouncementsData>(url);
-  const rows = data?.announcements ?? [];
+  const rows = useMemo(() => filterRowsByAdv(data?.announcements ?? [], adv, ADV_FIELDS), [data, adv]);
   const stats = data?.stats ?? { active: 0, draft: 0, expired: 0, totalReads: 0, totalActive: 0 };
 
   const canCreate = perms.can("hr", "announcements", "create");
@@ -290,6 +314,7 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
                 {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{t(c, CATEGORY_EN[c] ?? c)}</SelectItem>)}
               </SelectContent>
             </Select>
+            <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
             <p className="text-[11px] font-bold text-slate-400" aria-live="polite">
               {t("{n} baris", "{n} rows", { n: rows.length })}
             </p>

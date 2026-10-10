@@ -28,6 +28,8 @@ import { toast } from "sonner";
 import { WorkoffRow, EmployeeOption } from "@/rekankerja/time-attendance/components/attendance-types";
 import { ApiErrorState, todayISO } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { CheckCircle2, Plus, XCircle, Ban, Search, FileInput, CalendarOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,12 +50,32 @@ const STATUS_FILTERS_EN: Record<string, string> = {
 const daysBetween = (a: string, b: string) =>
   Math.round((new Date(b).setHours(0, 0, 0, 0) - new Date(a).setHours(0, 0, 0, 0)) / 86_400_000) + 1;
 
+/** Task adv-search — field Advance Search izin work-off (client-side, filter
+ *  TAMBAHAN di atas query & filter chips status; boolean paid/deductLeave/allDay
+ *  dikonversi lewat getter String() jadi select). */
+const ADV_FIELDS: AdvFieldDef<WorkoffRow>[] = [
+  txt("docNo", "Dokumen", "Document"),
+  txt("employeeNo", "No. Karyawan", "Employee No.", (p) => p.employee.employeeNo),
+  txt("fullName", "Nama Karyawan", "Employee Name", (p) => p.employee.fullName),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  dt("dateFrom", "Tanggal Mulai", "Start Date"),
+  dt("dateTo", "Tanggal Selesai", "End Date"),
+  sel("allDay", "Durasi", "Duration", [["true", "Hari penuh", "Full day"], ["false", "½ hari", "½ day"]], (p) => String(p.allDay)),
+  txt("timeFrom", "Jam Mulai", "Start Time"),
+  sel("paid", "Upah", "Pay", [["true", "Dibayar", "Paid"], ["false", "Tanpa upah", "Unpaid"]], (p) => String(p.paid)),
+  sel("deductLeave", "Potong Cuti", "Deduct Leave", [["true", "Ya", "Yes"], ["false", "Tidak", "No"]], (p) => String(p.deductLeave)),
+  txt("reason", "Alasan", "Reason"),
+  sel("status", "Status", "Status", (["Pending", "Approved", "Rejected", "Cancelled"] as const).map((k): [string, string, string] => [k, STATUS_FILTERS.find((f) => f.key === k)?.label ?? k, STATUS_FILTERS_EN[k] ?? k])),
+];
+
 export function AttendanceWorkoffPage() {
   const { t } = useI18n();
   const perms = useMenuPerms();
   // B-14: default "Pending" — inbox approval (konsisten shift-swap).
   const [statusFilter, setStatusFilter] = useState("Pending");
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query/status).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [dialog, setDialog] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<WorkoffRow | null>(null);
   const [rejectNote, setRejectNote] = useState("");
@@ -84,9 +106,9 @@ export function AttendanceWorkoffPage() {
   const api = useApi<{ permits: WorkoffRow[]; stats: { total: number; pending: number; approved: number; paid: number; unpaid: number; deductLeave: number; totalDays: number } }>(`/api/rekankerja/attendance/workoffs?status=${statusFilter}&sortBy=${sortKey}&sortDir=${sortDir}`);
   const employeesApi = useApi<{ employees: EmployeeOption[] }>("/api/rekankerja/attendance/clocking");
 
-  const permits = useMemo(() => (api.data?.permits ?? []).filter((p) =>
+  const permits = useMemo(() => filterRowsByAdv((api.data?.permits ?? []).filter((p) =>
     !query || p.employee.fullName.toLowerCase().includes(query.toLowerCase()) || p.docNo.toLowerCase().includes(query.toLowerCase())
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
 
   // G25: hanya baris Pending yang bisa dipilih; seleksi dipangkas saat data berubah.
   const pendingPermits = useMemo(() => permits.filter((p) => p.status === "Pending"), [permits]);
@@ -233,9 +255,12 @@ export function AttendanceWorkoffPage() {
                 </button>
               ))}
             </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. dokumen…", "Search employee / document no.…")} className="h-8 w-52 pl-8 text-xs" />
+            <div className="flex flex-wrap items-center gap-2">
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. dokumen…", "Search employee / document no.…")} className="h-8 w-52 pl-8 text-xs" />
+              </div>
             </div>
           </div>
           {/* ===== G25: toolbar pilihan massal (hanya baris Pending) ===== */}

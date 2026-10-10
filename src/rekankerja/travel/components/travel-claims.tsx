@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Semua" },
@@ -51,6 +53,22 @@ const STATUS_FILTERS_EN: Record<string, string> = {
 };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/** Task adv-search — field Advance Search klaim travel (client-side, filter
+ *  TAMBAHAN di atas query & status filter yang sudah ada; kolom uang nullable
+ *  saat Brankas Uang tertutup → nilai ter-mask dianggap tak cocok (bukan 0). */
+const ADV_FIELDS: AdvFieldDef<TravelClaimRowUI>[] = [
+  txt("docNo", "Nomor", "No."),
+  txt("requestDocNo", "No. Permintaan", "Request No."),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Karyawan", "Employee"),
+  dt("claimDate", "Tanggal Klaim", "Claim Date"),
+  txt("templateName", "Template", "Template"),
+  sel("status", "Status", "Status", STATUS_FILTERS.filter((f) => f.key !== "all").map((f): [string, string, string] => [f.key, f.label, STATUS_FILTERS_EN[f.key] ?? f.key])),
+  num("totalSettlement", "Total Settlement", "Total Settlement", (c) => c.totalSettlement ?? undefined),
+  num("payableEmployee", "(b) Ke Karyawan", "(b) To Employee", (c) => c.payableEmployee ?? undefined),
+  num("payableCompany", "(c) Ke Perusahaan", "(c) To Company", (c) => c.payableCompany ?? undefined),
+];
 
 interface ExpenseLine {
   expenseCode: string; expenseDate: string; description: string;
@@ -82,6 +100,8 @@ export function TravelClaimsPage() {
   const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -114,9 +134,9 @@ export function TravelClaimsPage() {
   const approvedRequests = useApi<{ requests: TravelRequestRowUI[] }>("/api/rekankerja/travel/requests?status=Approved");
   const master = useApi<{ expenseTypes: ExpenseTypeRowUI[]; employees: EmployeeOption[] }>("/api/rekankerja/travel/templates");
 
-  const claims = useMemo(() => (api.data?.claims ?? []).filter((c) =>
+  const claims = useMemo(() => filterRowsByAdv((api.data?.claims ?? []).filter((c) =>
     !query || c.fullName.toLowerCase().includes(query.toLowerCase()) || c.docNo.toLowerCase().includes(query.toLowerCase()),
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
 
   const expenseTypes = master.data?.expenseTypes ?? [];
   const typeByCode = useMemo(() => new Map(expenseTypes.map((t) => [t.code, t])), [expenseTypes]);
@@ -339,9 +359,12 @@ export function TravelClaimsPage() {
             {f.key === "Approved" && stats ? ` (${stats.approved})` : ""}
           </button>
         ))}
-        <div className="relative ml-auto">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / nomor klaim…", "Search name / claim number…")} className="w-56 pl-9 text-sm" />
+        <div className="ml-auto flex items-center gap-2">
+          <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / nomor klaim…", "Search name / claim number…")} className="w-56 pl-9 text-sm" />
+          </div>
         </div>
       </div>
 

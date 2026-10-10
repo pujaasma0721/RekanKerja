@@ -23,6 +23,8 @@ import { toast } from "sonner";
 import { AssignmentRow, EmployeeOption } from "@/rekankerja/time-attendance/components/attendance-types";
 import { ApiErrorState, isoLocal } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { CalendarRange, Plus, LogOut, Search, Anchor, Clock, Loader2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,11 +38,30 @@ function mondayOf(d: Date): Date {
 // B-10: zona lokal — toISOString() membuat tanggal/anchor bergeser -1 hari (WIB).
 const iso = (d: Date) => isoLocal(d);
 
+/** Task adv-search — field Advance Search penugasan jadwal (client-side, filter
+ *  TAMBAHAN di atas query; employee/schedule/orgUnit diambil lewat getter
+ *  bersarang, clockingRequired boolean → select). */
+const ADV_FIELDS: AdvFieldDef<AssignmentRow>[] = [
+  txt("employeeNo", "No. Karyawan", "Employee No.", (a) => a.employee.employeeNo),
+  txt("fullName", "Nama Karyawan", "Employee Name", (a) => a.employee.fullName),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit", (a) => a.employee.assignments[0]?.orgUnit?.name),
+  txt("scheduleCode", "Kode Jadwal", "Schedule Code", (a) => a.schedule.code),
+  txt("scheduleName", "Jadwal", "Schedule", (a) => a.schedule.name),
+  num("cycleDays", "Cycle (hari)", "Cycle (days)", (a) => a.schedule.cycleDays),
+  dt("validFrom", "Berlaku Sejak", "Valid Since"),
+  dt("validTo", "Berlaku Sampai", "Valid Until"),
+  dt("anchorMonday", "Anchor Senin", "Monday Anchor"),
+  num("anchorSequence", "Seq di Anchor", "Seq at Anchor"),
+  sel("clockingRequired", "Clocking", "Clocking", [["true", "Wajib", "Required"], ["false", "Non-clocking", "Non-clocking"]], (a) => String(a.clockingRequired)),
+];
+
 export function AttendanceAssignmentsPage() {
   const { t } = useI18n();
   const api = useApi<{ assignments: AssignmentRow[]; schedules: { id: string; code: string; name: string; cycleDays: number }[]; employees: EmployeeOption[] }>("/api/rekankerja/attendance/assignments");
   const [dialog, setDialog] = useState(false);
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [busy, setBusy] = useState(false); // G11: dialog Assign sedang mengirim
   const [endTarget, setEndTarget] = useState<AssignmentRow | null>(null); // G9: konfirmasi akhiri
   const [endBusy, setEndBusy] = useState(false);
@@ -55,9 +76,10 @@ export function AttendanceAssignmentsPage() {
   const employees = api.data?.employees ?? [];
   const active = assignments.filter((a) => !a.validTo);
   const history = assignments.filter((a) => a.validTo);
-  const filtered = active.filter((a) =>
+  // Task adv-search — adv = filter TAMBAHAN di atas query (tabel penugasan aktif).
+  const filtered = filterRowsByAdv(active.filter((a) =>
     !query || a.employee.fullName.toLowerCase().includes(query.toLowerCase()) || a.employee.employeeNo.toLowerCase().includes(query.toLowerCase())
-  );
+  ), adv, ADV_FIELDS);
 
   // Task 72 — sorting kolom tabel penugasan jadwal
   const sort = useTableSort(filtered, {
@@ -160,9 +182,12 @@ export function AttendanceAssignmentsPage() {
         <CardContent className="p-0">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <p className="text-[13px] font-bold">{t("Penugasan Aktif ({n})", "Active Assignments ({n})", { n: active.length })}</p>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. pegawai…", "Search employee / employee no.…")} className="h-8 w-56 pl-8 text-xs" />
+            <div className="flex items-center gap-2">
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. pegawai…", "Search employee / employee no.…")} className="h-8 w-56 pl-8 text-xs" />
+              </div>
             </div>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : api.error ? (

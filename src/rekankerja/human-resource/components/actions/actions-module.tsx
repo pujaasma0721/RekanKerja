@@ -25,6 +25,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+// Task adv-e — Advance Search (client-side, tambahan di atas query server q/status/type)
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { LetterTemplatesView } from "./letter-templates-view";
 import { LetterPreviewDialog } from "../employee/letter-preview-dialog";
 
@@ -49,6 +52,29 @@ interface PA {
   employee: { id: string; fullName: string; employeeNo: string; position: { title: string } | null; orgUnit: { name: string } | null };
   layers: PALayer[];
 }
+
+/** Task adv-e — opsi select Advance Search (label reuse PA_TYPES / STATUS_MAP ui-kit). */
+const ADV_TYPES: [string, string, string][] = Object.entries(PA_TYPES).map(([k, v]) => [k, v.label, PA_TYPE_LABEL_EN[k] ?? k]);
+const ADV_STATUSES: [string, string, string][] = [
+  ["Prepared", "Draft", "Draft"],
+  ["Submitted", "Menunggu Approval", "Awaiting Approval"],
+  ["Approved", "Disetujui", "Approved"],
+  ["Rejected", "Ditolak", "Rejected"],
+  ["Processed", "Diproses", "Processed"],
+  ["Cancelled", "Dibatalkan", "Cancelled"],
+];
+
+/** Task adv-e — field Advance Search Semua Pengajuan (client-side di atas hasil fetch). */
+const ADV_FIELDS: AdvFieldDef<PA>[] = [
+  txt("docNo", "No. Dokumen", "Document No."),
+  txt("employeeName", "Karyawan", "Employee", (a) => a.employee?.fullName),
+  txt("employeeNo", "No. Karyawan", "Employee No.", (a) => a.employee?.employeeNo),
+  txt("position", "Posisi", "Position", (a) => a.employee?.position?.title),
+  sel("type", "Jenis", "Type", ADV_TYPES),
+  dt("effectiveDate", "Efektif", "Effective"),
+  dt("createdAt", "Dibuat", "Created"),
+  sel("status", "Status", "Status", ADV_STATUSES),
+];
 
 // ================= INBOX =================
 function ApprovalInbox() {
@@ -198,6 +224,8 @@ function AllDocuments() {
   const [status, setStatus] = useState("all");
   const [type, setType] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
+  // Task adv-e — Advance Search (filter tambahan client-side di atas query server)
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   // Task 76 — sort server-side
   const [sortKey, setSortKey] = useState<"doc" | "employee" | "type" | "effective" | "progress" | "status">("doc");
   const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
@@ -219,11 +247,13 @@ function AllDocuments() {
   }, [q, status, type, sortKey, sortDir]);
 
   const { data, loading, refresh } = useApi<{ actions: PA[]; statusCounts: Record<string, number> }>(url);
+  // Task adv-e — adv di terapkan ke hasil fetch; progress sort & tabel ikut hasil adv.
+  const actions = useMemo(() => filterRowsByAdv(data?.actions ?? [], adv, ADV_FIELDS), [data, adv]);
   // Progress diurut client-side atas dataset yang sama (full-list endpoint).
-  const paSort = useTableSort(data?.actions, {
+  const paSort = useTableSort(actions, {
     progress: (a) => (a.layers.length > 0 ? a.layers.filter((l) => l.status === "Approved").length / a.layers.length : 0),
   });
-  const rows = sortKey === "progress" ? paSort.sorted : data?.actions ?? [];
+  const rows = sortKey === "progress" ? paSort.sorted : actions;
   const sc = data?.statusCounts ?? {};
 
   const statCards: [string, string, number][] = [
@@ -282,6 +312,7 @@ function AllDocuments() {
               {Object.entries(PA_TYPES).map(([k, v]) => <SelectItem key={k} value={k}>{t(v.label, PA_TYPE_LABEL_EN[k])}</SelectItem>)}
             </SelectContent>
           </Select>
+          <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
         </CardContent>
       </Card>
 
@@ -289,7 +320,7 @@ function AllDocuments() {
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={6} /></div>
-          ) : data && data.actions.length > 0 ? (
+          ) : rows.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

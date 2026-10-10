@@ -41,6 +41,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+// Task adv-e — Advance Search (client-side, tambahan di atas search lama)
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 // ================= katalog menu (selaras nav AppShell — sumber tunggal) =================
 
@@ -109,6 +112,29 @@ interface AccessResp {
   users: AccessUser[];
   stats: { total: number; restricted: number; superAdmins: number; rules: number };
 }
+
+/** Task adv-e — field Advance Search daftar pengguna hak akses (di atas search fullName/username/role). */
+const ACCESS_ADV_FIELDS: AdvFieldDef<AccessUser>[] = [
+  txt("username", "Username", "Username"),
+  txt("fullName", "Nama", "Name"),
+  txt("email", "Email", "Email"),
+  sel("role", "Role", "Role", [
+    ["Admin", "Admin", "Admin"],
+    ["HR Manager", "HR Manager", "HR Manager"],
+    ["HR Staff", "HR Staff", "HR Staff"],
+    ["Approver", "Approver", "Approver"],
+    ["Viewer", "Viewer", "Viewer"],
+    ["ESS", "ESS", "ESS"],
+  ]),
+  txt("employeeNo", "No. Karyawan", "Employee No.", (u) => u.employee?.employeeNo),
+  txt("employeeName", "Karyawan", "Employee", (u) => u.employee?.fullName),
+  sel("menuMode", "Mode Menu", "Menu Mode", [
+    ["ALL", "Semua Menu", "All Menus"],
+    ["CUSTOM", "Batasi — pilih menu", "Restrict — select menus"],
+  ]),
+  num("subordinateCount", "Bawahan", "Subordinates"),
+  num("ruleCount", "Rule Data", "Data Rules"),
+];
 
 interface Rule {
   id: string;
@@ -179,6 +205,8 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
   const rulesResp = useApi<RulesResp>("/api/rekankerja/data-access-rules");
   const [selectedId, setSelectedId] = useState<string | null>(focusUserId ?? null);
   const [search, setSearch] = useState("");
+  // Task adv-e — Advance Search (filter tambahan di atas search lama; seleksi & detail tetap dari daftar penuh)
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
   // fokus dari tab Pengguna ("Atur Hak Akses") — pilih lalu konsumsi
   useEffect(() => {
@@ -191,10 +219,11 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
   const users = data?.users ?? [];
   const selected = users.find((u) => u.id === selectedId) ?? users[0] ?? null;
   const filteredUsers = useMemo(() => {
+    const advFiltered = filterRowsByAdv(users, adv, ACCESS_ADV_FIELDS);
     const q = search.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter((u) => u.fullName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || u.role.toLowerCase().includes(q));
-  }, [users, search]);
+    if (!q) return advFiltered;
+    return advFiltered.filter((u) => u.fullName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || u.role.toLowerCase().includes(q));
+  }, [users, search, adv]);
 
   // ===== simulasi =====
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -410,9 +439,12 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
               <CardTitle className="flex items-center gap-2 text-sm font-bold">
                 <Users className="h-4 w-4 ov-text-accent" /> {t("Pengguna ({n})", "Users ({n})", { n: users.length })}
               </CardTitle>
-              <div className="relative mt-1">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("Cari nama / username / role…", "Search name / username / role…")} className="h-9 rounded-xl pl-8 text-xs" />
+              <div className="mt-1 flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("Cari nama / username / role…", "Search name / username / role…")} className="h-9 rounded-xl pl-8 text-xs" />
+                </div>
+                <AdvSearchButton fields={ACCESS_ADV_FIELDS} value={adv} onChange={setAdv} />
               </div>
             </CardHeader>
             <CardContent className="pt-0">

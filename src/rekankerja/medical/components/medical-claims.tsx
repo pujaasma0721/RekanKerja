@@ -30,6 +30,8 @@ import {
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { trServer } from "@/rekankerja/shared/lib/i18n-core";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Semua" },
@@ -38,6 +40,25 @@ const STATUS_FILTERS = [
   { key: "Approved", label: "Disetujui" },
   { key: "Settled", label: "Settled" },
   { key: "Rejected", label: "Ditolak" },
+];
+
+/** Task adv-search — field Advance Search klaim medis (filter client-side
+ *  TAMBAHAN di atas query & tab status; opsi status reuse CLAIM_STATUS_LABEL). */
+const CLAIM_ADV_FIELDS: AdvFieldDef<ClaimUI>[] = [
+  txt("docNo", "No. Dokumen", "Doc. No."),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  txt("typeName", "Jenis Benefit", "Benefit Type"),
+  txt("typeCode", "Kode Jenis", "Type Code"),
+  dt("claimDate", "Tanggal", "Date"),
+  num("totalBill", "Tagihan", "Bill"),
+  num("totalReimburse", "Reimburse", "Reimburse"),
+  num("totalApproved", "Disetujui", "Approved"),
+  sel("state", "Status", "Status", Object.keys(CLAIM_STATUS_LABEL).map(
+    (k) => [k, CLAIM_STATUS_LABEL[k], CLAIM_STATUS_LABEL_EN[k] ?? k] as [string, string, string],
+  )),
+  txt("letterNo", "No. Surat Rujukan", "Referral Letter No."),
 ];
 
 interface LineForm {
@@ -57,6 +78,8 @@ export function MedicalClaimsPage() {
   const { t } = useI18n();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -99,9 +122,9 @@ export function MedicalClaimsPage() {
   const hospitals = (providersMeta.data?.providers ?? []).filter((p) => p.kind === "HOSPITAL" && p.active);
   const familyMembers = familyMeta.data?.family ?? [];
 
-  const claims = useMemo(() => (api.data?.claims ?? []).filter((c) =>
+  const claims = useMemo(() => filterRowsByAdv((api.data?.claims ?? []).filter((c) =>
     !query || c.fullName.toLowerCase().includes(query.toLowerCase()) || c.docNo.toLowerCase().includes(query.toLowerCase()),
-  ), [api.data, query]);
+  ), adv, CLAIM_ADV_FIELDS), [api.data, query, adv]);
 
   // Task 72 — sorting client utk kolom uang (fallback)
   const sort = useTableSort(claims, {
@@ -263,9 +286,12 @@ export function MedicalClaimsPage() {
             )}
           </button>
         ))}
-        <div className="relative ml-auto w-full sm:w-56">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / no. dokumen…", "Search name / doc. no.…")} className="pl-8" />
+        <div className="ml-auto flex w-full items-center gap-2 sm:w-auto">
+          <div className="relative w-full sm:w-56">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / no. dokumen…", "Search name / doc. no.…")} className="pl-8" />
+          </div>
+          <AdvSearchButton fields={CLAIM_ADV_FIELDS} value={adv} onChange={setAdv} />
         </div>
       </div>
 

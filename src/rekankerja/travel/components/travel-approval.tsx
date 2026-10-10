@@ -16,16 +16,35 @@ import { toast } from "sonner";
 import { TravelRequestRowUI, TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, fmtIDR, fmtDateID } from "./travel-types";
 import { CheckCircle2, XCircle, Ban, Search, Inbox, MapPin, Wallet, Globe2, Clock } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 interface DecideDialogState {
   request: TravelRequestRowUI | null;
   action: "approve" | "reject" | "cancel" | null;
 }
 
+/** Task adv-search — field Advance Search antrean approval travel (client-side,
+ *  filter TAMBAHAN di atas query yang sudah ada). */
+const ADV_FIELDS: AdvFieldDef<TravelRequestRowUI>[] = [
+  txt("docNo", "Nomor", "No."),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Karyawan", "Employee"),
+  txt("purpose", "Tujuan", "Purpose"),
+  txt("templateName", "Template", "Template"),
+  dt("dateFrom", "Tanggal Mulai", "Start Date"),
+  num("days", "Hari", "Days"),
+  num("advanceAmount", "Uang Muka", "Advance"),
+  dt("settlementDue", "Jatuh Tempo Klaim", "Claim Due Date"),
+  sel("status", "Status", "Status", (["Submitted", "Approved", "Rejected", "Cancelled"] as const).map((k): [string, string, string] => [k, TRAVEL_STATUS_LABEL[k] ?? k, TRAVEL_STATUS_LABEL_EN[k] ?? k])),
+];
+
 export function TravelApprovalPage() {
   const { t } = useI18n();
   const perms = useMenuPerms();
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [dialog, setDialog] = useState<DecideDialogState>({ request: null, action: null });
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,9 +53,9 @@ export function TravelApprovalPage() {
     "/api/rekankerja/travel/requests?status=Submitted",
   );
 
-  const pending = useMemo(() => (api.data?.requests ?? []).filter((r) =>
+  const pending = useMemo(() => filterRowsByAdv((api.data?.requests ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase()),
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
 
   const decided = useApi<{ requests: TravelRequestRowUI[] }>("/api/rekankerja/travel/requests?status=all");
   const recent = useMemo(
@@ -108,9 +127,12 @@ export function TravelApprovalPage() {
 
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">{t("Antrean Persetujuan", "Approval Queue")}</h2>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari antrean…", "Search queue…")} className="w-52 pl-9 text-sm" />
+        <div className="flex items-center gap-2">
+          <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari antrean…", "Search queue…")} className="w-52 pl-9 text-sm" />
+          </div>
         </div>
       </div>
 

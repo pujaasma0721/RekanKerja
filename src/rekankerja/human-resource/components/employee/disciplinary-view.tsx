@@ -9,12 +9,29 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Scale, Plus, MessageSquareWarning, FileWarning, ShieldAlert, ChevronRight, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { WARNING_LEVEL_META, WARNING_LEVEL_LABEL_EN, type DisciplinaryRow } from "./types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
+import { WARNING_LEVEL_META, WARNING_LEVEL_LABEL_EN, WARNING_LEVELS, type DisciplinaryRow } from "./types";
 import { DisciplinaryDialog, DeleteRecordButton } from "./detail-dialogs";
 
 interface DisciplinaryResp {
   records: DisciplinaryRow[];
 }
+
+/** Task adv-e — opsi select tingkat peringatan (label dwibahasa reuse peta types). */
+const ADV_LEVELS: [string, string, string][] = WARNING_LEVELS.map((lv) => [lv, WARNING_LEVEL_META[lv]?.label ?? lv, WARNING_LEVEL_LABEL_EN[lv] ?? lv]);
+
+/** Task adv-e — field Advance Search catatan disiplin (client-side, SEBELUM filter level). */
+const ADV_FIELDS: AdvFieldDef<DisciplinaryRow>[] = [
+  txt("employeeName", "Karyawan", "Employee", (r) => r.employee?.fullName),
+  txt("employeeNo", "No. Karyawan", "Employee No.", (r) => r.employee?.employeeNo),
+  sel("warningLevel", "Tingkat", "Level", ADV_LEVELS),
+  txt("violation", "Pelanggaran", "Violation"),
+  txt("sanction", "Sanksi", "Sanction"),
+  dt("issuedAt", "Diterbitkan", "Issued"),
+  dt("expiresAt", "Berlaku s/d", "Valid until"),
+  txt("notes", "Catatan", "Notes"),
+];
 
 export function DisciplinaryView() {
   const { navigate } = useNav();
@@ -22,8 +39,10 @@ export function DisciplinaryView() {
   const { data, loading, error, refresh } = useApi<DisciplinaryResp>("/api/rekankerja/disciplinary");
   const [level, setLevel] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  // Task adv-e — Advance Search (filter tambahan; kartu statistik level ikut hasilnya)
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
-  const records = useMemo(() => data?.records ?? [], [data]);
+  const records = useMemo(() => filterRowsByAdv(data?.records ?? [], adv, ADV_FIELDS), [data, adv]);
   const filtered = useMemo(() => (level === "all" ? records : records.filter((r) => r.warningLevel === level)), [records, level]);
 
   const levelCards = [
@@ -48,9 +67,12 @@ export function DisciplinaryView() {
           "Violation records for all employees — verbal, written, and final warnings.",
         )}
         actions={
-          <Button onClick={() => setDialogOpen(true)} className="h-11 gap-2 px-5 font-bold">
-            <Plus className="h-4 w-4" /> {t("Catat Pelanggaran", "Record Violation")}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+            <Button onClick={() => setDialogOpen(true)} className="h-11 gap-2 px-5 font-bold">
+              <Plus className="h-4 w-4" /> {t("Catat Pelanggaran", "Record Violation")}
+            </Button>
+          </div>
         }
       />
 

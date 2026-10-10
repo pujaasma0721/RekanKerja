@@ -25,6 +25,8 @@ import { toast } from "sonner";
 import { OvertimeRow, EmployeeOption, OT_CATEGORY_LABEL, OT_CATEGORY_LABEL_EN } from "@/rekankerja/time-attendance/components/attendance-types";
 import { ApiErrorState, todayISO } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { Clock, Plus, CheckCircle2, XCircle, Pencil, Ban, Search, BadgeCheck, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,12 +45,39 @@ const STATUS_FILTERS_EN: Record<string, string> = {
   all: "All", Pending: "Pending", Approved: "Approved", Paid: "Paid", Rejected: "Rejected", Cancelled: "Cancelled",
 };
 
+/** Task adv-search — jam "HH:MM" lokal (selaris render toLocaleTimeString). */
+const hmLocal = (d: string | null) => (d ? new Date(d).toTimeString().slice(0, 5) : d);
+
+/** Task adv-search — field Advance Search perintah lembur (client-side, filter
+ *  TAMBAHAN di atas query & filter chips status; estPay nullable saat ter-mask
+ *  Brankas Uang → getter ?? undefined agar tak dianggap 0). */
+const ADV_FIELDS: AdvFieldDef<OvertimeRow>[] = [
+  txt("orderNo", "Order", "Order"),
+  txt("letterNo", "No. Surat", "Letter No."),
+  txt("employeeNo", "No. Karyawan", "Employee No.", (o) => o.employee.employeeNo),
+  txt("fullName", "Nama Karyawan", "Employee Name", (o) => o.employee.fullName),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  dt("overtimeDate", "Tanggal", "Date"),
+  txt("timeFrom", "Jam Mulai", "Start Time", (o) => hmLocal(o.timeFrom)),
+  txt("timeTo", "Jam Selesai", "End Time", (o) => hmLocal(o.timeTo)),
+  sel("dayCategory", "Kategori Hari", "Day Category", (["Weekday", "Weekend", "Holiday"] as const).map((k): [string, string, string] => [k, OT_CATEGORY_LABEL[k] ?? k, OT_CATEGORY_LABEL_EN[k] ?? k])),
+  num("planMinutes", "Rencana (menit)", "Plan (min)"),
+  num("actualMinutes", "Aktual (menit)", "Actual (min)"),
+  num("verifiedMinutes", "Terverifikasi (menit)", "Verified (min)"),
+  num("rateMultiplier", "Multiplier Upah", "Pay Multiplier"),
+  sel("status", "Status", "Status", (["Pending", "Approved", "Paid", "Rejected", "Cancelled"] as const).map((k): [string, string, string] => [k, STATUS_FILTERS.find((f) => f.key === k)?.label ?? k, STATUS_FILTERS_EN[k] ?? k])),
+  num("estPay", "Estimasi Upah", "Est. Pay", (o) => o.estPay ?? undefined),
+  txt("reason", "Alasan", "Reason"),
+];
+
 export function AttendanceOvertimePage() {
   const { t, locale } = useI18n();
   const perms = useMenuPerms();
   // B-14: default "Pending" — inbox approval (konsisten shift-swap).
   const [statusFilter, setStatusFilter] = useState("Pending");
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query/status).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [orderDialog, setOrderDialog] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<OvertimeRow | null>(null);
   const [verifyTarget, setVerifyTarget] = useState<OvertimeRow | null>(null);
@@ -78,9 +107,9 @@ export function AttendanceOvertimePage() {
   const api = useApi<{ orders: OvertimeRow[]; stats: { total: number; pending: number; approved: number; paid: number; rejected: number; paidMinutes: number; approvedPay: number } }>(`/api/rekankerja/attendance/overtime?status=${statusFilter}${sortKey !== "pay" ? `&sortBy=${sortKey}&sortDir=${sortDir}` : ""}`);
   const employeesApi = useApi<{ employees: EmployeeOption[] }>("/api/rekankerja/attendance/clocking");
 
-  const orders = useMemo(() => (api.data?.orders ?? []).filter((o) =>
+  const orders = useMemo(() => filterRowsByAdv((api.data?.orders ?? []).filter((o) =>
     !query || o.employee.fullName.toLowerCase().includes(query.toLowerCase()) || o.orderNo.toLowerCase().includes(query.toLowerCase())
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
 
   // G25: hanya baris Pending yang bisa dipilih; seleksi dipangkas saat data berubah.
   const pendingOrders = useMemo(() => orders.filter((o) => o.status === "Pending"), [orders]);
@@ -246,9 +275,12 @@ export function AttendanceOvertimePage() {
                 </button>
               ))}
             </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. order…", "Search employee / order no.…")} className="h-8 w-52 pl-8 text-xs" />
+            <div className="flex flex-wrap items-center gap-2">
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. order…", "Search employee / order no.…")} className="h-8 w-52 pl-8 text-xs" />
+              </div>
             </div>
           </div>
           {/* ===== G25: toolbar pilihan massal (hanya baris Pending) ===== */}

@@ -13,7 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { EncashmentRowUI, LeaveTypeRow, EmployeeOption } from "./leave-types";
+import { EncashmentRowUI, LeaveTypeRow, EmployeeOption, LEAVE_STATUS_LABEL, LEAVE_STATUS_LABEL_EN } from "./leave-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { PeriodOption } from "@/rekankerja/time-attendance/components/attendance-types";
 import { Wallet, Plus, CheckCircle2, XCircle, Ban, Search, Send, Coins, ArrowRightCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,10 +38,30 @@ const STATUS_FILTERS_EN: Record<string, string> = {
 // Task 99 (F1-6) — opsi tahun dinamis (tahun berjalan −2 .. +1, bukan hardcoded).
 const YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 2 + i);
 
+/** Task adv-search — field Advance Search UCT (client-side, filter TAMBAHAN di
+ *  atas query & status filter yang sudah ada; opsi status = peta STATUS_FILTERS
+ *  + Cancelled — aksi cancel ada di tabel, label dari LEAVE_STATUS_LABEL). */
+const ADV_FIELDS: AdvFieldDef<EncashmentRowUI>[] = [
+  txt("docNo", "Dokumen", "Document"),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("leaveTypeName", "Jenis Cuti", "Leave Type"),
+  num("days", "Hari", "Days"),
+  num("amount", "Estimasi Upah", "Estimated Wage"),
+  dt("paymentDate", "Tgl Bayar", "Pay Date"),
+  sel("status", "Status", "Status", [
+    ...STATUS_FILTERS.filter((f) => f.key !== "all").map((f): [string, string, string] => [f.key, f.label, STATUS_FILTERS_EN[f.key] ?? f.key]),
+    ["Cancelled", LEAVE_STATUS_LABEL.Cancelled, LEAVE_STATUS_LABEL_EN.Cancelled],
+  ]),
+  txt("transferredRunNo", "Run Payroll", "Payroll Run"),
+];
+
 export function LeaveEncashmentPage() {
   const { t, locale } = useI18n();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [dialog, setDialog] = useState(false);
   const [transferDialog, setTransferDialog] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<EncashmentRowUI | null>(null);
@@ -54,9 +76,9 @@ export function LeaveEncashmentPage() {
   const typesApi = useApi<{ types: LeaveTypeRow[]; employees: EmployeeOption[] }>("/api/rekankerja/leave/types");
   const periodsApi = useApi<{ periods: PeriodOption[] }>("/api/rekankerja/payroll-periods");
 
-  const encashments = useMemo(() => (api.data?.encashments ?? []).filter((e) =>
+  const encashments = useMemo(() => filterRowsByAdv((api.data?.encashments ?? []).filter((e) =>
     !query || e.fullName.toLowerCase().includes(query.toLowerCase()) || e.docNo.toLowerCase().includes(query.toLowerCase())
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
 
   const openPeriods = (periodsApi.data?.periods ?? []).filter((p) => p.status === "Draft" || p.status === "Calculated");
 
@@ -165,9 +187,12 @@ export function LeaveEncashmentPage() {
                 </button>
               ))}
             </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. dokumen…", "Search employee / doc no. …")} className="h-8 w-56 pl-8 text-xs" />
+            <div className="flex items-center gap-2">
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. dokumen…", "Search employee / doc no. …")} className="h-8 w-56 pl-8 text-xs" />
+              </div>
             </div>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : encashments.length === 0 ? (

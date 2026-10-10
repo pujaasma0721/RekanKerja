@@ -32,6 +32,9 @@ import { toast } from "sonner";
 import { FileText, Pencil, RotateCcw, Loader2, PenLine, Eye, Scale, Inbox, CheckCircle2, XCircle, FileDown, UserRound, HeartHandshake, Fingerprint, FileSignature } from "lucide-react";
 import { EsignSignDialog } from "@/rekankerja/shared/components/esign/sign-dialog";
 import { cn } from "@/lib/utils";
+// Task adv-e — Advance Search tab Dokumen Terbit (client-side, tambahan di atas docQ)
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 // ---------- tipe baris template (respons GET /api/rekankerja/letter-templates) ----------
 interface TemplateRow {
@@ -132,6 +135,24 @@ interface DocRow {
   esign: { signatureId: string; signerName: string; signedAt: string; viaPa: boolean } | null;
 }
 
+/** Task adv-e — field Advance Search dokumen terbit (label kategori selaras render tab). */
+const DOC_ADV_FIELDS: AdvFieldDef<DocRow>[] = [
+  txt("refNo", "No. Surat", "Ref No."),
+  txt("employeeName", "Karyawan", "Employee"),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("templateName", "Jenis Surat", "Letter Type"),
+  sel("category", "Kategori", "Category", [
+    ["Disciplinary", "Disipliner", "Disciplinary"],
+    ["PersonnelAction", "Personnel Action", "Personnel Action"],
+    ["EmployeeService", "Layanan Karyawan", "Employee Service"],
+  ]),
+  dt("issuedAt", "Tanggal Terbit", "Issued At"),
+  sel("esign", "e-Sign", "e-Sign", [
+    ["signed", "Sudah ditandatangani", "Signed"],
+    ["unsigned", "Belum ditandatangani", "Unsigned"],
+  ], (d) => (d.esign ? "signed" : "unsigned")),
+];
+
 /** Baris permintaan surat ESS (GET /api/rekankerja/letter-requests). */
 interface RequestRow {
   id: string;
@@ -166,6 +187,8 @@ export function LetterTemplatesView() {
   // Task 80f — daftar SEMUA surat terbit + status eSign (tab Dokumen Terbit)
   const issued = useApi<{ letters: DocRow[] }>("/api/rekankerja/letters");
   const [docQ, setDocQ] = useState("");
+  // Task adv-e — Advance Search tab Dokumen Terbit (tambahan di atas docQ)
+  const [docAdv, setDocAdv] = useState<AdvSearch | null>(null);
   const [tab, setTab] = useState("catalog");
   const [edit, setEdit] = useState<TemplateRow | null>(null);
   const [resetTarget, setResetTarget] = useState<TemplateRow | null>(null);
@@ -184,11 +207,15 @@ export function LetterTemplatesView() {
   const service = templates.filter((x) => x.category === "EmployeeService");
   const reqRows = requests.data?.requests ?? [];
   const pendingCount = requests.data?.counts.pending ?? 0;
-  const docRows = (issued.data?.letters ?? []).filter((d) =>
-    !docQ || d.refNo.toLowerCase().includes(docQ.toLowerCase())
-    || d.employeeName.toLowerCase().includes(docQ.toLowerCase())
-    || d.employeeNo.toLowerCase().includes(docQ.toLowerCase())
-    || d.templateName.toLowerCase().includes(docQ.toLowerCase()),
+  const docRows = filterRowsByAdv(
+    (issued.data?.letters ?? []).filter((d) =>
+      !docQ || d.refNo.toLowerCase().includes(docQ.toLowerCase())
+      || d.employeeName.toLowerCase().includes(docQ.toLowerCase())
+      || d.employeeNo.toLowerCase().includes(docQ.toLowerCase())
+      || d.templateName.toLowerCase().includes(docQ.toLowerCase()),
+    ),
+    docAdv,
+    DOC_ADV_FIELDS,
   );
   const signedCount = (issued.data?.letters ?? []).filter((d) => d.esign).length;
   const CATEGORY_LABEL: Record<string, string> = { Disciplinary: "Disipliner", PersonnelAction: "Personnel Action", EmployeeService: "Layanan Karyawan" };
@@ -489,12 +516,15 @@ export function LetterTemplatesView() {
                 <p className="text-[12px] text-slate-500 dark:text-slate-400">
                   {t("Semua surat terbit — tandai secara elektronik agar PDF membawa QR verifikasi.", "All issued letters — sign electronically so the PDF carries a verification QR.")}
                 </p>
-                <Input
-                  value={docQ}
-                  onChange={(e) => setDocQ(e.target.value)}
-                  placeholder={t("Cari no. surat / karyawan / jenis…", "Search ref no / employee / type…")}
-                  className="h-9 w-full max-w-xs"
-                />
+                <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                  <AdvSearchButton fields={DOC_ADV_FIELDS} value={docAdv} onChange={setDocAdv} />
+                  <Input
+                    value={docQ}
+                    onChange={(e) => setDocQ(e.target.value)}
+                    placeholder={t("Cari no. surat / karyawan / jenis…", "Search ref no / employee / type…")}
+                    className="h-9 w-full max-w-xs"
+                  />
+                </div>
               </div>
               {issued.loading && !issued.data ? (
                 <LoadingRows rows={5} />

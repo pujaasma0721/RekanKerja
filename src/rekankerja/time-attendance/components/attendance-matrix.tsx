@@ -16,6 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { MatrixRow, DAY_CATEGORY_LABEL, DAY_CATEGORY_LABEL_EN } from "@/rekankerja/time-attendance/components/attendance-types";
 import { ApiErrorState, isoLocal } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { Layers, ChevronLeft, ChevronRight, CalendarRange, CalendarDays, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,18 +36,29 @@ const shiftDate = (isoDate: string, days: number) => {
   return d;
 };
 
+/** Task adv-search — field Advance Search matriks jadwal (client-side, filter
+ *  TAMBAHAN di atas query; sengaja ringkas — identitas karyawan saja). */
+const ADV_FIELDS: AdvFieldDef<MatrixRow>[] = [
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+];
+
 export function AttendanceMatrixPage() {
   const { navigate } = useNav();
   const { t, locale } = useI18n();
   const [from, setFrom] = useState(iso(mondayOf(new Date())));
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   // Task 103-e (B-16): server mengirim date ISO mentah — label kolom hari
   // diformat CLIENT dengan locale aktif (bukan toLocaleDateString id-ID server).
   const api = useApi<{ from: string; days: { date: string }[]; rows: MatrixRow[]; total: number }>(`/api/rekankerja/attendance/matrix?from=${from}`);
 
-  const rows = (api.data?.rows ?? []).filter((r) =>
+  // Task adv-search — adv = filter TAMBAHAN di atas query (matriks 7 hari).
+  const rows = filterRowsByAdv((api.data?.rows ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.employeeNo.toLowerCase().includes(query.toLowerCase())
-  );
+  ), adv, ADV_FIELDS);
   const days = api.data?.days ?? [];
   const unassigned = (api.data?.rows ?? []).filter((r) => !r.assigned).length;
 
@@ -76,6 +89,7 @@ export function AttendanceMatrixPage() {
               <p className="text-[13px] font-bold">{t("Pekan {a} — {b} · {n} karyawan", "Week {a} — {b} · {n} employees", { a: fmtDate(from), b: fmtDate(shiftDate(from, 6)), n: api.data?.total ?? 0 })}</p>
             </div>
             <div className="flex items-center gap-2">
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan…", "Search employee…")} className="h-8 w-48 pl-8 text-xs" />

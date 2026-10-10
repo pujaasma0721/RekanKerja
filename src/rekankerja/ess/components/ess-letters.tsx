@@ -9,7 +9,7 @@
 //     Asuransi/Lainnya + tulis bebas) + catatan;
 //   · Riwayat: timeline status (Diajukan → Menunggu HR → Diterbitkan/Ditolak
 //     + alasan), tombol "Unduh PDF" bila Issued (endpoint ESS milik permintaan).
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   FileText, Loader2, Send, AlertTriangle, History, FileDown, Clock3, CheckCircle2,
@@ -28,12 +28,30 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ESS_BASE, submitLetterRequest } from "./ess-api";
 import type { EssLettersData, EssLetterRequest } from "./ess-types";
 import { fmtDate, fmtDateTime } from "@/rekankerja/shared/lib/api";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 // pilihan keperluan cepat + "Lainnya" (tulis bebas)
 const PURPOSE_OPTIONS = ["Kredit", "KPR", "Visa", "Asuransi", "Lainnya"] as const;
 
 // peta EN pilihan keperluan (di luar peta: teks mentah — KPR/Visa identik)
 const PURPOSE_EN: Record<string, string> = { Kredit: "Credit", Asuransi: "Insurance", Lainnya: "Other" };
+
+/** Task adv-search — field Advance Search riwayat permintaan surat (client-side;
+ *  status permintaan: Pending | Approved | Rejected | Issued). */
+const LETTER_ADV_FIELDS: AdvFieldDef<EssLetterRequest>[] = [
+  txt("reqNo", "No. Permintaan", "Request No."),
+  txt("templateName", "Jenis Surat", "Letter Type"),
+  txt("purpose", "Keperluan", "Purpose"),
+  sel("status", "Status", "Status", [
+    ["Pending", "Menunggu", "Pending"],
+    ["Approved", "Disetujui", "Approved"],
+    ["Rejected", "Ditolak", "Rejected"],
+    ["Issued", "Diterbitkan", "Issued"],
+  ]),
+  dt("createdAt", "Diajukan Pada", "Requested On"),
+  txt("letterRefNo", "No. Surat Terbit", "Issued Letter No."),
+];
 
 function FormError({ message }: { message: string | null }) {
   const { t } = useI18n();
@@ -128,12 +146,20 @@ export function EssLetters() {
   const [form, setForm] = useState({ templateKey: "", purpose: "", customPurpose: "", notes: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Task adv-search — kondisi advance search riwayat (personal ESS).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
   const templates = api.data?.templates ?? [];
-  const requests = api.data?.requests ?? [];
-  // permintaan menunggu per jenis (kartu disable + chip status)
+  const allRequests = api.data?.requests ?? [];
+  // permintaan menunggu per jenis (kartu disable + chip status) — TETAP dari
+  // daftar penuh (state kartu tidak ikut filter advance search).
   const pendingByTemplate = new Map(
-    requests.filter((r) => r.status === "Pending").map((r) => [r.templateKey, r]),
+    allRequests.filter((r) => r.status === "Pending").map((r) => [r.templateKey, r]),
+  );
+  // riwayat tampil = daftar penuh + adv.
+  const requests = useMemo(
+    () => filterRowsByAdv(allRequests, adv, LETTER_ADV_FIELDS),
+    [allRequests, adv],
   );
 
   const openDialog = (templateKey: string) => {
@@ -250,9 +276,10 @@ export function EssLetters() {
       {/* ===== riwayat permintaan ===== */}
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-bold">
+          <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-bold">
             <History className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
             {t("Riwayat Permintaan Surat", "Letter Request History")}
+            <AdvSearchButton fields={LETTER_ADV_FIELDS} value={adv} onChange={setAdv} className="ml-auto" />
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-1">

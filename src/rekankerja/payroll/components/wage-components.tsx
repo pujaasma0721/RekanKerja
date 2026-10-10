@@ -1,7 +1,7 @@
 "use client";
 // RekanKerja Payroll — Komponen Upah: master komponen dgn klasifikasi standar industri
 // (wageType 13-way, incomeTaxMethod, formula, prorata, iuran perusahaan)
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR } from "@/rekankerja/shared/lib/api";
 import { useTableSort } from "@/rekankerja/shared/lib/use-table-sort";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
@@ -17,6 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { Coins, Plus, Pencil, Search, TrendingUp, TrendingDown, Info, Trash2, SlidersHorizontal } from "lucide-react";
 import { WageCompFull, WAGE_TYPE_LABEL, WAGE_TYPE_LABEL_EN, TAX_METHOD_LABEL, TAX_METHOD_LABEL_EN, FORMULA_VARIABLES, FORMULA_VARIABLES_EN } from "@/rekankerja/payroll/components/payroll-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { ComponentRulesDialog } from "@/rekankerja/payroll/components/component-rules-dialog";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -24,15 +26,58 @@ import { useI18n } from "@/rekankerja/shared/lib/i18n";
 const WAGE_TYPE_OPTIONS = Object.entries(WAGE_TYPE_LABEL);
 const TAX_METHOD_OPTIONS = Object.entries(TAX_METHOD_LABEL);
 
+/** Task adv-search — opsi select dwibahasa dari peta label yang sudah ada. */
+const WAGE_TYPE_ADV_OPTIONS: [string, string, string][] = Object.entries(WAGE_TYPE_LABEL).map(
+  ([v, l]) => [v, l, WAGE_TYPE_LABEL_EN[v] ?? v],
+);
+const TAX_METHOD_ADV_OPTIONS: [string, string, string][] = Object.entries(TAX_METHOD_LABEL).map(
+  ([v, l]) => [v, l, TAX_METHOD_LABEL_EN[v] ?? v],
+);
+
+/** Task adv-search — field Advance Search komponen upah (client-side, filter
+ *  TAMBAHAN di atas filter tipe & query server yang sudah ada). */
+const ADV_FIELDS: AdvFieldDef<WageCompFull>[] = [
+  txt("code", "Kode", "Code"),
+  txt("name", "Nama Komponen", "Component Name"),
+  sel("type", "Kategori", "Category", [
+    ["Earning", "Earning", "Earning"],
+    ["Deduction", "Deduction", "Deduction"],
+    ["Informational", "Informational", "Informational"],
+  ]),
+  sel("wageType", "Jenis Upah", "Wage Type", WAGE_TYPE_ADV_OPTIONS),
+  sel("calcMethod", "Metode Kalkulasi", "Calculation Method", [
+    ["Fixed", "Fixed (nilai tetap)", "Fixed (fixed value)"],
+    ["Formula", "Formula (ekspresi)", "Formula (expression)"],
+    ["Tax", "Dihitung engine", "Engine-calculated"],
+  ]),
+  num("amount", "Nilai Tetap", "Fixed Amount"),
+  txt("formula", "Formula", "Formula", (c) => c.formula),
+  sel("incomeTaxMethod", "Metode Pajak", "Tax Method", TAX_METHOD_ADV_OPTIONS),
+  num("ruleCount", "Aturan", "Rules"),
+  sel("includeInTHP", "Masuk THP", "Include in THP", [
+    ["true", "Ya", "Yes"],
+    ["false", "Tidak", "No"],
+  ], (c) => String(c.includeInTHP)),
+  sel("active", "Aktif", "Active", [
+    ["true", "Aktif", "Active"],
+    ["false", "Nonaktif", "Inactive"],
+  ], (c) => String(c.active)),
+];
+
 export function WageComponentsPage() {
   const { t } = useI18n();
   const [typeFilter, setTypeFilter] = useState("all");
   const [q, setQ] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas filter server).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const url = `/api/rekankerja/wage-components${typeFilter !== "all" || q ? `?${new URLSearchParams({ ...(typeFilter !== "all" ? { type: typeFilter } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`;
   const { data, loading, refresh } = useApi<{ components: WageCompFull[]; typeCounts: Record<string, number> }>(url);
 
+  // Task adv-search — filter tambahan client-side di atas hasil query/tipe server.
+  const components = useMemo(() => filterRowsByAdv(data?.components ?? [], adv, ADV_FIELDS), [data, adv]);
+
   // Task 72 — sorting kolom tabel komponen upah
-  const sort = useTableSort(data?.components, {
+  const sort = useTableSort(components, {
     code: (c) => c.code,
     name: (c) => c.name,
     type: (c) => c.type,
@@ -85,9 +130,12 @@ export function WageComponentsPage() {
 
       <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-3.5">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Cari komponen upah…", "Search wage components…")} className="pl-9" />
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Cari komponen upah…", "Search wage components…")} className="pl-9" />
+            </div>
+            <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} className="self-center" />
           </div>
         </CardContent>
       </Card>
@@ -96,7 +144,7 @@ export function WageComponentsPage() {
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={6} /></div>
-          ) : data && data.components.length > 0 ? (
+          ) : components.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

@@ -25,6 +25,8 @@ import {
   BarChart3, PieChart as PieIcon, UserMinus, Building2, FolderOpen,
 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { cn } from "@/lib/utils";
 import { AttendanceReportDocumentsTab } from "./report-documents/report-documents-tab";
 
@@ -83,26 +85,46 @@ function downloadExport(month: string, lang: string) {
   window.location.href = `/api/rekankerja/attendance/reports?month=${month}&export=kpi&lang=${lang}`;
 }
 
+/** Task adv-search — field Advance Search tabel rekap per karyawan (client-side,
+ *  filter TAMBAHAN di atas empQuery; label mengikuti header tabel). */
+const ADV_FIELDS: AdvFieldDef<EmployeeRow>[] = [
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama", "Name"),
+  txt("orgUnitName", "Unit Kerja", "Org Unit"),
+  num("presentDays", "Hari Hadir", "Present Days"),
+  num("lateDays", "Telat (hari)", "Late (days)"),
+  num("lateMinutes", "Telat (menit)", "Late (min)"),
+  num("absentDays", "Absen (hari)", "Absent (days)"),
+  num("workoffDays", "Izin (hari)", "Permit (days)"),
+  num("onLeaveDays", "Cuti (hari)", "Leave (days)"),
+  num("offDays", "Off/Libur (hari)", "Off/Holiday (days)"),
+  num("workHours", "Jam Kerja", "Work Hours"),
+  num("overtimeHours", "Jam Lembur", "Overtime Hours"),
+];
+
 export function AttendanceReportsPage() {
   const { t, locale, lang } = useI18n();
   const now = new Date();
   const [month, setMonth] = useState(() => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
   const [empQuery, setEmpQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas empQuery).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
   const api = useApi<ReportsData>(`/api/rekankerja/attendance/reports?month=${month}`, [month]);
   const data = api.data;
 
   const fmtNum = (n: number | null | undefined) => (n ?? 0).toLocaleString(locale);
 
-  // filter sisi klien tabel per karyawan (nama / no. karyawan / unit)
+  // filter sisi klien tabel per karyawan (nama / no. karyawan / unit) + adv
   const empRows = useMemo(() => {
     const rows = data?.perEmployee ?? [];
     const q = empQuery.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      r.fullName.toLowerCase().includes(q) || r.employeeNo.toLowerCase().includes(q) ||
-      (r.orgUnitName ?? "").toLowerCase().includes(q));
-  }, [data, empQuery]);
+    return filterRowsByAdv(q
+      ? rows.filter((r) =>
+        r.fullName.toLowerCase().includes(q) || r.employeeNo.toLowerCase().includes(q) ||
+        (r.orgUnitName ?? "").toLowerCase().includes(q))
+      : rows, adv, ADV_FIELDS);
+  }, [data, empQuery, adv]);
 
   return (
     <div>
@@ -291,13 +313,14 @@ export function AttendanceReportsPage() {
 
           {/* ================= TAB PER KARYAWAN ================= */}
           <TabsContent value="karyawan" className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Input
                 value={empQuery}
                 onChange={(e) => setEmpQuery(e.target.value)}
                 placeholder={t("Cari nama / no. karyawan / unit…", "Search name / employee no. / unit…")}
                 className="h-9 w-72 text-xs"
               />
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
               <span className="text-[11px] font-bold text-slate-400">{fmtNum(empRows.length)} {t("karyawan", "employees")}</span>
             </div>
             <EmployeeTable rows={empRows} t={t} locale={locale} />

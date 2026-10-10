@@ -23,6 +23,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, ChevronLeft, ChevronRight, Download, ScrollText, X, User, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n, locActivity } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, encodeAdvParam } from "@/rekankerja/shared/lib/adv-search";
 
 const PAGE_SIZE = 50;
 
@@ -83,6 +85,20 @@ function ActionBadge({ action }: { action: string }) {
   );
 }
 
+/** Task adv-search — field Advance Search log aktivitas (server — ter-paginasi;
+ *  key HARUS sama dgn whitelist LOG_ADV_FIELDS di api activity-logs). */
+const LOG_ADV_FIELDS: AdvFieldDef<Record<string, unknown>>[] = [
+  txt("actor", "Aktor (Nama)", "Actor (Name)"),
+  txt("actorUsername", "Username Aktor", "Actor Username"),
+  txt("employee", "Karyawan", "Employee"),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("detail", "Detail", "Details"),
+  txt("entityId", "Ref ID", "Ref ID"),
+  txt("action", "Aksi", "Action"),
+  txt("entity", "Entitas", "Entity"),
+  dt("createdAt", "Waktu", "Time"),
+];
+
 export function ActivityLogView() {
   const { t } = useI18n();
   const perms = useMenuPerms();
@@ -96,6 +112,7 @@ export function ActivityLogView() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [offset, setOffset] = useState(0);
+  const [adv, setAdv] = useState<AdvSearch | null>(null); // Task adv-search
   // Task 76 — sorting SERVER-SIDE: sortBy/sortDir dikirim ke API (whitelist),
   // urutan menembus seluruh data — bukan hanya halaman yang dimuat.
   const [sortKey, setSortKey] = useState<"time" | "actor" | "employee" | "action" | "entity">("time");
@@ -132,10 +149,12 @@ export function ActivityLogView() {
     if (employeeId !== "all") sp.set("employeeId", employeeId);
     if (from) sp.set("from", from);
     if (to) sp.set("to", to);
+    const advP = encodeAdvParam(adv);
+    if (advP) sp.set("adv", advP);
     sp.set("sortBy", sortKey);
     sp.set("sortDir", sortDir);
     return `/api/rekankerja/activity-logs?${sp.toString()}`;
-  }, [debouncedQ, action, entity, employeeId, from, to, offset, sortKey, sortDir]);
+  }, [debouncedQ, action, entity, employeeId, from, to, offset, sortKey, sortDir, adv]);
 
   const { data, loading, error } = useApi<LogsResp>(url, [url]);
   const emps = useApi<{ employees: { id: string; fullName: string; employeeNo: string }[] }>(
@@ -147,8 +166,8 @@ export function ActivityLogView() {
   const from_ = total === 0 ? 0 : offset + 1;
   const to_ = Math.min(offset + PAGE_SIZE, total);
 
-  const hasFilter = debouncedQ !== "" || action !== "all" || entity !== "all" || employeeId !== "all" || from !== "" || to !== "";
-  const resetFilters = () => { setQ(""); setAction("all"); setEntity("all"); setEmployeeId("all"); setFrom(""); setTo(""); setOffset(0); };
+  const hasFilter = debouncedQ !== "" || action !== "all" || entity !== "all" || employeeId !== "all" || from !== "" || to !== "" || adv != null;
+  const resetFilters = () => { setQ(""); setAction("all"); setEntity("all"); setEmployeeId("all"); setFrom(""); setTo(""); setAdv(null); setOffset(0); };
 
   // URL ekspor CSV — filter saat ini + export=csv (server guard op:export)
   const exportUrl = useMemo(() => {
@@ -159,8 +178,10 @@ export function ActivityLogView() {
     if (employeeId !== "all") sp.set("employeeId", employeeId);
     if (from) sp.set("from", from);
     if (to) sp.set("to", to);
+    const advP = encodeAdvParam(adv);
+    if (advP) sp.set("adv", advP);
     return `/api/rekankerja/activity-logs?${sp.toString()}`;
-  }, [debouncedQ, action, entity, employeeId, from, to]);
+  }, [debouncedQ, action, entity, employeeId, from, to, adv]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -197,6 +218,7 @@ export function ActivityLogView() {
           />
         </div>
         <div className="flex flex-wrap gap-2">
+          <AdvSearchButton fields={LOG_ADV_FIELDS} value={adv} onChange={(v) => { setAdv(v); setOffset(0); }} />
           <Select value={action} onValueChange={(v) => { setAction(v); setOffset(0); }}>
             <SelectTrigger className="h-10 w-full min-w-36 rounded-xl font-medium lg:w-[168px]" aria-label={t("Filter aksi", "Action filter")}>
               <SelectValue placeholder={t("Semua aksi", "All actions")} />

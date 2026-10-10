@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { LeaveTypeRow, parseBlackoutDates } from "./leave-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { Layers, Plus, Pencil, Ban, Search, CheckCircle2, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -40,9 +42,23 @@ const POLICY_LABEL_EN: Record<string, string> = {
   needDocs: "Requires supporting documents",
 };
 
+/** Task adv-search — field Advance Search master jenis cuti (client-side,
+ *  filter TAMBAHAN di atas query yang sudah ada; `active` boolean dikonversi
+ *  jadi pilihan "true"/"false" via getter). */
+const ADV_FIELDS: AdvFieldDef<LeaveTypeRow>[] = [
+  txt("code", "Kode", "Code"),
+  txt("name", "Jenis Cuti", "Leave Type"),
+  sel("unit", "Satuan", "Unit", [["DAY", "Hari", "Day"], ["MONTH", "Bulan", "Month"]]),
+  num("entitlement", "Hak", "Entitlement"),
+  num("noticeDays", "Notice (hari)", "Notice (days)"),
+  sel("active", "Status", "Status", [["true", "Aktif", "Active"], ["false", "Nonaktif", "Inactive"]], (ty) => String(ty.active)),
+];
+
 export function LeaveTypesPage() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [dialog, setDialog] = useState(false);
   const [editTarget, setEditTarget] = useState<LeaveTypeRow | null>(null);
   const [rulesTarget, setRulesTarget] = useState<EntityRuleTarget | null>(null);
@@ -50,9 +66,9 @@ export function LeaveTypesPage() {
   const [busy, setBusy] = useState(false);
   const api = useApi<{ types: LeaveTypeRow[] }>("/api/rekankerja/leave/types?all=1");
 
-  const types = useMemo(() => (api.data?.types ?? []).filter((ty) =>
+  const types = useMemo(() => filterRowsByAdv((api.data?.types ?? []).filter((ty) =>
     !query || ty.name.toLowerCase().includes(query.toLowerCase()) || ty.code.toLowerCase().includes(query.toLowerCase())
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
 
   const openCreate = () => { setEditTarget(null); setForm(EMPTY_FORM); setDialog(true); };
   const openEdit = (ty: LeaveTypeRow) => {
@@ -129,9 +145,12 @@ export function LeaveTypesPage() {
         <CardContent className="p-0">
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{t("{n} jenis — UU 13/2003 & PP 35/2021 + kebijakan perusahaan", "{n} types — Law 13/2003 & PP 35/2021 + company policy", { n: types.length })}</p>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari jenis cuti…", "Search leave types…")} className="h-8 w-52 pl-8 text-xs" />
+            <div className="flex items-center gap-2">
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari jenis cuti…", "Search leave types…")} className="h-8 w-52 pl-8 text-xs" />
+              </div>
             </div>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={8} /></div> : types.length === 0 ? (

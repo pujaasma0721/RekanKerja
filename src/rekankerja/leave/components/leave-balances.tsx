@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { BalanceRowUI, LeaveTypeRow, EmployeeOption, fmtDay } from "./leave-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { Palmtree, Sparkles, Search, Plus, Minus, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
@@ -21,10 +23,27 @@ import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 // Task 99 (F1-6) — opsi tahun dinamis (tahun berjalan −2 .. +1, bukan hardcoded).
 const YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 2 + i);
 
+/** Task adv-search — field Advance Search saldo cuti (client-side, filter
+ *  TAMBAHAN di atas query & filter jenis yang sudah ada). */
+const ADV_FIELDS: AdvFieldDef<BalanceRowUI>[] = [
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  txt("leaveTypeName", "Jenis Cuti", "Leave Type"),
+  txt("leaveTypeCode", "Kode Jenis", "Type Code"),
+  num("entitlement", "Hak", "Entitlement"),
+  num("carriedOver", "a · Bawa", "a · Carry"),
+  num("taken", "f · Terpakai", "f · Taken"),
+  num("applied", "g · Akan", "g · Upcoming"),
+  num("remaining", "Saldo", "Balance"),
+];
+
 export function LeaveBalancesPage() {
   const { t } = useI18n();
   const [year, setYear] = useState(new Date().getFullYear());
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [genDialog, setGenDialog] = useState(false);
   const [adjTarget, setAdjTarget] = useState<BalanceRowUI | null>(null);
@@ -37,10 +56,10 @@ export function LeaveBalancesPage() {
   );
   const typesApi = useApi<{ types: LeaveTypeRow[]; employees: EmployeeOption[] }>("/api/rekankerja/leave/types");
 
-  const balances = useMemo(() => (api.data?.balances ?? []).filter((b) => {
+  const balances = useMemo(() => filterRowsByAdv((api.data?.balances ?? []).filter((b) => {
     if (typeFilter !== "all" && b.leaveTypeCode !== typeFilter) return false;
     return !query || b.fullName.toLowerCase().includes(query.toLowerCase()) || b.employeeNo.toLowerCase().includes(query.toLowerCase());
-  }), [api.data, query, typeFilter]);
+  }), adv, ADV_FIELDS), [api.data, query, typeFilter, adv]);
 
   // Task 72 — sorting kolom tabel saldo cuti
   const sort = useTableSort(balances, {
@@ -141,9 +160,12 @@ export function LeaveBalancesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan…", "Search employees…")} className="h-8 w-52 pl-8 text-xs" />
+            <div className="flex items-center gap-2">
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan…", "Search employees…")} className="h-8 w-52 pl-8 text-xs" />
+              </div>
             </div>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={8} /></div> : balances.length === 0 ? (

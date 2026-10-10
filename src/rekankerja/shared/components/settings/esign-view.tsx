@@ -29,6 +29,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { trServer } from "@/rekankerja/shared/lib/i18n-core";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, encodeAdvParam } from "@/rekankerja/shared/lib/adv-search";
 
 // ---------- tipe ----------
 interface KeyRow {
@@ -77,6 +79,16 @@ interface ChainResp {
 
 const PAGE = 50;
 
+/** Task adv-search — field Advance Search rantai ttd (server — ter-paginasi). */
+const CHAIN_ADV_FIELDS: AdvFieldDef<ChainRow>[] = [
+  txt("docRef", "No. Dokumen", "Doc Ref"),
+  txt("docType", "Jenis Dokumen", "Doc Type"),
+  txt("signerName", "Penandatangan", "Signer"),
+  txt("signerRole", "Role Penandatangan", "Signer Role"),
+  txt("signerIp", "IP Penandatangan", "Signer IP"),
+  dt("signedAt", "Waktu Tanda Tangan", "Signed At"),
+];
+
 export function EsignAdminView() {
   const { t } = useI18n();
   const perms = useMenuPerms();
@@ -88,13 +100,16 @@ export function EsignAdminView() {
   const [chainQ, setChainQ] = useState("");
   const [chainQApplied, setChainQApplied] = useState("");
   const [chainDocType, setChainDocType] = useState("");
+  const [chainAdv, setChainAdv] = useState<AdvSearch | null>(null); // Task adv-search
   const chainUrl = useMemo(() => {
     const p = new URLSearchParams({ view: "chain", limit: String(PAGE), offset: String(chainOffset) });
     const q = chainQApplied.trim();
     if (q) p.set("q", q);
     if (chainDocType) p.set("docType", chainDocType);
+    const advP = encodeAdvParam(chainAdv);
+    if (advP) p.set("adv", advP);
     return `/api/rekankerja/esign-admin?${p.toString()}`;
-  }, [chainOffset, chainQApplied, chainDocType]);
+  }, [chainOffset, chainQApplied, chainDocType, chainAdv]);
   const chainApi = useApi<ChainResp>(chainUrl);
   const [confirm, setConfirm] = useState<{ kind: "reset-pin" | "revoke-key"; row: KeyRow } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -236,6 +251,7 @@ export function EsignAdminView() {
             <Button variant="outline" className="h-9" onClick={applySearch}>
               {t("Cari", "Search")}
             </Button>
+            <AdvSearchButton fields={CHAIN_ADV_FIELDS} value={chainAdv} onChange={(v) => { setChainAdv(v); setChainOffset(0); }} />
             <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
               {chain?.chainIntact ? <><Link2 className="h-4 w-4 text-brand" /> {t("Rantai utuh", "Chain intact")}</> : <><Link2Off className="h-4 w-4 text-rose-500" /> {t("Rantai putus", "Chain broken")}</>}
             </span>

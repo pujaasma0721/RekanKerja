@@ -21,6 +21,23 @@ import {
 import { HeartPulse, RefreshCw, Search, Wallet, PencilLine } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
+
+/** Task adv-search — field Advance Search saldo medis karyawan (filter
+ *  client-side TAMBAHAN di atas query & filter jenis). */
+const BALANCE_ADV_FIELDS: AdvFieldDef<BalanceUI>[] = [
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  txt("typeCode", "Kode Jenis", "Type Code"),
+  txt("typeName", "Jenis", "Type"),
+  num("year", "Tahun", "Year"),
+  num("baseSalary", "Gaji Pokok", "Base Salary"),
+  num("benefitAmount", "Limit", "Limit"),
+  num("usedAmount", "Terpakai", "Used"),
+  num("remaining", "Sisa", "Remaining"),
+];
 
 export function MedicalInfoPage() {
   const { t } = useI18n();
@@ -28,6 +45,8 @@ export function MedicalInfoPage() {
   const [year, setYear] = useState(String(currentYear));
   const [typeFilter, setTypeFilter] = useState("all");
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [genOpen, setGenOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [genYear, setGenYear] = useState(String(currentYear + 1));
@@ -44,12 +63,12 @@ export function MedicalInfoPage() {
     `/api/rekankerja/medical/balances?year=${year}`,
   );
 
-  const balances = useMemo(() => (api.data?.balances ?? []).filter((b) => {
+  const balances = useMemo(() => filterRowsByAdv((api.data?.balances ?? []).filter((b) => {
     if (typeFilter !== "all" && b.typeCode !== typeFilter) return false;
     if (!query) return true;
     const q = query.toLowerCase();
     return b.fullName.toLowerCase().includes(q) || b.employeeNo.toLowerCase().includes(q);
-  }), [api.data, typeFilter, query]);
+  }), adv, BALANCE_ADV_FIELDS), [api.data, typeFilter, query, adv]);
 
   const types = api.data?.types ?? [];
   const years = api.data?.years ?? [];
@@ -143,9 +162,12 @@ export function MedicalInfoPage() {
             ))}
           </SelectContent>
         </Select>
-        <div className="relative ml-auto w-full sm:w-56">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan…", "Search employees…")} className="pl-8" />
+        <div className="ml-auto flex w-full items-center gap-2 sm:w-auto">
+          <div className="relative w-full sm:w-56">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan…", "Search employees…")} className="pl-8" />
+          </div>
+          <AdvSearchButton fields={BALANCE_ADV_FIELDS} value={adv} onChange={setAdv} />
         </div>
       </div>
 

@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, encodeAdvParam } from "@/rekankerja/shared/lib/adv-search";
 import { EmployeeAvatar } from "./employee-avatar";
 import { EmployeeImportDialog } from "./employee-import-dialog";
 import { EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN, employmentStatusBadge, type DirectoryResp, type OrgUnitsLiteResp, type EmployeeRow } from "./types";
@@ -28,6 +30,31 @@ import { EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN, employmentStatusBa
 const PAGE_SIZE = 25;
 
 type ViewMode = "table" | "grid";
+
+/** Task adv-search — field Advance Search direktori (dijalankan SERVER — list
+ *  ter-paginasi). key HARUS sama dgn whitelist EMPLOYEE_ADV_FIELDS di
+ *  human-resource/api/employees.ts; gaji pokok tidak disertakan (kolom
+ *  terenkripsi at-rest — tidak bisa dibandingkan di level DB). */
+const ADV_FIELDS: AdvFieldDef<EmployeeRow>[] = [
+  txt("fullName", "Nama Lengkap", "Full Name"),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("email", "Email", "Email"),
+  txt("phone", "Telepon", "Phone"),
+  sel("gender", "Jenis Kelamin", "Gender", [["M", "Laki-laki", "Male"], ["F", "Perempuan", "Female"]]),
+  sel("status", "Status Karyawan", "Employee Status", [
+    ["Active", "Aktif", "Active"], ["Resigned", "Resign", "Resigned"],
+    ["Terminated", "PHK", "Terminated"], ["Blacklisted", "Blacklist", "Blacklisted"],
+  ]),
+  sel("employmentStatus", "Status Kerja", "Employment Status", [
+    ["Permanent", "Tetap", "Permanent"], ["Contract", "Kontrak", "Contract"],
+    ["Probation", "Percobaan", "Probation"], ["Outsourcing", "Outsourcing", "Outsourcing"],
+  ]),
+  txt("position", "Posisi", "Position"),
+  txt("unit", "Unit Organisasi", "Org Unit"),
+  txt("grade", "Grade", "Grade"),
+  dt("joinDate", "Tanggal Masuk", "Join Date"),
+  dt("contractEnd", "Akhir Kontrak", "Contract End"),
+];
 
 /** 26-b — sisa hari masa kontrak (null bila tanpa contractEnd). */
 function contractDaysLeft(contractEnd: string | null): number | null {
@@ -100,6 +127,7 @@ export function EmployeeDirectory() {
   const [offset, setOffset] = useState(0);
   const [view, setView] = useState<ViewMode>("grid");
   const [quick, setQuick] = useState<EmployeeRow | null>(null);
+  const [adv, setAdv] = useState<AdvSearch | null>(null); // Task adv-search
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Task 74 — sorting SERVER-SIDE: sort lintas seluruh data sebelum paginasi.
@@ -126,6 +154,9 @@ export function EmployeeDirectory() {
     if (unit !== "all") sp.set("unit", unit);
     if (empStatus !== "all") sp.set("employmentStatus", empStatus);
     if (contractDue != null) sp.set("contractExpiring", String(contractDue));
+    // Task adv-search — filter advance (JSON ter-encode) dijalankan server
+    const advP = encodeAdvParam(adv);
+    if (advP) sp.set("adv", advP);
     // Task 74 — kirim sort ke server (map kolom UI → kolom API)
     const SORT_API: Record<string, string> = {
       name: "fullName", nip: "employeeNo", position: "position", unit: "unit",
@@ -137,7 +168,7 @@ export function EmployeeDirectory() {
       sp.set("sortDir", sortDir);
     }
     return `/api/rekankerja/employees?${sp.toString()}`;
-  }, [debouncedQ, status, unit, empStatus, contractDue, offset, sortKey, sortDir]);
+  }, [debouncedQ, status, unit, empStatus, contractDue, offset, sortKey, sortDir, adv]);
 
   const { data, loading, error, refresh } = useApi<DirectoryResp>(url, [debouncedQ, status, unit, empStatus, contractDue, offset]);
   const units = useApi<OrgUnitsLiteResp>("/api/rekankerja/org-units");
@@ -178,7 +209,7 @@ export function EmployeeDirectory() {
     { key: "inactive", label: t("Non-aktif", "Inactive"), value: stats?.inactive, active: status === "inactive", onClick: () => { setStatus(status === "inactive" ? "all" : "inactive"); setEmpStatus("all"); resetPage(); } },
   ];
 
-  const hasFilter = debouncedQ !== "" || status !== "all" || unit !== "all" || empStatus !== "all" || contractDue != null;
+  const hasFilter = debouncedQ !== "" || status !== "all" || unit !== "all" || empStatus !== "all" || contractDue != null || adv != null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -250,7 +281,7 @@ export function EmployeeDirectory() {
         </div>
         {hasFilter && (
           <button
-            onClick={() => { setQ(""); setStatus("all"); setUnit("all"); setEmpStatus("all"); setContractDue(null); resetPage(); }}
+            onClick={() => { setQ(""); setStatus("all"); setUnit("all"); setEmpStatus("all"); setContractDue(null); setAdv(null); resetPage(); }}
             className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-[12px] font-medium text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
           >
             <X className="h-3.5 w-3.5" /> {t("Reset")}
@@ -301,6 +332,7 @@ export function EmployeeDirectory() {
           />
         </div>
         <div className="flex flex-wrap gap-2">
+          <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={(v) => { setAdv(v); resetPage(); }} />
           <Select value={unit} onValueChange={(v) => { setUnit(v); resetPage(); }}>
             <SelectTrigger className="h-10 w-full min-w-40 rounded-xl font-medium lg:w-[210px]" aria-label={t("Filter unit organisasi", "Organizational unit filter")}>
               <SelectValue placeholder={t("Semua unit", "All units")} />

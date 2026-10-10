@@ -1,7 +1,7 @@
 "use client";
 // RekanKerja Payroll — Transaksi: pinjaman karyawan (skedul cicilan) + komponen
 // khusus/periodik + rapel/back-pay retroaktif lintas period (P4).
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useTableSort } from "@/rekankerja/shared/lib/use-table-sort";
 import { useNav } from "@/rekankerja/shared/lib/store";
@@ -18,8 +18,49 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { ArrowLeftRight, Plus, Trash2, Landmark, Coins, ChevronDown, ChevronUp, History, PlayCircle, Calculator, CheckCircle2, XCircle } from "lucide-react";
 import { LoanRow, CompAssignmentRow, WageCompFull, PeriodRow, ProcessTypeRow, RapelBreakdownRow } from "@/rekankerja/payroll/components/payroll-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
+
+/** Task adv-search — field Advance Search pinjaman karyawan (client-side, filter
+ *  TAMBAHAN tanpa menyentuh data yang sudah di-fetch; employee bersarang via getter). */
+const LOAN_ADV_FIELDS: AdvFieldDef<LoanRow>[] = [
+  txt("letterNo", "No. Surat", "Letter No."),
+  txt("employeeName", "Karyawan", "Employee", (l) => l.employee?.fullName),
+  txt("employeeNo", "No. Karyawan", "Employee No.", (l) => l.employee?.employeeNo),
+  dt("loanDate", "Tanggal Pinjam", "Loan Date"),
+  num("amount", "Pokok", "Principal"),
+  num("installmentCount", "Jml Cicilan", "Installments"),
+  num("installmentAmount", "Nilai Cicilan", "Installment Amount"),
+  num("interestRate", "Bunga %/thn", "Interest %/yr"),
+  dt("startPaymentDate", "Mulai Bayar", "First Payment Date"),
+  num("paidAmount", "Terbayar", "Paid"),
+  num("outstanding", "Outstanding", "Outstanding"),
+  sel("status", "Status", "Status", [
+    ["Active", "Aktif", "Active"],
+    ["PaidOff", "Lunas", "Paid Off"],
+    ["Submitted", "Diajukan", "Submitted"],
+    ["Rejected", "Ditolak", "Rejected"],
+    ["Cancelled", "Dibatalkan", "Cancelled"],
+  ]),
+  txt("purpose", "Keperluan", "Purpose"),
+];
+
+/** Task adv-search — field Advance Search komponen khusus/periodik per karyawan. */
+const COMP_ADV_FIELDS: AdvFieldDef<CompAssignmentRow>[] = [
+  txt("employeeName", "Karyawan", "Employee", (a) => a.employee?.fullName),
+  txt("employeeNo", "No. Karyawan", "Employee No.", (a) => a.employee?.employeeNo),
+  txt("componentName", "Komponen", "Component", (a) => a.wageComponent?.name),
+  txt("componentCode", "Kode Komponen", "Component Code", (a) => a.wageComponent?.code),
+  sel("kind", "Jenis", "Kind", [
+    ["Specific", "Khusus (sekali)", "Specific (one-time)"],
+    ["Periodic", "Periodik (tiap period)", "Periodic (every period)"],
+  ]),
+  dt("basedDate", "Berlaku", "Effective"),
+  num("amount", "Nilai", "Value"),
+  txt("notes", "Catatan", "Notes"),
+];
 
 export function PayrollTransactionsPage() {
   const { t } = useI18n();
@@ -27,12 +68,19 @@ export function PayrollTransactionsPage() {
   const [loanDialog, setLoanDialog] = useState(false);
   const [compDialog, setCompDialog] = useState(false);
   const [rapelDialog, setRapelDialog] = useState(false);
+  // Task adv-search — kondisi advance search per tab (loans & components).
+  const [advLoans, setAdvLoans] = useState<AdvSearch | null>(null);
+  const [advComps, setAdvComps] = useState<AdvSearch | null>(null);
 
   const loansApi = useApi<{ loans: LoanRow[] }>("/api/rekankerja/loans");
   const compsApi = useApi<{ assignments: CompAssignmentRow[] }>("/api/rekankerja/component-assignments");
 
+  // Task adv-search — filter tambahan di atas data yang sudah di-fetch.
+  const loans = useMemo(() => filterRowsByAdv(loansApi.data?.loans ?? [], advLoans, LOAN_ADV_FIELDS), [loansApi.data, advLoans]);
+  const assignments = useMemo(() => filterRowsByAdv(compsApi.data?.assignments ?? [], advComps, COMP_ADV_FIELDS), [compsApi.data, advComps]);
+
   // Task 72 — sorting kolom tabel transaksi komponen
-  const compSort = useTableSort(compsApi.data?.assignments, {
+  const compSort = useTableSort(assignments, {
     employee: (a) => a.employee.fullName,
     component: (a) => a.wageComponent.name,
     kind: (a) => a.kind,
@@ -58,10 +106,10 @@ export function PayrollTransactionsPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4 h-auto rounded-2xl ov-tile p-1.5">
           <TabsTrigger value="loans" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
-            <Landmark className="h-3.5 w-3.5" /> {t("Pinjaman", "Loans")} ({loansApi.data?.loans.length ?? 0})
+            <Landmark className="h-3.5 w-3.5" /> {t("Pinjaman", "Loans")} ({loans.length})
           </TabsTrigger>
           <TabsTrigger value="components" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
-            <Coins className="h-3.5 w-3.5" /> {t("Komponen Khusus & Periodik", "Special & Periodic Components")} ({compsApi.data?.assignments.length ?? 0})
+            <Coins className="h-3.5 w-3.5" /> {t("Komponen Khusus & Periodik", "Special & Periodic Components")} ({assignments.length})
           </TabsTrigger>
           <TabsTrigger value="rapel" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
             <History className="h-3.5 w-3.5" /> {t("Rapel / Back-Pay", "Retro Pay / Back-Pay")}
@@ -69,15 +117,18 @@ export function PayrollTransactionsPage() {
         </TabsList>
 
         <TabsContent value="loans">
+          <div className="mb-3 flex justify-end">
+            <AdvSearchButton fields={LOAN_ADV_FIELDS} value={advLoans} onChange={setAdvLoans} />
+          </div>
           <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
               {loansApi.loading && !loansApi.data ? (
                 <div className="p-4"><LoadingRows rows={4} /></div>
-              ) : (loansApi.data?.loans.length ?? 0) === 0 ? (
+              ) : loans.length === 0 ? (
                 <div className="p-5"><EmptyState title={t("Belum ada pinjaman", "No loans yet")} description={t("Ajukan pinjaman karyawan — cicilan otomatis dipotong payroll.", "Submit an employee loan — installments are automatically deducted from payroll.")} icon={<Landmark className="h-6 w-6" />} /></div>
               ) : (
                 <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {(loansApi.data?.loans ?? []).map((l) => <LoanCard key={l.id} loan={l} onChanged={loansApi.refresh} />)}
+                  {loans.map((l) => <LoanCard key={l.id} loan={l} onChanged={loansApi.refresh} />)}
                 </div>
               )}
             </CardContent>
@@ -85,11 +136,14 @@ export function PayrollTransactionsPage() {
         </TabsContent>
 
         <TabsContent value="components">
+          <div className="mb-3 flex justify-end">
+            <AdvSearchButton fields={COMP_ADV_FIELDS} value={advComps} onChange={setAdvComps} />
+          </div>
           <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
               {compsApi.loading && !compsApi.data ? (
                 <div className="p-4"><LoadingRows rows={4} /></div>
-              ) : (compsApi.data?.assignments.length ?? 0) === 0 ? (
+              ) : assignments.length === 0 ? (
                 <div className="p-5"><EmptyState title={t("Belum ada komponen transaksi", "No transaction components yet")} description={t("Tambahkan bonus spesifik period ini atau komponen periodik (mis. transport khusus).", "Add a bonus specific to this period or a periodic component (e.g. special transport).")} icon={<Coins className="h-6 w-6" />} /></div>
               ) : (
                 <div className="overflow-x-auto">

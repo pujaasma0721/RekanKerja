@@ -14,6 +14,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { ATT_STATUS_LABEL, ATT_STATUS_LABEL_EN } from "@/rekankerja/time-attendance/components/attendance-types";
 import { Radar, RefreshCw, Search, LogIn, LogOut, DoorOpen, DoorClosed, UserMinus, Coffee, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -64,12 +66,38 @@ const fmtClock = (d: string | null, locale: string) => {
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const REFRESH_MS = 30_000;
 
+/** Task adv-search — jam "HH:MM" lokal (selaris fmtTime kartu). */
+const hmLocal = (d: string | null) => (d ? new Date(d).toTimeString().slice(0, 5) : d);
+
+/** Task adv-search — field Advance Search papan kehadiran (client-side, filter
+ *  TAMBAHAN di atas query/unit; kelompok = state kartu, status = rekap harian
+ *  via ATT_STATUS_LABEL). */
+const ADV_FIELDS: AdvFieldDef<LiveboardRow>[] = [
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  txt("workLocationName", "Lokasi Kerja", "Work Location"),
+  sel("state", "Kelompok", "Group", [
+    ["inOffice", "Sedang di Kantor", "Currently In Office"],
+    ["done", "Sudah Clock-Out", "Already Clocked Out"],
+    ["noClock", "Belum Absen / Menunggu", "Not Clocked Yet / Waiting"],
+    ["off", "Off · Cuti · Izin", "Off · Leave · Permit"],
+    ["absent", "Absen", "Absent"],
+  ]),
+  sel("status", "Status", "Status", (["Present", "Late", "Absent", "WorkOff", "OnLeave", "Off", "Holiday"] as const).map((k): [string, string, string] => [k, ATT_STATUS_LABEL[k] ?? k, ATT_STATUS_LABEL_EN[k] ?? k])),
+  txt("checkIn", "Jam Masuk", "Clock In", (r) => hmLocal(r.checkIn)),
+  txt("checkOut", "Jam Pulang", "Clock Out", (r) => hmLocal(r.checkOut)),
+  num("lateMinutes", "Telat (menit)", "Late (min)"),
+];
+
 export function AttendanceLiveboardPage() {
   const { t, locale } = useI18n();
   const [date, setDate] = useState(todayIso());
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [unitFilter, setUnitFilter] = useState("all");
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query/unit).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
   const api = useApi<LiveboardData>(`/api/rekankerja/attendance/liveboard?date=${date}`);
 
@@ -87,12 +115,12 @@ export function AttendanceLiveboardPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [api.data]);
 
-  const rows = useMemo(() => (api.data?.rows ?? []).filter((r) => {
+  const rows = useMemo(() => filterRowsByAdv((api.data?.rows ?? []).filter((r) => {
     const q = query.toLowerCase();
     const matchQ = !q || r.fullName.toLowerCase().includes(q) || r.employeeNo.toLowerCase().includes(q);
     const matchU = unitFilter === "all" || r.orgUnitName === unitFilter;
     return matchQ && matchU;
-  }), [api.data, query, unitFilter]);
+  }), adv, ADV_FIELDS), [api.data, query, unitFilter, adv]);
 
   const stats = api.data?.stats;
   const isHistory = api.data ? api.data.date !== todayIso() : false;
@@ -242,6 +270,7 @@ export function AttendanceLiveboardPage() {
               className="h-8 w-48 pl-8 text-xs"
             />
           </div>
+          <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
         </div>
         <p className="text-[11px] font-semibold text-slate-400">
           {t("Menampilkan {n} dari {total} karyawan aktif", "Showing {n} of {total} active employees", { n: rows.length, total: stats?.total ?? 0 })}

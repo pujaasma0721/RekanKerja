@@ -2,7 +2,7 @@
 // RekanKerja — Modul Offboarding: proses karyawan keluar (checklist clearance +
 // exit interview + pelacakan penyelesaian). Dibuat otomatis saat PA
 // Resignation/Termination/Retirement diproses, atau manual dari daftar.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtDate, fmtDateTime, initials, avatarColor, paTypeLabelSafe, tenure } from "@/rekankerja/shared/lib/api";
 import { nextServerSort, ServerSortHead, useTableSort, type ServerSortDir } from "@/rekankerja/shared/lib/use-table-sort";
 import { useNav } from "@/rekankerja/shared/lib/store";
@@ -30,6 +30,9 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 // Task 27-b — dialog pengembalian aset dipakai ulang di seksi clearance
 import { ReturnDialog } from "@/rekankerja/human-resource/components/assets/assets-module";
+// Task adv-e — Advance Search (client-side, tambahan di atas filter status)
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 export function OffboardingModule() {
   const { params } = useNav();
@@ -81,6 +84,23 @@ interface OffDetail {
   // Task 27-b — aset belum dikembalikan (clearance)
   outstandingAssets?: OutstandingAsset[];
 }
+
+/** Task adv-e — field Advance Search daftar offboarding (client-side, SEBELUM filter status). */
+const ADV_FIELDS: AdvFieldDef<OffRow>[] = [
+  txt("employeeName", "Karyawan", "Employee", (r) => r.employee.fullName),
+  txt("employeeNo", "No. Karyawan", "Employee No.", (r) => r.employee.employeeNo),
+  txt("position", "Posisi", "Position", (r) => r.employee.position?.title),
+  txt("orgUnit", "Unit Organisasi", "Org Unit", (r) => r.employee.orgUnit?.name),
+  dt("lastDay", "Hari Terakhir", "Last Day"),
+  txt("source", "Sumber", "Source", (r) => r.sourcePA?.docNo),
+  sel("status", "Status", "Status", [
+    ["Open", "Berjalan", "Running"],
+    ["Completed", "Selesai", "Completed"],
+    ["Cancelled", "Dibatalkan", "Cancelled"],
+  ]),
+  num("taskTotal", "Total Tugas", "Total Tasks", (r) => r.taskStats.total),
+  num("taskDone", "Tugas Selesai", "Tasks Done", (r) => r.taskStats.done),
+];
 
 // peta warna status proses offboarding (kustom — Open di sini = "Berjalan")
 function ObStatusPill({ status, className }: { status: string; className?: string }) {
@@ -137,6 +157,8 @@ function OffboardingList() {
   const perms = useMenuPerms();
   const [status, setStatus] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
+  // Task adv-e — Advance Search (filter tambahan di atas filter status; sort server tak tersentuh)
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   // Task 76 — state sort server-side
   const [offSortKey, setOffSortKey] = useState<"employee" | "position" | "lastDay" | "source" | "status">("lastDay");
   const [offSortDir, setOffSortDir] = useState<ServerSortDir>("desc");
@@ -151,7 +173,9 @@ function OffboardingList() {
     ["Completed", "Selesai", "Completed", sc.Completed ?? 0],
     ["Cancelled", "Dibatalkan", "Cancelled", sc.Cancelled ?? 0],
   ];
-  const rows = (data?.offboardings ?? []).filter((r) => status === "all" || r.status === status);
+  // Task adv-e — adv diterapkan ke daftar penuh SEBELUM filter status lama.
+  const offRows = useMemo(() => filterRowsByAdv(data?.offboardings ?? [], adv, ADV_FIELDS), [data, adv]);
+  const rows = offRows.filter((r) => status === "all" || r.status === status);
   // Task 76 — sort SERVER-SIDE kecuali progress (computed dari tasks) → client-side.
   const sort = useTableSort(rows, {
     progress: (r) => (r.taskStats.total > 0 ? r.taskStats.done / r.taskStats.total : 0),
@@ -172,11 +196,14 @@ function OffboardingList() {
           "Manage employee exits — clearance checklist, exit interview & completion. Processes are created automatically when a Resignation/Termination/Retirement request is processed.",
         )}
         actions={
-          perms.can("hr", "offboarding", "create") && (
-            <Button onClick={() => setCreateOpen(true)} className="gap-2 font-bold">
-              <Plus className="h-4 w-4" /> {t("Proses Baru", "New Process")}
-            </Button>
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+            {perms.can("hr", "offboarding", "create") && (
+              <Button onClick={() => setCreateOpen(true)} className="gap-2 font-bold">
+                <Plus className="h-4 w-4" /> {t("Proses Baru", "New Process")}
+              </Button>
+            )}
+          </div>
         }
       />
 

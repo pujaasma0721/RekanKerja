@@ -1,7 +1,7 @@
 "use client";
 // RekanKerja Payroll — Proses & Hasil: daftar run (period × processType), buat run,
 // hitung, konfirmasi, tandai dibayar, export CSV
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDateTime } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
@@ -18,10 +18,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { PlayCircle, Plus, Calculator, CheckCircle2, Wallet, Trash2, Play, ChevronRight, Receipt, Gift, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { BonusMassalDialog } from "@/rekankerja/payroll/components/bonus-massal-dialog";
-import { PeriodRow, ProcessTypeRow, RunRow, PERIOD_STATUS_LABEL, PERIOD_STATUS_LABEL_EN } from "@/rekankerja/payroll/components/payroll-types";
+import { PeriodRow, ProcessTypeRow, RunRow, PERIOD_STATUS_LABEL, PERIOD_STATUS_LABEL_EN, RUN_STATUS_LABEL, RUN_STATUS_LABEL_EN } from "@/rekankerja/payroll/components/payroll-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { BankExportMenu } from "@/rekankerja/payroll/components/bank-export-menu";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
+
+/** Task adv-search — field Advance Search daftar run payroll (client-side,
+ *  filter TAMBAHAN di atas filter period/status server; label status dari
+ *  RUN_STATUS_LABEL — Cancelled ikut karena aksi batalkan ada di tabel). */
+const ADV_FIELDS: AdvFieldDef<RunRow>[] = [
+  txt("runNo", "Run", "Run"),
+  txt("periodName", "Period", "Period", (r) => r.period?.name),
+  txt("processTypeName", "Jenis Proses", "Process Type", (r) => r.processType?.name),
+  sel("status", "Status", "Status", (["Draft", "Calculated", "Confirmed", "Paid", "Cancelled"] as const).map(
+    (s) => [s, RUN_STATUS_LABEL[s] ?? s, RUN_STATUS_LABEL_EN[s] ?? s] as [string, string, string],
+  )),
+  num("employeeCount", "Karyawan", "Employees"),
+  num("totalBruto", "Bruto", "Gross"),
+  num("totalDeduction", "Potongan", "Deductions"),
+  num("totalTax", "PPh21", "PPh21"),
+  num("totalNet", "THP", "Net Pay"),
+  sel("slipPassword", "Slip Berpassword", "Password-Protected Slip", [
+    ["true", "Berpassword", "Password-protected"],
+    ["false", "Tanpa password", "No password"],
+  ], (r) => String(r.slipPassword)),
+  dt("calculatedAt", "Dihitung Pada", "Calculated At"),
+];
 
 export function PayrollRunsPage() {
   const { navigate, params } = useNav();
@@ -32,6 +56,8 @@ export function PayrollRunsPage() {
   const [open, setOpen] = useState(false);
   const [bonusOpen, setBonusOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Task adv-search — kondisi advance search (filter tambahan di atas filter server).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
   // Task 75 — sorting SERVER-SIDE (pola Task 74): sortBy/sortDir dikirim ke API.
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -69,7 +95,8 @@ export function PayrollRunsPage() {
   };
 
   const runs = data?.runs ?? [];
-  const sortedRows = runs;
+  // Task adv-search — filter tambahan di atas filter period/status server.
+  const sortedRows = useMemo(() => filterRowsByAdv(runs, adv, ADV_FIELDS), [runs, adv]);
 
   // Header sort memakai state server-side (Task 75) — ikon ↑/↓/↕ konsisten
   const sortHead = (k: string, label: React.ReactNode, className?: string) => (
@@ -128,7 +155,8 @@ export function PayrollRunsPage() {
               <SelectItem value="Paid">{t("Dibayar", "Paid")}</SelectItem>
             </SelectContent>
           </Select>
-          <span className="ml-auto text-[11px] font-bold text-slate-400">{t("{n} run", "{n} runs", { n: runs.length })}</span>
+          <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+          <span className="ml-auto text-[11px] font-bold text-slate-400">{t("{n} run", "{n} runs", { n: sortedRows.length })}</span>
         </CardContent>
       </Card>
 
@@ -136,7 +164,7 @@ export function PayrollRunsPage() {
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={6} /></div>
-          ) : runs.length === 0 ? (
+          ) : sortedRows.length === 0 ? (
             <div className="p-5"><EmptyState title={t("Belum ada proses payroll", "No payroll runs yet")} description={t("Mulai proses payroll: pilih period & jenis proses (gaji bulanan, THR, bonus).", "Start a payroll run: pick a period & process type (monthly salary, THR, bonus).")} icon={<PlayCircle className="h-6 w-6" />} /></div>
           ) : (
             <div className="overflow-x-auto">

@@ -16,14 +16,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  ClaimUI, PeriodOptionUI,
-  fmtIDR, fmtIDRShort, fmtDateID,
-} from "./medical-types";
-import {
   CheckCircle2, XCircle, Ban, Landmark, Wallet, FileText, Inbox, History, Undo2,
 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
+import {
+  ClaimUI, PeriodOptionUI,
+  CLAIM_STATUS_LABEL, CLAIM_STATUS_LABEL_EN,
+  fmtIDR, fmtIDRShort, fmtDateID,
+} from "./medical-types";
 
 type Action = "approve" | "reject" | "cancel" | "settle" | "return" | "storno";
 
@@ -55,6 +58,26 @@ const ACTION_META_EN: Record<Action, { title: string; label: string }> = {
   storno: { title: "Reverse Settled Claim (Storno)", label: "Storno" },
 };
 
+/** Task adv-search — field Advance Search antrean persetujuan (client-side).
+ *  Diterapkan ke DAFTAR PENUH (claims?state=all) SEBELUM dipotong antrean
+ *  pending/approved & riwayat settled. */
+const CLAIM_ADV_FIELDS: AdvFieldDef<ClaimUI>[] = [
+  txt("docNo", "No. Dokumen", "Doc. No."),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  txt("typeName", "Jenis Benefit", "Benefit Type"),
+  txt("typeCode", "Kode Jenis", "Type Code"),
+  dt("claimDate", "Tanggal", "Date"),
+  num("totalBill", "Tagihan", "Bill"),
+  num("totalReimburse", "Reimburse", "Reimburse"),
+  num("totalApproved", "Disetujui", "Approved"),
+  sel("state", "Status", "Status", Object.keys(CLAIM_STATUS_LABEL).map(
+    (k) => [k, CLAIM_STATUS_LABEL[k], CLAIM_STATUS_LABEL_EN[k] ?? k] as [string, string, string],
+  )),
+  txt("letterNo", "No. Surat Rujukan", "Referral Letter No."),
+];
+
 export function MedicalApprovalPage() {
   const perms = useMenuPerms();
   const { t } = useI18n();
@@ -70,21 +93,29 @@ export function MedicalApprovalPage() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferYear, setTransferYear] = useState(String(new Date().getFullYear()));
   const [periodId, setPeriodId] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan utk antrean).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
   const api = useApi<{ claims: ClaimUI[]; stats: { pendingAmount: number; settledAmount: number } }>(
     "/api/rekankerja/medical/claims?state=all",
   );
   const periodsApi = useApi<{ periods: PeriodOptionUI[] }>("/api/rekankerja/payroll-periods");
 
+  // Task adv-search — filter diterapkan ke daftar PENUH sebelum dipotong
+  // (antrean pending/approved + riwayat settled ikut kondisi yang sama).
+  const advClaims = useMemo(
+    () => filterRowsByAdv(api.data?.claims ?? [], adv, CLAIM_ADV_FIELDS),
+    [api.data, adv],
+  );
   const queue = useMemo(
-    () => (api.data?.claims ?? []).filter((c) => c.state === "Submitted" || c.state === "Returned" || c.state === "Approved"),
-    [api.data],
+    () => advClaims.filter((c) => c.state === "Submitted" || c.state === "Returned" || c.state === "Approved"),
+    [advClaims],
   );
   const pending = queue.filter((c) => c.state === "Submitted" || c.state === "Returned");
   const approved = queue.filter((c) => c.state === "Approved");
   const settledHistory = useMemo(
-    () => (api.data?.claims ?? []).filter((c) => c.state === "Settled").slice(0, 8),
-    [api.data],
+    () => advClaims.filter((c) => c.state === "Settled").slice(0, 8),
+    [advClaims],
   );
   const openPeriods = (periodsApi.data?.periods ?? []).filter((p) => p.status === "Open" || p.status === "Scheduled");
 
@@ -165,6 +196,11 @@ export function MedicalApprovalPage() {
           </Button>
         )}
       />
+
+      {/* Task adv-search — toolbar filter lanjutan (kanan-atas; view tanpa search box) */}
+      <div className="mb-4 flex flex-wrap justify-end">
+        <AdvSearchButton fields={CLAIM_ADV_FIELDS} value={adv} onChange={setAdv} />
+      </div>
 
       <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">

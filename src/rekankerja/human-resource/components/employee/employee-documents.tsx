@@ -23,6 +23,8 @@ import { toast } from "sonner";
 import { FileBadge, Plus, Search, Trash2, Pencil, Eye, CalendarClock } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 const DOC_TYPES = ["KTP", "Paspor", "SIM", "KK", "NPWP", "Ijazah", "Sertifikat", "Kontrak", "Lainnya"] as const;
 
@@ -34,6 +36,20 @@ const DOC_TYPE_LABEL_EN: Record<string, string> = {
   KTP: "ID Card", Paspor: "Passport", SIM: "Driving License", KK: "Family Card", NPWP: "Tax ID",
   Ijazah: "Diploma", Sertifikat: "Certificate", Kontrak: "Contract", Lainnya: "Other",
 };
+
+/** Task adv-e — opsi Advance Search jenis dokumen (label dwibahasa reuse peta file). */
+const ADV_DOC_TYPES: [string, string, string][] = DOC_TYPES.map((ty) => [ty, DOC_TYPE_LABEL[ty] ?? ty, DOC_TYPE_LABEL_EN[ty] ?? ty]);
+
+/** Task adv-e — field Advance Search dokumen karyawan (client-side, tambahan di atas query lama). */
+const ADV_FIELDS: AdvFieldDef<DocumentRowUI>[] = [
+  txt("employeeName", "Karyawan", "Employee"),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  sel("docType", "Jenis", "Type", ADV_DOC_TYPES),
+  txt("docNumber", "Nomor", "Number"),
+  dt("issuedAt", "Terbit", "Issued"),
+  dt("expiresAt", "Kedaluwarsa", "Expiry"),
+  txt("notes", "Catatan", "Notes"),
+];
 
 const EXPIRY_FILTERS = [
   { key: "", label: "Semua", en: "All" },
@@ -98,6 +114,8 @@ export function EmployeeDocumentsView() {
   const [expiryFilter, setExpiryFilter] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState("");
   const [query, setQuery] = useState("");
+  // Task adv-e — Advance Search (filter tambahan, tidak menggantikan query lama)
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<DialogForm>(emptyForm);
@@ -110,13 +128,17 @@ export function EmployeeDocumentsView() {
 
   const employees = employeesApi.data?.managers ?? [];
   const documents = useMemo(
-    () => (api.data?.documents ?? []).filter((d) =>
-      !query ||
-      d.employeeName.toLowerCase().includes(query.toLowerCase()) ||
-      d.employeeNo.toLowerCase().includes(query.toLowerCase()) ||
-      (d.docNumber ?? "").toLowerCase().includes(query.toLowerCase()),
+    () => filterRowsByAdv(
+      (api.data?.documents ?? []).filter((d) =>
+        !query ||
+        d.employeeName.toLowerCase().includes(query.toLowerCase()) ||
+        d.employeeNo.toLowerCase().includes(query.toLowerCase()) ||
+        (d.docNumber ?? "").toLowerCase().includes(query.toLowerCase()),
+      ),
+      adv,
+      ADV_FIELDS,
     ),
-    [api.data, query],
+    [api.data, query, adv],
   );
   const stats = api.data?.stats;
 
@@ -229,6 +251,7 @@ export function EmployeeDocumentsView() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / nomor…", "Search name / number…")} className="pl-8" />
         </div>
+        <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
         <Select value={employeeFilter || "all"} onValueChange={(v) => setEmployeeFilter(v === "all" ? "" : v)}>
           <SelectTrigger className="w-full sm:w-52"><SelectValue placeholder={t("Semua karyawan", "All employees")} /></SelectTrigger>
           <SelectContent className="max-h-64">

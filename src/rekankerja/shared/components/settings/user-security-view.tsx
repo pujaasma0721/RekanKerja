@@ -46,6 +46,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+// Task adv-e — Advance Search (client-side, tambahan — tanpa search lama sebelumnya)
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Role aplikasi — "ESS" (Task role-ess): pengguna TERKUNCI portal ESS (Mode
@@ -114,6 +117,20 @@ interface EmployeeOption { id: string; fullName: string; employeeNo: string; sta
 /** respons policy membawa updatedAt (string) dari DB */
 type PolicyWithStamp = PasswordPolicyData & { updatedAt?: string };
 
+/** Task adv-e — opsi select role (reuse APP_ROLES — nama role identik ID/EN). */
+const ADV_ROLES: [string, string, string][] = APP_ROLES.map((r) => [r, r, r]);
+
+/** Task adv-e — field Advance Search pengguna aplikasi (client-side, SEBELUM useTableSort). */
+const USER_ADV_FIELDS: AdvFieldDef<AppUserRow>[] = [
+  txt("username", "Username", "Username"),
+  txt("fullName", "Nama", "Name"),
+  txt("email", "Email", "Email"),
+  sel("role", "Role", "Role", ADV_ROLES),
+  dt("lastLogin", "Login Terakhir", "Last Login"),
+  dt("passwordChangedAt", "Kata Sandi Diubah", "Password Changed"),
+  sel("active", "Status", "Status", [["true", "Aktif", "Active"], ["false", "Nonaktif", "Inactive"]], (u) => String(u.active)),
+];
+
 // =====================================================================
 // PANEL PENGGUNA
 // =====================================================================
@@ -129,10 +146,13 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
   const [editing, setEditing] = useState<AppUserRow | null>(null);
   const [resetTarget, setResetTarget] = useState<AppUserRow | null>(null);
   const [deleting, setDeleting] = useState<AppUserRow | null>(null);
+  // Task adv-e — Advance Search (filter tambahan di atas daftar pengguna)
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
   const policy = policyData?.policy ?? DEFAULT_PASSWORD_POLICY;
   const employees = empData?.employees ?? [];
-  const users = data?.users ?? [];
+  // Task adv-e — adv di terapkan SEBELUM useTableSort supaya sort & filter saling kompos.
+  const users = useMemo(() => filterRowsByAdv(data?.users ?? [], adv, USER_ADV_FIELDS), [data, adv]);
 
   // Task 72 — sorting kolom tabel pengguna (asc/desc via header)
   const sort = useTableSort(users, {
@@ -167,6 +187,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
           <Badge variant="secondary" className="gap-1 font-mono text-[10px]">
             <History className="h-3 w-3" /> {t("riwayat {n} sandi · umur {m} hari", "history of {n} passwords · lifetime {m} days", { n: policy.historyCount, m: policy.lifetimeDays })}
           </Badge>
+          <AdvSearchButton fields={USER_ADV_FIELDS} value={adv} onChange={setAdv} />
           <Button
             onClick={() => setCreateOpen(true)}
             disabled={!can("create")}

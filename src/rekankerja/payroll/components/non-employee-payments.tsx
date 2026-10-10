@@ -20,6 +20,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { toast } from "sonner";
 import {
   FileSpreadsheet, FileDown, UserRound, Calculator, Plus, Info, HandCoins, BookOpen, Search, Users, Pencil,
@@ -49,6 +51,62 @@ interface LedgerDetail {
 }
 
 const MONTHS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+/** Task adv-search — opsi select bulan (nilai "1".."12", label dwibahasa). */
+const MONTH_ADV_OPTIONS: [string, string, string][] = MONTHS.map((m, i) => [String(i + 1), m, MONTHS_EN[i] ?? m]);
+
+/** Task adv-search — field Advance Search pembayaran bukan pegawai (client-side,
+ *  filter TAMBAHAN di atas query/tahun/masa/status server yang sudah ada;
+ *  idNumber mitra terenkripsi → null = tidak cocok utk operator teks — sesuai
+ *  kontrak adv-search utk nilai vault-masked). */
+const PAY_ADV_FIELDS: AdvFieldDef<PaymentRow>[] = [
+  txt("docNo", "Dokumen", "Document"),
+  txt("partnerName", "Mitra", "Partner", (p) => p.partner?.name),
+  txt("serviceKind", "Jenis Jasa", "Service", (p) => p.partner?.serviceKind),
+  txt("description", "Uraian", "Description"),
+  num("grossAmount", "Bruto", "Gross"),
+  num("dpp", "DPP 50%", "DPP 50%"),
+  num("pph21", "PPh21 Dipotong", "PPh21 Withheld"),
+  num("netAmount", "Netto", "Net"),
+  dt("paymentDate", "Tanggal Bayar", "Payment Date"),
+  num("taxYear", "Tahun Pajak", "Tax Year"),
+  sel("taxMonth", "Masa Pajak", "Tax Period", MONTH_ADV_OPTIONS),
+  sel("status", "Status", "Status", [
+    ["Draft", "Draft", "Draft"],
+    ["Paid", "Dibayar", "Paid"],
+    ["Cancelled", "Dibatalkan", "Cancelled"],
+  ]),
+];
+
+const PARTNER_ADV_FIELDS: AdvFieldDef<PartnerRow>[] = [
+  txt("code", "Kode", "Code"),
+  txt("name", "Nama", "Name"),
+  txt("serviceKind", "Jenis Jasa", "Service"),
+  sel("idType", "Jenis Identitas", "ID Type", [
+    ["npwp", "NPWP", "NPWP"],
+    ["nik", "NIK", "NIK"],
+    ["none", "Tanpa", "None"],
+  ]),
+  txt("idNumber", "No. Identitas", "ID Number"),
+  sel("isCatering", "Katering", "Catering", [
+    ["true", "Katering", "Catering"],
+    ["false", "Bukan Katering", "Non-catering"],
+  ], (p) => String(p.isCatering)),
+  num("paymentCount", "Pembayaran", "Payments", (p) => p._count?.payments),
+  sel("active", "Status", "Status", [
+    ["true", "Aktif", "Active"],
+    ["false", "Nonaktif", "Inactive"],
+  ], (p) => String(p.active)),
+];
+
+const LEDGER_ADV_FIELDS: AdvFieldDef<LedgerRow>[] = [
+  num("year", "Tahun", "Year"),
+  sel("month", "Bulan", "Month", MONTH_ADV_OPTIONS),
+  num("paymentCount", "Dokumen", "Documents"),
+  num("totalGross", "Total Bruto", "Total Gross"),
+  num("totalDpp", "Total DPP", "Total DPP"),
+  num("totalPph21", "Total PPh21", "Total PPh21"),
+];
 
 export function NonEmployeePaymentsPage() {
   const { t, lang } = useI18n();
@@ -61,6 +119,10 @@ export function NonEmployeePaymentsPage() {
   const [partnerDialog, setPartnerDialog] = useState(false);
   const [editingPartner, setEditingPartner] = useState<PartnerRow | null>(null);
   const [detail, setDetail] = useState<LedgerDetail[] | null>(null);
+  // Task adv-search — kondisi advance search per tab (payments/partners/ledger).
+  const [advPay, setAdvPay] = useState<AdvSearch | null>(null);
+  const [advPartner, setAdvPartner] = useState<AdvSearch | null>(null);
+  const [advLedger, setAdvLedger] = useState<AdvSearch | null>(null);
 
   const yearQ = year !== "all" ? `&year=${year}` : "";
   const monthQ = month !== "all" ? `&month=${month}` : "";
@@ -80,6 +142,11 @@ export function NonEmployeePaymentsPage() {
     [tab, year],
   );
 
+  // Task adv-search — filter tambahan client-side di atas query/filter server.
+  const payments = useMemo(() => filterRowsByAdv(paymentsApi.data?.payments ?? [], advPay, PAY_ADV_FIELDS), [paymentsApi.data, advPay]);
+  const partners = useMemo(() => filterRowsByAdv(partnersApi.data?.partners ?? [], advPartner, PARTNER_ADV_FIELDS), [partnersApi.data, advPartner]);
+  const ledger = useMemo(() => filterRowsByAdv(ledgerApi.data?.ledger ?? [], advLedger, LEDGER_ADV_FIELDS), [ledgerApi.data, advLedger]);
+
   const TABS = [
     { id: "payments" as const, label: t("Pembayaran", "Payments"), icon: HandCoins },
     { id: "partners" as const, label: t("Mitra", "Partners"), icon: Users },
@@ -87,13 +154,13 @@ export function NonEmployeePaymentsPage() {
   ];
 
   const totals = useMemo(() => {
-    const rows = paymentsApi.data?.payments ?? [];
+    const rows = payments;
     return {
       count: rows.length,
       gross: rows.reduce((s, r) => s + (r.grossAmount || 0), 0),
       pph: rows.reduce((s, r) => s + (r.pph21 || 0), 0),
     };
-  }, [paymentsApi.data]);
+  }, [payments]);
 
   return (
     <div>
@@ -173,6 +240,7 @@ export function NonEmployeePaymentsPage() {
                 <SelectItem value="Cancelled">{t("Dibatalkan", "Cancelled")}</SelectItem>
               </SelectContent>
             </Select>
+            <AdvSearchButton fields={PAY_ADV_FIELDS} value={advPay} onChange={setAdvPay} />
             <div className="flex-1" />
             <div className="flex gap-4 text-[11px]">
               <span className="text-slate-400">{t("{n} dokumen", "{n} documents", { n: totals.count })}</span>
@@ -184,7 +252,7 @@ export function NonEmployeePaymentsPage() {
             <CardContent className="p-0">
               {paymentsApi.loading && !paymentsApi.data ? (
                 <div className="p-5"><LoadingRows rows={5} /></div>
-              ) : (paymentsApi.data?.payments ?? []).length === 0 ? (
+              ) : payments.length === 0 ? (
                 <div className="p-5">
                   <EmptyState
                     title={t("Belum ada pembayaran Bukan Pegawai", "No non-employee payments yet")}
@@ -209,7 +277,7 @@ export function NonEmployeePaymentsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(paymentsApi.data?.payments ?? []).map((p) => (
+                      {payments.map((p) => (
                         <TableRow key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                           <TableCell>
                             <p className="font-mono text-[11px] font-bold ov-text-accent">{p.docNo}</p>
@@ -260,11 +328,15 @@ export function NonEmployeePaymentsPage() {
 
       {/* ---- Tab Mitra ---- */}
       {tab === "partners" && (
-        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <AdvSearchButton fields={PARTNER_ADV_FIELDS} value={advPartner} onChange={setAdvPartner} />
+          </div>
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardContent className="p-0">
             {partnersApi.loading && !partnersApi.data ? (
               <div className="p-5"><LoadingRows rows={4} /></div>
-            ) : (partnersApi.data?.partners ?? []).length === 0 ? (
+            ) : partners.length === 0 ? (
               <div className="p-5">
                 <EmptyState
                   title={t("Belum ada mitra Bukan Pegawai", "No non-employee partners yet")}
@@ -288,7 +360,7 @@ export function NonEmployeePaymentsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(partnersApi.data?.partners ?? []).map((p) => (
+                    {partners.map((p) => (
                       <TableRow key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                         <TableCell className="font-mono text-[11px] font-bold">{p.code}</TableCell>
                         <TableCell className="text-xs font-bold">{p.name}</TableCell>
@@ -316,6 +388,7 @@ export function NonEmployeePaymentsPage() {
             )}
           </CardContent>
         </Card>
+        </div>
       )}
 
       {/* ---- Tab Ledger ---- */}
@@ -329,13 +402,14 @@ export function NonEmployeePaymentsPage() {
                 {(ledgerApi.data?.years ?? []).map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
               </SelectContent>
             </Select>
+            <AdvSearchButton className="ml-auto" fields={LEDGER_ADV_FIELDS} value={advLedger} onChange={setAdvLedger} />
             <span className="text-[11px] text-slate-400">{t("Hanya pembayaran berstatus Dibayar yang masuk bukti potong.", "Only Paid payments appear in the withholding ledger.")}</span>
           </div>
           <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
               {ledgerApi.loading && !ledgerApi.data ? (
                 <div className="p-5"><LoadingRows rows={4} /></div>
-              ) : (ledgerApi.data?.ledger ?? []).length === 0 ? (
+              ) : ledger.length === 0 ? (
                 <div className="p-5">
                   <EmptyState
                     title={t("Belum ada bukti potong", "No withholding records yet")}
@@ -357,7 +431,7 @@ export function NonEmployeePaymentsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(ledgerApi.data?.ledger ?? []).map((l) => (
+                      {ledger.map((l) => (
                         <TableRow key={`${l.year}-${l.month}`} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                           <TableCell className="text-xs font-bold">{MONTHS[l.month - 1]} {l.year}</TableCell>
                           <TableCell className="text-center text-xs">{l.paymentCount}</TableCell>

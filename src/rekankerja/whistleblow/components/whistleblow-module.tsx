@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { WB_CATEGORIES, WhistleblowForm } from "./whistleblow-form";
 import { useNav } from "@/rekankerja/shared/lib/store";
 
@@ -43,6 +45,28 @@ const STATUS_META: Record<string, { id: string; en: string; cls: string }> = {
 };
 
 const catLabel = (v: string) => WB_CATEGORIES.find((c) => c.value === v)?.id ?? v;
+
+/** Task adv-search — field Advance Search triase laporan (client-side;
+ *  TAMBAHAN di atas search ticketNo/deskripsi & filter status/kategori server).
+ *  Nilai channel = ANONIM | ESS (lihat whistleblow/api/report.ts). */
+const WB_ADV_FIELDS: AdvFieldDef<ReportRow>[] = [
+  txt("ticketNo", "No. Tiket", "Ticket No."),
+  sel("category", "Kategori", "Category", WB_CATEGORIES.map(
+    (c) => [c.value, c.id, c.en] as [string, string, string],
+  )),
+  sel("channel", "Kanal", "Channel", [
+    ["ANONIM", "Anonim", "Anonymous"],
+    ["ESS", "Identitas Terhubung", "Identified (ESS)"],
+  ]),
+  txt("description", "Isi Laporan", "Report Content"),
+  dt("incidentDate", "Tanggal Kejadian", "Incident Date"),
+  txt("location", "Lokasi Kejadian", "Incident Location"),
+  sel("status", "Status", "Status", Object.keys(STATUS_META).map(
+    (s) => [s, STATUS_META[s].id, STATUS_META[s].en] as [string, string, string],
+  )),
+  txt("assignedToName", "Penangan", "Handler"),
+  txt("reporterName", "Pelapor", "Reporter"),
+];
 
 export function WhistleblowModule({ view }: { view: string }) {
   if (view === "triage") return <TriagePage />;
@@ -83,6 +107,8 @@ function TriagePage() {
   const [status, setStatus] = useState("all");
   const [category, setCategory] = useState("all");
   const [q, setQ] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas search).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const triage = useApi<TriageData>(
     `/api/rekankerja/whistleblowing/reports?status=${status}&category=${category}`,
     [status, category],
@@ -115,8 +141,13 @@ function TriagePage() {
     }
   };
 
-  const rows = (triage.data?.reports ?? []).filter(
-    (r) => !q.trim() || r.ticketNo.toLowerCase().includes(q.toLowerCase()) || r.description.toLowerCase().includes(q.toLowerCase()),
+  // Task adv-search — adv di atas filter q (ticketNo/deskripsi) bawaan.
+  const rows = filterRowsByAdv(
+    (triage.data?.reports ?? []).filter(
+      (r) => !q.trim() || r.ticketNo.toLowerCase().includes(q.toLowerCase()) || r.description.toLowerCase().includes(q.toLowerCase()),
+    ),
+    adv,
+    WB_ADV_FIELDS,
   );
   const stats = triage.data?.stats;
 
@@ -156,6 +187,7 @@ function TriagePage() {
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" aria-hidden />
           <Input value={q} onChange={(e) => setQ(e.target.value)} className="h-8 pl-8 text-xs" placeholder={t("cari no. tiket / isi laporan…", "search ticket no. / report content…")} />
         </div>
+        <AdvSearchButton fields={WB_ADV_FIELDS} value={adv} onChange={setAdv} />
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>

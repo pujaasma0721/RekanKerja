@@ -28,6 +28,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { trServer } from "@/rekankerja/shared/lib/i18n-core";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Semua" },
@@ -38,6 +40,23 @@ const STATUS_FILTERS = [
 ];
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/** Task adv-search — field Advance Search permintaan travel (client-side,
+ *  filter TAMBAHAN di atas query & status filter yang sudah ada). */
+const ADV_FIELDS: AdvFieldDef<TravelRequestRowUI>[] = [
+  txt("docNo", "Nomor", "No."),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Karyawan", "Employee"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  txt("purpose", "Tujuan", "Purpose"),
+  txt("templateName", "Template", "Template"),
+  dt("dateFrom", "Tanggal Mulai", "Start Date"),
+  dt("dateTo", "Tanggal Selesai", "End Date"),
+  num("days", "Hari", "Days"),
+  num("advanceAmount", "Uang Muka", "Advance"),
+  sel("status", "Status", "Status", STATUS_FILTERS.filter((f) => f.key !== "all").map((f): [string, string, string] => [f.key, f.label, TRAVEL_STATUS_LABEL_EN[f.key] ?? f.key])),
+  dt("settlementDue", "Jatuh Tempo Klaim", "Claim Due Date"),
+];
 
 interface DestForm {
   dateFrom: string; dateTo: string; city: string; country: string; zoneCode: string; note: string;
@@ -50,6 +69,8 @@ export function TravelRequestsPage() {
   const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -79,9 +100,9 @@ export function TravelRequestsPage() {
   );
   const master = useApi<{ templates: TemplateRowUI[]; zones: ZoneRowUI[]; employees: EmployeeOption[]; cityRates?: CityRateRowUI[] }>("/api/rekankerja/travel/templates");
 
-  const requests = useMemo(() => (api.data?.requests ?? []).filter((r) =>
+  const requests = useMemo(() => filterRowsByAdv((api.data?.requests ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase()) || r.purpose.toLowerCase().includes(query.toLowerCase()),
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
 
   const zones = master.data?.zones ?? [];
   const templates = (master.data?.templates ?? []).filter((t) => t.active);
@@ -200,9 +221,12 @@ export function TravelRequestsPage() {
             {f.key === "Submitted" && stats ? ` (${stats.submitted})` : ""}
           </button>
         ))}
-        <div className="relative ml-auto">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / nomor / tujuan…", "Search name / number / purpose…")} className="w-56 pl-9 text-sm" />
+        <div className="ml-auto flex items-center gap-2">
+          <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / nomor / tujuan…", "Search name / number / purpose…")} className="w-56 pl-9 text-sm" />
+          </div>
         </div>
       </div>
 

@@ -16,17 +16,41 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle, RefreshCw, FileSignature } from "lucide-react";
 import { EsignSignDialog } from "@/rekankerja/shared/components/esign/sign-dialog";
-import { RunDetail, RunLine, RunLog, UmkLineWarning, TAX_STATUS_LABEL, WAGE_TYPE_LABEL } from "@/rekankerja/payroll/components/payroll-types";
+import { RunDetail, RunLine, RunLog, UmkLineWarning, TAX_STATUS_LABEL, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN, WAGE_TYPE_LABEL } from "@/rekankerja/payroll/components/payroll-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { BankExportMenu } from "@/rekankerja/payroll/components/bank-export-menu";
 import { BpjsExportButton, PayrollRegisterExportButton, MonthlyReportExportButton } from "@/rekankerja/payroll/components/payroll-report-buttons";
 import { cn } from "@/lib/utils";
 import { useI18n, loc, locActivity } from "@/rekankerja/shared/lib/i18n";
+
+/** Task adv-search — opsi select PTKP dari TAX_STATUS_OPTIONS (label dwibahasa). */
+const PTKP_ADV_OPTIONS: [string, string, string][] = TAX_STATUS_OPTIONS.map(
+  (o) => [o.value, o.label, TAX_STATUS_OPTION_EN[o.value] ?? o.value],
+);
+
+/** Task adv-search — field Advance Search hasil run per karyawan (client-side,
+ *  filter TAMBAHAN di atas pencarian nama/no. karyawan yang sudah ada). */
+const ADV_FIELDS: AdvFieldDef<RunLine>[] = [
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("employeeName", "Nama Karyawan", "Employee Name"),
+  txt("orgUnitName", "Unit Organisasi", "Org Unit"),
+  txt("positionName", "Posisi", "Position"),
+  sel("ptkpStatus", "PTKP", "PTKP", PTKP_ADV_OPTIONS),
+  num("bruto", "Bruto", "Gross"),
+  num("deduction", "Potongan", "Deductions"),
+  num("taxRegular", "PPh21 Reguler", "Regular PPh21"),
+  num("taxIrregular", "PPh21 Irreguler", "Irregular PPh21"),
+  num("net", "THP", "Net Pay"),
+];
 
 export function PayrollRunDetailPage() {
   const { params, navigate, setParams } = useNav();
   const perms = useMenuPerms();
   const { t } = useI18n();
   const [q, setQ] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
   const [slipLine, setSlipLine] = useState<RunLine | null>(null);
@@ -114,9 +138,10 @@ export function PayrollRunDetailPage() {
   }
 
   const run = data.run;
-  const lines = run.lines.filter((l) =>
+  // Task adv-search — filter tambahan di atas pencarian employeeNo/employeeName.
+  const lines = filterRowsByAdv(run.lines.filter((l) =>
     !q || l.employeeNo.toLowerCase().includes(q.toLowerCase()) || l.employeeName.toLowerCase().includes(q.toLowerCase())
-  );
+  ), adv, ADV_FIELDS);
   // Task 64j — recalc parsial tersedia pada run Confirmed maupun Calculated
   // (recalc beruntun tanpa wajib konfirmasi ulang di antaranya), belum Paid.
   const canRecalc = (run.status === "Confirmed" || run.status === "Calculated") && perms.canOp("payroll", "runs", "calculate");
@@ -361,6 +386,7 @@ export function PayrollRunDetailPage() {
                   </Button>
                 </>
               )}
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Cari karyawan…", "Search employees…")} className="h-9 pl-9 text-xs" />

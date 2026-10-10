@@ -21,6 +21,8 @@ import {
 } from "./travel-types";
 import { BarChart3, Search, FileText, Landmark, TrendingUp, RotateCcw, Download, FileBarChart, FolderOpen } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 interface ReportData {
   rows: (TravelClaimRowUI & { expenses: ClaimExpenseUI[] })[];
@@ -39,20 +41,43 @@ interface ReportData {
 const yearStartISO = () => `${new Date().getFullYear()}-01-01`;
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+/** Task adv-search — baris rekap klaim (TravelClaimRowUI + expenses).
+ *  Kolom uang nullable saat Brankas Uang tertutup → nilai ter-mask dianggap
+ *  tak cocok (bukan 0). */
+type ReportRow = ReportData["rows"][number];
+
+/** Task adv-search — field Advance Search daftar klaim laporan (client-side,
+ *  filter TAMBAHAN di atas query yang sudah ada). */
+const ADV_FIELDS: AdvFieldDef<ReportRow>[] = [
+  txt("docNo", "Nomor", "No."),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Karyawan", "Employee"),
+  txt("requestDocNo", "No. Permintaan", "Request No."),
+  dt("claimDate", "Tanggal Klaim", "Claim Date"),
+  num("totalExpenses", "Biaya", "Expenses", (r) => r.totalExpenses ?? undefined),
+  num("totalSettlement", "Total", "Total", (r) => r.totalSettlement ?? undefined),
+  num("payableEmployee", "(b) Ke Karyawan", "(b) To Employee", (r) => r.payableEmployee ?? undefined),
+  num("payableCompany", "(c) Ke Perusahaan", "(c) To Company", (r) => r.payableCompany ?? undefined),
+  txt("journalNo", "Jurnal", "Journal"),
+  sel("status", "Status", "Status", (["Submitted", "Approved", "Transferred", "Paid", "Rejected", "Cancelled"] as const).map((k): [string, string, string] => [k, TRAVEL_STATUS_LABEL[k] ?? k, TRAVEL_STATUS_LABEL_EN[k] ?? k])),
+];
+
 export function TravelReportsPage() {
   const { t, lang } = useI18n();
   const [from, setFrom] = useState(yearStartISO());
   const [to, setTo] = useState(todayISO());
   const [employeeId, setEmployeeId] = useState("");
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
 
   const url = `/api/rekankerja/travel/reports?from=${from}&to=${to}${employeeId ? `&employeeId=${employeeId}` : ""}`;
   const api = useApi<ReportData>(url);
   const master = useApi<{ employees: EmployeeOption[] }>("/api/rekankerja/travel/templates");
 
-  const rows = useMemo(() => (api.data?.rows ?? []).filter((r) =>
+  const rows = useMemo(() => filterRowsByAdv((api.data?.rows ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase()),
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
   const summary = api.data?.summary;
 
   const maxKind = summary?.byKind[0]?.amount || 1;
@@ -104,7 +129,7 @@ export function TravelReportsPage() {
                 >
                   <Download className="h-4 w-4" /> {t("Export CSV")}
                 </a>
-                <Button variant="outline" className="gap-2 font-bold" onClick={() => { setFrom(yearStartISO()); setTo(todayISO()); setEmployeeId(""); setQuery(""); }}>
+                <Button variant="outline" className="gap-2 font-bold" onClick={() => { setFrom(yearStartISO()); setTo(todayISO()); setEmployeeId(""); setQuery(""); setAdv(null); }}>
                   <RotateCcw className="h-4 w-4" /> {t("Reset")}
                 </Button>
               </div>
@@ -193,9 +218,12 @@ export function TravelReportsPage() {
                 <CardTitle className="flex min-w-0 items-center gap-2 text-base font-bold">
                   <FileText className="h-4 w-4 shrink-0 ov-text-accent" /> {t("Daftar Klaim ({n})", "Claims List ({n})", { n: rows.length })}
                 </CardTitle>
-                <div className="relative w-full min-w-0 sm:w-44">
-                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari…", "Search…")} className="w-full pl-9 text-sm" />
+                <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+                  <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+                  <div className="relative w-full min-w-0 sm:w-44">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari…", "Search…")} className="w-full pl-9 text-sm" />
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">

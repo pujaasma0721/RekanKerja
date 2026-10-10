@@ -15,17 +15,33 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { RequestRowUI, LEAVE_STATUS_LABEL, LEAVE_STATUS_LABEL_EN, SESSION_LABEL, SESSION_LABEL_EN, fmtDay } from "./leave-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { CheckCircle2, XCircle, Ban, Inbox, Search, CalendarClock, ShieldCheck, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
 type Action = "approve" | "reject" | "cancel";
 
+/** Task adv-search — field Advance Search antrean approval cuti (client-side,
+ *  filter TAMBAHAN di atas query yang sudah ada). */
+const ADV_FIELDS: AdvFieldDef<RequestRowUI>[] = [
+  txt("docNo", "Dokumen", "Document"),
+  txt("employeeNo", "No. Karyawan", "Employee No."),
+  txt("fullName", "Nama Karyawan", "Employee Name"),
+  txt("leaveTypeName", "Jenis", "Type"),
+  dt("dateFrom", "Tanggal Mulai", "Start Date"),
+  num("workingDays", "Hari Kerja", "Working Days"),
+  sel("status", "Status", "Status", (["Submitted", "Approved", "MassLeave", "Rejected", "Cancelled"] as const).map((k): [string, string, string] => [k, LEAVE_STATUS_LABEL[k] ?? k, LEAVE_STATUS_LABEL_EN[k] ?? k])),
+];
+
 export function LeaveApprovalPage() {
   const { navigate } = useNav();
   const { t, locale } = useI18n();
   const perms = useMenuPerms();
   const [query, setQuery] = useState("");
+  // Task adv-search — kondisi advance search (filter tambahan di atas query).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [target, setTarget] = useState<RequestRowUI | null>(null);
   const [action, setAction] = useState<Action>("approve");
   const [note, setNote] = useState("");
@@ -35,9 +51,9 @@ export function LeaveApprovalPage() {
     "/api/rekankerja/leave/requests?status=Submitted",
   );
 
-  const requests = useMemo(() => (api.data?.requests ?? []).filter((r) =>
+  const requests = useMemo(() => filterRowsByAdv((api.data?.requests ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase())
-  ), [api.data, query]);
+  ), adv, ADV_FIELDS), [api.data, query, adv]);
 
   // Task 99 (F2-1) — bendera risiko pola cuti per baris Submitted (padanan
   // panel "Anomali terdeteksi" travel approval; bantuan approver ala Bradford).
@@ -134,14 +150,17 @@ export function LeaveApprovalPage() {
         <CardContent className="p-0">
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{t("Permintaan berstatus Menunggu — urut terbaru", "Requests in Pending status — newest first")}</p>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("Cari karyawan / no. dokumen…", "Search employee / doc no. …")}
-                className="h-8 w-56 rounded-md border border-slate-200 bg-white pl-8 pr-3 text-xs outline-none focus:ov-border-accent dark:border-slate-700 dark:bg-slate-900"
-              />
+            <div className="flex items-center gap-2">
+              <AdvSearchButton fields={ADV_FIELDS} value={adv} onChange={setAdv} />
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("Cari karyawan / no. dokumen…", "Search employee / doc no. …")}
+                  className="h-8 w-56 rounded-md border border-slate-200 bg-white pl-8 pr-3 text-xs outline-none focus:ov-border-accent dark:border-slate-700 dark:bg-slate-900"
+                />
+              </div>
             </div>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : requests.length === 0 ? (

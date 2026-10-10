@@ -2,7 +2,7 @@
 // RekanKerja Payroll — Benefit Karyawan (P5): klaim dgn limit per siklus reset,
 // auto-approve dalam limit, approval manual, jadwal bayar via run BENEFIT
 // (pay-in-payroll) atau kas langsung + master jenis benefit.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useTableSort } from "@/rekankerja/shared/lib/use-table-sort";
 import { EntityRulesDialog, type EntityRuleTarget } from "@/rekankerja/shared/components/entity-rules-dialog";
@@ -26,6 +26,8 @@ import {
   Stethoscope, Glasses, Dumbbell, PartyPopper, Sparkles, Landmark, Ban, FileText, ChevronRight, SlidersHorizontal,
 } from "lucide-react";
 import { BenefitTypeRow, BenefitClaimRow, BenefitStats, PeriodRow, WageCompFull, PERIOD_STATUS_LABEL, PERIOD_STATUS_LABEL_EN } from "@/rekankerja/payroll/components/payroll-types";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 
@@ -61,6 +63,48 @@ const RESET_LABEL_EN: Record<string, string> = {
   None: "once, lifetime", Monthly: "monthly", Quarterly: "quarterly", Yearly: "yearly",
 };
 
+/** Task adv-search — opsi select status klaim dari chip STATUS_FILTERS yang sudah ada. */
+const CLAIM_STATUS_ADV_OPTIONS: [string, string, string][] = STATUS_FILTERS.filter((f) => f.key !== "all").map(
+  (f) => [f.key, f.label, STATUS_FILTERS_EN[f.key] ?? f.key],
+);
+
+/** Task adv-search — field Advance Search klaim benefit (client-side, filter
+ *  TAMBAHAN di atas chip status server; employee & jenis benefit bersarang
+ *  diakses lewat getter). */
+const CLAIM_ADV_FIELDS: AdvFieldDef<BenefitClaimRow>[] = [
+  txt("claimNo", "No. Klaim", "Claim No."),
+  txt("employeeNo", "No. Karyawan", "Employee No.", (c) => c.employee?.employeeNo),
+  txt("employeeName", "Karyawan", "Employee", (c) => c.employee?.fullName),
+  txt("benefitTypeName", "Jenis Benefit", "Benefit Type", (c) => c.benefitType?.name),
+  dt("claimDate", "Tanggal", "Date"),
+  num("amount", "Nilai", "Value"),
+  num("approvedAmount", "Nilai Disetujui", "Approved Amount"),
+  num("limitUsed", "Limit Terpakai", "Used Limit"),
+  num("limitRemaining", "Sisa Limit", "Remaining Limit"),
+  sel("status", "Status", "Status", CLAIM_STATUS_ADV_OPTIONS),
+  txt("description", "Keterangan", "Description"),
+  txt("paidRunNo", "Run Bayar", "Paying Run"),
+];
+
+/** Task adv-search — field Advance Search master jenis benefit (tab types). */
+const TYPE_ADV_FIELDS: AdvFieldDef<BenefitTypeRow>[] = [
+  txt("code", "Kode", "Code"),
+  txt("name", "Nama", "Name"),
+  sel("category", "Kategori", "Category", (["Medical", "Kesehatan", "Transport", "Rekreasi", "Perayaan", "Lainnya"] as const).map(
+    (c) => [c, c, CATEGORY_LABEL_EN[c] ?? c] as [string, string, string],
+  )),
+  sel("resetPeriod", "Siklus Reset", "Reset Cycle", (["None", "Monthly", "Quarterly", "Yearly"] as const).map(
+    (r) => [r, RESET_LABEL[r] ?? r, RESET_LABEL_EN[r] ?? r] as [string, string, string],
+  )),
+  num("maxClaimAmount", "Limit", "Limit"),
+  num("activeClaimCount", "Klaim Aktif", "Active Claims"),
+  num("totalApprovedAmount", "Total Disetujui", "Total Approved"),
+  sel("active", "Status", "Status", [
+    ["true", "Aktif", "Active"],
+    ["false", "Nonaktif", "Inactive"],
+  ], (ty) => String(ty.active)),
+];
+
 export function PayrollBenefitsPage() {
   const { t } = useI18n();
   const [tab, setTab] = useState("claims");
@@ -71,11 +115,17 @@ export function PayrollBenefitsPage() {
   const [rejectTarget, setRejectTarget] = useState<BenefitClaimRow | null>(null);
   const [scheduleTarget, setScheduleTarget] = useState<BenefitClaimRow | null>(null);
   const [rulesTarget, setRulesTarget] = useState<EntityRuleTarget | null>(null);
+  // Task adv-search — kondisi advance search per tab (claims & types).
+  const [advClaims, setAdvClaims] = useState<AdvSearch | null>(null);
+  const [advTypes, setAdvTypes] = useState<AdvSearch | null>(null);
 
   const claimsApi = useApi<{ claims: BenefitClaimRow[]; stats: BenefitStats }>(`/api/rekankerja/benefit-claims?status=${statusFilter}`);
 
+  // Task adv-search — filter tambahan di atas chip status server (sebelum sort).
+  const claims = useMemo(() => filterRowsByAdv(claimsApi.data?.claims ?? [], advClaims, CLAIM_ADV_FIELDS), [claimsApi.data, advClaims]);
+
   // Task 72 — sorting kolom tabel klaim benefit
-  const sort = useTableSort(claimsApi.data?.claims, {
+  const sort = useTableSort(claims, {
     claim: (c) => c.claimNo,
     employee: (c) => c.employee.fullName,
     type: (c) => c.benefitType.name,
@@ -85,6 +135,8 @@ export function PayrollBenefitsPage() {
     status: (c) => c.status,
   }, { defaultKey: "date", defaultDir: "desc" });
   const typesApi = useApi<{ types: BenefitTypeRow[] }>("/api/rekankerja/benefit-types");
+  // Task adv-search — filter tambahan utk daftar kartu jenis benefit.
+  const types = useMemo(() => filterRowsByAdv(typesApi.data?.types ?? [], advTypes, TYPE_ADV_FIELDS), [typesApi.data, advTypes]);
   const stats = claimsApi.data?.stats;
 
   return (
@@ -136,10 +188,10 @@ export function PayrollBenefitsPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4 h-auto rounded-2xl ov-tile p-1.5">
           <TabsTrigger value="claims" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
-            <HeartHandshake className="h-3.5 w-3.5" /> {t("Klaim", "Claims")} ({claimsApi.data?.claims.length ?? 0})
+            <HeartHandshake className="h-3.5 w-3.5" /> {t("Klaim", "Claims")} ({claims.length})
           </TabsTrigger>
           <TabsTrigger value="types" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
-            <Sparkles className="h-3.5 w-3.5" /> {t("Jenis Benefit", "Benefit Types")} ({typesApi.data?.types.length ?? 0})
+            <Sparkles className="h-3.5 w-3.5" /> {t("Jenis Benefit", "Benefit Types")} ({types.length})
           </TabsTrigger>
         </TabsList>
 
@@ -159,12 +211,13 @@ export function PayrollBenefitsPage() {
                 {t(f.label, STATUS_FILTERS_EN[f.key])}
               </button>
             ))}
+            <AdvSearchButton className="ml-auto" fields={CLAIM_ADV_FIELDS} value={advClaims} onChange={setAdvClaims} />
           </div>
           <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
               {claimsApi.loading && !claimsApi.data ? (
                 <div className="p-4"><LoadingRows rows={5} /></div>
-              ) : (claimsApi.data?.claims.length ?? 0) === 0 ? (
+              ) : claims.length === 0 ? (
                 <div className="p-5">
                   <EmptyState
                     title={t("Belum ada klaim", "No claims yet")}
@@ -204,9 +257,12 @@ export function PayrollBenefitsPage() {
         </TabsContent>
 
         <TabsContent value="types">
+          <div className="mb-3 flex justify-end">
+            <AdvSearchButton fields={TYPE_ADV_FIELDS} value={advTypes} onChange={setAdvTypes} />
+          </div>
           {typesApi.loading && !typesApi.data ? (
             <div className="grid gap-3 md:grid-cols-2"><LoadingRows rows={3} /></div>
-          ) : (typesApi.data?.types.length ?? 0) === 0 ? (
+          ) : types.length === 0 ? (
             <Card className="rounded-2xl border-slate-200/80 dark:border-slate-800">
               <CardContent className="p-5">
                 <EmptyState
@@ -218,7 +274,7 @@ export function PayrollBenefitsPage() {
             </Card>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
-              {(typesApi.data?.types ?? []).map((t) => (
+              {types.map((t) => (
                 <TypeCard key={t.id} type={t}
                   onEdit={() => { setEditType(t); setTypeDialog(true); }}
                   onChanged={() => { typesApi.refresh(); claimsApi.refresh(); }}

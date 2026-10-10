@@ -1,7 +1,7 @@
 "use client";
 // RekanKerja Medical — Rumah Sakit & Asuransi: master provider
 // (padanan Hospital.jsp + InsuranceCompany.jsp → 1 view 2 tab).
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,8 @@ import { ProviderUI } from "./medical-types";
 import { Hospital, ShieldCheck, Plus, Pencil, MapPin, Phone } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
+import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+import { type AdvSearch, type AdvFieldDef, txt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
 interface FormState {
   id?: string; code: string; name: string; kind: string;
@@ -30,16 +32,39 @@ const TAB_LABEL_EN: Record<string, string> = {
   INSURANCE: "Insurance",
 };
 
+/** Task adv-search — field Advance Search master provider (client-side;
+ *  TAMBAHAN di atas tab jenis — kind & active dipakai getter/opsi eksplisit). */
+const PROVIDER_ADV_FIELDS: AdvFieldDef<ProviderUI>[] = [
+  txt("code", "Kode", "Code"),
+  txt("name", "Nama", "Name"),
+  txt("city", "Kota", "City"),
+  txt("address", "Alamat", "Address"),
+  txt("phone", "Telepon", "Phone"),
+  sel("kind", "Jenis", "Type", [
+    ["HOSPITAL", "Rumah Sakit / Klinik / Apotek", "Hospital / Clinic / Pharmacy"],
+    ["INSURANCE", "Perusahaan Asuransi", "Insurance Company"],
+  ]),
+  sel("active", "Aktif", "Active", [
+    ["true", "Aktif", "Active"],
+    ["false", "Non-aktif", "Inactive"],
+  ], (r) => (r.active ? "true" : "false")),
+];
+
 export function MedicalProvidersPage() {
   const { t } = useI18n();
   const api = useApi<{ providers: ProviderUI[] }>("/api/rekankerja/medical/providers");
   const [tab, setTab] = useState<"HOSPITAL" | "INSURANCE">("HOSPITAL");
+  // Task adv-search — kondisi advance search (filter tambahan di atas tab).
+  const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
 
   const all = api.data?.providers ?? [];
-  const rows = all.filter((p) => p.kind === tab);
+  const rows = useMemo(
+    () => filterRowsByAdv(all.filter((p) => p.kind === tab), adv, PROVIDER_ADV_FIELDS),
+    [all, tab, adv],
+  );
 
   const openNew = () => {
     setForm({ ...emptyForm, kind: tab });
@@ -99,6 +124,8 @@ export function MedicalProvidersPage() {
             <tb.icon className="h-3.5 w-3.5" /> {t(tb.label, TAB_LABEL_EN[tb.key])} ({tb.count})
           </button>
         ))}
+        {/* Task adv-search — tombol di kanan toolbar tab (view hanya punya tab filter) */}
+        <AdvSearchButton fields={PROVIDER_ADV_FIELDS} value={adv} onChange={setAdv} className="ml-auto" />
       </div>
 
       <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
