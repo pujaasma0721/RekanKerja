@@ -5410,3 +5410,18 @@ Stage Summary:
 - Riwayat karier lengkap kini terlihat di profil karyawan → tab Work: kartu penempatan aktif (+ kantor & lokasi) + timeline per periode (alasan perubahan, periode + durasi, posisi, unit, grade, status, gaji, kantor, lokasi, atasan klik-profil, doc sumber PA, chip field yang berubah, catatan, tombol koreksi Task 69) + ringkasan perjalanan karier di kepala kartu.
 - 2 file diubah: human-resource/api/employee-detail.ts, human-resource/components/employee/employee-module.tsx. Additive — tanpa migrasi DB, tanpa perubahan payload lama.
 - Catatan data: 1 baris demo MII (Yusuf Rahayu, "Initial" 2025-04-23 → 2022-06-30) berisi rentang validFrom > validTo — timeline menampilkannya apa adanya tanpa durasi; perbaikan data bisa lewat tombol "Koreksi" (Task 69).
+
+## 2026-10-10 - Fix engine iReport 1721-A1 di prod (deploy fb81c67+d1e609f)
+
+- Gejala: buka PPh 21 Withholding Slip 1721-A1 -> 503 "No Java runtime available ... JRE 11+".
+- Akar: .15 tidak punya java di PATH PM2; route spawn "java" harapan PATH.
+- Solusi server: Temurin JDK 17.0.20.1+1 di ~/opt/puja opt (JRE dulu dicoba — GAGAL: source-launcher "java JasperRunner.java" butuh modul jdk.compiler, JRE -> InternalError).
+- Solusi kode: resolveJavaBin() — JAVA_BIN env > scan ~/opt/jdk-* (BUKAN varian -jre; sort leksikal tadinya memilih -jre di atas JDK karena prefix) > /usr/bin, /usr/local/bin > "java" PATH.
+- E2E prod (sesi hrd@mii.co.id, tenant pilihan): GET /api/rekankerja/payroll-reports/spt1721a1?year=2026 = 200 application/pdf, 4.59 MB, header 
+## 2026-10-10 - Fix engine iReport 1721-A1 di prod (deploy fb81c67+d1e609f)
+
+- Gejala: buka PPh 21 Withholding Slip 1721-A1 -> 503 "No Java runtime available ... JRE 11+".
+- Akar: .15 tidak punya java di PATH PM2; route spawn "java" dari PATH.
+- Solusi server: Temurin JDK 17.0.20.1+1 di ~/opt (JRE dicoba dulu - GAGAL: source-launcher "java JasperRunner.java" butuh modul jdk.compiler, JRE -> InternalError).
+- Solusi kode: resolveJavaBin() - JAVA_BIN env > scan ~/opt/jdk-* BUKAN varian -jre (sort leksikal tadinya memilih -jre di atas JDK karena prefix) > /usr/bin, /usr/local/bin > "java" PATH.
+- E2E prod (sesi hrd@mii.co.id): GET spt1721a1?year=2026 = 200 application/pdf 4.59 MB header %PDF-. Sebelumnya 503.
