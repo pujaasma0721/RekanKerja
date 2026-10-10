@@ -274,6 +274,11 @@ const STEPS: Step[] = [
   // NonEmployeePayment — CREATE IF NOT EXISTS idempoten (tenant lama via parity;
   // tenant baru via tenant-ddl.sql hasil regenerate schema-tenant.prisma).
   { key: "non-employee-payment", label: "PMK 168/2023 — Pembayaran Bukan Pegawai (mitra + pembayaran honor/fee)", run: (s) => import("../../../../scripts/migrate-non-employee-payment").then((m) => m.main(s)) },
+  // Kepatuhan lembur PP 35/2021 — DDL AttendanceRule.otWorkweekDays/otBasisMode
+  // (commit 3cd71e3 menambah kolom di schema tanpa step parity → tenant existing
+  // prod error getRule: "column otWorkweekDays does not exist" padan tab Pengaturan
+  // Schedule templates). Append-only kronologis.
+  { key: "ot-compliance", label: "Kepatuhan PP 35/2021 — kolom AttendanceRule.otWorkweekDays/otBasisMode/otBasisComponentCodes", run: (s) => import("../../../../scripts/migrate-ot-compliance").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -494,7 +499,15 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (openShiftOk < schemas.length)
       reasons.push(`${schemas.length - openShiftOk} tenant tanpa tabel OpenShiftPost (Task 100 — open shift)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk) };
+    // Kepatuhan PP 35/2021 — kolom AttendanceRule.otWorkweekDays (sanitize tab
+    // Pengaturan — getRule findFirst full-row butuh semua kolom model ada).
+    const otWorkweekOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'AttendanceRule' AND column_name = 'otWorkweekDays' AND table_schema = ANY($1::text[])`,
+    );
+    if (otWorkweekOk < schemas.length)
+      reasons.push(`${schemas.length - otWorkweekOk} tenant tanpa kolom AttendanceRule.otWorkweekDays (kepatuhan PP 35/2021)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk) };
   } finally {
     await c.end();
   }
