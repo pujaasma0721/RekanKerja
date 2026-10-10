@@ -50,7 +50,9 @@ function resolveJavaBin(): string {
     "/usr/local/bin/java",
     ...existsSync(optDir)
       ? readdirSync(optDir)
-          .filter((d) => /jdk-/.test(d))
+          // JDK penuh dulu (source-launcher butuh modul jdk.compiler — JRE tidak cukup);
+          // buang varian -jre, lalu versi terbaru.
+          .filter((d) => /jdk-/.test(d) && !/jre/i.test(d))
           .sort()
           .reverse()
           .map((d) => path.join(optDir, d, "bin", "java"))
