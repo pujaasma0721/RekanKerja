@@ -114,3 +114,90 @@ export function masterDefOf(type: MasterType): MasterTypeDef {
 // label status master aktif/nonaktif
 export const ACTIVE_LABEL = { id: "Aktif", en: "Active" };
 export const INACTIVE_LABEL = { id: "Nonaktif", en: "Inactive" };
+
+// ---------- F1 — PersonnelRequisition (PR) ----------
+
+/** Status PR + label dwibahasa (urutan = urutan filter UI). */
+export const PR_STATUSES: { key: string; label: string; labelEn: string }[] = [
+  { key: "Draft", label: "Draft", labelEn: "Draft" },
+  { key: "Submitted", label: "Menunggu", labelEn: "Pending" },
+  { key: "Approved", label: "Disetujui", labelEn: "Approved" },
+  { key: "Rejected", label: "Ditolak", labelEn: "Rejected" },
+  { key: "OnHold", label: "Ditahan", labelEn: "On Hold" },
+  { key: "Fulfilled", label: "Terpenuhi", labelEn: "Fulfilled" },
+  { key: "Closed", label: "Ditutup", labelEn: "Closed" },
+  { key: "Cancelled", label: "Dibatalkan", labelEn: "Cancelled" },
+];
+
+export const PR_STATUS_LABEL: Record<string, string> = Object.fromEntries(PR_STATUSES.map((s) => [s.key, s.label]));
+export const PR_STATUS_LABEL_EN: Record<string, string> = Object.fromEntries(PR_STATUSES.map((s) => [s.key, s.labelEn]));
+
+/** Warna pill status PR (peta StatusPill tone). */
+export const PR_STATUS_TONE: Record<string, string> = {
+  Draft: "slate", Submitted: "amber", Approved: "emerald", Rejected: "rose",
+  OnHold: "violet", Fulfilled: "teal", Closed: "zinc", Cancelled: "slate",
+};
+
+export const PR_EMPLOYMENT_STATUSES: { key: string; label: string; labelEn: string }[] = [
+  { key: "Permanent", label: "Tetap", labelEn: "Permanent" },
+  { key: "Contract", label: "Kontrak", labelEn: "Contract" },
+  { key: "Probation", label: "Percobaan", labelEn: "Probation" },
+  { key: "Outsourcing", label: "Outsourcing", labelEn: "Outsourcing" },
+];
+
+export const PR_EMPLOYMENT_LABEL: Record<string, string> = Object.fromEntries(PR_EMPLOYMENT_STATUSES.map((s) => [s.key, s.label]));
+export const PR_EMPLOYMENT_LABEL_EN: Record<string, string> = Object.fromEntries(PR_EMPLOYMENT_STATUSES.map((s) => [s.key, s.labelEn]));
+
+export const PR_SOURCES: { key: string; label: string; labelEn: string }[] = [
+  { key: "Any", label: "Semua sumber", labelEn: "Any source" },
+  { key: "Internal", label: "Internal", labelEn: "Internal" },
+  { key: "External", label: "Eksternal", labelEn: "External" },
+];
+
+/** Baris PR versi UI (mirror JSON API pr-service PrRow). */
+export interface PrRowUI {
+  id: string;
+  prNo: string;
+  requestDate: string;
+  status: string;
+  requestedById: string;
+  requesterName: string;
+  requesterNo: string;
+  positionId: string | null;
+  positionTitle: string | null;
+  positionCode: string | null;
+  jobId: string | null;
+  jobTitle: string | null;
+  orgUnitId: string | null;
+  orgUnitName: string | null;
+  companyOfficeId: string | null;
+  officeName: string | null;
+  requiredNo: number;
+  employmentStatus: string;
+  preferredSource: string | null;
+  earliestDate: string | null;
+  latestDate: string | null;
+  recruitmentOfficerId: string | null;
+  officerName: string | null;
+  reason: string | null;
+  miscSpec: string | null;
+  additionalQualification: string | null;
+  salaryBudget: number | null;
+  autoPostOpening: boolean;
+  slaTargetDays: number | null;
+  replacedEmployeeId: string | null;
+  replacedEmployeeName: string | null;
+  decisionNote: string | null;
+  submittedAt: string | null;
+  decidedAt: string | null;
+  approval: { status: string; currentLevel: number; totalLevels: number; currentApprover: string | null } | null;
+}
+
+/** Opsi dropdown form PR (dari /recruitment/pr-options — SELECT sempit). */
+export interface PrOptions {
+  employees: { id: string; employeeNo: string; fullName: string; positionTitle: string | null }[];
+  positions: { id: string; code: string; title: string; orgUnitName: string | null }[];
+  jobs: { id: string; code: string; title: string }[];
+  orgUnits: { id: string; code: string; name: string }[];
+  offices: { id: string; code: string; name: string; city: string | null }[];
+}

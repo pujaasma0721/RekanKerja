@@ -23,7 +23,11 @@ export type EssView =
   // Task 52-f — kanal laporan TPKS (anonim) utk semua pekerja
   | "whistleblow"
   // Task 100 F1 (G19) — marketplace open shift utk karyawan
-  | "open-shift";
+  | "open-shift"
+  // F1-REC — modul Rekrutmen: PR saya + kotak approval PR (oranHR
+  // MyPersonnelRequisition / MyPersonnelRequisitionToApprove)
+  | "my-pr"
+  | "pr-approval";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;

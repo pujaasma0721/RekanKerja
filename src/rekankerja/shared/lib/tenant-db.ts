@@ -51,13 +51,16 @@ export type { TenantPrismaClient };
 // F0-REC: versi dinaikkan lagi (F0REC) — 10 model master Recruitment (F0
 // DEVELOPMENT-PLAN-RECRUITMENT.md) masuk client hasil generate; instance lama
 // (pra-F0REC, DMMF tanpa db.recruitmentMethod dst.) tidak boleh dipakai ulang.
+// F1-REC: versi dinaikkan lagi (F1REC) — model PersonnelRequisition (PR
+// rekrutmen — F1) masuk client hasil generate; instance lama (pra-F1REC,
+// DMMF tanpa db.personnelRequisition) tidak boleh dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  rekankerjaTenantClientsF0REC: Map<string, TenantPrismaClient> | undefined;
+  rekankerjaTenantClientsF1REC: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.rekankerjaTenantClientsF0REC ?? new Map();
-globalForTenants.rekankerjaTenantClientsF0REC = tenantClients;
+  globalForTenants.rekankerjaTenantClientsF1REC ?? new Map();
+globalForTenants.rekankerjaTenantClientsF1REC = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

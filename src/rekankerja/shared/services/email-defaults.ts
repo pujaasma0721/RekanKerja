@@ -114,6 +114,22 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     subject: "Personnel Action {{docNo}} ({{jenisAksi}}) TELAH DIPROSES",
     body: "Halo {{nama}},\n\nPersonnel Action {{jenisAksi}} ({{docNo}}) telah DIPROSES dan perubahan sudah diterapkan pada data kepegawaian Anda.\n- Tanggal efektif: {{tanggalEfektif}}\n- Alasan: {{alasan}}\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
   },
+  // F1-REC — modul Rekrutmen: notifikasi PR (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F1)
+  {
+    event: "recruitment.pr.submitted", label: "Rekrutmen — PR Diajukan", notifyEmployee: false, notifyApprover: true, notifyHrd: false,
+    subject: "[Perlu Persetujuan] Permintaan Karyawan {{docNo}} — {{posisi}}",
+    body: "Halo Approver,\n\n{{nama}} mengajukan permintaan karyawan ({{docNo}}):\n- Posisi: {{posisi}}\n- Jumlah kebutuhan: {{jumlahOrang}} orang\n- Status kerja: {{statusKerja}}\n- Alasan: {{alasan}}\n\nSilakan buka RekanKerja HRIS untuk menyetujui atau menolak pengajuan ini.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "recruitment.pr.approved", label: "Rekrutmen — PR Disetujui", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "Permintaan Karyawan {{docNo}} DISSETUJUI",
+    body: "Halo {{nama}},\n\nPermintaan karyawan Anda ({{docNo}} — {{posisi}}, {{jumlahOrang}} orang) telah DISSETUJUI dan siap diproses tim rekrutmen.\n- Catatan approver: {{catatan}}\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "recruitment.pr.rejected", label: "Rekrutmen — PR Ditolak", notifyEmployee: true, notifyApprover: false, notifyHrd: false,
+    subject: "Permintaan Karyawan {{docNo}} DITOLAK",
+    body: "Halo {{nama}},\n\nMohon maaf, permintaan karyawan Anda ({{docNo}} — {{posisi}}) DITOLAK.\n- Alasan penolakan: {{catatan}}\n\nSilakan hubungi HRD atau menduplikasi PR bila ingin mengajukan kembali dengan penyesuaian.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+  },
   {
     event: "user.created", label: "Pengguna Baru Dibuat", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
     subject: "Akun RekanKerja HRIS Anda telah dibuat",
@@ -209,6 +225,10 @@ const PH_CODE: PlaceholderDef = { key: "code", label: "Kode periode payroll", co
 // T15-CHAIN-EXT: placeholder template lembur
 const PH_TANGGAL: PlaceholderDef = { key: "tanggal", label: "Tanggal lembur", contoh: "2026-09-03" };
 const PH_JUMLAHJAM: PlaceholderDef = { key: "jumlahJam", label: "Rencana jam lembur", contoh: "3" };
+// F1-REC — placeholder template notifikasi PR rekrutmen
+const PH_POSISI: PlaceholderDef = { key: "posisi", label: "Posisi yang diminta", contoh: "Staff Accounting" };
+const PH_JUMLAHORANG: PlaceholderDef = { key: "jumlahOrang", label: "Jumlah kebutuhan (orang)", contoh: "2" };
+const PH_STATUSKERJA: PlaceholderDef = { key: "statusKerja", label: "Status kerja", contoh: "Tetap (Permanent)" };
 
 export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "leave.submitted": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_JUMLAHHARI, PH_ALASAN],
@@ -232,6 +252,9 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "pa.approved": [PH_NAMA, PH_DOC, PH_JENISAKSI, PH_TGEFF, PH_CATATAN],
   "pa.rejected": [PH_NAMA, PH_DOC, PH_JENISAKSI, PH_TGEFF, PH_CATATAN],
   "pa.processed": [PH_NAMA, PH_DOC, PH_JENISAKSI, PH_TGEFF, PH_ALASAN],
+  "recruitment.pr.submitted": [PH_NAMA, PH_DOC, PH_POSISI, PH_JUMLAHORANG, PH_STATUSKERJA, PH_ALASAN],
+  "recruitment.pr.approved": [PH_NAMA, PH_DOC, PH_POSISI, PH_JUMLAHORANG, PH_CATATAN],
+  "recruitment.pr.rejected": [PH_NAMA, PH_DOC, PH_POSISI, PH_CATATAN],
   "user.created": [
     { key: "nama", label: "Nama pengguna baru", contoh: "Tri Handayani" },
     { key: "email", label: "Email login akun baru", contoh: "tri@mii.co.id" },

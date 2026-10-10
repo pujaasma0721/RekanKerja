@@ -56,6 +56,7 @@ model CompanyOffice {
   approvalStructures ApprovalStructure[]  @relation("StructureOffice")
   accessRules        DataAccessRule[]     @relation("AccessRuleOffice")
   minimumWages       MinimumWage[]
+  prs                PersonnelRequisition[] @relation("PrOffice")
 }
 
 // Lokasi kerja (site/plant) — dimensi penempatan & kriteria approval.
@@ -116,6 +117,7 @@ model OrgUnit {
   employees          Employee[]           @relation("EmployeeOrgUnit")
   approvalStructures ApprovalStructure[]  @relation("StructureOrgUnit")
   accessRules        DataAccessRule[]     @relation("AccessRuleOrgUnit")
+  prs                PersonnelRequisition[] @relation("PrOrgUnit")
 }
 
 // ============ POSITION DEFINITION ============
@@ -130,6 +132,9 @@ model Job {
   createdAt   DateTime @default(now())
 
   positions Position[]
+
+  // F1-REC — PR rekrutmen (dimensi diminta)
+  prs PersonnelRequisition[] @relation("PrJob")
 }
 
 model Grade {
@@ -175,6 +180,9 @@ model Position {
   approvalStructures        ApprovalStructure[]      @relation("StructurePosition")
   accessRules               DataAccessRule[]         @relation("AccessRulePosition")
   structureLevelsAsApprover ApprovalStructureLevel[] @relation("LevelApproverPosition")
+
+  // F1-REC — PR rekrutmen (posisi yang diminta)
+  prs PersonnelRequisition[] @relation("PrPosition")
 }
 
 // ============ EMPLOYEE INFORMATION ============
@@ -287,6 +295,11 @@ model Employee {
   // relasi approval berjenjang
   structureLevelsAsApprover ApprovalStructureLevel[] @relation("LevelApproverEmployee")
   approvalStepsAsApprover   ApprovalStep[]           @relation("StepApproverEmployee")
+
+  // F1-REC — modul Rekrutmen: PR yang diajukan / diampu officer / penggantian
+  prsRequested       PersonnelRequisition[] @relation("PrRequester")
+  prsAsOfficer       PersonnelRequisition[] @relation("PrOfficer")
+  prsAsReplacement   PersonnelRequisition[] @relation("PrReplacement")
 
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
@@ -3252,4 +3265,56 @@ model SelectionProcess {
   sortOrder           Int      @default(0)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+// ============ RECRUITMENT — F1: PERMINTAAN KARYAWAN (PR) ============
+// DEVELOPMENT-PLAN-RECRUITMENT.md §7 F1 + §4.3 — state machine EKSPLISIT
+// (padanan PersonnelRequisition.jsp oranHR, diperkaya HRX A3):
+//   Draft ──apply──► Submitted ──approval──► Approved | Rejected
+//   Draft ──cancel──► Cancelled
+//   Submitted ──cancel──► Cancelled (chain ikut dibatalkan)
+//   Approved ──hold/resume──► OnHold ──► Approved
+//   Approved|OnHold ──close──► Closed (batal rekrutmen pasca-approval)
+//   Approved ──(F2: lowongan terpenuhi sistem)──► Fulfilled
+//   Rejected/Cancelled/Closed/Fulfilled = terminal — ajukan ulang lewat
+//   "Duplikat" (PR baru, jejak chain lama tetap utuh).
+model PersonnelRequisition {
+  id                      String    @id @default(cuid())
+  prNo                    String    @unique // PR-2026-0001 (docNo prefix-tahun-seq)
+  requestDate             DateTime  @default(now())
+  requestedById           String // Employee pengaju (default: pembuat)
+  positionId              String? // posisi yang diminta
+  jobId                   String?
+  orgUnitId               String?
+  companyOfficeId         String?
+  requiredNo              Int       @default(1)
+  employmentStatus        String    @default("Permanent") // Permanent|Contract|Probation|Outsourcing
+  preferredSource         String? // Internal|External|Any
+  earliestDate            DateTime? // jendela kebutuhan — paling awal
+  latestDate              DateTime? // paling lambat
+  recruitmentOfficerId    String? // Employee owner proses rekrutmen
+  reason                  String? // alasan kebutuhan
+  miscSpec                String? // spesifikasi lain
+  additionalQualification String? // kualifikasi tambahan
+  salaryBudget            String? // TERENKRIPSI vault uang (enc:v1:n:…) — decrypt hanya di batas serializer
+  autoPostOpening          Boolean   @default(false) // auto buat JobOpening saat Approved (dipakai F2)
+  slaTargetDays           Int? // target hari penyelesaian (HRX A3)
+  replacedEmployeeId      String? // PR penggantian (attrition) — karyawan yang digantikan
+  status                  String    @default("Draft") // Draft|Submitted|Approved|Rejected|OnHold|Fulfilled|Closed|Cancelled
+  decisionNote            String? // catatan keputusan approver (reject/close)
+  submittedAt             DateTime?
+  decidedAt               DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  requestedBy        Employee       @relation("PrRequester", fields: [requestedById], references: [id])
+  position           Position?      @relation("PrPosition", fields: [positionId], references: [id])
+  job                Job?           @relation("PrJob", fields: [jobId], references: [id])
+  orgUnit            OrgUnit?       @relation("PrOrgUnit", fields: [orgUnitId], references: [id])
+  companyOffice      CompanyOffice? @relation("PrOffice", fields: [companyOfficeId], references: [id])
+  recruitmentOfficer Employee?      @relation("PrOfficer", fields: [recruitmentOfficerId], references: [id])
+  replacedEmployee   Employee?      @relation("PrReplacement", fields: [replacedEmployeeId], references: [id])
+
+  @@index([status, requestDate])
+  @@index([requestedById])
 }

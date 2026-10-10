@@ -36,6 +36,7 @@ import {
   KeyRound, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Waypoints, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
+  ClipboardList,
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
   MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
@@ -276,11 +277,13 @@ const WHISTLEBLOW_NAV: NavGroup[] = [
 
 // F0-REC — modul Rekrutmen (DEVELOPMENT-PLAN-RECRUITMENT.md §7.1): navigasi
 // tumbuh per fase. F0: Ringkasan + Master Rekrutmen (10 master + katalog
-// tahap seleksi). F1+: pr (permintaan karyawan), pr-approval, openings,
+// tahap seleksi). F1: pr (permintaan karyawan) + pr-approval. F2+: openings,
 // applicants, candidates, selection, appointments, reports.
 const RECRUITMENT_NAV: NavGroup[] = [
   { section: "recruitment", children: [
     { id: "overview", label: "Ringkasan", icon: LayoutDashboard },
+    { id: "pr", label: "Permintaan Karyawan", icon: ClipboardList },
+    { id: "pr-approval", label: "Approval PR", icon: ClipboardCheck },
   ] },
   { section: "recruitment", label: "Pengaturan Rekrutmen", children: [
     { id: "masters", label: "Master Rekrutmen", icon: Boxes },

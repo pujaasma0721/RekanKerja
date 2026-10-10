@@ -107,6 +107,16 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   "leave:leave-approval": [{ key: "approve", label: "Menyetujui / menolak cuti", hint: "Aksi Setujui & Tolak pada persetujuan cuti" }],
   "leave:leave-encashment": [{ key: "approve", label: "Menyetujui / menolak encashment", hint: "Memutuskan pengajuan uang pengganti cuti" }],
 
+  // F1-REC — Rekrutmen: PR (permintaan karyawan) + kotak approval
+  "recruitment:pr": [
+    { key: "apply", label: "Mengajukan PR", hint: "Meneruskan draft permintaan karyawan ke jalur approval" },
+    { key: "cancel", label: "Membatalkan PR", hint: "Membatalkan PR draft/menunggu persetujuan" },
+    { key: "hold", label: "Menahan / lanjut PR", hint: "Menahan sementara (On Hold) atau melanjutkan kembali PR yang disetujui" },
+    { key: "close", label: "Menutup PR", hint: "Menutup PR yang disetujui (batal rekrutmen / sudah tidak diperlukan)" },
+    { key: "duplicate", label: "Menduplikasi PR", hint: "Menyalin PR menjadi draft baru (termasuk ajukan ulang PR yang ditolak)" },
+  ],
+  "recruitment:pr-approval": [{ key: "approve", label: "Menyetujui / menolak PR", hint: "Aksi Setujui & Tolak pada kotak persetujuan permintaan karyawan" }],
+
   // Travel
   "travel:travel-request": [{ key: "cancel", label: "Membatalkan permintaan travel", hint: "Membatalkan permintaan perjalanan dinas" }],
   "travel:travel-approval": [{ key: "approve", label: "Menyetujui / menolak travel", hint: "Aksi Setujui & Tolak pada persetujuan travel" }],

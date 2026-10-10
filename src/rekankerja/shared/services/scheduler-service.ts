@@ -99,6 +99,7 @@ const DOC_TYPE_LABEL: Record<string, string> = {
   Travel: "Perjalanan Dinas",
   Medical: "Klaim Medis",
   Overtime: "Lembur",
+  RecruitmentPR: "Permintaan Karyawan (PR)",
 };
 
 /** Status period payroll yang masih "aktif" (belum diproses/ditutup). */

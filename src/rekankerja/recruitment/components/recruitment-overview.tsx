@@ -11,7 +11,7 @@ import { MASTER_DEFS } from "./recruitment-types";
 import type { MasterType } from "@/rekankerja/recruitment/services/recruitment-master-service";
 import {
   UserRoundSearch, Boxes, ListChecks, CheckCircle2, Circle, ArrowRight, Megaphone, BadgeCheck,
-  Handshake, Wallet, Sparkles, FileCheck2, Layers, CalendarClock,
+  Handshake, Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList,
 } from "lucide-react";
 
 const TYPE_ICON: Record<string, React.ElementType> = {
@@ -43,12 +43,14 @@ export function RecruitmentOverview() {
 
   const phases: { key: string; label: string; labelEn: string; done: boolean }[] = [
     { key: "F0", label: "Fondasi Modul & Master", labelEn: "Module & Master Foundation", done: true },
-    { key: "F1", label: "Permintaan Karyawan (PR) + Approval", labelEn: "Personnel Requisition + Approval", done: false },
+    { key: "F1", label: "Permintaan Karyawan (PR) + Approval", labelEn: "Personnel Requisition + Approval", done: true },
     { key: "F2", label: "Lowongan & Pelamar (talent pool)", labelEn: "Openings & Applicants (talent pool)", done: false },
     { key: "F3", label: "Kandidat & Proses Seleksi", labelEn: "Candidates & Selection Process", done: false },
     { key: "F4", label: "Offer & Appointment + Onboarding", labelEn: "Offer & Appointment + Onboarding", done: false },
     { key: "F5", label: "ESS, Rencana & Anggaran", labelEn: "ESS, Plan & Budget", done: false },
   ];
+  const prApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/pr?limit=1");
+  const ps = prApi.data?.stats;
 
   return (
     <div>
@@ -56,8 +58,8 @@ export function RecruitmentOverview() {
         eyebrow={t("Recruitment · Ringkasan")}
         title={t("Rekrutmen", "Recruitment")}
         description={t(
-          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F0 (fondasi master).",
-          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F0 (master foundation).",
+          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F1 (permintaan karyawan + approval).",
+          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F1 (personnel requisition + approval).",
         )}
       />
 
@@ -137,6 +139,47 @@ export function RecruitmentOverview() {
                 </li>
               ))}
             </ul>
+          </CardContent>
+        </Card>
+
+        {/* ringkasan PR (F1) */}
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ClipboardList className="h-4 w-4 ov-text-accent" aria-hidden />
+              {t("Permintaan Karyawan (PR)", "Personnel Requisitions (PR)")}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {t(
+                "F1 — pengajuan kebutuhan karyawan dengan state machine & approval berjenjang. Kelola di menu Permintaan Karyawan.",
+                "F1 — headcount requests with an explicit state machine & tiered approval. Manage in the Personnel Requisition menu.",
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {prApi.loading && !prApi.data ? (
+              <LoadingRows rows={2} />
+            ) : !ps ? (
+              <EmptyState title={t("Anda belum memiliki akses lihat PR", "You do not have PR view access")} icon={ClipboardList} />
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+                {([
+                  ["total", t("Total", "Total")],
+                  ["draft", t("Draft", "Draft")],
+                  ["submitted", t("Menunggu", "Pending")],
+                  ["approved", t("Disetujui", "Approved")],
+                  ["rejected", t("Ditolak", "Rejected")],
+                  ["onHold", t("Ditahan", "On Hold")],
+                  ["closed", t("Ditutup", "Closed")],
+                  ["cancelled", t("Dibatalkan", "Cancelled")],
+                ] as [string, string][]).map(([k, label]) => (
+                  <div key={k} className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40">
+                    <p className="text-[11px] font-medium text-slate-500">{label}</p>
+                    <p className="text-lg font-semibold tabular-nums">{ps[k] ?? 0}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -2515,6 +2515,39 @@ CREATE TABLE "SelectionProcess" (
     CONSTRAINT "SelectionProcess_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "PersonnelRequisition" (
+    "id" TEXT NOT NULL,
+    "prNo" TEXT NOT NULL,
+    "requestDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "requestedById" TEXT NOT NULL,
+    "positionId" TEXT,
+    "jobId" TEXT,
+    "orgUnitId" TEXT,
+    "companyOfficeId" TEXT,
+    "requiredNo" INTEGER NOT NULL DEFAULT 1,
+    "employmentStatus" TEXT NOT NULL DEFAULT 'Permanent',
+    "preferredSource" TEXT,
+    "earliestDate" TIMESTAMP(3),
+    "latestDate" TIMESTAMP(3),
+    "recruitmentOfficerId" TEXT,
+    "reason" TEXT,
+    "miscSpec" TEXT,
+    "additionalQualification" TEXT,
+    "salaryBudget" TEXT,
+    "autoPostOpening" BOOLEAN NOT NULL DEFAULT false,
+    "slaTargetDays" INTEGER,
+    "replacedEmployeeId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Draft',
+    "decisionNote" TEXT,
+    "submittedAt" TIMESTAMP(3),
+    "decidedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PersonnelRequisition_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -3103,6 +3136,15 @@ CREATE UNIQUE INDEX "SlaGroup_code_key" ON "SlaGroup"("code");
 -- CreateIndex
 CREATE UNIQUE INDEX "SelectionProcess_code_key" ON "SelectionProcess"("code");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "PersonnelRequisition_prNo_key" ON "PersonnelRequisition"("prNo");
+
+-- CreateIndex
+CREATE INDEX "PersonnelRequisition_status_requestDate_idx" ON "PersonnelRequisition"("status", "requestDate");
+
+-- CreateIndex
+CREATE INDEX "PersonnelRequisition_requestedById_idx" ON "PersonnelRequisition"("requestedById");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -3540,4 +3582,25 @@ ALTER TABLE "ShiftSwapRequest" ADD CONSTRAINT "ShiftSwapRequest_targetId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "NonEmployeePayment" ADD CONSTRAINT "NonEmployeePayment_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "NonEmployeePartner"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_orgUnitId_fkey" FOREIGN KEY ("orgUnitId") REFERENCES "OrgUnit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_companyOfficeId_fkey" FOREIGN KEY ("companyOfficeId") REFERENCES "CompanyOffice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_recruitmentOfficerId_fkey" FOREIGN KEY ("recruitmentOfficerId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_replacedEmployeeId_fkey" FOREIGN KEY ("replacedEmployeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

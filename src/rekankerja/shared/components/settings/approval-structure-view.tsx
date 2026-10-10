@@ -41,8 +41,9 @@ const DOC_TYPES = [
   { value: "TravelClaim", label: "Klaim Travel (Settlement)", en: "Travel Claim (Settlement)" },
   { value: "Medical", label: "Klaim Medis (Medical)", en: "Medical" },
   { value: "Loan", label: "Pinjaman Karyawan (Loan)", en: "Employee Loan" },
+  { value: "RecruitmentPR", label: "Permintaan Karyawan (PR)", en: "Personnel Requisition (PR)" },
 ] as const;
-const AMOUNT_DOC_TYPES = ["Travel", "Medical", "Loan", "TravelClaim"];
+const AMOUNT_DOC_TYPES = ["Travel", "Medical", "Loan", "TravelClaim", "RecruitmentPR"];
 
 const APPROVER_TYPES = [
   { value: "ATASAN_LANGSUNG", label: "Atasan Langsung", en: "Direct Superior" },

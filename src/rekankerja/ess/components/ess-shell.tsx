@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import {
-  LayoutDashboard, UserRound, Palmtree, Fingerprint, ReceiptText, HeartPulse, ClipboardList, FileText,
+  LayoutDashboard, UserRound, Palmtree, Fingerprint, ReceiptText, HeartPulse, ClipboardList, ClipboardCheck, FileText,
   Bell, Moon, Sun, LogOut, KeyRound, X, CheckCheck, MoreHorizontal, ArrowRight, Check,
   Waypoints, ChevronDown, Building2, Clock as ClockIcon, UserRoundSearch,
   AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package, CalendarPlus,
@@ -47,6 +47,9 @@ import { EssSwap } from "./ess-swap";
 import { EssAssets } from "./ess-assets";
 // Task 100 F1 (G19) — marketplace open shift
 import { EssOpenShift } from "./ess-open-shift";
+// F1-REC — modul Rekrutmen ESS: PR saya + kotak approval PR
+import { EssPrPage } from "./ess-pr";
+import { EssPrApprovalPage } from "./ess-pr-approval";
 // Task 52-f — kanal whistleblowing TPKS (anonim) utk semua pekerja.
 import { WhistleblowForm, WB_CATEGORIES } from "@/rekankerja/whistleblow/components/whistleblow-form";
 import { Siren, Ticket } from "lucide-react";
@@ -61,6 +64,10 @@ const ESS_NAV: EssNavItem[] = [
   { id: "payslips", label: "Slip Gaji", en: "Payslips", short: "Slip", shortEn: "Pay", icon: ReceiptText },
   { id: "claims", label: "Klaim Saya", en: "My Claims", short: "Klaim", shortEn: "Claims", icon: HeartPulse },
   { id: "requests", label: "Pengajuan", en: "Requests", short: "Ajukan", shortEn: "Requests", icon: ClipboardList },
+  // F1-REC — Rekrutmen: PR saya (MyPersonnelRequisition) + approval
+  // (MyPersonnelRequisitionToApprove) — padanan ESS oranHR.
+  { id: "my-pr", label: "PR Saya", en: "My Requisitions", short: "PR", shortEn: "PR", icon: ClipboardList },
+  { id: "pr-approval", label: "Approval PR", en: "PR Approval", short: "Approval PR", shortEn: "Approve PR", icon: ClipboardCheck },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)
   { id: "letters", label: "Surat", en: "Letters", short: "Surat", shortEn: "Letters", icon: FileText },
   // Task 27-f/g/b — pengumuman / tukar shift / aset saya
@@ -619,6 +626,9 @@ export function EssShell() {
             {view === "swap" && <EssSwap />}
             {/* Task 100 F1 (G19) — marketplace open shift */}
             {view === "open-shift" && <EssOpenShift />}
+            {/* F1-REC — Rekrutmen: PR saya + kotak approval PR */}
+            {view === "my-pr" && <EssPrPage />}
+            {view === "pr-approval" && <EssPrApprovalPage />}
             {view === "assets" && <EssAssets />}
             {view === "whistleblow" && (
               <div className="mx-auto max-w-2xl">

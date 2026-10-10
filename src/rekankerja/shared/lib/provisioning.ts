@@ -401,6 +401,9 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
         { approverType: "HR_ADMIN", minAmount: 10_000_000, note: "≥ Rp 10 jt: Admin/HR" },
       ],
     },
+    // F1-REC — PR rekrutmen: default 1 lapis atasan langsung (mitigasi risiko
+    // kalibrasi dimensi approval — DEVELOPMENT-PLAN-RECRUITMENT.md §7 F1).
+    { code: "AS-PR-STD", name: "Persetujuan Permintaan Karyawan (default)", docType: "RecruitmentPR", levels: [{ approverType: "ATASAN_LANGSUNG" }] },
   ];
   for (const s of defaultStructures) {
     await db.approvalStructure.create({
