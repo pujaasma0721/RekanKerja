@@ -123,7 +123,7 @@ export function OfficeLocationView() {
       </div>
 
       <Tabs defaultValue="offices">
-        <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+        <TabsList className="mb-4 h-auto rounded-2xl ov-tile p-1.5">
           <TabsTrigger value="offices" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
             <Building2 className="h-3.5 w-3.5" /> {t("Kantor Perusahaan", "Company Offices")}
           </TabsTrigger>

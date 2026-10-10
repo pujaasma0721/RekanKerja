@@ -174,7 +174,7 @@ export function EssProfile({ me }: EssProfileProps) {
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-4 sm:p-6">
           <Tabs defaultValue="work">
-            <TabsList className="mb-2 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-900/70 sm:w-auto">
+            <TabsList className="mb-2 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl ov-tile p-1/70 sm:w-auto">
               <TabsTrigger value="work" className="gap-1.5 rounded-lg px-3.5 py-2 text-[13px] data-[state=active]:ov-fill">
                 <BriefcaseBusiness className="h-3.5 w-3.5" /> {t("Pekerjaan", "Employment")}
               </TabsTrigger>

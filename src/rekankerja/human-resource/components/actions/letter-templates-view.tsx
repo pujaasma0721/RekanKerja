@@ -313,7 +313,7 @@ export function LetterTemplatesView() {
 
       {/* tab katalog / permintaan masuk (26-a) */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-slate-100/90 p-1 dark:bg-slate-800/70">
+        <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl ov-tile p-1">
           <TabsTrigger value="catalog" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:ov-fill">
             <FileText className="h-4 w-4" aria-hidden /> {t("Katalog Template", "Template Catalog")}
           </TabsTrigger>

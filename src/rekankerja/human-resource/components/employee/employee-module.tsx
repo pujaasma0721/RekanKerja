@@ -320,7 +320,7 @@ function EmployeeDetail() {
 
       {/* tabs — satu baris scrollable (tanpa wrap berantakan) */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-slate-100/90 p-1 [scrollbar-width:none] dark:bg-slate-800/70 [&::-webkit-scrollbar]:hidden">
+        <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl ov-tile p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {([
             ["personal", "Personal", User],
             ["work", "Pekerjaan", Briefcase],

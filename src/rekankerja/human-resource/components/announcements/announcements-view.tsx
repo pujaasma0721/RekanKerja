@@ -251,7 +251,7 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
         <CardContent className="space-y-3 p-3.5">
           <div className="flex flex-wrap items-center gap-2.5">
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="h-10 rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
+              <TabsList className="h-10 rounded-xl ov-tile p-1">
                 {([
                   ["all", t("Semua", "All")],
                   ["published", t("Terbit", "Published")],

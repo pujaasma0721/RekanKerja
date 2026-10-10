@@ -65,7 +65,7 @@ export function ApprovalEngineView() {
         description={t("Struktur persetujuan multi-level per dokumen (cuti, travel, medical, pinjaman) — dicocokkan ke pemohon berdasarkan kantor, lokasi kerja, unit, posisi, grade & level jabatan, plus jenjang bersyarat nominal.", "Multi-level approval structures per document (leave, travel, medical, loan) — matched to the requester by office, work location, unit, position, grade & job level, plus amount-conditional tiers.")}
       />
       <Tabs defaultValue="structure" className="space-y-5">
-        <TabsList className="h-12 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/70">
+        <TabsList className="h-12 rounded-xl ov-tile p-1">
           <TabsTrigger value="structure" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:ov-fill">
             <GitBranch className="h-4 w-4" /> {t("Struktur Berjenjang", "Tiered Structure")}
           </TabsTrigger>

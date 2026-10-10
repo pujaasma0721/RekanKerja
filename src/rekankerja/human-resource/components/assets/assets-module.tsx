@@ -153,7 +153,7 @@ export function AssetsModule() {
         )}
       />
       <Tabs defaultValue="inventory">
-        <TabsList className="mb-4 h-11 rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
+        <TabsList className="mb-4 h-11 rounded-xl ov-tile p-1">
           <TabsTrigger value="inventory" className="gap-1.5 rounded-lg px-4 text-[12px] font-bold data-[state=active]:ov-fill">
             <Package className="h-4 w-4" aria-hidden /> {t("Inventaris", "Inventory")}
           </TabsTrigger>
@@ -443,7 +443,7 @@ function AssignmentsTab({ perms }: { perms: PermsApi }) {
       {/* toolbar */}
       <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="flex flex-wrap items-center justify-between gap-2.5 p-3.5">
-          <div className="flex items-center gap-1.5 rounded-xl bg-slate-100 p-1 dark:bg-slate-900" role="group" aria-label={t("Filter penugasan", "Filter assignments")}>
+          <div className="flex items-center gap-1.5 rounded-xl ov-tile p-1" role="group" aria-label={t("Filter penugasan", "Filter assignments")}>
             {([
               ["active", t("Aktif", "Active")],
               ["returned", t("Dikembalikan", "Returned")],

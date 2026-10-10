@@ -74,7 +74,7 @@ export function SecurityView() {
         description={t("Kelola pengguna aplikasi, access group per modul, dan skema akses data berbasis posisi.", "Manage application users, per-module access groups, and position-based data access schemes.")}
       />
       <Tabs defaultValue="users" className="space-y-5">
-        <TabsList className="h-12 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/70">
+        <TabsList className="h-12 rounded-xl ov-tile p-1">
           <TabsTrigger value="users" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:ov-fill">
             <UserCog className="h-4 w-4" /> {t("Pengguna", "Users")}
           </TabsTrigger>

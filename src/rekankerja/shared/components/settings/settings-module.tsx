@@ -106,10 +106,10 @@ function LookupPage() {
                 return (
                   <button key={c} onClick={() => setCategory(c)} className={cn(
                     "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition",
-                    c === current ? "ov-fill shadow-md" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                    c === current ? "ov-fill shadow-md" : "ov-tile hover:ov-soft text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white"
                   )}>
                     <span className="flex-1 truncate">{c}</span>
-                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-extrabold", c === current ? "bg-white/20" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500")}>
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-extrabold", c === current ? "bg-white/20" : "bg-white/70 text-[color:var(--ov-accent-strong)] dark:bg-white/15 dark:text-white")}>
                       {catItems.length}
                     </span>
                     {inactive > 0 && c === current && <span className="ml-1 text-[9px] opacity-75">{inactive} off</span>}
@@ -225,7 +225,7 @@ function SecurityPage() {
         description={t("Pengguna aplikasi & kebijakan kata sandi (tambah pengguna, validasi sandi, umur, riwayat, lockout) + hak akses menu & data per pengguna — super admin dan atasan langsung otomatis tanpa setting.", "Application users & password policy (add user, password validation, age, history, lockout) + menu & data access rights per user — super admins and direct superiors are automatic without any setting.")}
       />
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl ov-tile p-1.5">
           <TabsTrigger value="users" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
             <UserCog className="h-3.5 w-3.5" /> {t("Pengguna", "Users")}
           </TabsTrigger>

@@ -236,7 +236,7 @@ export function EmployeeDetail({ id }: { id: string }) {
       {/* ============ tabs ============ */}
       <Tabs defaultValue="personal">
         <div className="mb-5 overflow-x-auto pb-1">
-          <TabsList className="h-auto w-max gap-1 bg-slate-100/80 p-1 dark:bg-slate-900/60">
+          <TabsList className="h-auto w-max gap-1 ov-tile p-1">
             {[
               { v: "personal", label: t("Personal"), icon: UserRound },
               { v: "pekerjaan", label: t("Pekerjaan", "Work"), icon: BriefcaseBusiness },

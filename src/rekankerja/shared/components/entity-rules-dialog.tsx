@@ -143,7 +143,7 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
         </DialogHeader>
 
         <Tabs defaultValue="rules" className="mt-1">
-          <TabsList className="h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+          <TabsList className="h-auto rounded-2xl ov-tile p-1.5">
             <TabsTrigger value="rules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
               <SlidersHorizontal className="h-3.5 w-3.5" /> {t("Aturan ({n})", "Rules ({n})", { n: rules.length })}
             </TabsTrigger>

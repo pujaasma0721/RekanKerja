@@ -72,7 +72,7 @@ export function PayrollParametersPage() {
         <LoadingRows rows={6} />
       ) : (
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+          <TabsList className="mb-4 h-auto rounded-2xl ov-tile p-1.5">
             <TabsTrigger value="regulation" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:ov-fill">
               <Landmark className="h-3.5 w-3.5" /> {t("Regulasi & BPJS", "Regulation & BPJS")}
             </TabsTrigger>

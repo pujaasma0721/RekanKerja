@@ -81,7 +81,7 @@ export function WhatsAppConfigView() {
         description={t("Kanal notifikasi WhatsApp (Fonnte / Wablas / Custom) — sistem mengirim pesan saat ada pengajuan cuti, slip gaji terkirim, permintaan & terbit surat, pengumuman, dan tukar shift.", "WhatsApp notification channel (Fonnte / Wablas / Custom) — the system sends messages for leave requests, payslip delivery, letter requests & issuance, announcements, and shift swaps.")}
       />
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl ov-tile p-1.5">
           <TabsTrigger value="config" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
             <Smartphone className="h-3.5 w-3.5" /> {t("Konfigurasi", "Configuration")}
           </TabsTrigger>

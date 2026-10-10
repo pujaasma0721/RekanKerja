@@ -97,7 +97,7 @@ export function ApiKeysView() {
         )}
       />
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl ov-tile p-1.5">
           <TabsTrigger value="keys" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
             <KeyRound className="h-3.5 w-3.5" /> {t("Kunci API", "API Keys")}
           </TabsTrigger>

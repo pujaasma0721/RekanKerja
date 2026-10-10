@@ -230,7 +230,7 @@ export function AttendanceClockingPage() {
         <CardContent className="p-0">
           <Tabs defaultValue="recap">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
-              <TabsList className="h-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
+              <TabsList className="h-auto rounded-xl ov-tile p-1">
                 <TabsTrigger value="recap" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:ov-fill">
                   <Activity className="h-3.5 w-3.5" /> {t("Rekap ({n})", "Recap ({n})", { n: api.data?.rows.length ?? 0 })}
                 </TabsTrigger>

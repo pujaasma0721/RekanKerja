@@ -72,7 +72,7 @@ export function EmailConfigView() {
         description={t("Pengaturan SMTP & notifikasi otomatis — sistem mengirim email saat ada pengajuan cuti, perjalanan dinas, klaim medis, dan konfirmasi payroll.", "SMTP settings & automatic notifications — the system sends emails for leave requests, business travel, medical claims, and payroll confirmations.")}
       />
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl ov-tile p-1.5">
           <TabsTrigger value="server" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
             <Server className="h-3.5 w-3.5" /> {t("Server SMTP", "SMTP Server")}
           </TabsTrigger>
