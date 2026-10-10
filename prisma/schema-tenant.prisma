@@ -82,6 +82,8 @@ model WorkLocation {
   assignments        EmployeeAssignment[]
   approvalStructures ApprovalStructure[]  @relation("StructureLocation")
   accessRules        DataAccessRule[]     @relation("AccessRuleLocation")
+  // F2-REC — slot lowongan rekrutmen (JobOpening.workLocation)
+  openings           JobOpening[]         @relation("OpeningLocation")
 }
 
 // Level jabatan (Staff/Supervisor/Manager/Director…) — master terpisah dari Grade.
@@ -300,6 +302,12 @@ model Employee {
   prsRequested       PersonnelRequisition[] @relation("PrRequester")
   prsAsOfficer       PersonnelRequisition[] @relation("PrOfficer")
   prsAsReplacement   PersonnelRequisition[] @relation("PrReplacement")
+
+  // F2-REC — rekrutmen: penyusun JobOpportunity / perujuk pelamar / verifikator
+  // lamaran publik staging.
+  josPrepared        JobOpportunity[]       @relation("JoPreparer")
+  applicantsReferred Applicant[]            @relation("ApplicantReferrer")
+  publicAppsVerified PublicApplication[]    @relation("PaVerifier")
 
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
@@ -1164,6 +1172,8 @@ model Attachment {
   createdAt   DateTime @default(now())
 
   employeeDocuments EmployeeDocument[]
+  // F2-REC — dokumen pelamar (ApplicantDocument.attachment)
+  applicantDocuments ApplicantDocument[] @relation("ApplicantDocAttachment")
 
   @@index([entityType, entityId])
 }
@@ -3142,6 +3152,9 @@ model RecruitmentMethod {
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // F2-REC — kanal biaya per JobOpportunity (JobOpeningMethod.method)
+  joMethods   JobOpeningMethod[] @relation("MethodJoOpening")
 }
 
 // Media advertensi lowongan (padanan AdMediaType oranHR: Koran, Portal…).
@@ -3153,6 +3166,10 @@ model AdMediaType {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // F2-REC — kanal iklan lowongan + sumber pelamar
+  joMethods  JobOpeningMethod[] @relation("AdMediaJoOpening")
+  applicants Applicant[]        @relation("ApplicantAdMedia")
 }
 
 // Vendor agency/tenaga eksternal (padanan EmpAgency oranHR: nama+alamat+note).
@@ -3167,6 +3184,10 @@ model EmploymentAgency {
   sortOrder Int    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // F2-REC — vendor kanal lowongan + sumber pelamar
+  joMethods  JobOpeningMethod[] @relation("AgencyJoOpening")
+  applicants Applicant[]        @relation("ApplicantAgency")
 }
 
 // Pos biaya rekrutmen (padanan RecruitmentCostItem oranHR: Advertisment,
@@ -3180,6 +3201,9 @@ model RecruitmentCostItem {
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // F2-REC — pos biaya pada kanal JobOpeningMethod
+  joMethods   JobOpeningMethod[] @relation("CostItemJoOpening")
 }
 
 // Skill/kemampuan kandidat (padanan Skill oranHR: "Bahasa Inggris (menulis)"…).
@@ -3192,6 +3216,9 @@ model Skill {
   sortOrder Int     @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // F2-REC — keahlian pelamar (talent pool)
+  applicantSkills ApplicantSkill[] @relation("ApplicantSkillMaster")
 }
 
 // Dokumen wajib pelamar (padanan RequirementDocument oranHR: CV & KTP mandatory).
@@ -3205,6 +3232,9 @@ model RequiredDocument {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // F2-REC — checklist dokumen pelamar (CV & KTP wajib)
+  applicantDocuments ApplicantDocument[] @relation("ApplicantRequiredDoc")
 }
 
 // Kategori penilaian (padanan ApplicantEvalCategory oranHR) — basis scorecard F3.
@@ -3315,6 +3345,314 @@ model PersonnelRequisition {
   recruitmentOfficer Employee?      @relation("PrOfficer", fields: [recruitmentOfficerId], references: [id])
   replacedEmployee   Employee?      @relation("PrReplacement", fields: [replacedEmployeeId], references: [id])
 
+  // F2-REC — slot lowongan yang melayani PR ini
+  openings           JobOpening[]   @relation("PrOpenings")
+
   @@index([status, requestDate])
   @@index([requestedById])
+}
+
+// ============================================================================
+// RECRUITMENT — F2: LOWONGAN, PELAMAR & TALENT POOL + FORM PUBLIK
+// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F2 + §4.2/§4.3 analisa)
+//
+// Rantai: JobOpportunity (JO — iklan) 1—N JobOpening (slot per PR, unik per
+// [JO,PR]) + JobOpeningMethod (kanal + biaya terencana/aktual per JO).
+// Applicant = talent pool (PII terenkripsi field-crypto; uang vault) →
+// ApplicantApplication multi-lamar (unik per [pelamar, slot]).
+// PublicApplication = staging form publik anonim (D1: verifikasi manual →
+// "di-upload" jadi Applicant) + ApplicantConsent (UU PDP granular/versioned).
+//
+// Konvensi uang (§4.1):
+//   • salaryMin/salaryMax JobOpening = RENTANG GAJI IKLAN — publik by design
+//     (ditampilkan di portal karir tanpa login) → kolom Int polos.
+//   • plannedCost/actualCost JobOpeningMethod + Applicant.expectedSalary =
+//     data kompensasi/budget internal-pribadi → TERENKRIPSI vault uang
+//     (enc:v1:n:…), decrypt hanya di batas serializer (W28: tak pernah di
+//     where/sort SQL).
+//   • Kolom turunan Applicant (highestEduLevel/highestGpa/totalExpMonths)
+//     di-maintain service agar query builder talent pool bisa filter
+//     server-side tanpa membongkar enkripsi.
+// ============================================================================
+
+// Iklan lowongan (padanan JobOpportunity oranHR §2.4): refNo JO-YYYY-NNNN,
+// status Draft|Posted|Closed|Obsolete; berisi N slot (per PR) + kanal biaya.
+model JobOpportunity {
+  id             String    @id @default(cuid())
+  refNo          String    @unique // JO-2026-0001 (docNo prefix-tahun-seq)
+  title          String // judul iklan (default: posisi slot pertama — editable)
+  preparedById   String? // Employee penyusun (null = sistem/auto-post)
+  datePrepared   DateTime  @default(now())
+  status         String    @default("Draft") // Draft|Posted|Closed|Obsolete
+  datePosted     DateTime? // saat mulai tampil publik
+  content        String? // isi iklan (ringkasan tugas/kualifikasi)
+  contactPerson  String? // kontak HR yang ditampilkan
+  lastAcceptDate DateTime? // batas akhir penerimaan lamaran
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  preparedBy Employee?          @relation("JoPreparer", fields: [preparedById], references: [id])
+  openings   JobOpening[]
+  methods    JobOpeningMethod[]
+
+  @@index([status])
+  @@index([datePosted])
+}
+
+// Slot lowongan per PR (padanan JobOpening oranHR): satu PR bisa dilayani
+// banyak JO, satu JO bisa menampung banyak slot PR (unik per pasangan).
+model JobOpening {
+  id                String    @id @default(cuid())
+  jobOpportunityId  String
+  prId              String
+  titleToShow       String // judul yang ditampilkan di slot
+  workLocationId    String?
+  salaryMin         Int? // rentang gaji IKLAN (publik by design — bukan data pribadi)
+  salaryMax         Int?
+  currency          String    @default("IDR")
+  salaryUnit        String    @default("Monthly")
+  jobDescSummary    String? // ringkasan tugas (tampil publik)
+  jobSpecSummary    String? // ringkasan kualifikasi (tampil publik)
+  status            String    @default("Open") // Open|Fulfilled|Closed
+  postedAt          DateTime? // kapan slot mulai tampil di portal publik
+  closedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  jobOpportunity    JobOpportunity         @relation(fields: [jobOpportunityId], references: [id])
+  pr                PersonnelRequisition    @relation("PrOpenings", fields: [prId], references: [id])
+  workLocation      WorkLocation?          @relation("OpeningLocation", fields: [workLocationId], references: [id])
+  applications      ApplicantApplication[]
+  publicApplications PublicApplication[]
+
+  @@unique([jobOpportunityId, prId])
+  @@index([prId])
+  @@index([status])
+}
+
+// Kanal publikasi + biaya per JO (padanan JobOpeningMethod oranHR): metode,
+// media iklan, agency, pos biaya, planned/actual (vault uang).
+model JobOpeningMethod {
+  id                String    @id @default(cuid())
+  jobOpportunityId  String
+  methodId          String // RecruitmentMethod master
+  adMediaTypeId     String?
+  agencyId          String?
+  costItemId        String? // RecruitmentCostItem
+  plannedCost       String? // TERENKRIPSI vault uang (enc:v1:n:…) — decrypt di serializer
+  actualCost        String? // idem
+  datePosted        DateTime?
+  note              String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  jobOpportunity JobOpportunity        @relation(fields: [jobOpportunityId], references: [id], onDelete: Cascade)
+  method         RecruitmentMethod     @relation("MethodJoOpening", fields: [methodId], references: [id])
+  adMediaType    AdMediaType?          @relation("AdMediaJoOpening", fields: [adMediaTypeId], references: [id])
+  agency         EmploymentAgency?     @relation("AgencyJoOpening", fields: [agencyId], references: [id])
+  costItem       RecruitmentCostItem?  @relation("CostItemJoOpening", fields: [costItemId], references: [id])
+
+  @@index([jobOpportunityId])
+}
+
+// Pelamar / talent pool (padanan Applicant oranHR §2.5 + HRX C4-lite).
+// PII (email/phone/address/city/placeOfBirth/identityNo) TERENKRIPSI
+// field-crypto; expectedSalary vault uang — decrypt di batas serializer API.
+// Kolom turunan (highestEduLevel/highestGpa/totalExpMonths) dihitung ulang
+// service saat education/experience berubah — agar query talent pool tetap
+// server-side (W28).
+model Applicant {
+  id                 String    @id @default(cuid())
+  applicantNo        String    @unique // APP-26-00001 (docNo prefix-tahun(2)-seq(5))
+  firstName          String
+  middleName         String?
+  lastName           String?
+  displayName        String? // nama tampilan (opsional)
+  status             String    @default("Active") // Active|Rejected|Outdated|Employed
+  blacklist          Boolean   @default(false)
+  blacklistNote      String? // alasan blacklist — WAJIB (guard service)
+  blacklistAt        DateTime?
+  blacklistById      String?
+  suspend            Boolean   @default(false)
+  suspendNote        String? // alasan suspend — WAJIB
+  suspendUntil       DateTime?
+  dateApplied        DateTime  @default(now()) // masuk talent pool
+  dateAvailable      DateTime? // tanggal siap mulai bekerja
+  expectedSalary     String? // TERENKRIPSI vault uang (enc:v1:n:…)
+  currency           String    @default("IDR")
+  salaryUnit         String    @default("Monthly")
+  keepOnFileMonths   Int       @default(12)
+  keepOnFileUntil    DateTime? // dateApplied + months — scheduler auto-Outdated
+  source             String? // Advertisement|Agency|Referral|Web|Internal|Other
+  adMediaTypeId      String?
+  agencyId           String?
+  institutionName    String? // institusi sumber (kampus/vendor)
+  referralEmployeeId String? // Employee perujuk (pencatatan referral)
+  // PII — TERENKRIPSI field-crypto (enc:v1:t:…)
+  email              String?
+  phone              String?
+  address            String?
+  city               String?
+  placeOfBirth       String?
+  identityNo         String? // no. KTP — terenkripsi
+  birthDate          DateTime? // polos (konvensi Employee.birthDate — filter umur)
+  gender             String? // L|P
+  maritalStatus      String?
+  notes              String?
+  // kolom turunan (dihitung service — lihat header model)
+  highestEduLevel    String? // level tertinggi: SMP|SMA|SMK|D3|S1|S2|S3|PROF
+  highestGpa         Float? // IPK pada level tertinggi
+  totalExpMonths     Int       @default(0) // Σ bulan pengalaman kerja
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  adMediaType      AdMediaType?      @relation("ApplicantAdMedia", fields: [adMediaTypeId], references: [id])
+  agency           EmploymentAgency? @relation("ApplicantAgency", fields: [agencyId], references: [id])
+  referralEmployee Employee?         @relation("ApplicantReferrer", fields: [referralEmployeeId], references: [id])
+  educations       ApplicantEducation[]
+  experiences      ApplicantExperience[]
+  skills           ApplicantSkill[]
+  documents        ApplicantDocument[]
+  applications     ApplicantApplication[]
+  consents         ApplicantConsent[]
+
+  @@index([status])
+  @@index([keepOnFileUntil])
+  @@index([source])
+}
+
+// Riwayat pendidikan pelamar (padanan ApplicantEducation oranHR).
+model ApplicantEducation {
+  id             String   @id @default(cuid())
+  applicantId    String
+  level          String // SMP|SMA|SMK|D3|S1|S2|S3|PROF
+  fieldOfStudy   String?
+  institution    String?
+  graduationYear Int?
+  gpa            Float? // skala 0–4
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([applicantId])
+}
+
+// Riwayat pengalaman kerja pelamar (padanan ApplicantExperience oranHR).
+model ApplicantExperience {
+  id          String   @id @default(cuid())
+  applicantId String
+  company     String?
+  position    String?
+  field       String?
+  startYear   Int?
+  endYear     Int? // null = sekarang
+  months      Int? // durasi bulan baris ini (Σ → Applicant.totalExpMonths)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([applicantId])
+}
+
+// Keahlian pelamar (link ke master Skill — F0).
+model ApplicantSkill {
+  id          String   @id @default(cuid())
+  applicantId String
+  skillId     String // Skill master
+  level       String? // Beginner|Intermediate|Advanced|Expert
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  skill     Skill     @relation("ApplicantSkillMaster", fields: [skillId], references: [id])
+
+  @@index([applicantId])
+  @@index([skillId])
+}
+
+// Checklist dokumen pelamar (padanan ApplicantDocument oranHR — pattern
+// EmployeeDocument: file via Attachment + MIME whitelist + magic number).
+model ApplicantDocument {
+  id                 String   @id @default(cuid())
+  applicantId        String
+  requiredDocumentId String? // checklist RequiredDocument (CV & KTP wajib)
+  title              String
+  verified           Boolean  @default(false) // diverifikasi HR (pre-employment F4)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  applicant        Applicant          @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  requiredDocument RequiredDocument?  @relation("ApplicantRequiredDoc", fields: [requiredDocumentId], references: [id])
+  attachmentId     String?
+  attachment       Attachment?        @relation("ApplicantDocAttachment", fields: [attachmentId], references: [id], onDelete: SetNull)
+
+  @@index([applicantId])
+}
+
+// Multi-lamaran: satu pelamar bisa melamar banyak slot (padanan
+// ApplicantApplication oranHR — unik per pasangan [pelamar, slot]).
+model ApplicantApplication {
+  id                String   @id @default(cuid())
+  applicantId       String
+  jobOpeningId      String
+  dateApplied       DateTime @default(now())
+  status            String   @default("Received") // Received|Screening|Rejected|Hired
+  sourceNote        String?
+  rejectionLetterNo String? // F4: surat penolakan
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  applicant  Applicant  @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  jobOpening JobOpening @relation(fields: [jobOpeningId], references: [id])
+
+  @@unique([applicantId, jobOpeningId])
+  @@index([jobOpeningId])
+}
+
+// Staging form publik anonim (HRX I1/C1-lite — padanan ApplicantWeb oranHR;
+// keputusan D1: form minimal → verifikasi manual HR "Upload" ke talent pool).
+// payloadJson = JSON isian form dengan field PII TERENKRIPSI per-field.
+model PublicApplication {
+  id            String    @id @default(cuid())
+  jobOpeningId  String? // null = lamaran umum (tanpa slot)
+  status        String    @default("Pending") // Pending|Verified|Rejected|Spam
+  payloadJson   String // seluruh isian form (PII dienkripsi per-field)
+  cvFileName    String? // jejak cepat (file fisik di Attachment)
+  cvStoragePath String?
+  ipHash        String? // rate-limit & audit (SHA-256 salted — bukan IP mentah)
+  submittedAt   DateTime  @default(now())
+  verifiedById   String? // Employee verifikator
+  verifiedAt     DateTime?
+  rejectNote    String? // alasan tolak (staging)
+  consentId     String? // → ApplicantConsent (channel public-form)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  jobOpening JobOpening? @relation(fields: [jobOpeningId], references: [id])
+  verifiedBy Employee?  @relation("PaVerifier", fields: [verifiedById], references: [id])
+
+  @@index([status, submittedAt])
+}
+
+// Consent UU PDP granular & versioned (HRX I1): setiap pengumpulan PII
+// pelamar dicatat — public-form | manual (input HR). purpose mis.
+// "recruitment" (proses lamaran aktif) / "talent-pool" (simpan utk masa
+// depan). withdrawal = withdrawnAt (F9 retention).
+model ApplicantConsent {
+  id          String    @id @default(cuid())
+  applicantId String? // null selagi masih staging (PublicApplication)
+  purpose     String
+  version     String // versi teks consent (mis. "2026-01")
+  grantedAt   DateTime  @default(now())
+  withdrawnAt DateTime?
+  channel     String // public-form|manual
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  applicant Applicant? @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([applicantId, purpose])
 }

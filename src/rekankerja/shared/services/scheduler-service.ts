@@ -418,6 +418,35 @@ async function jobScheduledResignations(db: TenantDb): Promise<number> {
   return done;
 }
 
+// F2-REC — pelamar talent pool melewati masa keep-on-file (oranHR auto
+// Outdated): status Active → Outdated saat keepOnFileUntil < hari ini.
+// Idempoten by filter status Active; jejak ActivityLog per pelamar (system).
+async function jobApplicantOutdated(db: TenantDb): Promise<number> {
+  const today = startOfDay(new Date());
+  const pending = await db.applicant.findMany({
+    where: { status: "Active", keepOnFileUntil: { lt: today } },
+    select: { id: true, applicantNo: true, firstName: true, middleName: true, lastName: true, displayName: true, keepOnFileUntil: true },
+    take: 500,
+  });
+  let done = 0;
+  for (const a of pending) {
+    try {
+      await db.applicant.update({ where: { id: a.id }, data: { status: "Outdated" } });
+    } catch {
+      continue; // gagal satu pelamar → lanjut pelamar berikutnya
+    }
+    const name = a.displayName?.trim() || [a.firstName, a.middleName, a.lastName].filter(Boolean).join(" ");
+    await writeActivity(db, {
+      action: "Outdated",
+      entity: "Applicant",
+      entityId: a.applicantNo,
+      detail: `Pelamar ${a.applicantNo} "${name}" otomatis Outdated oleh scheduler — keep-on-file habis ${fmtDate(a.keepOnFileUntil ?? new Date())}`,
+    });
+    done++;
+  }
+  return done;
+}
+
 // ---------- JOB b: pengingat kontrak & probation ----------
 
 interface ContractEmp {
@@ -1335,6 +1364,9 @@ export interface SchedulerJobCounts {
   attendanceOtAging: number;
   /** Task 100 (G4) — period dengan jendela TA berakhir yang diingatkan utk transfer. */
   attendanceTransferReminders: number;
+  /** F2-REC — pelamar talent pool yang otomatis jadi Outdated oleh job
+   *  applicant-outdated (keepOnFileUntil lewat; idempoten by filter Active). */
+  applicantOutdatedRows: number;
 }
 
 export interface SchedulerRunResult {
@@ -1472,6 +1504,10 @@ export async function runAllJobs(
     jobs.attendanceTransferReminders = r.periods;
     notificationsSent += r.notif;
   });
+  // F2-REC — talent pool: pelamar keep-on-file lewat → Outdated otomatis.
+  await guarded("applicant-outdated", async () => {
+    jobs.applicantOutdatedRows = await jobApplicantOutdated(db);
+  });
 
   const totalJobs =
     jobs.resignTerminated +
@@ -1492,6 +1528,7 @@ export async function runAllJobs(
     (jobs.attendanceClockoutReminded > 0 ? `, ${jobs.attendanceClockoutReminded} pengingat clock-out terkirim` : "") +
     (jobs.attendanceOtAging > 0 ? `, ${jobs.attendanceOtAging} lembur aging diingatkan` : "") +
     (jobs.attendanceTransferReminders > 0 ? `, ${jobs.attendanceTransferReminders} pengingat transfer TA terkirim` : "") +
+    (jobs.applicantOutdatedRows > 0 ? `, ${jobs.applicantOutdatedRows} pelamar talent pool otomatis Outdated (keep-on-file habis)` : "") +
     (mutexSkipped > 0 ? `, ${mutexSkipped} job dilewati (dipegang proses lain)` : "") +
     (errors.length > 0 ? ` — galat: ${errors.join("; ")}` : "");
   await writeActivity(db, { action: "Scheduled", entity: "Scheduler", detail: `${detail} (${tenant})` });

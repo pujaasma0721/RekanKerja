@@ -2548,6 +2548,219 @@ CREATE TABLE "PersonnelRequisition" (
     CONSTRAINT "PersonnelRequisition_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "JobOpportunity" (
+    "id" TEXT NOT NULL,
+    "refNo" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "preparedById" TEXT,
+    "datePrepared" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" TEXT NOT NULL DEFAULT 'Draft',
+    "datePosted" TIMESTAMP(3),
+    "content" TEXT,
+    "contactPerson" TEXT,
+    "lastAcceptDate" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "JobOpportunity_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "JobOpening" (
+    "id" TEXT NOT NULL,
+    "jobOpportunityId" TEXT NOT NULL,
+    "prId" TEXT NOT NULL,
+    "titleToShow" TEXT NOT NULL,
+    "workLocationId" TEXT,
+    "salaryMin" INTEGER,
+    "salaryMax" INTEGER,
+    "currency" TEXT NOT NULL DEFAULT 'IDR',
+    "salaryUnit" TEXT NOT NULL DEFAULT 'Monthly',
+    "jobDescSummary" TEXT,
+    "jobSpecSummary" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Open',
+    "postedAt" TIMESTAMP(3),
+    "closedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "JobOpening_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "JobOpeningMethod" (
+    "id" TEXT NOT NULL,
+    "jobOpportunityId" TEXT NOT NULL,
+    "methodId" TEXT NOT NULL,
+    "adMediaTypeId" TEXT,
+    "agencyId" TEXT,
+    "costItemId" TEXT,
+    "plannedCost" TEXT,
+    "actualCost" TEXT,
+    "datePosted" TIMESTAMP(3),
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "JobOpeningMethod_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Applicant" (
+    "id" TEXT NOT NULL,
+    "applicantNo" TEXT NOT NULL,
+    "firstName" TEXT NOT NULL,
+    "middleName" TEXT,
+    "lastName" TEXT,
+    "displayName" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Active',
+    "blacklist" BOOLEAN NOT NULL DEFAULT false,
+    "blacklistNote" TEXT,
+    "blacklistAt" TIMESTAMP(3),
+    "blacklistById" TEXT,
+    "suspend" BOOLEAN NOT NULL DEFAULT false,
+    "suspendNote" TEXT,
+    "suspendUntil" TIMESTAMP(3),
+    "dateApplied" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "dateAvailable" TIMESTAMP(3),
+    "expectedSalary" TEXT,
+    "currency" TEXT NOT NULL DEFAULT 'IDR',
+    "salaryUnit" TEXT NOT NULL DEFAULT 'Monthly',
+    "keepOnFileMonths" INTEGER NOT NULL DEFAULT 12,
+    "keepOnFileUntil" TIMESTAMP(3),
+    "source" TEXT,
+    "adMediaTypeId" TEXT,
+    "agencyId" TEXT,
+    "institutionName" TEXT,
+    "referralEmployeeId" TEXT,
+    "email" TEXT,
+    "phone" TEXT,
+    "address" TEXT,
+    "city" TEXT,
+    "placeOfBirth" TEXT,
+    "identityNo" TEXT,
+    "birthDate" TIMESTAMP(3),
+    "gender" TEXT,
+    "maritalStatus" TEXT,
+    "notes" TEXT,
+    "highestEduLevel" TEXT,
+    "highestGpa" DOUBLE PRECISION,
+    "totalExpMonths" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Applicant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApplicantEducation" (
+    "id" TEXT NOT NULL,
+    "applicantId" TEXT NOT NULL,
+    "level" TEXT NOT NULL,
+    "fieldOfStudy" TEXT,
+    "institution" TEXT,
+    "graduationYear" INTEGER,
+    "gpa" DOUBLE PRECISION,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ApplicantEducation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApplicantExperience" (
+    "id" TEXT NOT NULL,
+    "applicantId" TEXT NOT NULL,
+    "company" TEXT,
+    "position" TEXT,
+    "field" TEXT,
+    "startYear" INTEGER,
+    "endYear" INTEGER,
+    "months" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ApplicantExperience_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApplicantSkill" (
+    "id" TEXT NOT NULL,
+    "applicantId" TEXT NOT NULL,
+    "skillId" TEXT NOT NULL,
+    "level" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ApplicantSkill_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApplicantDocument" (
+    "id" TEXT NOT NULL,
+    "applicantId" TEXT NOT NULL,
+    "requiredDocumentId" TEXT,
+    "title" TEXT NOT NULL,
+    "verified" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "attachmentId" TEXT,
+
+    CONSTRAINT "ApplicantDocument_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApplicantApplication" (
+    "id" TEXT NOT NULL,
+    "applicantId" TEXT NOT NULL,
+    "jobOpeningId" TEXT NOT NULL,
+    "dateApplied" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" TEXT NOT NULL DEFAULT 'Received',
+    "sourceNote" TEXT,
+    "rejectionLetterNo" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ApplicantApplication_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PublicApplication" (
+    "id" TEXT NOT NULL,
+    "jobOpeningId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "payloadJson" TEXT NOT NULL,
+    "cvFileName" TEXT,
+    "cvStoragePath" TEXT,
+    "ipHash" TEXT,
+    "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "verifiedById" TEXT,
+    "verifiedAt" TIMESTAMP(3),
+    "rejectNote" TEXT,
+    "consentId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PublicApplication_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApplicantConsent" (
+    "id" TEXT NOT NULL,
+    "applicantId" TEXT,
+    "purpose" TEXT NOT NULL,
+    "version" TEXT NOT NULL,
+    "grantedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "withdrawnAt" TIMESTAMP(3),
+    "channel" TEXT NOT NULL,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ApplicantConsent_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -3145,6 +3358,66 @@ CREATE INDEX "PersonnelRequisition_status_requestDate_idx" ON "PersonnelRequisit
 -- CreateIndex
 CREATE INDEX "PersonnelRequisition_requestedById_idx" ON "PersonnelRequisition"("requestedById");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "JobOpportunity_refNo_key" ON "JobOpportunity"("refNo");
+
+-- CreateIndex
+CREATE INDEX "JobOpportunity_status_idx" ON "JobOpportunity"("status");
+
+-- CreateIndex
+CREATE INDEX "JobOpportunity_datePosted_idx" ON "JobOpportunity"("datePosted");
+
+-- CreateIndex
+CREATE INDEX "JobOpening_prId_idx" ON "JobOpening"("prId");
+
+-- CreateIndex
+CREATE INDEX "JobOpening_status_idx" ON "JobOpening"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "JobOpening_jobOpportunityId_prId_key" ON "JobOpening"("jobOpportunityId", "prId");
+
+-- CreateIndex
+CREATE INDEX "JobOpeningMethod_jobOpportunityId_idx" ON "JobOpeningMethod"("jobOpportunityId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Applicant_applicantNo_key" ON "Applicant"("applicantNo");
+
+-- CreateIndex
+CREATE INDEX "Applicant_status_idx" ON "Applicant"("status");
+
+-- CreateIndex
+CREATE INDEX "Applicant_keepOnFileUntil_idx" ON "Applicant"("keepOnFileUntil");
+
+-- CreateIndex
+CREATE INDEX "Applicant_source_idx" ON "Applicant"("source");
+
+-- CreateIndex
+CREATE INDEX "ApplicantEducation_applicantId_idx" ON "ApplicantEducation"("applicantId");
+
+-- CreateIndex
+CREATE INDEX "ApplicantExperience_applicantId_idx" ON "ApplicantExperience"("applicantId");
+
+-- CreateIndex
+CREATE INDEX "ApplicantSkill_applicantId_idx" ON "ApplicantSkill"("applicantId");
+
+-- CreateIndex
+CREATE INDEX "ApplicantSkill_skillId_idx" ON "ApplicantSkill"("skillId");
+
+-- CreateIndex
+CREATE INDEX "ApplicantDocument_applicantId_idx" ON "ApplicantDocument"("applicantId");
+
+-- CreateIndex
+CREATE INDEX "ApplicantApplication_jobOpeningId_idx" ON "ApplicantApplication"("jobOpeningId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ApplicantApplication_applicantId_jobOpeningId_key" ON "ApplicantApplication"("applicantId", "jobOpeningId");
+
+-- CreateIndex
+CREATE INDEX "PublicApplication_status_submittedAt_idx" ON "PublicApplication"("status", "submittedAt");
+
+-- CreateIndex
+CREATE INDEX "ApplicantConsent_applicantId_purpose_idx" ON "ApplicantConsent"("applicantId", "purpose");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -3603,4 +3876,76 @@ ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_recruitm
 
 -- AddForeignKey
 ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_replacedEmployeeId_fkey" FOREIGN KEY ("replacedEmployeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOpportunity" ADD CONSTRAINT "JobOpportunity_preparedById_fkey" FOREIGN KEY ("preparedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOpening" ADD CONSTRAINT "JobOpening_jobOpportunityId_fkey" FOREIGN KEY ("jobOpportunityId") REFERENCES "JobOpportunity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOpening" ADD CONSTRAINT "JobOpening_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PersonnelRequisition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOpening" ADD CONSTRAINT "JobOpening_workLocationId_fkey" FOREIGN KEY ("workLocationId") REFERENCES "WorkLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOpeningMethod" ADD CONSTRAINT "JobOpeningMethod_jobOpportunityId_fkey" FOREIGN KEY ("jobOpportunityId") REFERENCES "JobOpportunity"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOpeningMethod" ADD CONSTRAINT "JobOpeningMethod_methodId_fkey" FOREIGN KEY ("methodId") REFERENCES "RecruitmentMethod"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOpeningMethod" ADD CONSTRAINT "JobOpeningMethod_adMediaTypeId_fkey" FOREIGN KEY ("adMediaTypeId") REFERENCES "AdMediaType"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOpeningMethod" ADD CONSTRAINT "JobOpeningMethod_agencyId_fkey" FOREIGN KEY ("agencyId") REFERENCES "EmploymentAgency"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOpeningMethod" ADD CONSTRAINT "JobOpeningMethod_costItemId_fkey" FOREIGN KEY ("costItemId") REFERENCES "RecruitmentCostItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Applicant" ADD CONSTRAINT "Applicant_adMediaTypeId_fkey" FOREIGN KEY ("adMediaTypeId") REFERENCES "AdMediaType"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Applicant" ADD CONSTRAINT "Applicant_agencyId_fkey" FOREIGN KEY ("agencyId") REFERENCES "EmploymentAgency"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Applicant" ADD CONSTRAINT "Applicant_referralEmployeeId_fkey" FOREIGN KEY ("referralEmployeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicantEducation" ADD CONSTRAINT "ApplicantEducation_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicantExperience" ADD CONSTRAINT "ApplicantExperience_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicantSkill" ADD CONSTRAINT "ApplicantSkill_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicantSkill" ADD CONSTRAINT "ApplicantSkill_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "Skill"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicantDocument" ADD CONSTRAINT "ApplicantDocument_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicantDocument" ADD CONSTRAINT "ApplicantDocument_requiredDocumentId_fkey" FOREIGN KEY ("requiredDocumentId") REFERENCES "RequiredDocument"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicantDocument" ADD CONSTRAINT "ApplicantDocument_attachmentId_fkey" FOREIGN KEY ("attachmentId") REFERENCES "Attachment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicantApplication" ADD CONSTRAINT "ApplicantApplication_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicantApplication" ADD CONSTRAINT "ApplicantApplication_jobOpeningId_fkey" FOREIGN KEY ("jobOpeningId") REFERENCES "JobOpening"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PublicApplication" ADD CONSTRAINT "PublicApplication_jobOpeningId_fkey" FOREIGN KEY ("jobOpeningId") REFERENCES "JobOpening"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PublicApplication" ADD CONSTRAINT "PublicApplication_verifiedById_fkey" FOREIGN KEY ("verifiedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicantConsent" ADD CONSTRAINT "ApplicantConsent_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

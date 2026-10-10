@@ -24,6 +24,7 @@ import {
   startApprovalChain, getApprovalChain, decideApprovalChain, cancelApprovalChain,
   attachChainSummaries, type ChainSummary, type DecideActor,
 } from "@/rekankerja/shared/services/approval-engine";
+import { autoPostForApprovedPr } from "@/rekankerja/recruitment/services/opening-service";
 
 // ============ konstanta domain ============
 
@@ -580,10 +581,31 @@ export async function decidePr(
       where: { id: p.id },
       data: { status: "Approved", decidedAt: new Date(), decisionNote: input.note?.trim() || null },
     });
+    // F2: autoPostOpening — PR disetujui penuh → buat JobOpportunity Posted
+    // + slot (idempoten; kegagalan TIDAK menggagalkan approval — jejak di log).
+    let autoPostRef: string | null = null;
+    if (p.autoPostOpening) {
+      try {
+        const posted = await autoPostForApprovedPr(db, {
+          id: p.id, prNo: p.prNo, positionId: p.positionId, jobId: p.jobId, orgUnitId: p.orgUnitId,
+          companyOfficeId: p.companyOfficeId, requiredNo: p.requiredNo, employmentStatus: p.employmentStatus,
+          miscSpec: p.miscSpec, additionalQualification: p.additionalQualification, latestDate: p.latestDate,
+        }, { preparedById: input.actor.employeeId ?? null, actorName: input.actor.name });
+        autoPostRef = posted?.joRefNo ?? null;
+      } catch (err) {
+        console.error("[pr-service] autoPostForApprovedPr gagal:", err);
+        await db.activityLog.create({
+          data: {
+            action: "Updated", entity: "PersonnelRequisition", entityId: p.prNo,
+            detail: `GAGAL auto-post lowongan utk PR ${p.prNo}: ${err instanceof Error ? err.message : "unknown"} — buat manual di view Lowongan`,
+          },
+        }).catch(() => {});
+      }
+    }
     await db.activityLog.create({
       data: {
         action: "Approved", entity: "PersonnelRequisition", entityId: p.prNo,
-        detail: `PR ${p.prNo} DISETUJUI penuh (${res.chain.totalLevels} jenjang, keputusan akhir: ${input.actor.name})${p.autoPostOpening ? " — auto-post lowongan aktif (dieksekusi F2)" : ""}`,
+        detail: `PR ${p.prNo} DISETUJUI penuh (${res.chain.totalLevels} jenjang, keputusan akhir: ${input.actor.name})${autoPostRef ? ` — lowongan ${autoPostRef} otomatis dipublikasikan (portal karir)` : ""}`,
       },
     });
     return { prNo: p.prNo, status: "Approved", approval: summary, final: true };
