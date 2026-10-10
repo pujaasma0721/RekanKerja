@@ -5199,3 +5199,29 @@ Stage Summary:
 - VERDICT audit: SECARA TEKNIS (kode) kini LAYAK publish — seluruh blocker keamanan & performa kritis/high diperbaiki & terverifikasi. PERSYARATAN GO-LIVE non-kode: (1) billing/langganan belum ada, (2) ops (backup PG, monitoring, max_connections≥250/PgBouncer utk >30 tenant/node), (3) legal (ToS/PP UU PDP), (4) jalankan next build di staging (sandbox tidak boleh build).
 - 32 file: 1 skrip baru (migrate-audit-deploy-indexes), 10 API guard, 2 report-docs windowing, 1 page.tsx code-split, 12 index schema+DDL+migrasi 3 tenant, deps next 16.2.5 -13 mati, headers prod, CSV guard, OTP subject, sw.js FIFO, logo -84%, employee-options non-PII, timing-safe ×2.
 - Kapasitas pasca-fix: 50 tenant × 200 karyawan realistis di 1 node (conn math + window laporan + index) — >100 tenant butuh PgBouncer + pagination list + cache menu.
+
+---
+Task ID: role-ess
+Agent: main (Z.ai Code)
+Task: Tambah role aplikasi "ESS" — user dengan role ini hanya bisa akses halaman ESS (portal Employee Self-Service), bukan halaman admin. Lanjutan QA "Security & Access" tab "Users" (penjelasan fungsi field role → permintaan role baru).
+
+Work Log:
+- Audit arsitektur: AppUser.role (tenant, string bebas) → platformRoleOfAppRole → UserTenant.role; guard menu-access resolveMenuPerms + requireMenuAction; mode=me auto-deteksi UI (page.tsx); essCanAdmin; ESS_ROLE_LABEL.
+- Server inti (5 file):
+  - access-scope.ts: ESS_ONLY_APP_ROLES = ["ESS"].
+  - password-policy.ts: platformRoleOfAppRole ESS → VIEWER.
+  - services/menu-access.ts: clamp ESS di resolveMenuPerms SEBELUM isSuperAdmin — menus admin ditolak apapun konfigurasi/membership.
+  - api/user-menu-access.ts: mirror clamp di action=me (menus:[] → auto mode ESS); POST upsert menu utk ESS → 400; flag essOnly di daftar admin.
+  - ess/api/ess-auth.ts: essCanAdmin ESS → false (tombol Mode Admin tidak render).
+- app-users.ts: POST/PATCH wajib employeeId utk role ESS (400); PATCH sinkron membership platform saat role berubah (kecuali OWNER); GET diguard requireMenuViewAny settings:security (tutup celah baca daftar pengguna oleh non-admin).
+- UI: user-security-view (opsi ESS + ROLE_HINT per role + label karyawan wajib + validasi klien + tone violet), user-access-view (editor menu & rule data DIKUNCI utk ESS + badge ESS + notisi), ess-shell (label Karyawan ESS/ESS Employee), security-views + data-access-rules (konsistensi daftar role).
+- page.tsx: override "admin" basi dibersihkan bila user tanpa menu admin — pemilik ESS selalu mendarat di portal ESS.
+- i18n: server-errors.ts +2 pesan EN; semua string UI dwibahasa.
+- E2E agent-browser (MII): validasi tanpa karyawan ditolak (klien+server); buat rina.wulandari (ESS, linked Rina Maulida) sukses; login ESS → otomatis portal ESS; admin APIs 403 (app-users GET/PATCH, self-escalation user-menu-access POST); ESS APIs 200 + mutasi ESS lolos guard; employees self-scope (1 record); tanpa tombol Admin Mode; label avatar "ESS Employee"; regression admin normal. Lint 0 error.
+- Rebase di atas 3 commit UI remote (7b6af7d, 85e81b2, b2c5f54) → push 84f8f0c.
+
+Stage Summary:
+- Role "ESS" tersedia di Security & Access » Users; penegakan BERTINGKAT: clamp menu-access (server) → platform VIEWER (requireMutator 403) → auto-mode ESS (UI) → tanpa tombol Admin Mode. Tanpa migrasi DB (kolom role string bebas).
+- ESS wajib tertaut karyawan (portal ESS = requireEss employeeId); role berubah → membership platform ikut tersinkron.
+- Celah ditutup: GET app-users kini diguard menu (non-admin/ESS 403); employees tetap self-scope by design (M-11).
+- Demo akun ESS utk mencoba: rina.ess@mii.co.id / Ess#Portal2025! (MII, linked MII00006 Rina Maulida).
