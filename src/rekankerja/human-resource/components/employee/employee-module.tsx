@@ -69,6 +69,9 @@ interface AssignmentHistory {
   orgUnit: { name: string; code: string } | null;
   position: { title: string; code: string } | null;
   grade: { code: string; name: string } | null;
+  // kantor & lokasi kerja per periode (dimsnapshot per versi penempatan)
+  companyOffice: { code: string; name: string; city: string | null } | null;
+  workLocation: { code: string; name: string; city: string | null } | null;
   managerName: string | null;
   // Task 69 — id mentah per versi utk prefill dialog koreksi/ubah penempatan
   orgUnitId: string | null;
@@ -98,6 +101,8 @@ interface DetailEmp {
   orgUnit: { name: string; code: string } | null;
   position: { title: string; code: string; level: string | null } | null;
   grade: { code: string; name: string; minSalary: number; maxSalary: number } | null;
+  companyOffice?: { code: string; name: string; city: string | null } | null;
+  workLocation?: { code: string; name: string; city: string | null } | null;
   manager: { id: string; fullName: string; employeeNo: string; photoUrl: string | null; position: { title: string } | null } | null;
   directReports: { id: string; fullName: string; employeeNo: string; photoUrl: string | null; status: string; position: { title: string } | null }[];
   family: { id: string; relation: string; name: string; gender: string; birthDate: string | null; occupation: string | null; isDependent: boolean }[];
@@ -372,6 +377,8 @@ function EmployeeDetail() {
                     <InfoItem icon={Briefcase} label={t("Posisi")} value={e.position?.title ?? "—"} />
                     <InfoItem icon={Users} label={t("Unit Organisasi")} value={e.orgUnit?.name ?? "—"} />
                     <InfoItem icon={GraduationCap} label={t("Grade")} value={e.grade ? `${e.grade.code} — ${e.grade.name}` : "—"} />
+                    <InfoItem icon={Building2} label={t("Kantor")} value={e.companyOffice ? `${e.companyOffice.name}${e.companyOffice.city ? ` · ${e.companyOffice.city}` : ""}` : "—"} />
+                    <InfoItem icon={MapPin} label={t("Lokasi Kerja", "Work Location")} value={e.workLocation ? `${e.workLocation.name}${e.workLocation.city ? ` · ${e.workLocation.city}` : ""}` : "—"} />
                     <InfoItem icon={Clock3} label={t("Status Kepegawaian", "Employment Status")} value={t(EMPLOYMENT_STATUS_LABEL[e.employmentStatus] ?? e.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[e.employmentStatus])} />
                     <InfoItem icon={Calendar} label={t("Tanggal Masuk", "Join Date")} value={fmtDateLong(e.joinDate)} />
                     {e.endDate && <InfoItem icon={Calendar} label={t("Tanggal Keluar", "End Date")} value={fmtDateLong(e.endDate)} />}
@@ -679,10 +686,35 @@ const REASON_TONE: Record<string, string> = {
 // berubah vs periode sebelumnya (chip), dan (bila boleh) bisa dikoreksi bila
 // datanya salah ketik/human error — tanpa perlu Personnel Action.
 function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments: AssignmentHistory[]; canUpdate: boolean; onCorrect?: (a: AssignmentHistory) => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { navigate } = useNav();
   if (assignments.length === 0) return null;
   const period = (a: AssignmentHistory) =>
     a.validTo ? `${fmtDate(a.validFrom)} — ${fmtDate(a.validTo)}` : `${fmtDate(a.validFrom)} — ${t("sekarang", "present")}`;
+
+  // durasi satu periode (validFrom → validTo/now) — format ringkas selaras tenure()
+  const dur = (from: string, to: string | null): string | null => {
+    const a = new Date(from), b = to ? new Date(to) : new Date();
+    if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+    let months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+    if (b.getDate() < a.getDate()) months--; // bulan parsial
+    if (months < 0) return null; // rentang tak valid (data demo)
+    const y = Math.floor(months / 12), m = months % 12;
+    if (lang === "en") {
+      if (months < 1) return "< 1 month";
+      return m ? `${y} yr ${m} mo` : y > 1 ? `${y} yrs` : "1 yr";
+    }
+    if (months < 1) return "< 1 bulan";
+    return m ? `${y} thn ${m} bln` : y > 1 ? `${y} thn` : "1 thn";
+  };
+
+  // ringkasan perjalanan karier — jawab "pernah di mana/apa saja" sekilas
+  const uniq = (vals: (string | null | undefined)[]) => new Set(vals.filter((v): v is string => !!v)).size;
+  const nUnits = uniq(assignments.map((a) => a.orgUnit?.name));
+  const nPos = uniq(assignments.map((a) => a.position?.title));
+  const nOffice = uniq(assignments.map((a) => a.companyOffice?.name));
+  const nMgr = uniq(assignments.map((a) => a.managerName));
+  const nPromo = assignments.filter((a) => a.changeReason === "Promotion").length;
 
   // deteksi field yang berubah dibanding periode sebelumnya (lebih tua)
   const diffChips = (idx: number): string[] => {
@@ -693,6 +725,8 @@ function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments
     if (cur.position?.title !== prev.position?.title) chips.push(t("Posisi", "Position"));
     if (cur.orgUnit?.name !== prev.orgUnit?.name) chips.push(t("Unit", "Unit"));
     if (cur.grade?.code !== prev.grade?.code) chips.push(t("Grade"));
+    if (cur.companyOffice?.name !== prev.companyOffice?.name) chips.push(t("Kantor", "Office"));
+    if (cur.workLocation?.name !== prev.workLocation?.name) chips.push(t("Lokasi", "Location"));
     if (cur.employmentStatus !== prev.employmentStatus) chips.push(t("Status"));
     if (cur.workShift !== prev.workShift) chips.push(t("Shift", "Shift"));
     if (cur.baseSalary !== prev.baseSalary) chips.push(t("Upah", "Salary"));
@@ -707,12 +741,21 @@ function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments
           <History className="h-4 w-4 ov-text-accent" /> {t("Riwayat Pekerjaan", "Work History")}
           <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{t("{n} periode", "{n} periods", { n: assignments.length })}</Badge>
         </CardTitle>
+        {/* ringkasan perjalanan — unit/posisi/kantor/atasan yang pernah dilalui */}
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] font-semibold text-slate-400 dark:text-slate-500">
+          <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {t("{n} unit organisasi", "{n} org units", { n: String(nUnits) })}</span>
+          <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" /> {t("{n} posisi", "{n} positions", { n: String(nPos) })}</span>
+          <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" /> {t("{n} kantor", "{n} offices", { n: String(nOffice) })}</span>
+          <span className="inline-flex items-center gap-1"><User className="h-3 w-3" /> {t("{n} atasan", "{n} managers", { n: String(nMgr) })}</span>
+          {nPromo > 0 && <span className="inline-flex items-center gap-1 ov-text-accent"><ArrowRight className="h-3 w-3" /> {t("{n} promosi", "{n} promotions", { n: String(nPromo) })}</span>}
+        </div>
       </CardHeader>
       <CardContent className="pt-0">
         <ol className="relative ml-2 space-y-0 border-l border-slate-200 pl-5 dark:border-slate-800">
           {assignments.map((a, i) => {
             const active = a.validTo === null;
             const chips = diffChips(i);
+            const d = dur(a.validFrom, a.validTo);
             return (
               <li key={a.id} className="relative pb-5 last:pb-0">
                 {/* titik timeline */}
@@ -733,6 +776,9 @@ function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments
                       {t(a.changeReasonLabel ?? a.changeReason, CHANGE_REASON_LABEL_EN[a.changeReasonLabel ?? ""] ?? a.changeReason)}
                     </span>
                     <span className={cn("text-[11px] font-bold", active ? "ov-text-accent" : "text-slate-500 dark:text-slate-400")}>{period(a)}</span>
+                    {d && (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9.5px] font-bold tabular-nums text-slate-500 dark:bg-slate-800 dark:text-slate-400" title={t("Durasi periode", "Period duration")}>{d}</span>
+                    )}
                     {active && <span className="rounded-full ov-fill px-2 py-0.5 text-[9px] font-extrabold tracking-wide">{t("SAAT INI", "CURRENT")}</span>}
                     {a.sourceDocNo && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-slate-400" title={t("Dokumen sumber", "Source document")}>
@@ -748,7 +794,30 @@ function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments
                     <span className="inline-flex items-center gap-1"><GraduationCap className="h-3 w-3" /> {a.grade ? t("Grade {code}", "Grade {code}", { code: a.grade.code }) : "—"}</span>
                     <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" /> {t(EMPLOYMENT_STATUS_LABEL[a.employmentStatus] ?? a.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[a.employmentStatus])}</span>
                     <span className="inline-flex items-center gap-1"><Banknote className="h-3 w-3" /> {fmtIDR(a.baseSalary)}</span>
-                    {a.managerName && <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {t("Atasan: {n}", "Manager: {n}", { n: a.managerName })}</span>}
+                    {a.companyOffice && (
+                      <span className="inline-flex items-center gap-1" title={t("Kantor perusahaan pada periode ini", "Company office during this period")}>
+                        <Building2 className="h-3 w-3" /> {t("Kantor: {n}", "Office: {n}", { n: a.companyOffice.name })}{a.companyOffice.city ? ` · ${a.companyOffice.city}` : ""}
+                      </span>
+                    )}
+                    {a.workLocation && (
+                      <span className="inline-flex items-center gap-1" title={t("Lokasi kerja pada periode ini", "Work location during this period")}>
+                        <MapPin className="h-3 w-3" /> {t("Lokasi: {n}", "Location: {n}", { n: a.workLocation.name })}{a.workLocation.city ? ` · ${a.workLocation.city}` : ""}
+                      </span>
+                    )}
+                    {a.managerName && (
+                      a.managerId ? (
+                        <button
+                          type="button"
+                          onClick={() => navigate("employee", "detail", { id: a.managerId! })}
+                          className="inline-flex items-center gap-1 rounded px-0.5 -mx-0.5 font-semibold underline decoration-dotted underline-offset-2 transition hover:ov-text-accent"
+                          title={t("Buka profil atasan pada periode ini", "Open this period's manager's profile")}
+                        >
+                          <User className="h-3 w-3" /> {t("Atasan: {n}", "Manager: {n}", { n: a.managerName })}
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1"><User className="h-3 w-3" /> {t("Atasan: {n}", "Manager: {n}", { n: a.managerName })}</span>
+                      )
+                    )}
                     {a.workShift !== "Regular" && <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" /> {t(a.workShift, WORK_SHIFTS_EN[a.workShift] ?? a.workShift)}</span>}
                   </div>
                   {chips.length > 0 && (

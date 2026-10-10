@@ -30,6 +30,8 @@ export async function GET(req: NextRequest) {
         orgUnit: { select: { name: true, code: true } },
         grade: { select: { code: true, name: true, minSalary: true, maxSalary: true } },
         manager: { select: { id: true, fullName: true, employeeNo: true } },
+        companyOffice: { select: { code: true, name: true, city: true } },
+        workLocation: { select: { code: true, name: true, city: true } },
       },
     };
 
@@ -37,6 +39,9 @@ export async function GET(req: NextRequest) {
       where: { id },
       include: {
         company: { select: { name: true, code: true } },
+        // fallback kantor/lokasi bila tak ada assignment aktif (denorm Employee)
+        companyOffice: { select: { code: true, name: true, city: true } },
+        workLocation: { select: { code: true, name: true, city: true } },
         family: { orderBy: { birthDate: "asc" } },
         education: { orderBy: { endYear: "desc" } },
         experiences: { orderBy: { endDate: "desc" } },
@@ -116,6 +121,8 @@ export async function GET(req: NextRequest) {
         orgUnit: { select: { name: true, code: true } },
         grade: { select: { code: true, name: true } },
         manager: { select: { fullName: true } },
+        companyOffice: { select: { code: true, name: true, city: true } },
+        workLocation: { select: { code: true, name: true, city: true } },
       },
     });
 
@@ -190,6 +197,9 @@ export async function GET(req: NextRequest) {
       orgUnit: cur?.orgUnit ?? null,
       position: cur?.position ?? null,
       grade: cur?.grade ?? null,
+      // kantor & lokasi kerja: dari assignment aktif, fallback denorm Employee
+      companyOffice: cur?.companyOffice ?? employee.companyOffice ?? null,
+      workLocation: cur?.workLocation ?? employee.workLocation ?? null,
       manager,
       directReports: directReportsRaw.map((r) => ({
         id: r.id, fullName: r.fullName, employeeNo: r.employeeNo, photoUrl: r.photoUrl, status: r.status,
@@ -218,6 +228,8 @@ export async function GET(req: NextRequest) {
         orgUnit: a.orgUnit ? { name: a.orgUnit.name, code: a.orgUnit.code } : null,
         position: a.position ? { title: a.position.title, code: a.position.code } : null,
         grade: a.grade ? { code: a.grade.code, name: a.grade.name } : null,
+        companyOffice: a.companyOffice ? { code: a.companyOffice.code, name: a.companyOffice.name, city: a.companyOffice.city } : null,
+        workLocation: a.workLocation ? { code: a.workLocation.code, name: a.workLocation.name, city: a.workLocation.city } : null,
         managerName: a.manager?.fullName ?? null,
       })),
       pkwt,

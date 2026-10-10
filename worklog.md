@@ -5393,3 +5393,20 @@ Stage Summary:
 - Karakter wildcard Advance Search kini "&": "&x"=berakhiran, "x&"=berawalan, "&x&"=mengandung, tanpa &=mengandung; & tengah literal; @ sepenuhnya karakter biasa. Semua label/hint/bantuan dwibahasa ikut berganti.
 - Fix penting: decodeAdvParam kini robust double-encoding — advance search SERVER-SIDE (employees, activity-logs, esign chain) yang sebelumnya silent-drop kini benar-benar memfilter (terverifikasi E2E).
 - 3 file diubah: shared/lib/adv-search.ts, shared/components/adv-search.tsx, shared/services/adv-search-server.ts. Lint 0 error. Tidak ada perubahan skema/DB.
+
+---
+Task ID: emp-history
+Agent: main (Z.ai Code)
+Task: Lengkapi riwayat penempatan di detail karyawan — jawab "selama 20 tahun pernah di unit apa, posisi apa, office/lokasi mana, atasan siapa" (permintaan user; timeline sudah ada tapi office/lokasi/durasi tidak).
+
+Work Log:
+- Survei: view detail aktif = employee-module.tsx (employee-detail.tsx ternyata dead code — tak diimpor siapa pun; timeline AssignmentTimeline Task 69 sudah ada di tab "work"). Data model EmployeeAssignment sudah temporal penuh (validFrom/validTo, unit, posisi, grade, manager, companyOffice, workLocation, status, shift, gaji, changeReason, sourceDocNo, notes).
+- API employee-detail.ts GET: tambah select companyOffice/workLocation (code,name,city) ke (a) include Employee — fallback denorm bila tak ada assignment aktif, (b) currentSelect (assignment aktif), (c) include riwayat assignments. Flatten current: companyOffice/workLocation = cur → fallback Employee. Riwayat: map companyOffice/workLocation per baris. (Additive — konsumen lama tak terpengaruh.)
+- UI employee-module.tsx: tipe AssignmentHistory + DetailEmp dapat field companyOffice/workLocation; kartu "Penempatan Saat Ini" kini menampilkan Kantor & Lokasi Kerja (Building2/MapPin).
+- Timeline AssignmentTimeline: (1) ringkasan karier di header — jumlah unit organisasi/posisi/kantor/atasan berbeda + jumlah promosi; (2) chip durasi per periode ("4 thn 3 bln" / "4 yr 3 mo", rentang negatif/demo anomali → disembunyikan); (3) "Kantor: X · kota" + "Lokasi: Y" per periode dengan tooltip; (4) atasan per periode kini tombol → navigate profil atasan (managerId sudah ada payload Task 69); (5) diffChips mendeteksi perubahan kantor & lokasi antar periode.
+- Verifikasi E2E (hrd@mii.co.id, MII): Rina Maulida — kartu penempatan "OFFICE: Kantor Pusat Jakarta · Jakarta Timur" + "WORK LOCATION: Lantai 5 — Kantor Pusat"; timeline 2 periode: Promotion Jul 2022—present · 4 yr 3 mo · CURRENT · PA-2022-0101 + Office/Location + Manager: Sri Wahyuni (klik → profil Sri Wahyuni ✓); Initial 2017—2022 · 5 yrs; recap "1 org units · 1 positions · 1 offices · 1 managers · 1 promotions". Yusuf Rahayu (data demo rentang aneh 2025→2022) — durasi aman disembunyikan, tanpa error. Dwibahasa ID/EN terverifikasi ("Riwayat Pekerjaan · 2 periode · 1 unit organisasi … 4 thn 3 bln · SAAT INI"). Mobile 390px: tanpa overflow horizontal. 0 console/page error; tsc 0 error; lint 0 error (6 warning pre-existing).
+
+Stage Summary:
+- Riwayat karier lengkap kini terlihat di profil karyawan → tab Work: kartu penempatan aktif (+ kantor & lokasi) + timeline per periode (alasan perubahan, periode + durasi, posisi, unit, grade, status, gaji, kantor, lokasi, atasan klik-profil, doc sumber PA, chip field yang berubah, catatan, tombol koreksi Task 69) + ringkasan perjalanan karier di kepala kartu.
+- 2 file diubah: human-resource/api/employee-detail.ts, human-resource/components/employee/employee-module.tsx. Additive — tanpa migrasi DB, tanpa perubahan payload lama.
+- Catatan data: 1 baris demo MII (Yusuf Rahayu, "Initial" 2025-04-23 → 2022-06-30) berisi rentang validFrom > validTo — timeline menampilkannya apa adanya tanpa durasi; perbaikan data bisa lewat tombol "Koreksi" (Task 69).
