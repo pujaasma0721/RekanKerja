@@ -55,6 +55,10 @@ const nextConfig: NextConfig = {
           "font-src 'self' data:",
           "connect-src 'self'",
           "media-src 'self' blob:",
+          // frame PDF 1721-A1 dirender via <iframe src="blob:..."> createObjectURL
+          // pada sisi klien — 'self' saja menolak scheme blob: di prod
+          // ("This content is blocked"). frame-src eksplisit, tetap ketat.
+          "frame-src 'self' blob:",
           "frame-ancestors 'self'",
           "object-src 'none'",
           "base-uri 'self'",
