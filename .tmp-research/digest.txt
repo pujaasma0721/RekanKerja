@@ -1,0 +1,366 @@
+
+======================================================================
+## RecruitmentPlanning
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Recruitment Plan
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel | Refresh Query
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Sequence No {sequence_no}, Position Id {position_id}, Position Title {position_title}, Company Office {company_office}, Initial Target Head Count(a) {total_target}, Adjusted Target Head Count(b) {adjust_target}, Total Target Head Count(c)=(a)+(b) {total_adjust_target}, Total Target Head Count(c)=(a)+(b) {total_adjust_target_1}, Resulted Number of Employees {total_emp_pos_1}, Start Date {start_date}, End Date {end_date}, Initial Number of Employees(d) {init_emp_pos}, Number of Recruited/Transferred In Employees(e) {emp_pos_in}, Number of Turnover/Transferred Out Employees(f) {emp_pos_out}, Resulted Number of Employees(g)=(d)+(e)-(f) {total_emp_pos}, Number to Recruit(h)=(c-g) {recruit_no}, Number of Requested Employees in Personnel Requisition {request_pos}, Number of Fulfilled Requested Employees {request_pos_fulfill}, Number of Appointed Requested Employees {request_pos_appoint}, Number of Unfulfilled Requested Employees {request_pos_pending}, Period ID {period_id}, Total Salary Budget {salary_budget}, Based on Period {base_period}, golid {golid}, golversion {golversion}
+
+======================================================================
+## SelectionProcessCalendar
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Selection Process Calendar
+BUTTONS: Refresh
+
+======================================================================
+## RecruitmentBudget
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Recruitment Budget
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (6 rows): 
+GRID '' (6 rows): Company Id {company_id}, Period Id {period_id}, Start Date {start_date}, End Date {end_date}, Total Budget Amount {total_budget}, Total Adjustment Amount {total_adjust}, Total Adjusted Budget Amount {total_adjust_budget}, Total Used Amount {total_used}, Total Unused Amount {total_unused}, Currency {currency_code}, golid {golid}, golversion {golversion}
+GRID '' (6 rows): Company Id {company_id}, Period Id {period_id}, Start Date {start_date}, End Date {end_date}, Total Budget Amount {total_budget}, Total Adjustment Amount {total_adjust}, Total Adjusted Budget Amount {total_adjust_budget}, Total Used Amount {total_used}, Total Unused Amount {total_unused}, Currency {currency_code}, golid {golid}, golversion {golversion}
+
+======================================================================
+## RecruitmentBudgetJobOpportunity
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Recruitment Budget Summary per Job Opportunity
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Period Id {period_id}, Start Date {start_date}, End Date {end_date}, Job Opportunity Ref No {job_opportunity_ref_no}, Date Prepared {date_prepared}, Job Opportunity Status {state}, Cost Item {cost_item}, Cost {result_cost}, Currency {currency_code}, golid {golid}, golversion {golversion}
+
+======================================================================
+## RecruitmentBudgetAdvertisedPersonnelReq
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Recruitment Budget Summary per Advertised Personnel Requisition
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Period Id {period_id}, Start Date {start_date}, End Date {end_date}, Job Opportunity Ref No {job_opportunity_ref_no}, Date Prepared {date_prepared}, Job Opportunity Status {jo_state}, Personnel Requisition No {personnel_req_no}, Request Status {pr_state}, Required No {required_no}, Work Location {work_location}, Cost Item {cost_item}, Cost {result_cost}, Currency {currency_code}, Position Id {position_id}, Position Title to Show {pos_title_to_show}, golid {golid}, golversion {golversion}
+
+======================================================================
+## PersonnelRequisition
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Personnel Requisition
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (20 rows): 
+GRID '' (20 rows): Company Id {company_id}, Personnel Requisition No {personnel_req_no}, Request Date {request_date}, Requested Company {requested_company_id}, Requested By {requested_by}, Requested Name {requested_name}, Position Id {position_id}, Position Title {position_title}, Job Id {job_id}, Job Title {job_title}, Company Office {company_office}, Organization Id {org_id}, Organization Name {org_name}, Number of Required Employee {required_no}, Preferred Source {preferred_source}, Request Status {state}, Earliest Date {earliest_date}, Latest Date {latest_date}, Officer Company Id {officer_company}, Recruitment Officer Id {recruitment_officer_id}, Recruitment Officer Name {recruitment_officer_name}, Reason {reason}, Miscellaneous Spec {misc_spec}, Employment Type {employee_type}, Probation or Temporary Assign/Month(s) {temporary_assign}, Period ID {period_id}, Total Salary Budget {salary_budget}, Additional Qualification {additional_qualification}, golid {golid}, golversion {golversion}, auto_jop {auto_jop}
+GRID '' (20 rows): Company Id {company_id}, Personnel Requisition No {personnel_req_no}, Request Date {request_date}, Requested Company {requested_company_id}, Requested By {requested_by}, Requested Name {requested_name}, Position Id {position_id}, Position Title {position_title}, Job Id {job_id}, Job Title {job_title}, Company Office {company_office}, Organization Id {org_id}, Organization Name {org_name}, Number of Required Employee {required_no}, Preferred Source {preferred_source}, Request Status {state}, Earliest Date {earliest_date}, Latest Date {latest_date}, Officer Company Id {officer_company}, Recruitment Officer Id {recruitment_officer_id}, Recruitment Officer Name {recruitment_officer_name}, Reason {reason}, Miscellaneous Spec {misc_spec}, Employment Type {employee_type}, Probation or Temporary Assign/Month(s) {temporary_assign}, Period ID {period_id}, Total Salary Budget {salary_budget}, Additional Qualification {additional_qualification}, golid {golid}, golversion {golversion}, auto_jop {auto_jop}
+
+======================================================================
+## PersonnelRequisitionToApprove
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Personnel Requisition Approval
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Personnel Requisition No {personnel_req_no}, Request Date {request_date}, Requested Company {requested_company_id}, Requested By {requested_by}, Requested Name {requested_name}, Position Id {position_id}, Position Title {position_title}, Job Id {job_id}, Job Title {job_title}, Company Office {company_office}, Organization Id {org_id}, Organization Name {org_name}, Number of Required Employee {required_no}, Preferred Source {preferred_source}, Request Status {state}, Earliest Date {earliest_date}, Latest Date {latest_date}, Officer Company Id {officer_company}, Recruitment Officer Id {recruitment_officer_id}, Recruitment Officer Name {recruitment_officer_name}, Reason {reason}, Miscellaneous Spec {misc_spec}, Employment Type {employee_type}, Probation or Temporary Assign/Month(s) {temporary_assign}, Period ID {period_id}, Total Salary Budget {salary_budget}, Additional Qualification {additional_qualification}, golid {golid}, golversion {golversion}, auto_jop {auto_jop}
+
+======================================================================
+## RecruitmentActivity
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Query - Recruitment Activity
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Job Id {job_id}, Job Title {job_title}, Company Office {company_office}, Personnel Requisition {total_pr}, Job Opportunity {total_opp}, Applied Applicant {total_applied}, Candidate {total_candidate}, Processed Candidate {total_processed}, calc_field {calc_field}, Interview HR {selection_2}, Interview User {selection_5}, Psikotes {selection_1}, Offering Salary {selection_4}, Medical Cek Up {selection_3}, Hired {total_hired}, Closed Personnel Requisition {total_close}, golid {golid}, golversion {golversion}, Job {param_job_id}, Company Office {param_company_office}, From Date {from_date}, To Date {to_date}
+
+======================================================================
+## JobOpportunity
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Job Opportunity Advertisement
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (13 rows): 
+GRID '' (13 rows): Company Id {company_id}, Job Opportunity Ref No {job_opportunity_ref_no}, Prepared By {prepared_by}, Prepared Name {prepared_name}, Date Prepared {date_prepared}, Job Opportunity Status {state}, Date Posted {date_posted}, Content {content}, General Contact Person {contact}, Last Date to Accept Applicant {last_date_accept}, golid {golid}, golversion {golversion}, Period Id {period_id}, Start Date {start_date}, End Date {end_date}
+GRID '' (13 rows): Company Id {company_id}, Job Opportunity Ref No {job_opportunity_ref_no}, Prepared By {prepared_by}, Prepared Name {prepared_name}, Date Prepared {date_prepared}, Job Opportunity Status {state}, Date Posted {date_posted}, Content {content}, General Contact Person {contact}, Last Date to Accept Applicant {last_date_accept}, golid {golid}, golversion {golversion}, Period Id {period_id}, Start Date {start_date}, End Date {end_date}
+
+======================================================================
+## JOAdvertisedPersonnelReq
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Job Opportunity Advertisement per Personnel Requisition
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (13 rows): 
+GRID '' (13 rows): Company Id {company_id}, Job Opportunity Ref No {job_opportunity_ref_no}, Personnel Requisition No {personnel_req_no}, Request Status {state}, Required No {required_no}, Position Id {position_id}, Position Title to Show {pos_title_to_show}, Work Location {work_location}, Estimated Salary {estimated_salary}, Minimum Estimated Salary {min_estimated_salary}, Maximum Estimated Salary {max_estimated_salary}, Currency {currency_code}, Salary Time Unit {duration_unit}, job_id {job_id}, Job Description {job_desc_summ}, Job Specification {job_spec_summ}, Contact Person {contact_person}, golid {golid}, golversion {golversion}
+GRID '' (13 rows): Company Id {company_id}, Job Opportunity Ref No {job_opportunity_ref_no}, Personnel Requisition No {personnel_req_no}, Request Status {state}, Required No {required_no}, Position Id {position_id}, Position Title to Show {pos_title_to_show}, Work Location {work_location}, Estimated Salary {estimated_salary}, Minimum Estimated Salary {min_estimated_salary}, Maximum Estimated Salary {max_estimated_salary}, Currency {currency_code}, Salary Time Unit {duration_unit}, job_id {job_id}, Job Description {job_desc_summ}, Job Specification {job_spec_summ}, Contact Person {contact_person}, golid {golid}, golversion {golversion}
+
+======================================================================
+## JobOpportunityMethod
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Job Opportunity Recruitment Method Details
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (13 rows): 
+GRID '' (13 rows): Company Id {company_id}, Job Opportunity Ref No {job_opportunity_ref_no}, Prepared By {prepared_by}, Prepared Name {prepared_name}, Date Prepared {date_prepared}, Job Opportunity Status {state}, Date Posted {date_posted}, Content {content}, General Contact Person {contact}, Last Date to Accept Applicant {last_date_accept}, golid {golid}, golversion {golversion}, Period Id {period_id}, Start Date {start_date}, End Date {end_date}
+GRID '' (13 rows): Company Id {company_id}, Job Opportunity Ref No {job_opportunity_ref_no}, Prepared By {prepared_by}, Prepared Name {prepared_name}, Date Prepared {date_prepared}, Job Opportunity Status {state}, Date Posted {date_posted}, Content {content}, General Contact Person {contact}, Last Date to Accept Applicant {last_date_accept}, golid {golid}, golversion {golversion}, Period Id {period_id}, Start Date {start_date}, End Date {end_date}
+
+======================================================================
+## JobDescription
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Advertised Job Detail
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Job Id {job_id}, Job Title {job_title}, Valid From {valid_from}, Valid To {valid_to}, Company Id {company_id}, golid {golid}, golversion {golversion}
+
+======================================================================
+## ApplicantEngine
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Applicant Search Engine
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel | Add Condition | Undo Last | Clear Condition | Find Applicant! | Print Applicant!
+GRID '' (0 rows): 
+GRID '' (0 rows): Applicant Id {applicant_id}, Applicant Name {app_display_name}, Applicant Receiving Company {receiving_company}, Applicant Source {applicant_source}, Gender {gender}, Marital Status {marital_status}, Age {age}, Age {age_string}, Citizenship {citizenship}, City {city}, Education Level {education_level}, Education Field {education_field}, GPA {g_p_a}, License {type_no}, Applied for Company {company_id}, Point of Hire {point_of_hire}, Position Id {position_id}, Position Title {internal_title}, Position Grade {grade_id}, Position Level {pos_level_no}, Work Experience Field {area_no}, Work Experience Period {work_period}, Work Experience Period {wp_string}, Expected Salary {expected_salary}, Currency {currency_code}, golid {golid}, golversion {golversion}, Parameter {query_parameter}, Operand {query_operand}, Value {query_value}, Value {query_value_iid}, Value {query_value_lov}, Use Previous Result {use_previous}, Condition {query_condition}, Where {where_clause}, Based on Date {base_date}
+
+======================================================================
+## ApplicantEngineJob
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Applicant Search Engine Based on Job
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel | Find Applicant! | Print Applicant! | Transfer To Job Candidate
+GRID '' (0 rows): 
+GRID '' (0 rows): Applicant Id {applicant_id}, Applicant Name {app_display_name}, Applicant Source {applicant_source}, Gender {gender}, Marital Status {marital_status}, Religion {religion}, Age {age}, Age {age_string}, Education Level {education_level}, Education Field {education_field}, Education Institution {education_institution}, GPA {g_p_a}, License {type_no}, Point of Hire {point_of_hire}, Position Id {position_id}, Position Title {internal_title}, Position Level {pos_level_no}, Work Experience Field {area_no}, Work Experience Period {work_period}, Work Experience Period {wp_string}, golid {golid}, golversion {golversion}, Job {job_id}, Company Office {company_office}, Find only from Applicant Applied this job/location {only_applied}, Personal {personal}, Education {education}, License/Certificate {license}, Skill {skill}, Work Experience {work_experience}, Meet all selected criteria {use_previous}, Data Applicant From {from_date}, Transfer to PR No {personnel_req_no}
+
+======================================================================
+## ApplicantDemography
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Applicant Demography
+BUTTONS: Display Chart
+
+======================================================================
+## Applicant
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Applicant Information
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (20 rows): 
+GRID '' (20 rows): Applicant Id {applicant_id}, Display Name {app_display_name}, Applicant Status {state}, Applicant Picture {app_pic_id}, First Name {first_name}, Middle Name {middle_name}, Last Name {last_name}, Blacklist {blacklist}, Suspend {suspend}, Password {password}, activation_ref {activation_ref}, Date Applied {date_applied}, Date Available {date_available}, Expected Salary {expected_salary}, Currency {currency_code}, per {duration_unit}, Company Id {company_id}, Job Opportunity Ref No {job_opportunity_ref_no}, Applicant Receiving Company {receiving_company}, Point of Hire {point_of_hire}, Send Receive Date {send_receive_date}, Send Rejection Date {send_rejection_date}, Keep on File Duration {keep_on_file_duration}, Note {note}, Applicant Source {applicant_source}, Ad Media Type Name {ad_media_type_seq_no}, Ad Media Name {ad_media_seq_no}, Posted Date {date_posted}, Employment Agency Name {emp_agency_seq_no}, Education Institution Name {institution_no}, Referral Company {referral_company}, Referral Employee {referral_employee}, Referral Employee Name {referral_employee_name}, Address {address}, Postal Code {postal_code}, City {city}, State {address_state}, Country {country_code}, Insurance Id {insurance_id}, Place of Birth {place_of_birth}, Date of Birth {date_of_birth}, Citizenship {citizenship}, Religion {religion}, Gender {gender}, Marital Status {marital_status}, Blood Type {blood_type}, Have Child {have_child}, golid {golid}, golversion {golversion}
+GRID '' (20 rows): Applicant Id {applicant_id}, Display Name {app_display_name}, Applicant Status {state}, Applicant Picture {app_pic_id}, First Name {first_name}, Middle Name {middle_name}, Last Name {last_name}, Blacklist {blacklist}, Suspend {suspend}, Password {password}, activation_ref {activation_ref}, Date Applied {date_applied}, Date Available {date_available}, Expected Salary {expected_salary}, Currency {currency_code}, per {duration_unit}, Company Id {company_id}, Job Opportunity Ref No {job_opportunity_ref_no}, Applicant Receiving Company {receiving_company}, Point of Hire {point_of_hire}, Send Receive Date {send_receive_date}, Send Rejection Date {send_rejection_date}, Keep on File Duration {keep_on_file_duration}, Note {note}, Applicant Source {applicant_source}, Ad Media Type Name {ad_media_type_seq_no}, Ad Media Name {ad_media_seq_no}, Posted Date {date_posted}, Employment Agency Name {emp_agency_seq_no}, Education Institution Name {institution_no}, Referral Company {referral_company}, Referral Employee {referral_employee}, Referral Employee Name {referral_employee_name}, Address {address}, Postal Code {postal_code}, City {city}, State {address_state}, Country {country_code}, Insurance Id {insurance_id}, Place of Birth {place_of_birth}, Date of Birth {date_of_birth}, Citizenship {citizenship}, Religion {religion}, Gender {gender}, Marital Status {marital_status}, Blood Type {blood_type}, Have Child {have_child}, golid {golid}, golversion {golversion}
+
+======================================================================
+## ApplicantAllAppliedPos
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Applicant Applied Positions
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (9 rows): 
+GRID '' (9 rows): Applicant Id {applicant_id}, Display Name {app_display_name}, Apply for Company {company_id}, Position Id {position_id}, Position Title {position_title}, Date Applied {date_applied}, golid {golid}, golversion {golversion}
+GRID '' (9 rows): Applicant Id {applicant_id}, Display Name {app_display_name}, Apply for Company {company_id}, Position Id {position_id}, Position Title {position_title}, Date Applied {date_applied}, golid {golid}, golversion {golversion}
+
+======================================================================
+## ApplicantOutdated
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Outdated Applicant
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Applicant Id {applicant_id}, Display Name {app_display_name}, Applicant Status {state}, Applicant Picture {app_pic_id}, First Name {first_name}, Middle Name {middle_name}, Last Name {last_name}, Blacklist {blacklist}, Suspend {suspend}, Password {password}, activation_ref {activation_ref}, Date Applied {date_applied}, Date Available {date_available}, Expected Salary {expected_salary}, Currency {currency_code}, per {duration_unit}, Company Id {company_id}, Job Opportunity Ref No {job_opportunity_ref_no}, Applicant Receiving Company {receiving_company}, Point of Hire {point_of_hire}, Send Receive Date {send_receive_date}, Send Rejection Date {send_rejection_date}, Keep on File Duration {keep_on_file_duration}, Note {note}, Applicant Source {applicant_source}, Ad Media Type Name {ad_media_type_seq_no}, Ad Media Name {ad_media_seq_no}, Posted Date {date_posted}, Employment Agency Name {emp_agency_seq_no}, Education Institution Name {institution_no}, Referral Company {referral_company}, Referral Employee {referral_employee}, Referral Employee Name {referral_employee_name}, Address {address}, Postal Code {postal_code}, City {city}, State {address_state}, Country {country_code}, Insurance Id {insurance_id}, Place of Birth {place_of_birth}, Date of Birth {date_of_birth}, Citizenship {citizenship}, Religion {religion}, Gender {gender}, Marital Status {marital_status}, Blood Type {blood_type}, Have Child {have_child}, golid {golid}, golversion {golversion}
+
+======================================================================
+## ApplicantWeb
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Applicant Information Temporary
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel | Upload Applicant
+GRID '' (0 rows): 
+GRID '' (0 rows): Applicant Id {applicant_id}, Display Name {app_display_name}, Status {state}, App Pic Id {app_pic_id}, First Name {first_name}, Middle Name {middle_name}, Last Name {last_name}, Date Applied {date_applied}, Company Id {company_id}, Job Opportunity Ref No {job_opportunity_ref_no}, Company Position {company_position}, Position Id {position_id}, Position Title {internal_title}, Address {address}, City {city}, Address State {address_state}, Postal Code {postal_code}, Country Code {country_code}, Insurance Id {insurance_id}, Place Of Birth {place_of_birth}, Date Of Birth {date_of_birth}, Citizenship {citizenship}, Gender {gender}, Marital Status {marital_status}, Have Child {have_child}, Phone 1 {phone1}, Phone 2 {phone2}, Email {email}, golid {golid}, golversion {golversion}
+
+======================================================================
+## EvaluationProcess
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Evaluation Process
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (20 rows): 
+GRID '' (20 rows): Company Id {company_id}, Selection Process {std_selection_seq_no}, Based on Personnel Requisition {based_on_pr}, Actual Internal {actual_internal}, plan_date {plan_date}, Plan Due Date {plan_due_date}, Plan Due Time {plan_due_time}, Performed by Company {actual_company}, Performed by {actual_by_whom}, Performed by Name {actual_name}, Plan From {start_date}, To {end_date}, golid {golid}, golversion {golversion}
+GRID '' (20 rows): Company Id {company_id}, Selection Process {std_selection_seq_no}, Based on Personnel Requisition {based_on_pr}, Actual Internal {actual_internal}, plan_date {plan_date}, Plan Due Date {plan_due_date}, Plan Due Time {plan_due_time}, Performed by Company {actual_company}, Performed by {actual_by_whom}, Performed by Name {actual_name}, Plan From {start_date}, To {end_date}, golid {golid}, golversion {golversion}
+
+======================================================================
+## EvaluationProcessPerCandidate
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Evaluation Process per Candidate
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (20 rows): 
+GRID '' (20 rows): Company Id {company_id}, Personnel Req No {personnel_req_no}, Request Date {request_date}, Personnel Requisition Status {request_status}, Company Candidate {company_candidate}, Candidate Id {candidate_id}, Candidate Name {candidate_name}, Recruitment Source {recruitment_source}, Candidate Status {state}, Requested By {requested_by}, Requested Name {requested_name}, Position Id {position_id}, Position Title {internal_title}, Position Level {pos_level_no}, job_id {job_id}, Organization Id {org_id}, Organization Name {org_name}, Company Office {company_office}, golid {golid}, Requested From {start_date}, To {end_date}, golversion {golversion}
+GRID '' (20 rows): Company Id {company_id}, Personnel Req No {personnel_req_no}, Request Date {request_date}, Personnel Requisition Status {request_status}, Company Candidate {company_candidate}, Candidate Id {candidate_id}, Candidate Name {candidate_name}, Recruitment Source {recruitment_source}, Candidate Status {state}, Requested By {requested_by}, Requested Name {requested_name}, Position Id {position_id}, Position Title {internal_title}, Position Level {pos_level_no}, job_id {job_id}, Organization Id {org_id}, Organization Name {org_name}, Company Office {company_office}, golid {golid}, Requested From {start_date}, To {end_date}, golversion {golversion}
+
+======================================================================
+## IncompleteEvaluation
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Incomplete Evaluation Result per Personnel Requisition
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Personnel Requisition No {personnel_req_no}, Selection Process {std_selection_seq_no}, Selection History Seq No {selection_history_seq_no}, Plan Due Date {plan_due_date}, Plan Due Time {plan_due_time}, Candidate Id {candidate_id}, Candidate Name {candidate_name}, Candidate Status {candidate_status}, Recruitment Source {recruitment_source}, Actual Internal {actual_internal}, Performed by Company {actual_company}, Performed by {actual_by_whom}, Performed by Name {actual_by_name}, Selection Process Status {state}, Continue Process {continue_process}, Note {note}, Selection Process {base_selection}, Location {location}, Letter No {letter_no}, golid {golid}, golversion {golversion}
+
+======================================================================
+## RequestAcknowledge
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Request Acknowledge
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Personnel Req No {personnel_req_no}, Candidate Id {candidate_id}, Candidate Name {candidate_name}, selection_seq_no {selection_seq_no}, Selection Process {std_selection_seq_no}, Selection History Seq No {selection_history_seq_no}, Recruitment Source {recruitment_source}, plan_date {plan_date}, Plan Due Date {plan_due_date}, Plan Due Time {plan_due_time}, Candidate Status {candidate_status}, Status {state}, Selection Process {base_selection}, golid {golid}, golversion {golversion}
+
+======================================================================
+## ApplicantPsikotest
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Applicant Psychotest Information
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Applicant Id {applicant_id}, Display Name {display_name}, Applicant Status {applicant_state}, calc_field {calc_field}, Applied Jobs Id {applied_jobs_id}, Applied Jobs Title {applied_jobs_title}, Psychotest Id {psikotest_id}, Psychotest Status {state}, Generate Date {generate_date}, Valid From {valid_from}, Valid Until {valid_to}, Valid From {valid_from_date}, From Time {valid_from_time}, Valid Until {valid_to_date}, To Time {valid_to_time}, DISC {disc}, Papikostik {papikostik}, WPT {wpt}, Kraepelin {kraepelin}, MSDT {msdt}, Updated By {actual_by_whom}, Updated Name {actual_by_name}, Updated Company {actual_company}, Now {now_date}, golid {golid}, golversion {golversion}
+
+======================================================================
+## CandidateAppointment
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Candidate Appointment
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Personnel Requisition No {personnel_req_no}, Letter No {letter_no}, Request Status {pr_state}, Candidate Id {candidate_id}, Candidate Name {candidate_name}, Recruitment Source {recruitment_source}, Candidate Status {jc_state}, Applicant Status {a_state}, Appointment Date {appointment_date}, Appointment Letter No {appoint_letter_no}, New Assign Company {new_assign_company}, New Assign Employee {new_assign_employee}, Person Id {person_id}, User Id {user_id}, Role Group Id {role_group_id}, Position Id {position_id}, Position Title {position_title}, Primary Position {primary_position}, Company Office {company_office}, Work Location {work_location}, New Supervisor Company {new_sup_comp}, New Supervisor Employee {new_sup_emp}, New Supervisor Name {new_sup_emp_name}, Organization Id {org_id}, Organization Name {org_name}, Employee Grade {grade_id}, Employee Status {employee_status}, Employment Type {employee_type}, Contract Category {contract_category_no}, Employee Category {category_no}, Remuneration Type {remuneration_type}, Probation Period {probation_period}, Contract or Temporary Period {temporary_assign}, Starting Date {starting_date}, Ending Date {ending_date}, Personnel Action No {action_no}, Basic Salary {basic_salary}, Currency {currency_code}, Process Method {process_method}, Basic Salary Unit {basic_salary_unit}, Wage Template {template_code}, Payment Frequency {pay_type}, Schedule Type {schedule_type}, 1st Monday Sequence {day_sequence}, Clocking from All Location {clocking_all}, Calculation based on Time {calc_time}, golid {golid}, golversion {golversion}, ca_basic_salary {ca_basic_salary}, ca_basic_salary_enc {ca_basic_salary_enc}, Template Code {letter_template_code}, Template Name {letter_template_name}
+
+======================================================================
+## AdMediaType
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Advertisement Media Type
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (3 rows): 
+GRID '' (3 rows): Ad Media Type Seq No {ad_media_type_seq_no}, Ad Media Type Name {ad_media_type_name}, golid {golid}, golversion {golversion}
+GRID '' (3 rows): Ad Media Type Seq No {ad_media_type_seq_no}, Ad Media Type Name {ad_media_type_name}, golid {golid}, golversion {golversion}
+
+======================================================================
+## EmpAgency
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Employment Agency
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Emp Agency Seq No {emp_agency_seq_no}, Employment Agency Name {emp_agency_name}, Address {emp_agency_address}, Note {note}, golid {golid}, golversion {golversion}
+
+======================================================================
+## StandardSelectionProcess
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Standard Selection Process
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (5 rows): 
+GRID '' (5 rows): Company Id {company_id}, Std Selection Seq No {std_selection_seq_no}, Selection Process {std_selection_name}, Description {description}, Mandatory {mandatory}, Result Type {result_type}, Apply to Internal Candidate {apply_internal}, Apply to External Candidate {apply_external}, Based On Personnel Requisition {based_on_pr}, Unlimited Candidate {unlimited_candidate}, Template Question {template_no}, Need Acknowledgement {need_acknowledgement}, Min Result To Pass {data_lister}, Min Result To Pass {min_result_pass_iid}, Min Result To Pass {min_result_pass}, Template Attachment {template_attachment}, SLA Order {process_order}, SLA Group {sla_group_no}, Template Code {template_code}, Template Name {template_name}, golid {golid}, golversion {golversion}, Internal Psikotest {internal_psikotest}
+GRID '' (5 rows): Company Id {company_id}, Std Selection Seq No {std_selection_seq_no}, Selection Process {std_selection_name}, Description {description}, Mandatory {mandatory}, Result Type {result_type}, Apply to Internal Candidate {apply_internal}, Apply to External Candidate {apply_external}, Based On Personnel Requisition {based_on_pr}, Unlimited Candidate {unlimited_candidate}, Template Question {template_no}, Need Acknowledgement {need_acknowledgement}, Min Result To Pass {data_lister}, Min Result To Pass {min_result_pass_iid}, Min Result To Pass {min_result_pass}, Template Attachment {template_attachment}, SLA Order {process_order}, SLA Group {sla_group_no}, Template Code {template_code}, Template Name {template_name}, golid {golid}, golversion {golversion}, Internal Psikotest {internal_psikotest}
+
+======================================================================
+## RecruitmentCostItem
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Recruitment Cost Item
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (4 rows): 
+GRID '' (4 rows): Cost Item {cost_item}, Description {description}, golid {golid}, golversion {golversion}
+GRID '' (4 rows): Cost Item {cost_item}, Description {description}, golid {golid}, golversion {golversion}
+
+======================================================================
+## RecruitmentIdentity
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Recruitment Identity
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Column Name {column_name}, Next Value {next_value}, golid {golid}, golversion {golversion}
+
+======================================================================
+## RecruitmentMethodDesc
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Recruitment Method Description
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (8 rows): 
+GRID '' (8 rows): Recruitment Method {recruitment_method}, Internal External Type {internal_external_type}, Description {description}, golid {golid}, golversion {golversion}
+GRID '' (8 rows): Recruitment Method {recruitment_method}, Internal External Type {internal_external_type}, Description {description}, golid {golid}, golversion {golversion}
+
+======================================================================
+## ApplicantEvaluator
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | External Evaluator
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Evaluator Id {evaluator_id}, Evaluator Name {evaluator_name}, Address {address}, City {city}, State {state}, Postal Code {postal_code}, Contact Person {contact_person}, Phone {phone}, Email {email}, Template Package {template_package}, golid {golid}, golversion {golversion}
+
+======================================================================
+## ApplicantEvalCategory
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Evaluation Category
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Evaluation Category No {evaluation_category_no}, Evaluation Category {evaluation_category}, Evaluation Description {evaluation_description}, Company Id {company_id}, golid {golid}, golversion {golversion}
+
+======================================================================
+## RequiredDocument
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Required Document List
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (2 rows): 
+GRID '' (2 rows): title_no {title_no}, Title {title}, File Type {file_type}, Mandatory {mandatory}, golid {golid}, golversion {golversion}
+GRID '' (2 rows): title_no {title_no}, Title {title}, File Type {file_type}, Mandatory {mandatory}, golid {golid}, golversion {golversion}
+
+======================================================================
+## ApplicantEvaluationScale
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Applicant Evaluation Scale
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (1 rows): 
+GRID '' (1 rows): Scale Id {scale_id}, Scale Name {scale_name}, Ranking {ranking}, Company Id {company_id}, golid {golid}, golversion {golversion}
+GRID '' (1 rows): Scale Id {scale_id}, Scale Name {scale_name}, Ranking {ranking}, Company Id {company_id}, golid {golid}, golversion {golversion}
+
+======================================================================
+## TemplateStatement
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Template Statement
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Question Text {question_no}, Category Name {category_no}, Rating Criteria {criteria_no}, Order No {order_no}, golid {golid}, golversion {golversion}
+
+======================================================================
+## SelectionNotifier
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Selection Process Event Notifier
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Notifier Id {notifier_id}, Description {description}, Selection Process {std_selection_seq_no}, Enable {enable}, golid {golid}, golversion {golversion}
+
+======================================================================
+## Skill
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Skill
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (20 rows): 
+GRID '' (20 rows): Skill No {skill_no}, Name {name}, Description {description}, Criteria Name {criteria_no}, golid {golid}, golversion {golversion}
+GRID '' (20 rows): Skill No {skill_no}, Name {name}, Description {description}, Criteria Name {criteria_no}, golid {golid}, golversion {golversion}
+
+======================================================================
+## RecruitmentScoring
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Recruitment Scoring Result Indicator
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Result No {result_no}, Result Type {result_type}, golid {golid}, golversion {golversion}
+
+======================================================================
+## SlaGroup
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | SLA Group
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (20 rows): 
+GRID '' (20 rows): Company Id {company_id}, Sla Group No {sla_group_no}, SLA Group Name {sla_group_name}, SLA Days {sla_days}, golid {golid}, golversion {golversion}
+GRID '' (20 rows): Company Id {company_id}, Sla Group No {sla_group_no}, SLA Group Name {sla_group_name}, SLA Days {sla_days}, golid {golid}, golversion {golversion}
+
+======================================================================
+## PsikotestRule
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Psychotest Rules
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (5 rows): 
+GRID '' (5 rows): Psychotest Item {rule_desc}, Description {description}, Title {title}, Default {default_test}, Duration (In Second) {duration}, Allow Jump {allow_jump}, Random Question Position {random_question}, Indexing Question {indexing_question}, Capture Before Test {camera_before}, Capture After Test {camera_after}, golid {golid}, golversion {golversion}
+GRID '' (5 rows): Psychotest Item {rule_desc}, Description {description}, Title {title}, Default {default_test}, Duration (In Second) {duration}, Allow Jump {allow_jump}, Random Question Position {random_question}, Indexing Question {indexing_question}, Capture Before Test {camera_before}, Capture After Test {camera_after}, golid {golid}, golversion {golversion}
+
+======================================================================
+## DISCFormula
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | DISC Formula
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (8 rows): 
+GRID '' (8 rows): Scoring {formula_scoring}, Description {scoring_rule}, golid {golid}, golversion {golversion}
+GRID '' (8 rows): Scoring {formula_scoring}, Description {scoring_rule}, golid {golid}, golversion {golversion}
+
+======================================================================
+## PapikostikFormula
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Papikostik Formula
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Aspect {aspect}, Character {papikostik_profile}, Description {description}, Scoring Rule {scoring_rule}, Order Id {order_id}, golid {golid}, golversion {golversion}
+
+======================================================================
+## ReportCollection
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Report Collection
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (97 rows): 
+GRID '' (97 rows): Action {alc1}, Object Id {object_id}, Report Title {object_name}, Component Id {component_id}, Component Name {component_name}, Jsp Name {jsp_name}, Component Dependency {component_dependency}, Human Resource Base {hrbase}, Leave Administration {leaveadm}, Payroll(IDR) Administration {payroll}, Travel Expense {travel_expense}, Time Attendance {time_attendance}, Medical Benefit {medical}, Training Administration {training}, Recruitment {recruitment}, Competency Management {competency}, Employee Development {employee_development}, Performance Assessment {appraisal}, component_golid {component_golid}, golid {golid}, golversion {golversion}
+GRID '' (97 rows): Action {alc1}, Object Id {object_id}, Report Title {object_name}, Component Id {component_id}, Component Name {component_name}, Jsp Name {jsp_name}, Component Dependency {component_dependency}, Human Resource Base {hrbase}, Leave Administration {leaveadm}, Payroll(IDR) Administration {payroll}, Travel Expense {travel_expense}, Time Attendance {time_attendance}, Medical Benefit {medical}, Training Administration {training}, Recruitment {recruitment}, Competency Management {competency}, Employee Development {employee_development}, Performance Assessment {appraisal}, component_golid {component_golid}, golid {golid}, golversion {golversion}
+
+======================================================================
+## MyJobOpportunity
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Job Opportunity
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Opportunity {job_opportunity_ref_no}, Requisition No {personnel_req_no}, Openings {required_no}, Latest Date to Apply {latest_date}, Position Id {position_id}, Position Title {pos_title_to_show}, Work Location {work_location}, Job Description {job_desc_summ}, Job Specification {job_spec_summ}, Contact Person {contact_person}, golid {golid}, golversion {golversion}
+
+======================================================================
+## MyEmpAppliedJobOpportunity
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | My Applied Job Opportunities
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Requisition No {personnel_req_no}, Date Selected {date_selected}, Candidate Status {state}, Position Id {position_id}, Position Title {position_title}, Company Office {company_office}, Note {note}, golid {golid}, golversion {golversion}
+
+======================================================================
+## MySelectionProcess
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | My Selection Process to be Performed
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Requisition No {personnel_req_no}, Request Date {request_date}, Request Status {request_status}, Candidate Id {candidate_id}, Candidate Name {candidate_name}, Recruitment Source {recruitment_source}, Candidate Status {candidate_state}, Selection Process {std_selection_seq_no}, plan_date {plan_date}, Plan Due Date {plan_due_date}, Plan Due Time {plan_due_time}, Based on Personnel Requisition {based_on_pr}, Actual Date {actual_date}, Actual Time {actual_time}, result_type {result_type}, min_result_pass {min_result_pass}, state {state}, Selection Result {selection_result_string}, Selection Result {data_lister}, Selection Result {selection_result_string_iid}, actual_datetime {actual_datetime}, Total Score {scoring_result}, Comment {comments}, Note {note}, actual_internal {actual_internal}, Selection History Seq No {selection_history_seq_no}, Performed by Company {actual_company}, Performed by {actual_by_whom}, Performed by Name {actual_by_name}, Last Update Date {updated_date}, Last Updated by Company {updated_company}, Last Updated By {updated_by}, Last Updated by Name {updated_name}, golid {golid}, golversion {golversion}
+
+======================================================================
+## MyPersonnelRequisition
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | My Personnel Requistion
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Personnel Requisition No {personnel_req_no}, Request Date {request_date}, Requested Company {requested_company_id}, Requested By {requested_by}, Requested Name {requested_name}, Position Id {position_id}, Position Title {position_title}, Job Id {job_id}, Job Title {job_title}, Company Office {company_office}, Organization Id {org_id}, Organization Name {org_name}, Number of Required Employee {required_no}, Preferred Source {preferred_source}, Request Status {state}, Earliest Date {earliest_date}, Latest Date {latest_date}, Officer Company Id {officer_company}, Recruitment Officer Id {recruitment_officer_id}, Recruitment Officer Name {recruitment_officer_name}, Reason {reason}, Miscellaneous Spec {misc_spec}, Employment Type {employee_type}, Probation or Temporary Assign/Month(s) {temporary_assign}, Period ID {period_id}, Total Salary Budget {salary_budget}, Additional Qualification {additional_qualification}, golid {golid}, golversion {golversion}, auto_jop {auto_jop}
+
+======================================================================
+## MyPersonnelRequisitionToApprove
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | Personnel Requisition Approval
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Personnel Requisition No {personnel_req_no}, Request Date {request_date}, Requested Company {requested_company_id}, Requested By {requested_by}, Requested Name {requested_name}, Position Id {position_id}, Position Title {position_title}, Job Id {job_id}, Job Title {job_title}, Company Office {company_office}, Organization Id {org_id}, Organization Name {org_name}, Number of Required Employee {required_no}, Preferred Source {preferred_source}, Request Status {state}, Earliest Date {earliest_date}, Latest Date {latest_date}, Officer Company Id {officer_company}, Recruitment Officer Id {recruitment_officer_id}, Recruitment Officer Name {recruitment_officer_name}, Reason {reason}, Miscellaneous Spec {misc_spec}, Employment Type {employee_type}, Probation or Temporary Assign/Month(s) {temporary_assign}, Period ID {period_id}, Total Salary Budget {salary_budget}, Additional Qualification {additional_qualification}, golid {golid}, golversion {golversion}, auto_jop {auto_jop}
+
+======================================================================
+## MysRecruitmentPlanning
+PANELS: Navigation | 오ranHR - Human Resource Solution | Employee Self Service | Manager Self Service | My Recruitment Plan
+BUTTONS: Display All | Preview | Table | Refresh | Search | Delete | New | Duplicate | Edit | Operation | Apply | Count | Save | Cancel | Refresh Query
+GRID '' (0 rows): 
+GRID '' (0 rows): Company Id {company_id}, Sequence No {sequence_no}, Position Id {position_id}, Position Title {position_title}, Company Office {company_office}, Initial Target Head Count(a) {total_target}, Adjusted Target Head Count(b) {adjust_target}, Total Target Head Count(c)=(a)+(b) {total_adjust_target}, Total Target Head Count(c)=(a)+(b) {total_adjust_target_1}, Resulted Number of Employees {total_emp_pos_1}, Start Date {start_date}, End Date {end_date}, Initial Number of Employees(d) {init_emp_pos}, Number of Recruited/Transferred In Employees(e) {emp_pos_in}, Number of Turnover/Transferred Out Employees(f) {emp_pos_out}, Resulted Number of Employees(g)=(d)+(e)-(f) {total_emp_pos}, Number to Recruit(h)=(c-g) {recruit_no}, Number of Requested Employees in Personnel Requisition {request_pos}, Number of Fulfilled Requested Employees {request_pos_fulfill}, Number of Appointed Requested Employees {request_pos_appoint}, Number of Unfulfilled Requested Employees {request_pos_pending}, Period ID {period_id}, Total Salary Budget {salary_budget}, Based on Period {base_period}, golid {golid}, golversion {golversion}

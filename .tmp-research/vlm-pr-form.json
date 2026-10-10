@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Berikut adalah ekstrak lengkap field, nilai contoh, dan tombol aksi dari form **Personnel Requisition** pada aplikasi oranHR:\n\n### **Tombol Aksi (Action Buttons)**\n*   **Save**\n*   **Cancel**\n\n---\n\n### **Detail Field Form Personnel Requisition**\n\n#### **Kolom Kiri (Left Column)**\n*   **Personnel Requisition No***: `69`\n*   **Requested Company**: `MII - Mitra Industri International` *(Field teks/lookup)*\n*   **Requested By***: `MII000001` *(Dengan icon lookup)*\n*   **Position Id***: *(Kosong, dengan icon lookup)*\n*   **Job Id**: *(Kosong)*\n*   **Number of Required Employee***: `0`\n*   **Organization Id***: `001` *(Dengan icon lookup)*\n*   **Company Office***: `BDG` *(Dropdown)*\n*   **Earliest Date**: *(Kosong, dengan icon kalender)*\n*   **Officer Company Id***: `MII - Mitra Industri International` *(Dropdown)*\n*   **Recruitment Officer Id***: *(Kosong, dengan icon lookup)*\n*   **Reason**: *(Kosong - Area teks besar/multiline)*\n\n#### **Kolom Kanan (Right Column)**\n*   **Request Date**: `10 Oct 2026`\n*   **Requested Name**: `Dita Tri Avista`\n*   **Position Title**: *(Kosong)*\n*   **Job Title**: *(Kosong)*\n*   **Request Status**: *(Kosong)*\n*   **Organization Name**: `CEO`\n*   **Preferred Source**: *(Kosong - Dropdown)*\n*   **Latest Date**: *(Kosong, dengan icon kalender)*\n*   **Period ID***: `2026` *(Dropdown)*\n*   **Recruitment Officer Name**: *(Kosong)*\n*   **Miscellaneous Spec**: *(Kosong - Area teks besar/multiline)*\n\n---\n**Catuan:**\n*   Tanda bintang (**\\***) menandakan field wajib diisi (mandatory).\n*   Icon grid/kalender di sebelah kanan field menunjukkan adanya fitur **Lookup/Picker** atau **Date Picker**.\n*   Tanda panah ke bawah (▼) menunjukkan field berupa **Dropdown/Combobox**.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791617539,
+  "id": "20261010153207eaca246c69884701",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20261010153207eaca246c69884701",
+  "usage": {
+    "completion_tokens": 534,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 951,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1485
+  }
+}

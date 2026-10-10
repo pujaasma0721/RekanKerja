@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Berikut ekstraksi field dan elemen dari form **Candidate Appointment** (oranHR):\n\n### **Header & Toolbar**\n*   **Judul Form:** Candidate Appointment\n*   **Tombol Aksi (Toolbar):**\n    *   ⚙️ Display All\n    *   🔍 Search\n    *   🗑️ Delete\n    *   🆕 New\n\n### **Tabel Data (Grid) — Kolom Header**\n*   **Checkbox:** Pilih semua/baris (kosong)\n*   **Personnel Requisitio...** (Personnel Requisition)\n*   **Letter No**\n*   **Request Status**\n*   **Candidate Id**\n*   **Candidate Name**\n*   **Recruitment Source..** (Recruitment Source)\n*   **Candidate Status**\n*   **Applicant Status**\n\n### **Navigasi & Status Halaman**\n*   **Pagination:** Page [ 0 ] of 0\n*   **Kontrol Navigasi:** « ‹ › » (First, Prev, Next, Last)\n*   **Status Data:** Tidak ada data ditampilkan (grid kosong)\n\n### **Konteks Aplikasi**\n*   **Modul Aktif:** Recruitment (berdasarkan sidebar yang terbuka)\n*   **Versi:** 11.08.00\n*   **Copyright:** © 2025 Strategic Partner Solution, PT",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791617558,
+  "id": "202610101532342e2fe615c38c4bf3",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202610101532342e2fe615c38c4bf3",
+  "usage": {
+    "completion_tokens": 295,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 934,
+    "prompt_tokens_details": {
+      "cached_tokens": 13
+    },
+    "total_tokens": 1229
+  }
+}

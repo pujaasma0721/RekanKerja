@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Berdasarkan tampilan **Job Opportunity Recruitment Method Details** pada aplikasi **oranHR** (modul Recruitment), berikut ekstraksi field dan dropdown yang terlihat:\n\n### **Tabel Data (Grid View)**\n*   **Checkbox** — Seleksi baris (terlihat centang pada ID 12)\n*   **Job Opportunity** — Nomor/ID lowongan (tipe: Text/Numeric, contoh: 10, 11, 12...)\n*   **Prepared Name** — Nama penyusun/pembuat (tipe: Text, contoh: Dita Tri Avista, Handijgo Suriyana, Aril Juhana)\n*   **Date Prepared** — Tanggal persiapan (tipe: Date Picker, format: DD Mon YY, contoh: 13 Dec ..., 22 Oct 2...)\n*   **Job Opportunity Status** — Status lowongan (tipe: **Dropdown/Select**, opsi terlihat: *Active*, *Obsolete*)\n*   **Date Posted** — Tanggal posting (tipe: Date Picker, format: DD Mon YY, contoh: 13 Dec ..., 11 Apr 2...)\n\n### **Toolbar & Kontrol Navigasi**\n*   **Display All** — Tombol aksi (tampilkan semua data)\n*   **Preview** — Tombol aksi (pratinjau)\n*   **Search** — Tombol aksi (pencarian)\n*   **Operation** — **Dropdown Menu** (tombol biru dengan panah, kemungkinan berisi: Add, Edit, Delete, Export)\n*   **Pagination** — Kontrol halaman (Page [1] of 1, navigasi << < > >>)\n*   **Info Record** — Teks informasi (1 - 13. Total 13)\n\n### **Keterangan Tambahan**\n*   **Modul aktif**: Recruitment (dari sidebar kiri)\n*   **Akses**: Terlihat menu *Manager Self Service* dan *Employee Self Service*, menandakan ini bisa jadi dialog edit yang diakses via Operation > Edit pada baris terpilih (ID 12 yang di-highlight biru).",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791617708,
+  "id": "202610101534523a3bedf57cfc4c7e",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202610101534523a3bedf57cfc4c7e",
+  "usage": {
+    "completion_tokens": 469,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 920,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1389
+  }
+}

@@ -1,0 +1,198 @@
+
+## RecruitmentPlanning
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Sequence No | Position Id | Position Title | Company Office | Initial Target Head Count(a) | Adjusted Target Head Count(b) | Total Target Head Count(c)=(a)+(b) | Total Target Head Count(c)=(a)+(b) | Resulted Number of Employees | Start Date | End Date | Initial Number of Employees(d) | Number of Recruited/Transferred In Employees(e) | Number of Turnover/Transferred Out Employees(f) | Resulted Number of Employees(g)=(d)+(e)-(f) | Number to Recruit(h)=(c-g) | Number of Requested Employees in Personnel Requisition | Number of Fulfilled Requested Employees | Number of Appointed Requested Employees | Number of Unfulfilled Requested Employees | Period ID | Total Salary Budget | Based on Period
+
+## SelectionProcessCalendar
+  BTN: 
+
+## RecruitmentBudget
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Period Id | Start Date | End Date | Total Budget Amount | Total Adjustment Amount | Total Adjusted Budget Amount | Total Used Amount | Total Unused Amount | Currency | golid | golversion
+
+## RecruitmentBudgetJobOpportunity
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Period Id | Start Date | End Date | Job Opportunity Ref No | Date Prepared | Job Opportunity Status | Cost Item | Cost | Currency | golid | golversion
+
+## RecruitmentBudgetAdvertisedPersonnelReq
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Period Id | Start Date | End Date | Job Opportunity Ref No | Date Prepared | Job Opportunity Status | Personnel Requisition No | Request Status | Required No | Work Location | Cost Item | Cost | Currency | Position Id | Position Title to Show | golid | golversion
+
+## PersonnelRequisition
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Personnel Requisition No | Request Date | Requested Company | Requested By | Requested Name | Position Id | Position Title | Job Id | Job Title | Company Office | Organization Id | Organization Name | Number of Required Employee | Preferred Source | Request Status | Earliest Date | Latest Date | Officer Company Id | Recruitment Officer Id | Recruitment Officer Name | Reason | Miscellaneous Spec | Employment Type
+
+## PersonnelRequisitionToApprove
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Personnel Requisition No | Request Date | Requested Company | Requested By | Requested Name | Position Id | Position Title | Job Id | Job Title | Company Office | Organization Id | Organization Name | Number of Required Employee | Preferred Source | Request Status | Earliest Date | Latest Date | Officer Company Id | Recruitment Officer Id | Recruitment Officer Name | Reason | Miscellaneous Spec | Employment Type
+
+## RecruitmentActivity
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Job Id | Job Title | Company Office | Personnel Requisition | Job Opportunity | Applied Applicant | Candidate | Processed Candidate | calc_field | Interview HR | Interview User | Psikotes | Offering Salary | Medical Cek Up | Hired | Closed Personnel Requisition | golid | golversion | Job | Company Office | From Date | To Date
+
+## JobOpportunity
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Job Opportunity Ref No | Prepared By | Prepared Name | Date Prepared | Job Opportunity Status | Date Posted | Content | General Contact Person | Last Date to Accept Applicant | golid | golversion | Period Id | Start Date | End Date
+
+## JOAdvertisedPersonnelReq
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Job Opportunity Ref No | Personnel Requisition No | Request Status | Required No | Position Id | Position Title to Show | Work Location | Estimated Salary | Minimum Estimated Salary | Maximum Estimated Salary | Currency | Salary Time Unit | job_id | Job Description | Job Specification | Contact Person | golid | golversion
+
+## JobOpportunityMethod
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Job Opportunity Ref No | Prepared By | Prepared Name | Date Prepared | Job Opportunity Status | Date Posted | Content | General Contact Person | Last Date to Accept Applicant | golid | golversion | Period Id | Start Date | End Date
+
+## JobDescription
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Job Id | Job Title | Valid From | Valid To | Company Id | golid | golversion
+
+## ApplicantEngine
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel, Add Condition, Undo Last, Clear Condition, Find Applicant!, Print Applicant!
+  COLLABELS: Applicant Id | Applicant Name | Applicant Receiving Company | Applicant Source | Gender | Marital Status | Age | Age | Citizenship | City | Education Level | Education Field | GPA | License | Applied for Company | Point of Hire | Position Id | Position Title | Position Grade | Position Level | Work Experience Field | Work Experience Period | Work Experience Period | Expected Salary
+
+## ApplicantEngineJob
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel, Find Applicant!, Print Applicant!, Transfer To Job Candidate
+  COLLABELS: Applicant Id | Applicant Name | Applicant Source | Gender | Marital Status | Religion | Age | Age | Education Level | Education Field | Education Institution | GPA | License | Point of Hire | Position Id | Position Title | Position Level | Work Experience Field | Work Experience Period | Work Experience Period | golid | golversion | Job | Company Office
+
+## ApplicantDemography
+  BTN: Display Chart
+
+## Applicant
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Applicant Id | Display Name | Applicant Status | Applicant Picture | First Name | Middle Name | Last Name | Blacklist | Suspend | Password | activation_ref | Date Applied | Date Available | Expected Salary | Currency | per | Company Id | Job Opportunity Ref No | Applicant Receiving Company | Point of Hire | Send Receive Date | Send Rejection Date | Keep on File Duration | Note
+
+## ApplicantAllAppliedPos
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Applicant Id | Display Name | Apply for Company | Position Id | Position Title | Date Applied | golid | golversion
+
+## ApplicantOutdated
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Applicant Id | Display Name | Applicant Status | Applicant Picture | First Name | Middle Name | Last Name | Blacklist | Suspend | Password | activation_ref | Date Applied | Date Available | Expected Salary | Currency | per | Company Id | Job Opportunity Ref No | Applicant Receiving Company | Point of Hire | Send Receive Date | Send Rejection Date | Keep on File Duration | Note
+
+## ApplicantWeb
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel, Upload Applicant
+  COLLABELS: Applicant Id | Display Name | Status | App Pic Id | First Name | Middle Name | Last Name | Date Applied | Company Id | Job Opportunity Ref No | Company Position | Position Id | Position Title | Address | City | Address State | Postal Code | Country Code | Insurance Id | Place Of Birth | Date Of Birth | Citizenship | Gender | Marital Status
+
+## EvaluationProcess
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Selection Process | Based on Personnel Requisition | Actual Internal | plan_date | Plan Due Date | Plan Due Time | Performed by Company | Performed by | Performed by Name | Plan From | To | golid | golversion
+
+## EvaluationProcessPerCandidate
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Personnel Req No | Request Date | Personnel Requisition Status | Company Candidate | Candidate Id | Candidate Name | Recruitment Source | Candidate Status | Requested By | Requested Name | Position Id | Position Title | Position Level | job_id | Organization Id | Organization Name | Company Office | golid | Requested From | To | golversion
+
+## IncompleteEvaluation
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Personnel Requisition No | Selection Process | Selection History Seq No | Plan Due Date | Plan Due Time | Candidate Id | Candidate Name | Candidate Status | Recruitment Source | Actual Internal | Performed by Company | Performed by | Performed by Name | Selection Process Status | Continue Process | Note | Selection Process | Location | Letter No | golid | golversion
+
+## RequestAcknowledge
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Personnel Req No | Candidate Id | Candidate Name | selection_seq_no | Selection Process | Selection History Seq No | Recruitment Source | plan_date | Plan Due Date | Plan Due Time | Candidate Status | Status | Selection Process | golid | golversion
+
+## ApplicantPsikotest
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Applicant Id | Display Name | Applicant Status | calc_field | Applied Jobs Id | Applied Jobs Title | Psychotest Id | Psychotest Status | Generate Date | Valid From | Valid Until | Valid From | From Time | Valid Until | To Time | DISC | Papikostik | WPT | Kraepelin | MSDT | Updated By | Updated Name | Updated Company | Now
+
+## CandidateAppointment
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Personnel Requisition No | Letter No | Request Status | Candidate Id | Candidate Name | Recruitment Source | Candidate Status | Applicant Status | Appointment Date | Appointment Letter No | New Assign Company | New Assign Employee | Person Id | User Id | Role Group Id | Position Id | Position Title | Primary Position | Company Office | Work Location | New Supervisor Company | New Supervisor Employee | New Supervisor Name
+
+## AdMediaType
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Ad Media Type Seq No | Ad Media Type Name | golid | golversion
+
+## EmpAgency
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Emp Agency Seq No | Employment Agency Name | Address | Note | golid | golversion
+
+## StandardSelectionProcess
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Std Selection Seq No | Selection Process | Description | Mandatory | Result Type | Apply to Internal Candidate | Apply to External Candidate | Based On Personnel Requisition | Unlimited Candidate | Template Question | Need Acknowledgement | Min Result To Pass | Min Result To Pass | Min Result To Pass | Template Attachment | SLA Order | SLA Group | Template Code | Template Name | golid | golversion | Internal Psikotest
+
+## RecruitmentCostItem
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Cost Item | Description | golid | golversion
+
+## RecruitmentIdentity
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Column Name | Next Value | golid | golversion
+
+## RecruitmentMethodDesc
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Recruitment Method | Internal External Type | Description | golid | golversion
+
+## ApplicantEvaluator
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Evaluator Id | Evaluator Name | Address | City | State | Postal Code | Contact Person | Phone | Email | Template Package | golid | golversion
+
+## ApplicantEvalCategory
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Evaluation Category No | Evaluation Category | Evaluation Description | Company Id | golid | golversion
+
+## RequiredDocument
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: title_no | Title | File Type | Mandatory | golid | golversion
+
+## ApplicantEvaluationScale
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Scale Id | Scale Name | Ranking | Company Id | golid | golversion
+
+## TemplateStatement
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Question Text | Category Name | Rating Criteria | Order No | golid | golversion
+
+## SelectionNotifier
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Notifier Id | Description | Selection Process | Enable | golid | golversion
+
+## Skill
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Skill No | Name | Description | Criteria Name | golid | golversion
+
+## RecruitmentScoring
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Result No | Result Type | golid | golversion
+
+## SlaGroup
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Sla Group No | SLA Group Name | SLA Days | golid | golversion
+
+## PsikotestRule
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Psychotest Item | Description | Title | Default | Duration (In Second) | Allow Jump | Random Question Position | Indexing Question | Capture Before Test | Capture After Test | golid | golversion
+
+## DISCFormula
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Scoring | Description | golid | golversion
+
+## PapikostikFormula
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Aspect | Character | Description | Scoring Rule | Order Id | golid | golversion
+
+## ReportCollection
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Action | Object Id | Report Title | Component Id | Component Name | Jsp Name | Component Dependency | Human Resource Base | Leave Administration | Payroll(IDR) Administration | Travel Expense | Time Attendance | Medical Benefit | Training Administration | Recruitment | Competency Management | Employee Development | Performance Assessment | component_golid | golid | golversion
+
+## MyJobOpportunity
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Opportunity | Requisition No | Openings | Latest Date to Apply | Position Id | Position Title | Work Location | Job Description | Job Specification | Contact Person | golid | golversion
+
+## MyEmpAppliedJobOpportunity
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Requisition No | Date Selected | Candidate Status | Position Id | Position Title | Company Office | Note | golid | golversion
+
+## MySelectionProcess
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Requisition No | Request Date | Request Status | Candidate Id | Candidate Name | Recruitment Source | Candidate Status | Selection Process | plan_date | Plan Due Date | Plan Due Time | Based on Personnel Requisition | Actual Date | Actual Time | result_type | min_result_pass | state | Selection Result | Selection Result | Selection Result | actual_datetime | Total Score | Comment
+
+## MyPersonnelRequisition
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Personnel Requisition No | Request Date | Requested Company | Requested By | Requested Name | Position Id | Position Title | Job Id | Job Title | Company Office | Organization Id | Organization Name | Number of Required Employee | Preferred Source | Request Status | Earliest Date | Latest Date | Officer Company Id | Recruitment Officer Id | Recruitment Officer Name | Reason | Miscellaneous Spec | Employment Type
+
+## MyPersonnelRequisitionToApprove
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Personnel Requisition No | Request Date | Requested Company | Requested By | Requested Name | Position Id | Position Title | Job Id | Job Title | Company Office | Organization Id | Organization Name | Number of Required Employee | Preferred Source | Request Status | Earliest Date | Latest Date | Officer Company Id | Recruitment Officer Id | Recruitment Officer Name | Reason | Miscellaneous Spec | Employment Type
+
+## MysRecruitmentPlanning
+  BTN: Delete, New, Duplicate, Edit, Apply, Save, Cancel
+  COLLABELS: Company Id | Sequence No | Position Id | Position Title | Company Office | Initial Target Head Count(a) | Adjusted Target Head Count(b) | Total Target Head Count(c)=(a)+(b) | Total Target Head Count(c)=(a)+(b) | Resulted Number of Employees | Start Date | End Date | Initial Number of Employees(d) | Number of Recruited/Transferred In Employees(e) | Number of Turnover/Transferred Out Employees(f) | Resulted Number of Employees(g)=(d)+(e)-(f) | Number to Recruit(h)=(c-g) | Number of Requested Employees in Personnel Requisition | Number of Fulfilled Requested Employees | Number of Appointed Requested Employees | Number of Unfulfilled Requested Employees | Period ID | Total Salary Budget | Based on Period

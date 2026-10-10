@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Berdasarkan screenshot halaman **Query - Recruitment Activity** pada aplikasi **oranHR**, berikut penjelasan singkat mengenai filter dan grid yang terlihat:\n\n**Filter (Kriteria Pencarian)**\n*   **Job:** Dropdown untuk memilih posisi/jabatan yang dicari.\n*   **Company Office \\*:** Dropdown wajib (ditandai bintang merah) untuk memilih lokasi kantor/perusahaan (default: *~~ Any Location ~~*).\n*   **From Date:** Input tanggal awal periode rekrutmen (contoh tampilan: 01 Oct 2026).\n*   **To Date:** Input tanggal akhir periode rekrutmen (contoh tampilan: 31 Oct 2026).\n*   **Tombol Aksi:** Terdapat tombol **Display All** (untuk menampilkan semua data) dan **Preview** (untuk melihat pratinjau).\n\n**Kolom Grid (Tabel Data)**\n*   **Status:** Pada tampilan ini, area grid masih kosong atau belum menampilkan data baris.\n*   Terdapat kontrol paginasi di pojok kanan atas area konten (**Page [ ] of 0**) yang menunjukkan belum ada record yang dimuat.\n*   **Instruksi:** Teks panduan terlihat di bawah filter, menjelaskan fungsi tombol *Display All* (populate records), *Search* (cari record), dan *New* (tambah record baru).",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791617720,
+  "id": "202610101535087d74782ec9af4356",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202610101535087d74782ec9af4356",
+  "usage": {
+    "completion_tokens": 334,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 923,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1257
+  }
+}

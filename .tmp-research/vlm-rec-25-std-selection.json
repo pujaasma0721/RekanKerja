@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Berdasarkan screenshot **oranHR - Standard Selection Process** yang ditampilkan, berikut ekstrasi elemen form:\n\n## **Toolbar & Navigasi**\n• **Tombol Aksi**: Display All, Search, Delete, New\n• **Kontrol Halaman**: Page [input field] of 0, dengan navigasi << < > >>\n• **Instruksi**: \n  - Click *Display All* to populate records\n  - Click *Search* to search for particular records  \n  - Click *New* to add a new record\n\n## **Status Form**\n• **Mode Saat Ini**: Tampilan list/grid kosong (0 records)\n• **Konteks Menu**: Recruitment (berdasarkan sidebar aktif)\n\n## **Catatan Penting**\nScreenshot menampilkan **halaman list/daftar** (bukan form input detail), sehingga:\n- **Tidak ada field input** yang terlihat (textbox, dropdown, checkbox)\n- **Tidak ada opsi dropdown** yang tampil\n- **Tidak ada checkbox** yang terdeteksi\n- Form input kemungkinan akan muncul setelah klik tombol **\"New\"**\n\n## **Elemen UI Lainnya**\n• **Sidebar Navigation**: Human Resource Base, Payroll, Leave, Time Attendance, Medical Benefit, Travel Admin, HR Analysis, Performance Assessment, Competency, Employee Development, **Recruitment** (aktif), Training Administration\n• **Top Menu**: Home, About, News (dengan badge 4), Profile, Sign Out\n• **Footer**: Copyright © 2025 Strategic Partner Solution, PT | Version 11.08.00\n\n*Untuk melihat field-field form lengkap (dropdown options, checkbox, validasi), diperlukan screenshot saat tombol \"New\" diklik atau saat record sedang diedit.*",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791617580,
+  "id": "20261010153238eabcc1e444534dc2",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20261010153238eabcc1e444534dc2",
+  "usage": {
+    "completion_tokens": 389,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 923,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1312
+  }
+}

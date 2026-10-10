@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Berikut penjelasan UI Query Builder pada halaman **Applicant Search Engine** aplikasi **oranHR**:\n\n*   **Parameter** (Dropdown): Kolom pemilih field/kriteria pencarian (contoh: *Age*, Nama, Posisi, dll.). Ditandai bintang merah (*) sebagai wajib diisi.\n*   **Operand** (Dropdown): Pemilih operator logika/perbandingan (contoh: `=`, `>`, `<`, `LIKE`, `IN`, `BETWEEN`). Juga wajib (*).\n*   **Value** (Input Text): Kotak isian untuk memasukkan nilai yang dicari berdasarkan Parameter dan Operand. Wajib diisi (*).\n*   **Use Previous Result** (Checkbox): Opsi untuk menggunakan hasil pencarian sebelumnya sebagai basis filter baru (untuk chaining query).\n*   **Condition** (Textarea): Area teks besar untuk menampilkan atau mengedit kondisi SQL/Query secara manual (read-only atau editable tergantung hak akses).\n*   **Based on Date** (Date Picker): Filter tambahan khusus untuk membatasi rentang waktu (tanggal) pencarian.\n*   **Tombol Aksi Query:**\n    *   **Add Condition**: Menambahkan baris/kondisi baru ke dalam builder (menggabungkan dengan logika AND/OR).\n    *   **Undo Last**: Membatalkan/menghapus kondisi terakhir yang ditambahkan.\n    *   **Clear Condition**: Menghapus/reset semua kondisi yang telah dibuat di builder.\n    *   **Find Applicant!**: Menjalankan eksekusi pencarian berdasarkan semua parameter yang diset.\n    *   **Print Applicant!**: Mencetak/mengekspor hasil pencarian pelamar.\n\n**Catatan Tambahan UI:** Terdapat petunjuk teknis di bawah tombol bahwa operator `IN` menggunakan pemisah koma (`,`) dan operator `BETWEEN` menggunakan titik-titik (`..`).",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791617738,
+  "id": "20261010153520134c738ae5fd4f90",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20261010153520134c738ae5fd4f90",
+  "usage": {
+    "completion_tokens": 439,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 929,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1368
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Berikut penjelasan tampilan **Selection Process Calendar** pada aplikasi oranHR berdasarkan screenshot:\n\n### **Header & Kontrol Filter**\n*   **Judul Halaman**: \"Selection Process Calendar\" (dengan latar biru tua).\n*   **Filter Waktu**:\n    *   Dropdown **Month**: Menampilkan \"August\" (Agustus).\n    *   Input/Spinner **Year**: Menampilkan \"2026\".\n    *   Tombol **Refresh**: Untuk memuat ulang data kalender.\n*   **Ikon Aksi (Kanan Atas)**: Terdapat ikon bantuan (?), daftar, dan pengaturan/gear.\n\n### **Struktur Kolom Kalender**\n*   **Tipe Tampilan**: Kalender bulanan (Monthly View) dengan format grid.\n*   **Header Hari**: 7 kolom utama dengan label:\n    *   MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY.\n*   **Warna Header**: Biru muda (light blue) dengan teks putih.\n\n### **Data & Isi Sel (Date Cells)**\n*   **Penomoran Tanggal**: Angka tanggal (1–23+) ditampilkan di bagian atas setiap sel.\n*   **Pewarnaan Sel**:\n    *   **Abu-abu Muda**: Sel untuk tanggal yang bukan bagian dari bulan aktif (atau hari sebelumnya, terlihat di baris pertama Senin-Jumat).\n    *   **Putih/Bersih**: Sel untuk tanggal bulan berjalan yang aktif.\n    *   **Biru Muda Pekat**: Baris pemisah/header untuk minggu (week row) yang memuat nomor tanggal.\n*   **Penanda Khusus**:\n    *   **Minggu (Sunday)**: Tanggal **2, 9, 16, 23** ditulis dengan warna **merah**, menandakan hari libur/minggu.\n    *   **Area Konten Kosong**: Bagian bawah setiap sel tanggal masih kosong (tidak ada event/jadwal seleksi yang tertampil pada periode ini).\n\n### **Konteks Navigasi**\n*   **Lokasi Menu**: Berada di bawah modul **Recruitment** (Rekrutmen) pada sidebar kiri, menunjukkan fungsinya untuk menjadwalkan atau melihat tahapan seleksi kandidat.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791617588,
+  "id": "202610101533008bc3f5195c7443ab",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202610101533008bc3f5195c7443ab",
+  "usage": {
+    "completion_tokens": 546,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 926,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1472
+  }
+}

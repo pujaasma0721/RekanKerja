@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Berikut ekstraksi field **Form Applicant Information** (oranHR) berdasarkan screenshot:\n\n### **Section: Identitas Pelamar (Kiri Atas)**\n*   **Applicant Id*** : `96` *(Auto-generated, mandatory)*\n*   **First Name*** : `[Text Field]` *(Mandatory)*\n*   **Last Name** : `[Text Field]`\n*   **Date Applied*** : `10 Oct 2026` *(Date Picker, Mandatory)*\n*   **Applicant Status** : `[Dropdown/Text Field]`\n\n### **Section: Nama & Ketersediaan (Kanan Atas)**\n*   **Display Name** : `[Text Field]`\n*   **Middle Name** : `[Text Field]`\n*   **Date Available** : `[Date Picker]`\n*   **Blacklist** : `[Checkbox]` *(Unchecked)*\n*   **Suspend** : `[Checkbox]` *(Unchecked)*\n\n### **Section: Rekrutmen & Penempatan (Bawah)**\n*   **Job Opportunity Ref No** : `[Text Field]`\n*   **Applicant Receiving Company** : `MII - Mitra Industri Internasional` *(Lookup/Text dengan nilai default)*\n*   **Point of Hire** : `[Dropdown]` *(Panah dropdown terlihat)*\n*   **Send Receive Date** : `[Date Picker]`\n*   **Send Rejection Date** : `[Date Picker]`\n*   **Keep on File Duration** : `12` *(Numeric/Text, default value 12)*\n\n### **Elemen UI Tambahan**\n*   **Tombol Aksi**: `Save` (Biru), `Cancel` (Abu)\n*   **Header**: Applicant Information\n*   **Navigasi Kiri**: Menu HR Base, Payroll, Recruitment, Training Administration, dsb.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791617553,
+  "id": "202610101532279a5c2b1bce5044d0",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202610101532279a5c2b1bce5044d0",
+  "usage": {
+    "completion_tokens": 397,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 930,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 1327
+  }
+}
