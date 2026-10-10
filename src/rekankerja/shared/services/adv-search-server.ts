@@ -12,7 +12,7 @@
 //   // gabungkan: where.AND = [...(where.AND ?? []), aw]
 //
 // Semantik DIJAMIN sama dengan versi client (adv-search.ts):
-//   • text: pattern (@) / contains / startsWith / endsWith / eq / ne —
+//   • text: pattern (&) / contains / startsWith / endsWith / eq / ne —
 //     mode "insensitive" (PostgreSQL);
 //   • number: = ≠ > ≥ < ≤ / between {gte,lte};
 //   • date: granularitas HARI (eq = satu hari penuh, gt = lewat tengah malam
@@ -140,10 +140,10 @@ function condWhere(cond: { field: string; op: string; value?: string; value2?: s
   const o: Record<string, unknown> = {};
   switch (op) {
     case "pattern": {
-      // pola "@": mirror parseAtPattern client — "@x" ends, "x@" starts, "@x@" contains
-      const lead = val.startsWith("@");
-      const trail = val.endsWith("@");
-      const core = val.replace(/^@+/, "").replace(/@+$/, "");
+      // pola "&": mirror parseAmpPattern client — "&x" ends, "x&" starts, "&x&" contains
+      const lead = val.startsWith("&");
+      const trail = val.endsWith("&");
+      const core = val.replace(/^&+/, "").replace(/&+$/, "");
       if (!core) return null;
       if (lead && trail) setPath(o, f.path, { contains: core, mode: "insensitive" });
       else if (lead) setPath(o, f.path, { endsWith: core, mode: "insensitive" });

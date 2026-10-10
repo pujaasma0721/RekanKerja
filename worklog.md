@@ -5372,3 +5372,24 @@ Stage Summary:
 - Semantik @: "@x"=berakhiran, "x@"=berawalan, "@x@"=mengandung, plain=mengandung; @ tengah literal (email aman). Kombinasi: Semua kondisi (DAN) / Salah satu (ATAU), operator per tipe field, between dua input.
 - Infra file baru: shared/lib/adv-search.ts, shared/components/adv-search.tsx, shared/services/adv-search-server.ts (murni — tanpa migrasi DB).
 - Pola wiring utk view baru: definisikan ADV_FIELDS (txt/num/dt/sel) + filterRowsByAdv + <AdvSearchButton/> — lihat employee-directory.tsx / leave-requests.tsx sbg contoh.
+
+---
+Task ID: adv-amp
+Agent: main (Z.ai Code)
+Task: Ganti karakter pola pencarian Advance Search dari "@" menjadi "&" (permintaan user).
+
+Work Log:
+- Grep menyeluruh: seluruh implementasi pola @ terpusat di 3 file (lib adv-search.ts, UI adv-search.tsx, server adv-search-server.ts) — tidak ada view lain yang hardcode contoh pola.
+- shared/lib/adv-search.ts: parseAtPattern → parseAmpPattern (semantik identik, karakter @ → &): "&x"=berakhiran, "x&"=berawalan, "&x&"=mengandung, plain=mengandung; & di tengah tetap literal (teks "R&D" aman; "@" kini karakter biasa). Header komentar + pemakaian internal ikut di-update.
+- shared/components/adv-search.tsx: label operator "Pola @"→"Pola &" / "@ pattern"→"& pattern"; hint bawah input + panel bantuan (contoh &rahman / Andi& / &kay& / Budi) + catatan "& tengah literal (R&D)" — dwibahasa.
+- shared/services/adv-search-server.ts: mirror pola server (lead/trail & + strip /^&+|&+$/) — semantik Prisma contains/startsWith/endsWith insensitive tetap.
+- BUG LATEN DITEMUKAN & DIPERBAIKI (decodeAdvParam): view paginasi (employees/activity-logs/esign) men-set param adv dengan nilai encodeAdvParam (SUDAH encodeURIComponent) lalu URLSearchParams.toString() men-encode sekali lagi → server searchParams.get() menerima "%7B…" tersisa 1 putaran → JSON.parse gagal → FILTER SILENT DROP (advance search server-side tidak pernah jalan). Empiris: single-encoded adv &rahman → total 0 terfilter benar; double-encoded (apa yang dikirim view) → 47 unfiltered. Fix: decodeAdvParam fallback decodeURIComponent satu putaran lagi bila JSON.parse pertama gagal — kompatibel 3 jalur (raw JSON, single, double) + nilai berisi "%" tetap aman; round-trip penuh teruji.
+- BONUS lint fix (file yang sama): useEffect "muat nilai tersimpan saat dialog dibuka" → pola "adjust state during render" (wasOpen guard) — bun run lint kini 0 error (sebelumnya 1 error react-hooks/set-state-in-effect pre-existing).
+- Unit test runtime bun (16 kasus): parseAmpPattern 7 varian (termasuk &&x&& multi-strip, R&D literal, dewi@mii.co.id literal) + filterRowsByAdv 5 skenario + advPrismaWhere 4 fragment — ALL PASS.
+- E2E browser (hrd@mii.co.id, MII): operator dialog "& pattern" ✓; panel bantuan kode &rahman/Andi&/&kay&/Budi ✓; hint input ✓. Employee Directory (server-side): &wijaksono → 1 (Hartono Wijaksono); dewi& → 4 Dewi; &sri& → 1 (Sri Wahyuni); @wahyuni → 0 (bukti @ kini literal, dulu akan match Sri Wahyuni). Leave Types (client-side): CT-G& → 2 (CT-GUGUR-I/P). Reopen dialog mempertahankan nilai (badge 1) setelah refactor; Reset mengembalikan 16 baris. 0 console error, dev.log bersih.
+- dev server mati diam-diam 2× (proses sandbox basi 23 jam / crash saat lint berjalan paralel) — direstart, 200 OK, semua verifikasi ulang sukses.
+
+Stage Summary:
+- Karakter wildcard Advance Search kini "&": "&x"=berakhiran, "x&"=berawalan, "&x&"=mengandung, tanpa &=mengandung; & tengah literal; @ sepenuhnya karakter biasa. Semua label/hint/bantuan dwibahasa ikut berganti.
+- Fix penting: decodeAdvParam kini robust double-encoding — advance search SERVER-SIDE (employees, activity-logs, esign chain) yang sebelumnya silent-drop kini benar-benar memfilter (terverifikasi E2E).
+- 3 file diubah: shared/lib/adv-search.ts, shared/components/adv-search.tsx, shared/services/adv-search-server.ts. Lint 0 error. Tidak ada perubahan skema/DB.

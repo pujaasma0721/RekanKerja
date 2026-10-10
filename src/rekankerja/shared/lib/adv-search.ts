@@ -6,23 +6,23 @@
 //     di tiap list — pelajari adv-search.tsx (UI) & adv-search-server.ts (API).
 //   • Kombinasi field: beberapa kondisi digabung DAN (all) / ATAU (any).
 //   • Operator per tipe field:
-//       text   : pola @ (default), mengandung, awalan, akhiran, sama persis,
+//       text   : pola & (default), mengandung, awalan, akhiran, sama persis,
 //                tidak sama, kosong, tidak kosong
 //       number : = ≠ > ≥ < ≤ di antara, kosong, tidak kosong
 //       date   : pada, setelah, sebelum, pada/setelah, sampai/sebelum,
 //                di antara, kosong, tidak kosong
 //       select : sama, tidak sama, kosong, tidak kosong
 //
-// POLA KARAKTER UNIK "@" (permintaan pengguna — cermin habbit LIKE SQL '%'):
-//   "@rahman"  → semua yang BERAKHIRAN "rahman"   (…rahman)
-//   "Andi@"    → semua yang BERAWALAN  "Andi"     (Andi…)
-//   "@kay@"    → semua yang MENGANDUNG  "kay"     (…kay…)
-//   "Budi"     → tanpa @ = mengandung (perilaku pencarian biasa)
-//   "@" hanya diakui di AWAL dan/atau AKHIR token — @ di tengah (mis. email
-//   "dewi@mii.co.id") tetap literal, jadi mencari email tidak rusak.
+// POLA KARAKTER UNIK "&" (permintaan pengguna — cermin habbit LIKE SQL '%'):
+//   "&rahman"  → semua yang BERAKHIRAN "rahman"   (…rahman)
+//   "Andi&"    → semua yang BERAWALAN  "Andi"     (Andi…)
+//   "&kay&"    → semua yang MENGANDUNG  "kay"     (…kay…)
+//   "Budi"     → tanpa & = mengandung (perilaku pencarian biasa)
+//   "&" hanya diakui di AWAL dan/atau AKHIR token — & di tengah (mis. "R&D")
+//   tetap literal, jadi teks yang memuat & tetap bisa dicari normal.
 //
 // Modul ini bebas React (bisa dipakai client & server):
-//   - parseAtPattern() : string → {op, value}
+//   - parseAmpPattern() : string → {op, value}
 //   - rowMatchesAdv()  : filter array baris di client (pola (b) & (c) view)
 //   - sanitizeAdv()/encodeAdvParam()/decodeAdvParam() : jembatan URL param
 //   - txt/num/dt/sel   : definisi field ringkas per view
@@ -85,18 +85,18 @@ export function sel<R>(key: string, label: string, labelEn: string, options: Tup
   return { key, label, labelEn, type: "select", options: options.map(([value, l, lEn]) => ({ value, label: l, labelEn: lEn })), get };
 }
 
-// ============ pola karakter unik "@" ============
+// ============ pola karakter unik "&" ============
 
 /**
- * Parse nilai pola "@": "@x" akhiran, "x@" awalan, "@x@" mengandung,
- * tanpa @ → mengandung (default). @ di tengah tetap literal (email aman).
- * Nilai kosong sesudah buang @ → mengandung string mentah (fallback aman).
+ * Parse nilai pola "&": "&x" akhiran, "x&" awalan, "&x&" mengandung,
+ * tanpa & → mengandung (default). & di tengah tetap literal (mis. "R&D").
+ * Nilai kosong sesudah buang & → mengandung string mentah (fallback aman).
  */
-export function parseAtPattern(v: string): { op: "contains" | "startsWith" | "endsWith"; value: string } {
+export function parseAmpPattern(v: string): { op: "contains" | "startsWith" | "endsWith"; value: string } {
   const raw = v ?? "";
-  const lead = raw.startsWith("@");
-  const trail = raw.endsWith("@");
-  const core = raw.replace(/^@+/, "").replace(/@+$/, "");
+  const lead = raw.startsWith("&");
+  const trail = raw.endsWith("&");
+  const core = raw.replace(/^&+/, "").replace(/&+$/, "");
   if (lead && trail) return { op: "contains", value: core };
   if (lead) return { op: "endsWith", value: core };
   if (trail) return { op: "startsWith", value: core };
@@ -138,10 +138,15 @@ export function encodeAdvParam(adv: AdvSearch | null | undefined): string {
   return s ? encodeURIComponent(JSON.stringify(s)) : "";
 }
 
-/** Baca query param `adv` (string DEKODED dari URLSearchParams.get) → AdvSearch | null. */
+/** Baca query param `adv` (string DEKODED dari URLSearchParams.get) → AdvSearch | null.
+ *  Robust terhadap double-encoding: pemanggil kadang men-set param dengan nilai
+ *  yang SUDAH encodeURIComponent sebelum masuk URLSearchParams (yang men-encode
+ *  sekali lagi) → setelah satu putaran decode masih tersisa "%7B…" — coba
+ *  decode satu putaran lagi sebelum menyerah. */
 export function decodeAdvParam(raw: string | null | undefined): AdvSearch | null {
   if (!raw) return null;
-  try { return sanitizeAdv(JSON.parse(raw)); } catch { return null; }
+  try { return sanitizeAdv(JSON.parse(raw)); } catch { /* coba fallback di bawah */ }
+  try { return sanitizeAdv(JSON.parse(decodeURIComponent(raw))); } catch { return null; }
 }
 
 /** Jumlah kondisi aktif (utk badge tombol). */
@@ -227,7 +232,7 @@ function condMatches<R>(row: R, cond: AdvCond, field: AdvFieldDef<R> | undefined
   const cvv = val.toLowerCase();
   switch (cond.op) {
     case "pattern": {
-      const p = parseAtPattern(cvv);
+      const p = parseAmpPattern(cvv);
       if (!p.value) return true;
       return p.op === "contains" ? sv.includes(p.value) : p.op === "startsWith" ? sv.startsWith(p.value) : sv.endsWith(p.value);
     }

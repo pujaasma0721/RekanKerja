@@ -14,14 +14,14 @@
 // Dialog mengikuti habbit advance search yang benar:
 //   • kombinasi kondisi DAN (Semua) / ATAU (Salah satu) — toggle eksplisit;
 //   • operator menyesuaikan tipe field (text/number/date/select);
-//   • pola karakter "@" default utk teks: "@x" akhiran, "x@" awalan, "@x@"
+//   • pola karakter "&" default utk teks: "&x" akhiran, "x&" awalan, "&x&"
 //     mengandung (dengan contoh hidup di panel bantuan + hint di bawah input);
 //   • kondisi tanpa nilai diabaikan (bukan error) — baris kosong mudah dibuang;
 //   • badge jumlah kondisi aktif di tombol + ring saat aktif;
 //   • Reset / Batal / Terapkan; Enter di input nilai = Terapkan.
 // ============================================================================
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,7 +42,7 @@ import {
 interface OpDef { op: AdvOp; label: string; labelEn: string }
 
 const TEXT_OPS: OpDef[] = [
-  { op: "pattern", label: "Pola @" , labelEn: "@ pattern" },
+  { op: "pattern", label: "Pola &" , labelEn: "& pattern" },
   { op: "contains", label: "Mengandung", labelEn: "Contains" },
   { op: "startsWith", label: "Berawalan", labelEn: "Starts with" },
   { op: "endsWith", label: "Berakhiran", labelEn: "Ends with" },
@@ -175,18 +175,20 @@ function AdvSearchDialog<R = Record<string, unknown>>({
   const { t } = useI18n();
   const [match, setMatch] = useState<"all" | "any">("all");
   const [draft, setDraft] = useState<DraftCond[]>([blankCond(fields)]);
-  const [initOpen, setInitOpen] = useState(false);
+  const [wasOpen, setWasOpen] = useState(false);
 
-  // muat nilai tersimpan tiap kali dialog dibuka (bukan saat mengetik)
-  useEffect(() => {
-    if (open && !initOpen) {
-      setInitOpen(true);
-      const d = toDraft(value, fields);
-      setDraft(d.length > 0 ? d : [blankCond(fields)]);
-      setMatch(sanitizeAdv(value)?.match ?? "all");
-    }
-    if (!open) setInitOpen(false);
-  }, [open]);
+  // muat nilai tersimpan tiap kali dialog dibuka (bukan saat mengetik) —
+  // pola "adjust state during render" (React docs: You Might Not Need an Effect):
+  // setState sinkron saat render transisi tutup→buka, tanpa render berantai.
+  if (open && !wasOpen) {
+    setWasOpen(true);
+    const d = toDraft(value, fields);
+    setDraft(d.length > 0 ? d : [blankCond(fields)]);
+    setMatch(sanitizeAdv(value)?.match ?? "all");
+  }
+  if (!open && wasOpen) {
+    setWasOpen(false);
+  }
 
   const fieldMap = useMemo(() => new Map(fields.map((f) => [f.key, f])), [fields]);
 
@@ -337,7 +339,7 @@ function AdvSearchDialog<R = Record<string, unknown>>({
                   </button>
                   {patternHint && (
                     <p className="text-[10px] leading-snug text-slate-400 sm:col-span-4">
-                      {t('Pola "@": "@rahman" = berakhiran rahman · "Andi@" = berawalan Andi · "@kay@" = mengandung kay · tanpa @ = mengandung', '"@" pattern: "@rahman" = ends with rahman · "Andi@" = starts with Andi · "@kay@" = contains kay · without @ = contains')}
+                      {t('Pola "&": "&rahman" = berakhiran rahman · "Andi&" = berawalan Andi · "&kay&" = mengandung kay · tanpa & = mengandung', '"&" pattern: "&rahman" = ends with rahman · "Andi&" = starts with Andi · "&kay&" = contains kay · without & = contains')}
                     </p>
                   )}
                 </div>
@@ -349,19 +351,19 @@ function AdvSearchDialog<R = Record<string, unknown>>({
             <Plus className="h-3.5 w-3.5" /> {t("Tambah Kondisi", "Add Condition")}
           </Button>
 
-          {/* panel bantuan pola @ */}
+          {/* panel bantuan pola & */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-[11px] leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
             <p className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200">
-              <Info className="h-3.5 w-3.5 ov-text-accent" /> {t("Karakter unik @ pada kolom teks", 'The "@" wildcard in text fields')}
+              <Info className="h-3.5 w-3.5 ov-text-accent" /> {t("Karakter unik & pada kolom teks", 'The "&" wildcard in text fields')}
             </p>
             <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
-              <p><code className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-brand-deep shadow-sm dark:bg-slate-800 dark:text-brand/85">@rahman</code> → {t("berakhiran “rahman”", "ends with “rahman”")}</p>
-              <p><code className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-brand-deep shadow-sm dark:bg-slate-800 dark:text-brand/85">Andi@</code> → {t("berawalan “Andi”", "starts with “Andi”")}</p>
-              <p><code className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-brand-deep shadow-sm dark:bg-slate-800 dark:text-brand/85">@kay@</code> → {t("mengandung “kay”", "contains “kay”")}</p>
+              <p><code className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-brand-deep shadow-sm dark:bg-slate-800 dark:text-brand/85">&rahman</code> → {t("berakhiran “rahman”", "ends with “rahman”")}</p>
+              <p><code className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-brand-deep shadow-sm dark:bg-slate-800 dark:text-brand/85">Andi&</code> → {t("berawalan “Andi”", "starts with “Andi”")}</p>
+              <p><code className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-brand-deep shadow-sm dark:bg-slate-800 dark:text-brand/85">&kay&</code> → {t("mengandung “kay”", "contains “kay”")}</p>
               <p><code className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-brand-deep shadow-sm dark:bg-slate-800 dark:text-brand/85">Budi</code> → {t("mengandung (biasa)", "plain contains")}</p>
             </div>
             <p className="mt-1.5 text-[10px] text-slate-400">
-              {t("Tanda @ di tengah kata tetap dianggap biasa — alamat email tetap bisa dicari.", "An @ in the middle stays literal — email addresses remain searchable.")}
+              {t("Tanda & di tengah kata tetap dianggap biasa — teks seperti “R&D” tetap bisa dicari.", "An & in the middle stays literal — text like “R&D” remains searchable.")}
             </p>
           </div>
         </div>
