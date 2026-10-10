@@ -153,6 +153,11 @@ export const SERVER_ERR_EN: Record<string, string> = {
     "Super admin users (Admin role) cannot be deleted from here",
   "Pengguna tanpa email — tidak punya akun login untuk direset":
     "The user has no email — there is no login account to reset",
+  // ---- role ESS (Task role-ess) ----
+  "Pengguna dengan role ESS hanya dapat mengakses portal ESS — hak akses menu admin tidak berlaku.":
+    "Users with the ESS role can only access the ESS portal — admin menu access rights do not apply.",
+  "Pengguna dengan role ESS wajib ditautkan ke data karyawan (portal ESS berbasis data karyawan).":
+    "Users with the ESS role must be linked to an employee (the ESS portal is employee-based).",
   "Tidak mengandung nama pengguna": "Must not contain the user's name",
   "Tidak mengandung username / email": "Must not contain the username / email",
   "Username & nama wajib diisi": "Username & name are required",

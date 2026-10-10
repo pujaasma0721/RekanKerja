@@ -107,12 +107,19 @@ function PageInner() {
   // Tidak menimpa pilihan eksplisit pengguna (override di store).
   // Task 52-f — menu PUBLIK (whistleblowing:report — kanal TPKS semua pekerja)
   // TIDAK dihitung sebagai menu admin: pemiliknya tetap masuk mode ESS.
+  // Task role-ess — override "admin" basi (disimpan sebelum role diubah ke
+  // ESS / sebelum seluruh menu dicabut) dibersihkan supaya pengguna tidak
+  // terjebak di shell admin kosong; pemilik role ESS selalu mendarat di ESS.
   useEffect(() => {
     if (session.status !== "ready" || !meMenu.data) return;
     const d = meMenu.data;
     const adminMenus = (d.menus ?? []).filter((k) => !isPublicMenuKey(k));
     const noAdminMenu = !d.all && adminMenus.length === 0 && !d.isSuperAdmin;
-    useUiMode.getState().setAutoMode(noAdminMenu ? "ess" : "admin");
+    const st = useUiMode.getState();
+    if (noAdminMenu && st.override === "admin") {
+      useUiMode.setState({ override: null, uiMode: "ess" });
+    }
+    st.setAutoMode(noAdminMenu ? "ess" : "admin");
   }, [session.status, meMenu.data]);
 
   // Mode mockup desain menu (?mockup=menu) — render lab tanpa AuthGate/shell,

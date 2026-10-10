@@ -14,7 +14,9 @@ import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 // + simulasi akses efektif (?action=preview&userId=) yang memperhitungkan
 // akses otomatis (super admin, atasan langsung, diri sendiri).
 
-const APP_ROLES = ["Admin", "HR Manager", "HR Staff", "Approver", "Viewer"];
+// "ESS" disertakan utk kelengkapan daftar role (pemilihan pemegang rule tetap
+// per pengguna; role ESS sendiri tidak memerlukan rule — portal ESS self-scope).
+const APP_ROLES = ["Admin", "HR Manager", "HR Staff", "Approver", "Viewer", "ESS"];
 
 /** Validasi & normalisasi payload rule (per pengguna; kriteria AND, null bila kosong). */
 function normalizeRule(b: Record<string, unknown>) {

@@ -15,7 +15,7 @@ import { NextRequest } from "next/server";
 import { getTenantClient, UNAUTHORIZED_MSG, VIEWER_FORBIDDEN_MSG, type TenantDb } from "../lib/tenant-db";
 import { readVerifiedSession } from "../lib/auth";
 import { db as platformDb } from "@/lib/db";
-import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES } from "./access-scope";
+import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES, ESS_ONLY_APP_ROLES } from "./access-scope";
 import { normalizeMenusJson, ACTION_LABEL, actionAllowed, opsOf, type MenuAction, type MenusMap } from "../lib/menu-perms";
 
 export interface MenuActor {
@@ -148,6 +148,17 @@ export async function resolveMenuPerms(
   const isSuperAdmin =
     (appUser != null && SUPER_ADMIN_APP_ROLES.includes(appUser.role)) ||
     SUPER_ADMIN_PLATFORM_ROLES.includes(membership.role);
+
+  // Role ESS — TERKUNCI ke portal ESS (halaman ESS saja): seluruh menu & aksi
+  // admin ditolak APAPUN konfigurasi UserMenuAccess (mode ALL/CUSTOM) maupun
+  // membership platform (bahkan OWNER/ADMIN) — keputusan eksplisit workspace
+  // bahwa pengguna ini hanya mengakses portal ESS. Auto-deteksi mode UI
+  // (user-menu-access action=me) memakai aturan yang sama → pengguna masuk
+  // langsung ke Mode Karyawan. Endpoint ESS tidak memakai guard menu, jadi
+  // portal ESS tetap berfungsi penuh.
+  if (appUser != null && ESS_ONLY_APP_ROLES.includes(appUser.role)) {
+    return { db, actor, isSuperAdmin: false, all: false, perms: {} };
+  }
 
   if (isSuperAdmin) {
     // Super admin (AppUser.role Admin / platform OWNER|ADMIN) → semua menu & aksi.

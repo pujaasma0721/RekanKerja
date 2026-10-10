@@ -30,6 +30,14 @@ export const SUPER_ADMIN_APP_ROLES = ["Admin"];
 /** Role workspace platform yang otomatis super admin. */
 export const SUPER_ADMIN_PLATFORM_ROLES = ["OWNER", "ADMIN"];
 
+/**
+ * AppUser.role yang TERKUNCI ke portal ESS saja (tanpa menu admin apa pun).
+ * Pengguna dengan role ini hanya mengakses halaman ESS (Mode Karyawan) —
+ * seluruh menu/aksi admin ditolak guard menu-access terlepas dari konfigurasi
+ * Hak Akses / membership platform (lihat ESS clamp di resolveMenuPerms).
+ */
+export const ESS_ONLY_APP_ROLES = ["ESS"];
+
 /** Dimensi kriteria penempatan sasaran (target employee). */
 export const ACCESS_DIMENSIONS = [
   "companyOfficeId", "workLocationId", "orgUnitId", "positionId",

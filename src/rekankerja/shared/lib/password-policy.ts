@@ -255,6 +255,8 @@ export function passwordAge(changedAt: string | Date | null | undefined, policy:
  * AppUser.role (tenant) → role UserTenant (platform).
  * HANYA "Admin" → ADMIN (super admin otomatis). HR Manager/HR Staff/Approver
  * → HR (boleh mutasi, hak menu tetap diatur per pengguna), Viewer → VIEWER.
+ * "ESS" → VIEWER: pengguna khusus portal ESS — tanpa menu admin; mutasi admin
+ * ditolak guard requireMutator (VIEWER 403) + clamp menu-access.
  */
 export function platformRoleOfAppRole(appRole: string): "ADMIN" | "HR" | "VIEWER" {
   switch (appRole) {
@@ -264,6 +266,7 @@ export function platformRoleOfAppRole(appRole: string): "ADMIN" | "HR" | "VIEWER
     case "HR Staff":
     case "Approver":
       return "HR";
+    case "ESS":
     default:
       return "VIEWER";
   }

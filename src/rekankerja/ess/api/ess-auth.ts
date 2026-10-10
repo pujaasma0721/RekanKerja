@@ -23,7 +23,7 @@ export interface EssActor {
   email: string;
   /** AppUser.id tenant. */
   appUserId: string;
-  /** AppUser.role: Admin|HR Manager|HR Staff|Approver|Viewer. */
+  /** AppUser.role: Admin|HR Manager|HR Staff|Approver|Viewer|ESS. */
   appUserRole: string;
   /** Employee.id aktor — dasar seluruh data ESS. */
   employeeId: string;
@@ -98,8 +98,11 @@ export async function requireEss(req: Request): Promise<EssAuthResult> {
   };
 }
 
-/** Aktor boleh membuka area admin? (role workspace platform / AppUser role HR-admin). */
+/** Aktor boleh membuka area admin? (role workspace platform / AppUser role HR-admin).
+ *  Role ESS selalu ditolak — pengguna terkunci portal ESS (mirror clamp
+ *  resolveMenuPerms: AppUser.role ESS menang atas membership platform). */
 export function essCanAdmin(actor: EssActor): boolean {
+  if (actor.appUserRole === "ESS") return false; // role ESS — portal ESS saja
   if (["OWNER", "ADMIN", "HR"].includes(actor.platformRole)) return true;
   return ["Admin", "HR Manager", "HR Staff"].includes(actor.appUserRole);
 }

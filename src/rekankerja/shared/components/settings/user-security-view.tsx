@@ -48,7 +48,20 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const APP_ROLES = ["Admin", "HR Manager", "HR Staff", "Approver", "Viewer"] as const;
+// Role aplikasi — "ESS" (Task role-ess): pengguna TERKUNCI portal ESS (Mode
+// Karyawan); tanpa menu admin apa pun (lihat clamp ESS di services/menu-access).
+// Wajib tertaut ke karyawan — portal ESS berbasis data karyawan.
+const APP_ROLES = ["Admin", "HR Manager", "HR Staff", "Approver", "Viewer", "ESS"] as const;
+
+/** Uraian singkat per role — tampil di bawah pilihan Role (dialog tambah/edit). */
+const ROLE_HINT: Record<string, { id: string; en: string }> = {
+  Admin: { id: "Super admin workspace — semua menu, aksi & data; tidak bisa dibatasi/dihapus.", en: "Workspace super admin — all menus, actions & data; cannot be restricted or deleted." },
+  "HR Manager": { id: "Atasan HR — boleh mutasi, jadi tujuan approval & notifikasi otomatis.", en: "HR manager — may make changes, becomes an approval & notification target." },
+  "HR Staff": { id: "Operator HR harian — boleh mutasi sesuai hak menu yang diatur.", en: "Day-to-day HR operator — may make changes per configured menu rights." },
+  Approver: { id: "Atasan fungsional di luar HR — fokus menyetujui dokumen.", en: "Functional supervisor outside HR — focused on approving documents." },
+  Viewer: { id: "Hanya lihat (read-only) — seluruh mutasi ditolak server.", en: "View-only — all mutations are rejected by the server." },
+  ESS: { id: "Khusus portal ESS (Mode Karyawan) — tanpa akses menu admin; wajib tertaut ke karyawan.", en: "ESS portal only (Employee Mode) — no admin menu access; must be linked to an employee." },
+};
 
 // Peta EN paralel label umur kata sandi dari lib/password-policy (label ID tetap di lib).
 function ageLabelEn(label: string): string {
@@ -65,8 +78,8 @@ const ROLE_TONE: Record<string, string> = {
   "HR Manager": "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85",
   Approver: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
   Viewer: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
+  ESS: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/10 dark:text-violet-400",
 };
-
 // ---------- hak aksi menu (per pengguna, Task 32) ----------
 
 interface MeAccess { all: boolean; menus: string[]; perms?: MenusMap; isSuperAdmin: boolean }
@@ -361,6 +374,10 @@ function UserCreateDialog({
   if (effUsername.trim().length < 3) localIssues.push(t("Username minimal 3 karakter", "Username must be at least 3 characters"));
   if (!EMAIL_RE.test(email.trim())) localIssues.push(t("Email login wajib diisi dengan format valid", "A valid login email is required"));
   if (password !== confirm) localIssues.push(t("Konfirmasi kata sandi tidak sama", "Password confirmation does not match"));
+  // Role ESS — portal ESS berbasis data karyawan (server menolak tanpa tautan).
+  if (role === "ESS" && employeeId === "none") {
+    localIssues.push(t("Pengguna dengan role ESS wajib ditautkan ke karyawan", "Users with the ESS role must be linked to an employee"));
+  }
 
   const submit = async () => {
     if (busy) return;
@@ -440,9 +457,16 @@ function UserCreateDialog({
                 {APP_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
               </SelectContent>
             </Select>
+            <p className="text-[10px] leading-relaxed text-slate-400">
+              {t(ROLE_HINT[role]?.id ?? "", ROLE_HINT[role]?.en ?? "")}
+            </p>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-xs">{t("Tautkan ke Karyawan (opsional)", "Link to Employee (optional)")}</Label>
+            <Label className="text-xs">
+              {role === "ESS"
+                ? t("Tautkan ke Karyawan *", "Link to Employee *")
+                : t("Tautkan ke Karyawan (opsional)", "Link to Employee (optional)")}
+            </Label>
             <Select value={employeeId} onValueChange={setEmployeeId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-64">
@@ -549,6 +573,11 @@ function UserEditDialog({
   const submit = async () => {
     if (!user || busy) return;
     if (!fullName.trim()) { setError(t("Nama wajib diisi", "Name is required")); return; }
+    // Role ESS — wajib ada tautan karyawan (server menolak tanpa tautan).
+    if (role === "ESS" && employeeId === "none") {
+      setError(t("Pengguna dengan role ESS wajib ditautkan ke karyawan", "Users with the ESS role must be linked to an employee"));
+      return;
+    }
     setBusy(true); setError(null);
     try {
       await apiSend("/api/rekankerja/app-users", "PATCH", {
@@ -592,9 +621,16 @@ function UserEditDialog({
                 {APP_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
               </SelectContent>
             </Select>
+            <p className="text-[10px] leading-relaxed text-slate-400">
+              {t(ROLE_HINT[role]?.id ?? "", ROLE_HINT[role]?.en ?? "")}
+            </p>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">{t("Tautan Karyawan", "Employee Link")}</Label>
+            <Label className="text-xs">
+              {role === "ESS"
+                ? t("Tautan Karyawan *", "Employee Link *")
+                : t("Tautan Karyawan", "Employee Link")}
+            </Label>
             <Select value={employeeId} onValueChange={setEmployeeId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-64">

@@ -95,6 +95,8 @@ interface AccessUser {
   active: boolean;
   employee: { id: string; fullName: string; employeeNo: string } | null;
   isSuperAdmin: boolean;
+  /** true = role ESS — terkunci portal ESS; editor hak akses menu admin dikunci. */
+  essOnly: boolean;
   subordinateCount: number;
   menuMode: "ALL" | "CUSTOM";
   menus: string[];
@@ -167,6 +169,7 @@ const ROLE_TONE: Record<string, string> = {
   "HR Manager": "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85",
   Approver: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
   Viewer: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
+  ESS: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/10 dark:text-violet-400",
 };
 
 // =================================================================
@@ -440,6 +443,9 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                         </span>
                       </span>
                       <span className="flex shrink-0 flex-col items-end gap-0.5">
+                        {u.essOnly && (
+                          <span className={cn("rounded-md px-1.5 py-0.5 text-[9px] font-bold", active ? "bg-white/20 text-white" : "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400")}>ESS</span>
+                        )}
                         {u.menuMode === "CUSTOM" && (
                           <span className={cn("rounded-md px-1.5 py-0.5 text-[9px] font-bold", active ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400")}>{t("dibatasi", "restricted")}</span>
                         )}
@@ -481,6 +487,11 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                     </div>
                     <div className="ml-auto flex flex-wrap items-center gap-1.5">
                       <Badge variant="outline" className={cn("text-[10px] font-bold", ROLE_TONE[selected.role] ?? "")}>{selected.role}</Badge>
+                      {selected.essOnly && (
+                        <Badge variant="outline" className="gap-1 border-violet-200 bg-violet-50 text-[10px] font-bold text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-400">
+                          <UserRound className="h-3 w-3" /> ESS
+                        </Badge>
+                      )}
                       {selected.subordinateCount > 0 && (
                         <Badge variant="outline" className="gap-1 border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/75">
                           <UserCheck className="h-3 w-3" /> {t("{n} bawahan", "{n} subordinates", { n: selected.subordinateCount })}
@@ -495,6 +506,12 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                     <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50/70 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
                       <Crown className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       {t("Super admin otomatis membuka", "Super admins automatically get")} <b>{t("semua menu", "all menus")}</b> {t("dan mengakses", "and access")} <b>{t("seluruh data karyawan", "all employee data")}</b> {t("— tidak perlu (dan tidak bisa) dibatasi di menu ini.", "— no need (and no way) to restrict them here.")}
+                    </p>
+                  )}
+                  {selected.essOnly && (
+                    <p className="mt-3 flex items-start gap-2 rounded-xl bg-violet-50/70 px-3 py-2 text-xs leading-relaxed text-violet-800 dark:bg-violet-500/10 dark:text-violet-300">
+                      <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      {t("Role ESS — terkunci", "ESS role — locked to")} <b>{t("portal ESS (Mode Karyawan) saja", "the ESS portal (Employee Mode) only")}</b>{t("; tanpa menu admin apapun. Ganti rolenya (tab Pengguna) bila perlu akses admin.", "; no admin menus at all. Change the role (Users tab) if admin access is needed.")}
                     </p>
                   )}
                 </CardContent>
@@ -517,6 +534,11 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                   {selected.isSuperAdmin ? (
                     <p className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-3 text-[13px] text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
                       <Crown className="h-4 w-4 shrink-0 text-amber-500" /> {t("Semua menu terbuka otomatis (super admin).", "All menus open automatically (super admin).")}
+                    </p>
+                  ) : selected.essOnly ? (
+                    <p className="flex items-start gap-2 rounded-xl bg-violet-50 px-3 py-3 text-[13px] leading-relaxed text-violet-800 dark:bg-violet-500/10 dark:text-violet-300">
+                      <UserRound className="mt-0.5 h-4 w-4 shrink-0" />
+                      {t("Role ESS — hanya dapat mengakses portal ESS (Mode Karyawan); seluruh menu & aksi admin ditolak server dan tidak dapat dikonfigurasi di sini.", "ESS role — can only access the ESS portal (Employee Mode); all admin menus & actions are rejected by the server and cannot be configured here.")}
                     </p>
                   ) : (
                     <div className="space-y-3">
@@ -666,37 +688,48 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                     <SlidersHorizontal className="h-4 w-4 ov-text-accent" /> {t("Akses Data Karyawan", "Employee Data Access")}
                     <Badge variant="outline" className="text-[10px] font-bold text-slate-400">{t("{n} rule aktif", "{n} active rules", { n: userRules.filter((r) => r.active).length })}</Badge>
                   </CardTitle>
-                  <Button onClick={() => setRuleDialog({ open: true, rule: null })} className="h-9 gap-1.5 rounded-xl text-xs font-bold">
-                    <Plus className="h-3.5 w-3.5" /> {t("Rule Baru", "New Rule")}
-                  </Button>
+                  {!selected.essOnly && (
+                    <Button onClick={() => setRuleDialog({ open: true, rule: null })} className="h-9 gap-1.5 rounded-xl text-xs font-bold">
+                      <Plus className="h-3.5 w-3.5" /> {t("Rule Baru", "New Rule")}
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <p className="mb-3 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
-                    <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 ov-text-accent" />
-                    {t("Rule parametrik", "Parametric rule")} <b>{t("untuk {name}", "for {name}", { name: selected.fullName })}</b> {t("— karyawan yang dapat diakses sesuai penempatan (semua kriteria terpilih = AND). Tanpa kriteria = akses penuh. Bawahan langsung & data diri selalu otomatis.", "— accessible employees follow their placement (all selected criteria = AND). No criteria = full access. Direct subordinates & own data are always automatic.")}
-                  </p>
-                  {rulesResp.loading && !rulesResp.data ? (
-                    <LoadingRows rows={3} />
-                  ) : userRules.length === 0 ? (
-                    <EmptyState
-                      title={t("Belum ada rule akses data", "No data access rules yet")}
-                      description={t(
-                        "{name} hanya dapat mengakses data dirinya{sub}{sa}. Buat rule parametrik untuk memperluas cakupan.",
-                        "{name} can only access their own data{sub}{sa}. Create a parametric rule to widen the scope.",
-                        {
-                          name: selected.fullName,
-                          sub: selected.subordinateCount > 0 ? t(" dan {n} bawahannya (otomatis)", " and their {n} subordinates (automatic)", { n: selected.subordinateCount }) : "",
-                          sa: selected.isSuperAdmin ? t(", serta seluruh data sebagai super admin", ", plus all data as a super admin") : "",
-                        },
-                      )}
-                      icon={SlidersHorizontal}
-                    />
+                  {selected.essOnly ? (
+                    <p className="flex items-start gap-2 rounded-xl bg-violet-50 px-3 py-3 text-[13px] leading-relaxed text-violet-800 dark:bg-violet-500/10 dark:text-violet-300">
+                      <UserRound className="mt-0.5 h-4 w-4 shrink-0" />
+                      {t("Role ESS tidak memerlukan rule akses data — di portal ESS pengguna hanya melihat data dirinya sendiri (self-scope, otomatis).", "The ESS role needs no data access rules — in the ESS portal the user only sees their own data (self-scope, automatic).")}
+                    </p>
                   ) : (
-                    <div className="space-y-2.5">
-                      {userRules.map((r) => (
-                        <UserRuleCard key={r.id} r={r} busy={toggling === r.id} onToggle={(v) => toggleRule(r, v)} onEdit={() => setRuleDialog({ open: true, rule: r })} onDelete={() => setDeleting(r)} />
-                      ))}
-                    </div>
+                    <>
+                    <p className="mb-3 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
+                      <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 ov-text-accent" />
+                      {t("Rule parametrik", "Parametric rule")} <b>{t("untuk {name}", "for {name}", { name: selected.fullName })}</b> {t("— karyawan yang dapat diakses sesuai penempatan (semua kriteria terpilih = AND). Tanpa kriteria = akses penuh. Bawahan langsung & data diri selalu otomatis.", "— accessible employees follow their placement (all selected criteria = AND). No criteria = full access. Direct subordinates & own data are always automatic.")}
+                    </p>
+                    {rulesResp.loading && !rulesResp.data ? (
+                      <LoadingRows rows={3} />
+                    ) : userRules.length === 0 ? (
+                      <EmptyState
+                        title={t("Belum ada rule akses data", "No data access rules yet")}
+                        description={t(
+                          "{name} hanya dapat mengakses data dirinya{sub}{sa}. Buat rule parametrik untuk memperluas cakupan.",
+                          "{name} can only access their own data{sub}{sa}. Create a parametric rule to widen the scope.",
+                          {
+                            name: selected.fullName,
+                            sub: selected.subordinateCount > 0 ? t(" dan {n} bawahannya (otomatis)", " and their {n} subordinates (automatic)", { n: selected.subordinateCount }) : "",
+                            sa: selected.isSuperAdmin ? t(", serta seluruh data sebagai super admin", ", plus all data as a super admin") : "",
+                          },
+                        )}
+                        icon={SlidersHorizontal}
+                      />
+                    ) : (
+                      <div className="space-y-2.5">
+                        {userRules.map((r) => (
+                          <UserRuleCard key={r.id} r={r} busy={toggling === r.id} onToggle={(v) => toggleRule(r, v)} onEdit={() => setRuleDialog({ open: true, rule: r })} onDelete={() => setDeleting(r)} />
+                        ))}
+                      </div>
+                    )}
+                    </>
                   )}
                 </CardContent>
               </Card>

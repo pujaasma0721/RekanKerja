@@ -4,7 +4,7 @@ import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/servi
 import { getTenantClient, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
-import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES } from "@/rekankerja/shared/services/access-scope";
+import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES, ESS_ONLY_APP_ROLES } from "@/rekankerja/shared/services/access-scope";
 import { publicMenuPerms, warnNoMenuConfig } from "@/rekankerja/shared/services/menu-access";
 import { normalizeMenusJson, sanitizeMenusInput, viewListOf, type MenusMap } from "@/rekankerja/shared/lib/menu-perms";
 
@@ -82,6 +82,12 @@ export async function GET(req: NextRequest) {
       if (me.isSuperAdmin) {
         // Super admin otomatis semua menu & aksi.
         return NextResponse.json({ all: true, menus: [], perms: {}, isSuperAdmin: true });
+      }
+      // Role ESS — portal-only (mirror clamp resolveMenuPerms di
+      // services/menu-access.ts): tanpa menu admin apa pun → auto-deteksi
+      // mode UI page.tsx menempatkan pengguna langsung di portal ESS.
+      if (me.appUserRole != null && ESS_ONLY_APP_ROLES.includes(me.appUserRole)) {
+        return NextResponse.json({ all: false, menus: [], perms: {}, isSuperAdmin: false });
       }
       if (me.appUserId == null) {
         // T1-SECURITY — fail-closed (dulu fail-open all:true): tanpa AppUser,
@@ -180,6 +186,8 @@ export async function GET(req: NextRequest) {
         active: u.active,
         employee: u.employeeId ? (empById.get(u.employeeId) ?? null) : null,
         isSuperAdmin,
+        /** true = role ESS — terkunci portal ESS; editor hak akses menu admin dikunci UI. */
+        essOnly: ESS_ONLY_APP_ROLES.includes(u.role),
         subordinateCount: u.employeeId ? subCount.get(u.employeeId) ?? 0 : 0,
         menuMode: cfg?.mode === "CUSTOM" ? "CUSTOM" : "ALL",
         menus: cfg?.mode === "CUSTOM" ? viewListOf(parseMenusMap(cfg.menusJson)) : [],
@@ -220,6 +228,15 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
     if (SUPER_ADMIN_APP_ROLES.includes(user.role)) {
       return NextResponse.json({ error: "Super admin otomatis punya akses semua menu — tidak perlu dibatasi." }, { status: 400 });
+    }
+    // Role ESS — portal-only: hak akses menu admin tidak berlaku (clamp
+    // resolveMenuPerms mengabaikannya); tolak supaya admin tidak menyangka
+    // konfigurasi ini berdampak.
+    if (ESS_ONLY_APP_ROLES.includes(user.role)) {
+      return NextResponse.json(
+        { error: "Pengguna dengan role ESS hanya dapat mengakses portal ESS — hak akses menu admin tidak berlaku." },
+        { status: 400 },
+      );
     }
 
     const mode = b.mode === "CUSTOM" ? "CUSTOM" : "ALL";

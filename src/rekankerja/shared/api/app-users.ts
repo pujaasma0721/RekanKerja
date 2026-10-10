@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { readSessionCookie } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
-import { validatePassword } from "@/rekankerja/shared/lib/password-policy";
+import { validatePassword, platformRoleOfAppRole } from "@/rekankerja/shared/lib/password-policy";
 import { getTenantPolicy, checkPasswordHistory, recordPasswordSet } from "@/rekankerja/shared/services/password-security";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // GET — users + access groups (passwordChangedAt & umur sandi utk tabel Pengguna)
+// AUD-DEPLOY (role-ESS): guard menu settings:security (dulu requireTenant saja —
+// pengguna non-admin/ESS bisa membaca seluruh daftar pengguna workspace).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["settings:security"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const users = await db.appUser.findMany({
       include: { accessGroups: { include: { accessGroup: { select: { name: true, code: true } } } } },
@@ -55,10 +57,19 @@ export async function POST(req: NextRequest | Request) {
     const fullName = String(b.fullName ?? "").trim();
     const email = String(b.email ?? "").trim().toLowerCase();
     const password = String(b.password ?? "");
+    const role = String(b.role ?? "Viewer");
 
     if (!username || !fullName) return NextResponse.json({ error: "Username & nama wajib diisi" }, { status: 400 });
     if (!EMAIL_RE.test(email)) return NextResponse.json({ error: "Email wajib diisi dengan format valid (untuk login)" }, { status: 400 });
     if (!password) return NextResponse.json({ error: "Kata sandi awal wajib diisi" }, { status: 400 });
+    // Role ESS — portal ESS berbasis data karyawan (requireEss menuntut
+    // employeeId): tanpa tautan karyawan, pengguna ESS tidak bisa masuk apa pun.
+    if (role === "ESS" && !b.employeeId) {
+      return NextResponse.json(
+        { error: "Pengguna dengan role ESS wajib ditautkan ke data karyawan (portal ESS berbasis data karyawan)." },
+        { status: 400 },
+      );
+    }
 
     // validasi kebijakan kata sandi (kompleksitas lengkap)
     const policy = await getTenantPolicy(db);
@@ -89,7 +100,7 @@ export async function POST(req: NextRequest | Request) {
     const user = await db.appUser.create({
       data: {
         username, fullName, email,
-        role: b.role ?? "Viewer",
+        role,
         employeeId: b.employeeId ? String(b.employeeId) : null,
         active: b.active !== false,
         passwordChangedAt: new Date(),
@@ -189,6 +200,17 @@ export async function PATCH(req: Request) {
     }
 
     // ---- EDIT BIASA (nama/email/role/status/employee) ----
+    // Role ESS — portal ESS berbasis data karyawan: wajib ada tautan employee
+    // (nilai baru ATAU yang sudah tersimpan) sebelum role boleh disimpan.
+    if (b.role === "ESS") {
+      const effEmployeeId = b.employeeId !== undefined ? b.employeeId : current.employeeId;
+      if (!effEmployeeId) {
+        return NextResponse.json(
+          { error: "Pengguna dengan role ESS wajib ditautkan ke data karyawan (portal ESS berbasis data karyawan)." },
+          { status: 400 },
+        );
+      }
+    }
     let newEmail = current.email;
     if (b.email !== undefined && b.email !== null && b.email !== current.email) {
       const email = String(b.email).trim().toLowerCase();
@@ -226,6 +248,26 @@ export async function PATCH(req: Request) {
           : b.accessGroupId === "" ? { accessGroups: { deleteMany: {} } } : {}),
       },
     });
+
+    // Role berubah → sinkronkan role membership platform (pemetaan
+    // platformRoleOfAppRole — mis. demosi ke ESS/Viewer → VIEWER: guard
+    // requireMutator menolak mutasi admin 403 untuk VIEWER) agar role aplikasi
+    // dan role platform tidak berbeda hasil. Membership OWNER tidak pernah
+    // disentuh lewat jalur ini (pemilik workspace tidak didemosi implisit);
+    // clamp ESS di menu-access tetap berlaku apapun membership platform.
+    if (b.role && b.role !== current.role) {
+      const lookupEmail = (newEmail ?? current.email ?? "").trim().toLowerCase();
+      if (lookupEmail) {
+        const pu = await platformDb.user.findUnique({ where: { email: lookupEmail }, select: { id: true } }).catch(() => null);
+        const payload = readSessionCookie(req);
+        if (pu && payload?.tid) {
+          await platformDb.userTenant.updateMany({
+            where: { userId: pu.id, tenantId: payload.tid, role: { not: "OWNER" } },
+            data: { role: platformRoleOfAppRole(b.role) },
+          }).catch(() => {});
+        }
+      }
+    }
     return NextResponse.json({ user });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

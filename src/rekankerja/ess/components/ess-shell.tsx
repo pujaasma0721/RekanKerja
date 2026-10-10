@@ -88,7 +88,7 @@ const subscribeNoop = () => () => {};
 
 // Task 103-e — label dwibahasa utk role akun ESS di menu avatar. Mencakup
 // platform role (OWNER|ADMIN|HR|VIEWER) maupun AppUser.role tenant
-// (Admin|HR Manager|HR Staff|Approver|Viewer); nilai lain → raw.
+// (Admin|HR Manager|HR Staff|Approver|Viewer|ESS); nilai lain → raw.
 const ESS_ROLE_LABEL: Record<string, { id: string; en: string }> = {
   OWNER: { id: "Pemilik", en: "Owner" },
   ADMIN: { id: "Admin", en: "Admin" },
@@ -99,6 +99,7 @@ const ESS_ROLE_LABEL: Record<string, { id: string; en: string }> = {
   "HR Staff": { id: "HR Staff", en: "HR Staff" },
   Approver: { id: "Approver", en: "Approver" },
   Viewer: { id: "Pengamat", en: "Viewer" },
+  ESS: { id: "Karyawan ESS", en: "ESS Employee" },
 };
 function essRoleLabel(role: string, t: (id: string, en: string) => string): string {
   const m = ESS_ROLE_LABEL[role];
