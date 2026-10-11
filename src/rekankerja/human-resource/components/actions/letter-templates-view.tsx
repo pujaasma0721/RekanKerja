@@ -205,6 +205,7 @@ export function LetterTemplatesView() {
   const disciplinary = templates.filter((x) => x.category === "Disciplinary");
   const personnel = templates.filter((x) => x.category === "PersonnelAction");
   const service = templates.filter((x) => x.category === "EmployeeService");
+  const recruitment = templates.filter((x) => x.category === "Recruitment");
   const reqRows = requests.data?.requests ?? [];
   const pendingCount = requests.data?.counts.pending ?? 0;
   const docRows = filterRowsByAdv(
@@ -218,9 +219,9 @@ export function LetterTemplatesView() {
     DOC_ADV_FIELDS,
   );
   const signedCount = (issued.data?.letters ?? []).filter((d) => d.esign).length;
-  const CATEGORY_LABEL: Record<string, string> = { Disciplinary: "Disipliner", PersonnelAction: "Personnel Action", EmployeeService: "Layanan Karyawan" };
+  const CATEGORY_LABEL: Record<string, string> = { Disciplinary: "Disipliner", PersonnelAction: "Personnel Action", EmployeeService: "Layanan Karyawan", Recruitment: "Rekrutmen" };
   // Task 103-f — pasangan EN (key = kode kategori) utk render t(label, EN).
-  const CATEGORY_LABEL_EN: Record<string, string> = { Disciplinary: "Disciplinary", PersonnelAction: "Personnel Action", EmployeeService: "Employee Service" };
+  const CATEGORY_LABEL_EN: Record<string, string> = { Disciplinary: "Disciplinary", PersonnelAction: "Personnel Action", EmployeeService: "Employee Service", Recruitment: "Recruitment" };
 
   /** Toggle aktif/nonaktif (klik pil). */
   const toggleActive = async (tpl: TemplateRow) => {
@@ -332,9 +333,9 @@ export function LetterTemplatesView() {
         eyebrow={t("Dokumen & Surat")}
         title={t("Template Surat", "Letter Templates")}
         description={t(
-          "{total} template surat siap cetak — {d} disipliner · {p} personnel action · {s} surat layanan karyawan. Sesuaikan isi template dengan format surat perusahaan Anda.",
-          "{total} print-ready letter templates — {d} disciplinary · {p} personnel action · {s} employee service. Customize the templates to your company's letter format.",
-          { total: templates.length, d: disciplinary.length, p: personnel.length, s: service.length },
+          "{total} template surat siap cetak — {d} disipliner · {p} personnel action · {s} surat layanan karyawan · {r} rekrutmen. Sesuaikan isi template dengan format surat perusahaan Anda.",
+          "{total} print-ready letter templates — {d} disciplinary · {p} personnel action · {s} employee service · {r} recruitment. Customize the templates to your company's letter format.",
+          { total: templates.length, d: disciplinary.length, p: personnel.length, s: service.length, r: recruitment.length },
         )}
       />
 
@@ -403,6 +404,17 @@ export function LetterTemplatesView() {
                 </h3>
                 <div className="grid gap-3">
                   {service.map(renderRow)}
+                </div>
+              </section>
+
+              {/* ===== seksi Rekrutmen (F3-REC — surat kandidat) ===== */}
+              <section aria-label={t("Template Surat Rekrutmen", "Recruitment Templates")}>
+                <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <UserRound className="h-3.5 w-3.5" aria-hidden /> {t("Rekrutmen (Kandidat)", "Recruitment (Candidates)")}
+                  <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-slate-400">{recruitment.length}</Badge>
+                </h3>
+                <div className="grid gap-3">
+                  {recruitment.map(renderRow)}
                 </div>
               </section>
             </div>

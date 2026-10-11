@@ -420,6 +420,11 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
   // Tenant existing di-heal scripts/migrate-recruitment-f0.ts via parity-runner
   // (seed identik — insert-only per code; lihat DEVELOPMENT-PLAN-RECRUITMENT.md §7 F0).
   await ensureRecruitmentReference(db);
+
+  // F3-REC — referensi proses seleksi (minResultPass Psikotes + template
+  // scorecard default). Template surat REC_INVITE ikut dari
+  // LETTER_TEMPLATE_DEFAULTS di atas (kategori "Recruitment").
+  await ensureRecruitmentF3Reference(db);
 }
 
 // ============ RECRUITMENT REFERENCE (F0 — DEVELOPMENT-PLAN-RECRUITMENT.md) ============
@@ -558,6 +563,66 @@ export async function ensureRecruitmentReference(db: TenantDb): Promise<void> {
           mandatory: true, appliesInternal: true, appliesExternal: true,
           sortOrder: s.processOrder,
         },
+      });
+    }
+  }
+}
+
+// ============ RECRUITMENT F3 REFERENCE (seleksi — DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3) ============
+
+/** Template scorecard default (HRX D2) — idempoten per nama. */
+const F3_SCORECARD_SEED: { name: string; stageCode: string | null; description: string; competencies: { name: string; weight: number }[] }[] = [
+  {
+    name: "Interview HR — Screening Awal",
+    stageCode: "INTERVIEW_HR",
+    description: "Rubrik penyaringan awal oleh HR (kesesuaian diri, motivasi, ekspektasi).",
+    competencies: [
+      { name: "Komunikasi & Interaksi", weight: 1 },
+      { name: "Kesesuaian Diri & Motivasi", weight: 1 },
+      { name: "Kecocokan Ekspektasi Kerja", weight: 1 },
+    ],
+  },
+  {
+    name: "Interview User — Kompetensi Teknis",
+    stageCode: "INTERVIEW_USER",
+    description: "Rubrik wawancara user/atasan (keahlian teknis bidang).",
+    competencies: [
+      { name: "Keahlian Teknis Bidang", weight: 1.5 },
+      { name: "Problem Solving & Analisis", weight: 1 },
+      { name: "Kualitas & Ketelitian Hasil Kerja", weight: 1 },
+    ],
+  },
+  {
+    name: "Rubrik Umum Wawancara",
+    stageCode: null,
+    description: "Rubrik generik — bisa dipakai tahap mana pun tanpa rubrik khusus.",
+    competencies: [
+      { name: "Komunikasi", weight: 1 },
+      { name: "Kerja Sama Tim", weight: 1 },
+      { name: "Inisiatif & Proaktif", weight: 1 },
+      { name: "Integritas & Etika Kerja", weight: 1 },
+    ],
+  },
+];
+
+/** Referensi F3: minResultPass Psikotes + template scorecard default. */
+export async function ensureRecruitmentF3Reference(db: TenantDb): Promise<void> {
+  // Psikotes minResultPass = 70 (padanan min_result_pass oranHR §2.6)
+  const psiko = await db.selectionProcess.findUnique({ where: { code: "PSIKOTES" }, select: { id: true, minResultPass: true } });
+  if (psiko && psiko.minResultPass == null) {
+    await db.selectionProcess.update({ where: { id: psiko.id }, data: { minResultPass: 70 } });
+  }
+  for (const t of F3_SCORECARD_SEED) {
+    const before = await db.scorecardTemplate.findFirst({ where: { name: t.name }, select: { id: true } });
+    if (before) continue;
+    const stage = t.stageCode ? await db.selectionProcess.findUnique({ where: { code: t.stageCode }, select: { id: true } }) : null;
+    const tpl = await db.scorecardTemplate.create({
+      data: { name: t.name, description: t.description, selectionProcessId: stage?.id ?? null, active: true },
+    });
+    let order = 1;
+    for (const c of t.competencies) {
+      await db.scorecardCompetency.create({
+        data: { templateId: tpl.id, name: c.name, weight: c.weight, orderNo: order++ },
       });
     }
   }

@@ -12,6 +12,7 @@ import type { MasterType } from "@/rekankerja/recruitment/services/recruitment-m
 import {
   UserRoundSearch, Boxes, ListChecks, CheckCircle2, Circle, ArrowRight, Megaphone, BadgeCheck,
   Handshake, Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList, UsersRound, Inbox, Layers3,
+  UserRoundCheck, FileText,
 } from "lucide-react";
 
 const TYPE_ICON: Record<string, React.ElementType> = {
@@ -45,12 +46,25 @@ export function RecruitmentOverview() {
     { key: "F0", label: "Fondasi Modul & Master", labelEn: "Module & Master Foundation", done: true },
     { key: "F1", label: "Permintaan Karyawan (PR) + Approval", labelEn: "Personnel Requisition + Approval", done: true },
     { key: "F2", label: "Lowongan & Pelamar (talent pool)", labelEn: "Openings & Applicants (talent pool)", done: true },
-    { key: "F3", label: "Kandidat & Proses Seleksi", labelEn: "Candidates & Selection Process", done: false },
+    { key: "F3", label: "Kandidat & Proses Seleksi", labelEn: "Candidates & Selection Process", done: true },
     { key: "F4", label: "Offer & Appointment + Onboarding", labelEn: "Offer & Appointment + Onboarding", done: false },
     { key: "F5", label: "ESS, Rencana & Anggaran", labelEn: "ESS, Plan & Budget", done: false },
   ];
   const prApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/pr?limit=1");
   const ps = prApi.data?.stats;
+
+  // F3: ringkasan kandidat & seleksi per PR (summaries — 403 → null "—")
+  const selApi = useApi<{ summaries: { prId: string; prNo: string; candidates: number; active: number; overdue: number; invitations: number }[] }>(
+    "/api/rekankerja/recruitment/selection?summaries=1",
+  );
+  const selSum = selApi.data?.summaries ?? [];
+  const selTotals = {
+    prs: selApi.data ? selSum.length : null,
+    candidates: selApi.data ? selSum.reduce((a, s) => a + s.candidates, 0) : null,
+    active: selApi.data ? selSum.reduce((a, s) => a + s.active, 0) : null,
+    overdue: selApi.data ? selSum.reduce((a, s) => a + s.overdue, 0) : null,
+    invitations: selApi.data ? selSum.reduce((a, s) => a + s.invitations, 0) : null,
+  };
 
   // F2: statistik lowongan / talent pool / staging — 403 (tanpa menu terkait)
   // dirender "—" tanpa error console (useApi menangkap error sebagai string).
@@ -67,8 +81,8 @@ export function RecruitmentOverview() {
         eyebrow={t("Recruitment · Ringkasan")}
         title={t("Rekrutmen", "Recruitment")}
         description={t(
-          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F2 (lowongan, talent pool & lamaran publik).",
-          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F2 (openings, talent pool & public applications).",
+          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F3 (kandidat & proses seleksi terstruktur — board, scorecard, surat undangan).",
+          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F3 (candidates & structured selection — board, scorecards, invitation letters).",
         )}
       />
 
@@ -186,6 +200,56 @@ export function RecruitmentOverview() {
                     <p className="text-[11px] font-medium text-slate-500">{label}</p>
                     <p className="text-lg font-semibold tabular-nums">{ps[k] ?? 0}</p>
                   </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ringkasan F3 — kandidat & seleksi */}
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <UserRoundCheck className="h-4 w-4 ov-text-accent" aria-hidden />
+              {t("Kandidat & Seleksi (F3)", "Candidates & Selection (F3)")}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {t(
+                "Kandidat aktif per PR beserta tahap seleksi berjalan (board kanban, scorecard, surat undangan, SLA). Kelola di menu Kandidat & Seleksi.",
+                "Active candidates per PR with running selection stages (kanban board, scorecards, invitation letters, SLA). Manage in the Candidates & Selection menu.",
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {([
+                { icon: Layers3, label: t("PR dengan Kandidat", "PRs w/ Candidates"), value: selTotals.prs },
+                { icon: UsersRound, label: t("Kandidat Aktif", "Active Candidates"), value: selTotals.active },
+                { icon: UserRoundCheck, label: t("Tahap SLA Terlambat", "Overdue Stages"), value: selTotals.overdue },
+                { icon: FileText, label: t("Undangan Terbit", "Invitations Issued"), value: selTotals.invitations },
+              ] as { icon: React.ElementType; label: string; value: number | null }[]).map((s, i) => {
+                const Icon = s.icon;
+                return (
+                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
+                    title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
+                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
+                      <p className="text-lg font-semibold tabular-nums">{s.value ?? "—"}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {selApi.data && selSum.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {selSum.map((s) => (
+                  <span key={s.prId} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                    {s.prNo}: {s.candidates} {t("kandidat", "candidates")}
+                    {s.overdue > 0 && <span className="ml-1 font-bold text-amber-600 dark:text-amber-400">· {s.overdue} {t("terlambat", "overdue")}</span>}
+                  </span>
                 ))}
               </div>
             )}

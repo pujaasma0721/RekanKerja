@@ -309,6 +309,13 @@ model Employee {
   applicantsReferred Applicant[]            @relation("ApplicantReferrer")
   publicAppsVerified PublicApplication[]    @relation("PaVerifier")
 
+  // F3-REC — seleksi: pencatat nominasi kandidat / kandidat internal /
+  // evaluator tahap / pengisi scorecard.
+  candidatesNominated  JobCandidate[]           @relation("CandidateNominator")
+  candidatesAsInternal  JobCandidate[]           @relation("CandidateInternalEmployee")
+  stepsPerformed        CandidateSelectionStep[] @relation("StepPerformer")
+  scorecardsEvaluated   CandidateScorecard[]     @relation("ScorecardEvaluator")
+
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
   @@index([status])
@@ -3295,6 +3302,10 @@ model SelectionProcess {
   sortOrder           Int      @default(0)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+  // F3-REC — langkah per kandidat + template scorecard yang terikat tahap ini
+  steps             CandidateSelectionStep[]
+  scorecardTemplates ScorecardTemplate[]      @relation("ProcessScorecardTemplates")
 }
 
 // ============ RECRUITMENT — F1: PERMINTAAN KARYAWAN (PR) ============
@@ -3347,6 +3358,9 @@ model PersonnelRequisition {
 
   // F2-REC — slot lowongan yang melayani PR ini
   openings           JobOpening[]   @relation("PrOpenings")
+
+  // F3-REC — kandidat yang dinominasikan ke PR ini
+  candidates         JobCandidate[] @relation("PrCandidates")
 
   @@index([status, requestDate])
   @@index([requestedById])
@@ -3515,6 +3529,8 @@ model Applicant {
   documents        ApplicantDocument[]
   applications     ApplicantApplication[]
   consents         ApplicantConsent[]
+  // F3-REC — kandidat PR yang bersumber dari pelamar ini
+  candidates       JobCandidate[]     @relation("ApplicantCandidates")
 
   @@index([status])
   @@index([keepOnFileUntil])
@@ -3655,4 +3671,186 @@ model ApplicantConsent {
   applicant Applicant? @relation(fields: [applicantId], references: [id], onDelete: Cascade)
 
   @@index([applicantId, purpose])
+}
+
+// ============================================================================
+// RECRUITMENT — F3: KANDIDAT & PROSES SELEKSI TERSTRUKTUR
+// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3 + §4.2/§4.3 — oranHR §2.6
+//  EvaluationProcess/EvaluationProcessPerCandidate + HRX D1/D2/D3/D6)
+//
+// Rantai: JobCandidate (per PR; Applicant eksternal ATAU Employee internal)
+//   → CandidateSelectionStep (per tahap master, urut seqNo = processOrder):
+//     Planned → [Acknowledged] → Performed → Passed|Failed (continueProcess)
+//   → CandidateScorecard + ScorecardItem (rubrik 1–5 anchored per evaluator;
+//     feedback wajib sebelum naik tahap; divergensi panel >2 dihitung saat
+//     baca — HRX D2).
+// Surat undangan: RecruitmentLetter (snapshot + nomor NNN/HR-RC/x/2026) —
+// terikat KANDIDAT (LetterDocument terikat Employee; pelamar eksternal bukan
+// employee). Template tetap di LetterTemplate (kategori "Recruitment") dan
+// render/PDF memakai mesin surat (renderLetterBody + letterPdfBuffer).
+// Hasil tes eksternal (psikotes/medis — keputusan §3.10: catat manual):
+// Attachment entityType "recruitment-step-report" + kolom ringkas di step.
+// ============================================================================
+
+// Kandidat PR — pelamar talent pool (eksternal) ATAU employee (internal:
+// mutasi/promosi — HRX A4). fullName = snapshot saat transfer (tampilan
+// board/list cepat; identitas penuh tetap lewat relasi Applicant/Employee).
+model JobCandidate {
+  id            String   @id @default(cuid())
+  prId          String
+  applicantId   String? // eksternal → Applicant talent pool
+  employeeId    String? // internal → Employee (mutasi/promosi)
+  source        String   @default("External") // Internal|External
+  status        String   @default("Nominated") // Nominated|InProcess|Passed|Failed|Withdrawn
+  fullName      String // snapshot nama saat dinominasikan
+  nominatedById String? // Employee pencatat (null = sistem/import)
+  nominatedAt   DateTime @default(now())
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  pr            PersonnelRequisition    @relation("PrCandidates", fields: [prId], references: [id])
+  applicant     Applicant?             @relation("ApplicantCandidates", fields: [applicantId], references: [id])
+  employee      Employee?              @relation("CandidateInternalEmployee", fields: [employeeId], references: [id])
+  nominatedBy  Employee?              @relation("CandidateNominator", fields: [nominatedById], references: [id])
+  selectionSteps CandidateSelectionStep[]
+  scorecards     CandidateScorecard[]
+  letters        RecruitmentLetter[]
+
+  @@unique([prId, applicantId]) // 1 pelamar 1 PR (employee internal bebas)
+  @@index([prId, status])
+  @@index([employeeId])
+}
+
+// Satu tahap seleksi per kandidat (padanan EvaluationProcessPerCandidate
+// oranHR — plan/due + ack + performed + hasil Quantitative|Qualitative +
+// pass/fail + continueProcess). dueDate = batas SLA (plan + slaDays master,
+// boleh di-override manual).
+model CandidateSelectionStep {
+  id                 String    @id @default(cuid())
+  candidateId        String
+  selectionProcessId String
+  seqNo              Int // urutan jalannya proses (dari processOrder master)
+  planDate           DateTime? // jadwal pelaksanaan (undangan)
+  dueDate            DateTime? // batas SLA tahap
+  acknowledgedAt     DateTime? // needAcknowledgement → ack kandidat/ESS
+  performedById      String? // Employee evaluator pelaksana
+  performedAt        DateTime?
+  status             String    @default("Planned") // Planned|Acknowledged|Performed|Passed|Failed|Cancelled
+  score              Float? // hasil Quantitative (dibanding minResultPass)
+  result             String? // hasil Qualitative / indeks teks
+  comment            String?
+  continueProcess    Boolean   @default(true) // gagal tapi lanjut (keputusan HR)
+  reportFileName     String? // nama file laporan tes eksternal (Attachment)
+  letterNo           String? // nomor surat undangan terakhir (display cepat)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  candidate        JobCandidate      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  selectionProcess SelectionProcess @relation(fields: [selectionProcessId], references: [id])
+  performedBy      Employee?         @relation("StepPerformer", fields: [performedById], references: [id])
+  scorecards       CandidateScorecard[]
+  letters          RecruitmentLetter[]
+
+  @@unique([candidateId, selectionProcessId, seqNo])
+  @@index([candidateId, status])
+  @@index([status, dueDate]) // monitor SLA overdue + reminder scheduler
+}
+
+// Template rubrik penilaian per tahap (HRX D2 — structured scorecards).
+// selectionProcessId null = template umum (dipakai semua tahap).
+model ScorecardTemplate {
+  id                 String   @id @default(cuid())
+  name               String
+  selectionProcessId String?
+  description        String?
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  selectionProcess SelectionProcess?    @relation("ProcessScorecardTemplates", fields: [selectionProcessId], references: [id])
+  competencies     ScorecardCompetency[]
+  scorecards       CandidateScorecard[]
+
+  @@index([active])
+}
+
+// Rubrik kompetensi 1–5 anchored (anchorsJson = [{value,label,guide}…]).
+model ScorecardCompetency {
+  id          String  @id @default(cuid())
+  templateId  String
+  name        String
+  description String?
+  weight      Float   @default(1)
+  anchorsJson String?
+  orderNo     Int     @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  template ScorecardTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  items    ScorecardItem[]
+
+  @@index([templateId, orderNo])
+}
+
+// Pengisian scorecard per kandidat per tahap per evaluator (unik). Draft =
+// submittedAt null; feedback wajib sebelum tahap bisa naik (dipaksa service).
+model CandidateScorecard {
+  id              String    @id @default(cuid())
+  candidateId     String
+  selectionStepId String
+  templateId      String
+  evaluatorId     String // Employee
+  submittedAt     DateTime?
+  recommendation  String? // StrongHire|Hire|NoHire|StrongNoHire
+  overallComment  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  candidate      JobCandidate          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  selectionStep  CandidateSelectionStep @relation(fields: [selectionStepId], references: [id], onDelete: Cascade)
+  template       ScorecardTemplate     @relation(fields: [templateId], references: [id])
+  evaluator      Employee              @relation("ScorecardEvaluator", fields: [evaluatorId], references: [id])
+  items          ScorecardItem[]
+
+  @@unique([selectionStepId, evaluatorId])
+}
+
+// Skor per kompetensi (1–5) — satu baris per pasangan scorecard×kompetensi.
+model ScorecardItem {
+  id           String   @id @default(cuid())
+  scorecardId  String
+  competencyId String
+  score        Int // 1–5
+  comment      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  scorecard  CandidateScorecard  @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
+  competency ScorecardCompetency @relation(fields: [competencyId], references: [id])
+
+  @@unique([scorecardId, competencyId])
+}
+
+// Surat rekrutmen (undangan seleksi; nanti hasil/offer) — snapshot seperti
+// LetterDocument tapi terikat KANDIDAT (pelamar eksternal bukan Employee).
+// letterNo NNN/HR-RC/{romawi}/{tahun} per tahun (pola letter-service).
+model RecruitmentLetter {
+  id              String   @id @default(cuid())
+  letterNo        String   @unique
+  kind            String // Invitation (F3) — Result|Offer menyusul
+  templateKey     String
+  candidateId     String
+  selectionStepId String?
+  subject         String?
+  body            String // snapshot hasil render (audit & cetak ulang)
+  metaJson        String?
+  issuedAt        DateTime @default(now())
+  createdById     String? // Employee penerbit (jejak)
+
+  candidate     JobCandidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  selectionStep CandidateSelectionStep? @relation(fields: [selectionStepId], references: [id])
+
+  @@index([candidateId, issuedAt])
+  @@index([kind, issuedAt])
 }

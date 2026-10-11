@@ -2761,6 +2761,122 @@ CREATE TABLE "ApplicantConsent" (
     CONSTRAINT "ApplicantConsent_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "JobCandidate" (
+    "id" TEXT NOT NULL,
+    "prId" TEXT NOT NULL,
+    "applicantId" TEXT,
+    "employeeId" TEXT,
+    "source" TEXT NOT NULL DEFAULT 'External',
+    "status" TEXT NOT NULL DEFAULT 'Nominated',
+    "fullName" TEXT NOT NULL,
+    "nominatedById" TEXT,
+    "nominatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "JobCandidate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CandidateSelectionStep" (
+    "id" TEXT NOT NULL,
+    "candidateId" TEXT NOT NULL,
+    "selectionProcessId" TEXT NOT NULL,
+    "seqNo" INTEGER NOT NULL,
+    "planDate" TIMESTAMP(3),
+    "dueDate" TIMESTAMP(3),
+    "acknowledgedAt" TIMESTAMP(3),
+    "performedById" TEXT,
+    "performedAt" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'Planned',
+    "score" DOUBLE PRECISION,
+    "result" TEXT,
+    "comment" TEXT,
+    "continueProcess" BOOLEAN NOT NULL DEFAULT true,
+    "reportFileName" TEXT,
+    "letterNo" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CandidateSelectionStep_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ScorecardTemplate" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "selectionProcessId" TEXT,
+    "description" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ScorecardTemplate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ScorecardCompetency" (
+    "id" TEXT NOT NULL,
+    "templateId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "weight" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "anchorsJson" TEXT,
+    "orderNo" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ScorecardCompetency_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CandidateScorecard" (
+    "id" TEXT NOT NULL,
+    "candidateId" TEXT NOT NULL,
+    "selectionStepId" TEXT NOT NULL,
+    "templateId" TEXT NOT NULL,
+    "evaluatorId" TEXT NOT NULL,
+    "submittedAt" TIMESTAMP(3),
+    "recommendation" TEXT,
+    "overallComment" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CandidateScorecard_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ScorecardItem" (
+    "id" TEXT NOT NULL,
+    "scorecardId" TEXT NOT NULL,
+    "competencyId" TEXT NOT NULL,
+    "score" INTEGER NOT NULL,
+    "comment" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ScorecardItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RecruitmentLetter" (
+    "id" TEXT NOT NULL,
+    "letterNo" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "templateKey" TEXT NOT NULL,
+    "candidateId" TEXT NOT NULL,
+    "selectionStepId" TEXT,
+    "subject" TEXT,
+    "body" TEXT NOT NULL,
+    "metaJson" TEXT,
+    "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdById" TEXT,
+
+    CONSTRAINT "RecruitmentLetter_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -3418,6 +3534,45 @@ CREATE INDEX "PublicApplication_status_submittedAt_idx" ON "PublicApplication"("
 -- CreateIndex
 CREATE INDEX "ApplicantConsent_applicantId_purpose_idx" ON "ApplicantConsent"("applicantId", "purpose");
 
+-- CreateIndex
+CREATE INDEX "JobCandidate_prId_status_idx" ON "JobCandidate"("prId", "status");
+
+-- CreateIndex
+CREATE INDEX "JobCandidate_employeeId_idx" ON "JobCandidate"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "JobCandidate_prId_applicantId_key" ON "JobCandidate"("prId", "applicantId");
+
+-- CreateIndex
+CREATE INDEX "CandidateSelectionStep_candidateId_status_idx" ON "CandidateSelectionStep"("candidateId", "status");
+
+-- CreateIndex
+CREATE INDEX "CandidateSelectionStep_status_dueDate_idx" ON "CandidateSelectionStep"("status", "dueDate");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CandidateSelectionStep_candidateId_selectionProcessId_seqNo_key" ON "CandidateSelectionStep"("candidateId", "selectionProcessId", "seqNo");
+
+-- CreateIndex
+CREATE INDEX "ScorecardTemplate_active_idx" ON "ScorecardTemplate"("active");
+
+-- CreateIndex
+CREATE INDEX "ScorecardCompetency_templateId_orderNo_idx" ON "ScorecardCompetency"("templateId", "orderNo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CandidateScorecard_selectionStepId_evaluatorId_key" ON "CandidateScorecard"("selectionStepId", "evaluatorId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ScorecardItem_scorecardId_competencyId_key" ON "ScorecardItem"("scorecardId", "competencyId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RecruitmentLetter_letterNo_key" ON "RecruitmentLetter"("letterNo");
+
+-- CreateIndex
+CREATE INDEX "RecruitmentLetter_candidateId_issuedAt_idx" ON "RecruitmentLetter"("candidateId", "issuedAt");
+
+-- CreateIndex
+CREATE INDEX "RecruitmentLetter_kind_issuedAt_idx" ON "RecruitmentLetter"("kind", "issuedAt");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -3948,4 +4103,55 @@ ALTER TABLE "PublicApplication" ADD CONSTRAINT "PublicApplication_verifiedById_f
 
 -- AddForeignKey
 ALTER TABLE "ApplicantConsent" ADD CONSTRAINT "ApplicantConsent_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobCandidate" ADD CONSTRAINT "JobCandidate_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PersonnelRequisition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobCandidate" ADD CONSTRAINT "JobCandidate_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobCandidate" ADD CONSTRAINT "JobCandidate_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobCandidate" ADD CONSTRAINT "JobCandidate_nominatedById_fkey" FOREIGN KEY ("nominatedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateSelectionStep" ADD CONSTRAINT "CandidateSelectionStep_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "JobCandidate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateSelectionStep" ADD CONSTRAINT "CandidateSelectionStep_selectionProcessId_fkey" FOREIGN KEY ("selectionProcessId") REFERENCES "SelectionProcess"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateSelectionStep" ADD CONSTRAINT "CandidateSelectionStep_performedById_fkey" FOREIGN KEY ("performedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ScorecardTemplate" ADD CONSTRAINT "ScorecardTemplate_selectionProcessId_fkey" FOREIGN KEY ("selectionProcessId") REFERENCES "SelectionProcess"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ScorecardCompetency" ADD CONSTRAINT "ScorecardCompetency_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "ScorecardTemplate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateScorecard" ADD CONSTRAINT "CandidateScorecard_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "JobCandidate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateScorecard" ADD CONSTRAINT "CandidateScorecard_selectionStepId_fkey" FOREIGN KEY ("selectionStepId") REFERENCES "CandidateSelectionStep"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateScorecard" ADD CONSTRAINT "CandidateScorecard_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "ScorecardTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateScorecard" ADD CONSTRAINT "CandidateScorecard_evaluatorId_fkey" FOREIGN KEY ("evaluatorId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ScorecardItem" ADD CONSTRAINT "ScorecardItem_scorecardId_fkey" FOREIGN KEY ("scorecardId") REFERENCES "CandidateScorecard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ScorecardItem" ADD CONSTRAINT "ScorecardItem_competencyId_fkey" FOREIGN KEY ("competencyId") REFERENCES "ScorecardCompetency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RecruitmentLetter" ADD CONSTRAINT "RecruitmentLetter_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "JobCandidate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RecruitmentLetter" ADD CONSTRAINT "RecruitmentLetter_selectionStepId_fkey" FOREIGN KEY ("selectionStepId") REFERENCES "CandidateSelectionStep"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

@@ -20,7 +20,7 @@
 //   · UI Template Surat (daftar token + tombol "Kembalikan ke bawaan")
 // =====================================================================
 
-export type LetterCategory = "Disciplinary" | "PersonnelAction" | "EmployeeService";
+export type LetterCategory = "Disciplinary" | "PersonnelAction" | "EmployeeService" | "Recruitment";
 
 export interface LetterTemplateDefault {
   key: string;
@@ -784,6 +784,41 @@ PIHAK KEDUA
     {{employee_name}}
     Karyawan — {{employee_no}}`,
   },
+  // ---------------- REKRUTMEN (F3-REC) ----------------
+  {
+    key: "REC_INVITE",
+    category: "Recruitment",
+    name: "Surat Undangan Seleksi",
+    description: "Undangan tahapan seleksi kandidat (padanan template_code oranHR §2.6) — kirim saat tahap dijadwalkan.",
+    subject: "Undangan Seleksi",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Undangan Proses Seleksi
+
+Kepada Yth.
+Bapak/Ibu {{candidate_name}}
+{{candidate_city}}
+
+Berdasarkan lamaran yang Saudara/i ajukan melalui {{candidate_source}} untuk kebutuhan {{position_name}} ({{pr_no}}) di {{company_name}}, dengan ini kami mengundang Saudara/i untuk mengikuti tahap seleksi berikut:
+
+    Tahap Seleksi   : {{stage_name}} (tahap ke-{{stage_seq}} dari {{stage_total}})
+    Tipe Penilaian  : {{result_type}}
+    Jadwal          : {{plan_date}}
+    Batas Waktu     : {{due_date}}
+    Petugas        : {{evaluator_name}}
+
+Mohon kehadiran Saudara/i tepat waktu sesuai jadwal di atas dan membawa dokumen pendukung yang diperlukan. Apabila terdapat kendala jadwal, silakan menghubungi petugas rekrutmen kami sebelum batas waktu yang tertera.
+
+Demikian undangan ini kami sampaikan. Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
 ];
 
 // ---------------- KATALOG PLACEHOLDER (untuk editor + mesin render) ----------------
@@ -880,6 +915,23 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholderGroup[] = [
       { token: "contract_start", desc: "Mulai periode PKWT aktif (Employee.contractStart)" },
       { token: "contract_end", desc: "Akhir periode PKWT aktif (Employee.contractEnd)" },
       { token: "renewal_count", desc: "Generasi kontrak ke-N (jumlah perpanjangan + 1)" },
+    ],
+  },
+  {
+    group: "Rekrutmen (surat kandidat — REC_INVITE)",
+    tokens: [
+      { token: "candidate_name", desc: "Nama kandidat (pelamar/karyawan internal)" },
+      { token: "candidate_city", desc: "Kota domisili kandidat (bila tersedia)" },
+      { token: "candidate_source", desc: "Sumber kandidat (Portal Web, Referral, dll.)" },
+      { token: "pr_no", desc: "Nomor permintaan karyawan (PR-YYYY-NNNN)" },
+      { token: "position_name", desc: "Posisi yang dilamar" },
+      { token: "stage_name", desc: "Nama tahap seleksi (mis. Interview HR)" },
+      { token: "stage_seq", desc: "Urutan tahap (mis. 2)" },
+      { token: "stage_total", desc: "Total tahap seleksi" },
+      { token: "result_type", desc: "Tipe hasil tahap (Quantitative/Qualitative)" },
+      { token: "plan_date", desc: "Jadwal pelaksanaan tahap" },
+      { token: "due_date", desc: "Batas SLA tahap" },
+      { token: "evaluator_name", desc: "Petugas/evaluator penanggung jawab tahap" },
     ],
   },
 ];

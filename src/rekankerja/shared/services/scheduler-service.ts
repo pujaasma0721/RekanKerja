@@ -54,6 +54,7 @@ import { DEFAULT_TEMPLATES_PLACEHOLDER } from "@/rekankerja/shared/services/emai
 import { notifyEmailEvent, type EmailRecipient } from "@/rekankerja/shared/services/email-service";
 import { notifyEvent, pushNotification } from "@/rekankerja/shared/services/notification-service";
 import { retryFailedWebhookDeliveries } from "@/rekankerja/shared/services/webhook-service";
+import { jobSelectionReminders } from "@/rekankerja/recruitment/services/selection-service";
 
 // ---------- konstanta & env flag ----------
 
@@ -1367,6 +1368,11 @@ export interface SchedulerJobCounts {
   /** F2-REC — pelamar talent pool yang otomatis jadi Outdated oleh job
    *  applicant-outdated (keepOnFileUntil lewat; idempoten by filter Active). */
   applicantOutdatedRows: number;
+  /** F3-REC — tahap seleksi aktif yang diingatkan job selection-reminder
+   *  (dueDate ≤3 hari / overdue harian; dedupe per tanggal). */
+  selectionReminded: number;
+  /** F3-REC — penerima notifikasi in-app dari selection-reminder. */
+  selectionNotified: number;
 }
 
 export interface SchedulerRunResult {
@@ -1412,6 +1418,8 @@ export async function runAllJobs(
     attendanceOtAging: 0,
     attendanceTransferReminders: 0,
     applicantOutdatedRows: 0,
+    selectionReminded: 0,
+    selectionNotified: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1509,6 +1517,12 @@ export async function runAllJobs(
   await guarded("applicant-outdated", async () => {
     jobs.applicantOutdatedRows = await jobApplicantOutdated(db);
   });
+  // F3-REC — pengingat SLA tahap seleksi (3 hari sebelum due / overdue harian).
+  await guarded("selection-reminder", async () => {
+    const r = await jobSelectionReminders(db);
+    jobs.selectionReminded = r.reminded;
+    jobs.selectionNotified = r.notified;
+  });
 
   const totalJobs =
     jobs.resignTerminated +
@@ -1530,6 +1544,7 @@ export async function runAllJobs(
     (jobs.attendanceOtAging > 0 ? `, ${jobs.attendanceOtAging} lembur aging diingatkan` : "") +
     (jobs.attendanceTransferReminders > 0 ? `, ${jobs.attendanceTransferReminders} pengingat transfer TA terkirim` : "") +
     (jobs.applicantOutdatedRows > 0 ? `, ${jobs.applicantOutdatedRows} pelamar talent pool otomatis Outdated (keep-on-file habis)` : "") +
+    (jobs.selectionReminded > 0 ? `, ${jobs.selectionReminded} tahap seleksi diingatkan (SLA)` : "") +
     (mutexSkipped > 0 ? `, ${mutexSkipped} job dilewati (dipegang proses lain)` : "") +
     (errors.length > 0 ? ` — galat: ${errors.join("; ")}` : "");
   await writeActivity(db, { action: "Scheduled", entity: "Scheduler", detail: `${detail} (${tenant})` });

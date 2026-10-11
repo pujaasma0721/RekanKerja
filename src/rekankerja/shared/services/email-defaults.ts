@@ -130,6 +130,17 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     subject: "Permintaan Karyawan {{docNo}} DITOLAK",
     body: "Halo {{nama}},\n\nMohon maaf, permintaan karyawan Anda ({{docNo}} — {{posisi}}) DITOLAK.\n- Alasan penolakan: {{catatan}}\n\nSilakan hubungi HRD atau menduplikasi PR bila ingin mengajukan kembali dengan penyesuaian.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
   },
+  // F3-REC — modul Rekrutmen: seleksi (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3)
+  {
+    event: "recruitment.selection.scheduled", label: "Rekrutmen — Tahap Seleksi Dijadwalkan", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "[Jadwal Baru] {{tahap}} — {{kandidat}} ({{docNo}})",
+    body: "Halo {{nama}},\n\nTahap seleksi berikut telah dijadwalkan dan ditugaskan kepada Anda:\n- Kandidat: {{kandidat}}\n- Permintaan: {{docNo}} ({{posisi}})\n- Tahap: {{tahap}} (ke-{{urutan}} dari {{totalTahap}})\n- Jadwal: {{jadwal}}\n- Batas SLA: {{batasSla}}\n\nSurat undangan kandidat dapat diterbitkan dari modul Rekrutmen > Kandidat & Seleksi.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "recruitment.selection.reminder", label: "Rekrutmen — Pengingat Tahap Seleksi", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "[Pengingat] {{tahap}} {{kandidat}} — {{statusSla}}",
+    body: "Halo {{nama}},\n\nPengingat tahap seleksi yang menjadi tanggung jawab Anda:\n- Kandidat: {{kandidat}}\n- Permintaan: {{docNo}} ({{posisi}})\n- Tahap: {{tahap}}\n- Jadwal: {{jadwal}}\n- Batas SLA: {{batasSla}} ({{statusSla}})\n\nMohon segera tindak lanjuti penilaian/hasil tahap ini melalui modul Rekrutmen > Kandidat & Seleksi.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+  },
   {
     event: "user.created", label: "Pengguna Baru Dibuat", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
     subject: "Akun RekanKerja HRIS Anda telah dibuat",
@@ -229,6 +240,14 @@ const PH_JUMLAHJAM: PlaceholderDef = { key: "jumlahJam", label: "Rencana jam lem
 const PH_POSISI: PlaceholderDef = { key: "posisi", label: "Posisi yang diminta", contoh: "Staff Accounting" };
 const PH_JUMLAHORANG: PlaceholderDef = { key: "jumlahOrang", label: "Jumlah kebutuhan (orang)", contoh: "2" };
 const PH_STATUSKERJA: PlaceholderDef = { key: "statusKerja", label: "Status kerja", contoh: "Tetap (Permanent)" };
+// F3-REC — placeholder template seleksi
+const PH_KANDIDAT: PlaceholderDef = { key: "kandidat", label: "Nama kandidat", contoh: "Gita Savitri" };
+const PH_TAHAP: PlaceholderDef = { key: "tahap", label: "Nama tahap seleksi", contoh: "Interview HR" };
+const PH_URUTAN: PlaceholderDef = { key: "urutan", label: "Urutan tahap", contoh: "2" };
+const PH_TOTALTAHAP: PlaceholderDef = { key: "totalTahap", label: "Total tahap seleksi", contoh: "5" };
+const PH_JADWAL: PlaceholderDef = { key: "jadwal", label: "Jadwal pelaksanaan tahap", contoh: "2026-10-20 09:00" };
+const PH_BATASSLA: PlaceholderDef = { key: "batasSla", label: "Batas SLA tahap", contoh: "2026-11-19" };
+const PH_STATUSSLA: PlaceholderDef = { key: "statusSla", label: "Status SLA", contoh: "3 hari lagi / TERLAMBAT 5 hari" };
 
 export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "leave.submitted": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_JUMLAHHARI, PH_ALASAN],
@@ -255,6 +274,8 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "recruitment.pr.submitted": [PH_NAMA, PH_DOC, PH_POSISI, PH_JUMLAHORANG, PH_STATUSKERJA, PH_ALASAN],
   "recruitment.pr.approved": [PH_NAMA, PH_DOC, PH_POSISI, PH_JUMLAHORANG, PH_CATATAN],
   "recruitment.pr.rejected": [PH_NAMA, PH_DOC, PH_POSISI, PH_CATATAN],
+  "recruitment.selection.scheduled": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_TAHAP, PH_URUTAN, PH_TOTALTAHAP, PH_JADWAL, PH_BATASSLA],
+  "recruitment.selection.reminder": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_TAHAP, PH_JADWAL, PH_BATASSLA, PH_STATUSSLA],
   "user.created": [
     { key: "nama", label: "Nama pengguna baru", contoh: "Tri Handayani" },
     { key: "email", label: "Email login akun baru", contoh: "tri@mii.co.id" },

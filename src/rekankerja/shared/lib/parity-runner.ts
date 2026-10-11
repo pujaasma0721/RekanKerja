@@ -293,6 +293,11 @@ const STEPS: Step[] = [
   // PublicApplication/ApplicantConsent) + demo dwibahasa MII (JO Posted via
   // auto-post, talent pool, staging publik).
   { key: "recruitment-f2", label: "F2 Rekrutmen — 11 tabel lowongan + pelamar + demo", run: (s) => import("../../../../scripts/migrate-recruitment-f2").then((m) => m.main(s)) },
+  // F3-REC (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3) — 7 tabel kandidat &
+  // proses seleksi (JobCandidate, CandidateSelectionStep, scorecards ×4,
+  // RecruitmentLetter) + referensi (REC_INVITE, minResultPass Psikotes,
+  // template scorecard) + demo MII.
+  { key: "recruitment-f3", label: "F3 Rekrutmen — 7 tabel kandidat & seleksi + scorecard + demo", run: (s) => import("../../../../scripts/migrate-recruitment-f3").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -548,7 +553,16 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (recJoOk < schemas.length)
       reasons.push(`${schemas.length - recJoOk} tenant tanpa tabel JobOpening (F2 — modul Recruitment)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk) };
+    // F3-REC — tabel JobCandidate (kandidat seleksi) belum ada = gap
+    // (tenant existing dibuat sebelum F3 → step recruitment-f3 membuat 7
+    // tabel kandidat+seleksi + referensi + demo).
+    const recCandOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'JobCandidate' AND table_schema = ANY($1::text[])`,
+    );
+    if (recCandOk < schemas.length)
+      reasons.push(`${schemas.length - recCandOk} tenant tanpa tabel JobCandidate (F3 — modul Recruitment)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk, recCandOk) };
   } finally {
     await c.end();
   }

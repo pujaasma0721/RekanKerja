@@ -58,13 +58,18 @@ export type { TenantPrismaClient };
 // JobOpening, JobOpeningMethod, Applicant + cluster, PublicApplication,
 // ApplicantConsent) masuk client hasil generate; instance lama (pra-F2REC,
 // DMMF tanpa db.jobOpening dst.) tidak boleh dipakai ulang.
+// F3-REC: versi dinaikkan lagi (F3REC) — 7 model seleksi (JobCandidate,
+// CandidateSelectionStep, ScorecardTemplate, ScorecardCompetency,
+// CandidateScorecard, ScorecardItem, RecruitmentLetter) masuk client hasil
+// generate; instance lama (pra-F3REC, DMMF tanpa db.jobCandidate dst.)
+// tidak boleh dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  rekankerjaTenantClientsF2REC: Map<string, TenantPrismaClient> | undefined;
+  rekankerjaTenantClientsF3REC: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.rekankerjaTenantClientsF2REC ?? new Map();
-globalForTenants.rekankerjaTenantClientsF2REC = tenantClients;
+  globalForTenants.rekankerjaTenantClientsF3REC ?? new Map();
+globalForTenants.rekankerjaTenantClientsF3REC = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

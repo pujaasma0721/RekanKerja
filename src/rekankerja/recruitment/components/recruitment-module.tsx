@@ -4,7 +4,9 @@
 // F1: pr (permintaan karyawan + form) + pr-approval (kotak persetujuan PR).
 // F2: openings (lowongan JO + slot + kanal biaya) + applicants (talent pool)
 //     + public-staging (verifikasi lamaran publik).
-// View F3–F5 menyusul per fase (lihat peta fase di halaman Ringkasan).
+// F3: selection (kandidat & proses seleksi — board kanban per PR, scorecard
+//     terstruktur, surat undangan, kalender seleksi).
+// View F4–F5 menyusul per fase (lihat peta fase di halaman Ringkasan).
 import { RecruitmentOverview } from "@/rekankerja/recruitment/components/recruitment-overview";
 import { RecruitmentMastersPage } from "@/rekankerja/recruitment/components/recruitment-masters";
 import { PrListPage } from "@/rekankerja/recruitment/components/pr-list";
@@ -12,6 +14,7 @@ import { PrApprovalPage } from "@/rekankerja/recruitment/components/pr-approval"
 import { OpeningsPage } from "@/rekankerja/recruitment/components/openings";
 import { ApplicantsPage } from "@/rekankerja/recruitment/components/applicants";
 import { PublicStagingPage } from "@/rekankerja/recruitment/components/public-staging";
+import { SelectionPage } from "@/rekankerja/recruitment/components/selection";
 
 export function RecruitmentModule({ view }: { view: string }) {
   switch (view) {
@@ -21,6 +24,7 @@ export function RecruitmentModule({ view }: { view: string }) {
     case "openings": return <OpeningsPage />;
     case "applicants": return <ApplicantsPage />;
     case "public-staging": return <PublicStagingPage />;
+    case "selection": return <SelectionPage />;
     default: return <RecruitmentOverview />;
   }
 }

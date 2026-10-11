@@ -131,6 +131,17 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "verify", label: "Memverifikasi lamaran publik", hint: "Verifikasi (upload ke talent pool), tolak, atau tandai spam" },
   ],
 
+  // Recruitment F3 — kandidat & proses seleksi terstruktur
+  "recruitment:candidates": [
+    { key: "nominate", label: "Transfer / nominasi kandidat", hint: "Menambahkan pelamar talent pool atau karyawan internal sebagai kandidat PR" },
+    { key: "withdraw", label: "Menarik / menghapus kandidat", hint: "Menarik kandidat dari proses (Withdrawn) atau menghapus transfer yang salah" },
+  ],
+  "recruitment:selection": [
+    { key: "schedule", label: "Menjadwalkan tahap seleksi", hint: "Mengatur jadwal (plan/SLA/evaluator) dan acknowledgement tahap kandidat" },
+    { key: "result", label: "Mencatat hasil & memindahkan tahap", hint: "Catat hasil tahap (lulus/gagal/skor) dan naikkan kandidat ke tahap berikutnya (termasuk aksi board kanban)" },
+    { key: "invite", label: "Menerbitkan surat undangan", hint: "Terbitkan surat undangan seleksi kandidat (PDF via Template Surat)" },
+  ],
+
   // Travel
   "travel:travel-request": [{ key: "cancel", label: "Membatalkan permintaan travel", hint: "Membatalkan permintaan perjalanan dinas" }],
   "travel:travel-approval": [{ key: "approve", label: "Menyetujui / menolak travel", hint: "Aksi Setujui & Tolak pada persetujuan travel" }],
