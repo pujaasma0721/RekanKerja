@@ -40,7 +40,7 @@ import {
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
   MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
-  UsersRound, UserRoundCheck, Handshake, PieChart,
+  UsersRound, UserRoundCheck, Handshake, PieChart, Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -298,6 +298,8 @@ const RECRUITMENT_NAV: NavGroup[] = [
   ] },
   { section: "recruitment", label: "Pengaturan Rekrutmen", children: [
     { id: "masters", label: "Master Rekrutmen", icon: Boxes },
+    // F7 — otomasi, integrasi webhook & e-sign kandidat (recruitment:settings)
+    { id: "settings", label: "Pengaturan", icon: Settings },
   ] },
 ];
 

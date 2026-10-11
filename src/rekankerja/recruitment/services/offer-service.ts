@@ -26,6 +26,8 @@ import {
   getEmployeeApprovalParams, resolveApprovalStructure, startApprovalChain,
   decideApprovalChain, getApprovalChain, type ChainView, type DecideActor,
 } from "@/rekankerja/shared/services/approval-engine";
+import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
+import { emitWebhookEvent } from "@/rekankerja/recruitment/services/webhook-service";
 
 // ============ konstanta domain ============
 
@@ -774,6 +776,14 @@ export async function respondOffer(
     data: { status, respondedAt: new Date(), note },
   });
 
+  // F7 — emit webhook offer.accepted (antrean; TANPA PII kandidat)
+  if (input.action === "accept") {
+    void emitWebhookEvent(db, "offer.accepted", {
+      offerNo: o.offerNo,
+      acceptedAt: new Date().toISOString(),
+    }).catch(() => {});
+  }
+
   // notif officer rekrutmen
   const officer = await db.personnelRequisition.findUnique({
     where: { id: o.prId },
@@ -816,6 +826,8 @@ export async function respondOffer(
  *  (2) pengingat offer berakhir ≤3 hari (dedupe ActivityLog per tanggal). */
 export async function jobOfferExpiry(db: TenantDb): Promise<{ expired: number; reminded: number; notified: number }> {
   const now = new Date();
+  // F7 — setting otomasi (default ON; baris "false" mematikan reminder saja)
+  const reminderOn = (await getRecruitmentSetting(db, "auto.reminder.offer", "true").catch(() => "true")) !== "false";
 
   // 1) kedaluwarsa — idempoten by filter status
   const stale = await db.candidateOffer.findMany({
@@ -834,6 +846,7 @@ export async function jobOfferExpiry(db: TenantDb): Promise<{ expired: number; r
   }
 
   // 2) pengingat — offer Sent/Viewed berakhir ≤3 hari (dedupe per tanggal)
+  if (!reminderOn) return { expired: stale.length, reminded: 0, notified: 0 };
   const horizon = new Date(now.getTime() + 3 * 86_400_000);
   const upcoming = await db.candidateOffer.findMany({
     where: { status: { in: ["Sent", "Viewed"] }, expiryDate: { not: null, gte: now, lte: horizon } },

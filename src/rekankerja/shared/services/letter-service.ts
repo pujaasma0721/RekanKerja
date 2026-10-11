@@ -640,14 +640,23 @@ const ACCENT = rgb(0.13, 0.29, 0.24);
  *     rincian menjorok (x+36, tanpa re-wrap); lainnya word-wrap
  *     (ukur widthOfTextAtSize); multi-halaman saat y < 110.
  * Mengembalikan bytes PDF (Uint8Array).
+ * F7: `fixedDate` opsional — menempatkan tanggal metadata PDF (CreationDate/
+ * ModDate) ke nilai deterministik (issuedAt surat) supaya byte PDF REPRODUCIBLE
+ * lintas proses/waktu — prasyarat baseline sha256 e-sign kandidat (pdf-lib
+ * default = waktu proses → hash berubah tiap detik). Tanpa param → perilaku lama.
  */
 export async function letterPdfBuffer(
   doc: LetterPdfDoc,
   company: LetterPdfCompany | null,
   office?: LetterPdfOffice | null,
   esign?: PdfEsignStamp | null,
+  fixedDate?: Date | null,
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
+  if (fixedDate) {
+    pdf.setCreationDate(fixedDate);
+    pdf.setModificationDate(fixedDate);
+  }
   pdf.setTitle(`Surat ${doc.refNo}`);
   pdf.setSubject(doc.subject ?? doc.refNo);
   pdf.setProducer("RekanKerja HRIS");

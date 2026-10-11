@@ -25,6 +25,9 @@ import { advPrismaWhere, type AdvServerField } from "@/rekankerja/shared/service
 import {
   saveAttachment, deleteAttachmentsByEntity, listAttachmentsByEntity,
 } from "@/rekankerja/shared/services/attachment-service";
+import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
+import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
+import { emitWebhookEvent } from "@/rekankerja/recruitment/services/webhook-service";
 
 // ============ konstanta domain ============
 
@@ -924,6 +927,38 @@ export async function submitPublicApplication(
       entityType: "PublicApplication", entityId: pa.id, uploadedBy: null,
     });
     await db.publicApplication.update({ where: { id: pa.id }, data: { cvFileName: att.fileName, cvStoragePath: att.storagePath } });
+  }
+
+  // F7 — emit webhook application.received (TANPA nama/email — UU PDP
+  // minimisasi) + auto-reply konfirmasi ke email kandidat (setting gated).
+  if (pa.status !== "Spam") {
+    const jo = input.jobOpeningId
+      ? await db.jobOpening.findUnique({
+          where: { id: input.jobOpeningId },
+          select: { titleToShow: true, jobOpportunity: { select: { refNo: true, title: true } } },
+        }).catch(() => null)
+      : null;
+    void emitWebhookEvent(db, "application.received", {
+      stagingId: pa.id,
+      joRefNo: jo?.jobOpportunity.refNo ?? null,
+      receivedAt: pa.createdAt.toISOString(),
+    }).catch(() => {});
+
+    if ((await getRecruitmentSetting(db, "auto.reply.public-application", "true").catch(() => "true")) !== "false") {
+      const company = await db.company.findFirst({ select: { name: true } }).catch(() => null);
+      const nama = [input.payload.firstName, input.payload.middleName, input.payload.lastName]
+        .filter(Boolean).join(" ").trim();
+      void notifyEmailEvent(db, {
+        event: "recruitment.application.received",
+        to: [{ email: input.payload.email, name: nama || undefined }],
+        data: {
+          nama: nama || "Kandidat",
+          posisi: jo?.titleToShow ?? jo?.jobOpportunity?.title ?? "-",
+          perusahaan: company?.name ?? "RekanKerja HRIS",
+          tanggal: new Date().toISOString().slice(0, 10),
+        },
+      });
+    }
   }
   return { id: pa.id };
 }

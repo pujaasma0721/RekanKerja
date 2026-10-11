@@ -159,6 +159,13 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "apply", label: "Menerapkan rencana", hint: "Mengaplikasikan baris rencana rekrutmen (Draft → Applied) sebagai dasar justifikasi PR" },
   ],
 
+  // Recruitment F7 — otomasi, integrasi webhook & e-sign kandidat
+  "recruitment:settings": [
+    { key: "webhook", label: "Mengelola webhook", hint: "Menambah/mengubah/menguji endpoint webhook rekrutmen (event PR, lamaran, offer, hired)" },
+    { key: "esign", label: "Permintaan e-sign kandidat", hint: "Membuat/mengirim ulang OTP/membatalkan permintaan tanda tangan elektronik kandidat eksternal" },
+    { key: "update", label: "Mengubah pengaturan & preferensi", hint: "Mengubah otomasi rekrutmen (auto-reply, reminder, eskalasi SLA, retensi) dan preferensi notifikasi pribadi" },
+  ],
+
   // Travel
   "travel:travel-request": [{ key: "cancel", label: "Membatalkan permintaan travel", hint: "Membatalkan permintaan perjalanan dinas" }],
   "travel:travel-approval": [{ key: "approve", label: "Menyetujui / menolak travel", hint: "Aksi Setujui & Tolak pada persetujuan travel" }],

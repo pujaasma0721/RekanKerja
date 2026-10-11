@@ -3043,6 +3043,81 @@ CREATE TABLE "CandidateAiScore" (
     CONSTRAINT "CandidateAiScore_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "WebhookEndpoint" (
+    "id" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "eventsJson" TEXT NOT NULL,
+    "secretEnc" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WebhookEndpoint_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WebhookDelivery" (
+    "id" TEXT NOT NULL,
+    "endpointId" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "payloadJson" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "nextRetryAt" TIMESTAMP(3),
+    "lastError" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WebhookDelivery_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "NotificationPref" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "inApp" BOOLEAN NOT NULL DEFAULT true,
+    "email" BOOLEAN NOT NULL DEFAULT true,
+    "digest" BOOLEAN NOT NULL DEFAULT false,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "NotificationPref_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RecruitmentSetting" (
+    "id" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "value" TEXT NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RecruitmentSetting_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EsignRequest" (
+    "id" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "letterId" TEXT,
+    "offerId" TEXT,
+    "purpose" TEXT NOT NULL,
+    "signerName" TEXT NOT NULL,
+    "signerEmailEnc" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "otpHash" TEXT NOT NULL,
+    "otpExpiresAt" TIMESTAMP(3) NOT NULL,
+    "typedName" TEXT,
+    "pdfSha256" TEXT,
+    "requestedById" TEXT NOT NULL,
+    "signedAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EsignRequest_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -3790,6 +3865,24 @@ CREATE INDEX "CvParseResult_applicantId_idx" ON "CvParseResult"("applicantId");
 -- CreateIndex
 CREATE INDEX "CandidateAiScore_candidateId_generatedAt_idx" ON "CandidateAiScore"("candidateId", "generatedAt");
 
+-- CreateIndex
+CREATE INDEX "WebhookEndpoint_active_idx" ON "WebhookEndpoint"("active");
+
+-- CreateIndex
+CREATE INDEX "WebhookDelivery_status_nextRetryAt_idx" ON "WebhookDelivery"("status", "nextRetryAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "NotificationPref_employeeId_key" ON "NotificationPref"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RecruitmentSetting_key_key" ON "RecruitmentSetting"("key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EsignRequest_token_key" ON "EsignRequest"("token");
+
+-- CreateIndex
+CREATE INDEX "EsignRequest_status_idx" ON "EsignRequest"("status");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -4446,4 +4539,19 @@ ALTER TABLE "CandidateAiScore" ADD CONSTRAINT "CandidateAiScore_candidateId_fkey
 
 -- AddForeignKey
 ALTER TABLE "CandidateAiScore" ADD CONSTRAINT "CandidateAiScore_generatedById_fkey" FOREIGN KEY ("generatedById") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WebhookDelivery" ADD CONSTRAINT "WebhookDelivery_endpointId_fkey" FOREIGN KEY ("endpointId") REFERENCES "WebhookEndpoint"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "NotificationPref" ADD CONSTRAINT "NotificationPref_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EsignRequest" ADD CONSTRAINT "EsignRequest_letterId_fkey" FOREIGN KEY ("letterId") REFERENCES "RecruitmentLetter"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EsignRequest" ADD CONSTRAINT "EsignRequest_offerId_fkey" FOREIGN KEY ("offerId") REFERENCES "CandidateOffer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EsignRequest" ADD CONSTRAINT "EsignRequest_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

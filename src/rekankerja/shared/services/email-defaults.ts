@@ -162,6 +162,22 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     subject: "[Onboarding] {{kandidat}} resmi karyawan {{employeeNo}}",
     body: "Halo {{nama}},\n\nKandidat berikut telah melanjutkan ke onboarding dan resmi menjadi karyawan:\n- Kandidat: {{kandidat}}\n- Nomor karyawan: {{employeeNo}}\n- Posisi: {{posisi}}\n- Referensi offer: {{docNo}}\n\nProses onboarding (checklist per bagian) telah dibuat otomatis.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
   },
+  // F7-REC — otomasi & integrasi: auto-reply lamaran, OTP e-sign, digest
+  {
+    event: "recruitment.application.received", label: "Rekrutmen — Konfirmasi Lamaran Diterima", notifyEmployee: false, notifyApprover: false, notifyHrd: false,
+    subject: "Lamaran Anda telah kami terima",
+    body: "Halo {{nama}},\n\nTerima kasih telah melamar di {{perusahaan}}.\n- Posisi: {{posisi}}\n- Tanggal diterima: {{tanggal}}\n\nTim rekrutmen akan meninjau lamaran Anda dan menghubungi kandidat yang memenuhi kualifikasi. Anda tidak perlu membalas email ini.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "recruitment.esign.otp", label: "Rekrutmen — Kode OTP Tanda Tangan Kandidat", notifyEmployee: false, notifyApprover: false, notifyHrd: false,
+    subject: "Kode verifikasi tanda tangan elektronik — {{offerNo}}",
+    body: "Halo {{nama}},\n\nAnda diminta menandatangani surat secara elektronik.\n\nKode verifikasi Anda:\n\n{{otp}}\n\nBerlaku 5 menit. Buka tautan berikut lalu masukkan kode dan ketik nama Anda persis:\n{{link}}\n\nReferensi: {{offerNo}}\n\nJangan bagikan kode ini kepada siapa pun.\n\n---\nEmail otomatis RekanKerja HRIS.",
+  },
+  {
+    event: "recruitment.digest", label: "Rekrutmen — Ringkasan Notifikasi Harian", notifyEmployee: true, notifyApprover: false, notifyHrd: false,
+    subject: "[Ringkasan] {{jumlah}} notifikasi belum dibaca",
+    body: "Halo {{nama}},\n\nAnda memiliki {{jumlah}} notifikasi belum dibaca dalam 24 jam terakhir:\n\n{{ringkasan}}\n\nBuka RekanKerja HRIS untuk melihat seluruh notifikasi Anda.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+  },
   {
     event: "user.created", label: "Pengguna Baru Dibuat", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
     subject: "Akun RekanKerja HRIS Anda telah dibuat",
@@ -309,6 +325,24 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "recruitment.offer.reminder": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_STATUSOFFER, PH_BERLAKUSAMPAI, PH_SISAHARI],
   "recruitment.offer.responded": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_STATUSOFFER, PH_CATATAN],
   "recruitment.appointment.hired": [PH_NAMA, PH_KANDIDAT, PH_EMPLOYEE_NO, PH_POSISI, PH_DOC],
+  // F7-REC — placeholder template otomasi rekrutmen
+  "recruitment.application.received": [
+    { ...PH_NAMA, label: "Nama kandidat pelamar", contoh: "Fajar Nugraha" },
+    PH_POSISI,
+    PH_PERUSAHAAN,
+    { key: "tanggal", label: "Tanggal lamaran diterima", contoh: "2026-10-20" },
+  ],
+  "recruitment.esign.otp": [
+    { ...PH_NAMA, label: "Nama kandidat penandatangan", contoh: "Rina Amelia" },
+    { key: "otp", label: "Kode OTP 6 digit", contoh: "482913" },
+    { key: "link", label: "Tautan tanda tangan portal kandidat", contoh: "http://…/sign/<token>" },
+    { ...PH_DOC, label: "Nomor offer referensi", contoh: "OFF-2026-0001" },
+  ],
+  "recruitment.digest": [
+    PH_NAMA,
+    { key: "jumlah", label: "Jumlah notifikasi belum dibaca", contoh: "5" },
+    { key: "ringkasan", label: "Ringkasan judul notifikasi", contoh: "• Offer OFF-… diterima\n• …" },
+  ],
   "user.created": [
     { key: "nama", label: "Nama pengguna baru", contoh: "Tri Handayani" },
     { key: "email", label: "Email login akun baru", contoh: "tri@mii.co.id" },

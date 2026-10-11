@@ -27,6 +27,7 @@ import { createEmployeeWithAssignment, type AssignmentSeed } from "@/rekankerja/
 import {
   createOnboardingWithTasks, emailOnboardingChecklist,
 } from "@/rekankerja/human-resource/api/onboarding";
+import { emitWebhookEvent } from "@/rekankerja/recruitment/services/webhook-service";
 
 // ============ konstanta domain ============
 
@@ -619,6 +620,13 @@ export async function continueToOnboarding(
       detail: `Karyawan ${employee.employeeNo} "${employee.fullName}" dibuat dari rekrutmen (offer ${appt.offer.offerNo}, PR ${appt.candidate.pr.prNo}) + onboarding ${onboarding.tasks.length} tugas${emailsSent > 0 ? `, email ke ${emailsSent} bagian` : ""}${input.actor?.name ? ` oleh ${input.actor.name}` : ""}`,
     },
   });
+
+  // F7 — emit webhook candidate.hired (antrean; TANPA PII kandidat)
+  void emitWebhookEvent(db, "candidate.hired", {
+    employeeNo: employee.employeeNo,
+    positionTitle: officer?.position?.title ?? null,
+    hiredAt: new Date().toISOString(),
+  }).catch(() => {});
 
   return { employeeId: employee.id, employeeNo: employee.employeeNo, onboardingId: onboarding.id, emailsSent };
 }

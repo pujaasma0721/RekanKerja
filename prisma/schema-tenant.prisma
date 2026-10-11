@@ -349,6 +349,10 @@ model Employee {
   cvParsesVerified   CvParseResult[]          @relation("CvParseVerifier")
   aiScoresGenerated  CandidateAiScore[]       @relation("AiScoreGenerator")
 
+  // F7-REC — e-sign: peminta tanda tangan kandidat / preferensi notifikasi
+  esignRequested     EsignRequest[]           @relation("EsignRequester")
+  notificationPref   NotificationPref?         @relation("NotificationPrefEmployee")
+
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
   @@index([status])
@@ -3923,6 +3927,9 @@ model RecruitmentLetter {
   candidate     JobCandidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   selectionStep CandidateSelectionStep? @relation(fields: [selectionStepId], references: [id])
 
+  // F7-REC — permintaan e-sign kandidat utk surat ini (offer/pengangkatan)
+  esignRequests EsignRequest[]        @relation("EsignLetter")
+
   @@index([candidateId, issuedAt])
   @@index([kind, issuedAt])
 }
@@ -3975,6 +3982,9 @@ model CandidateOffer {
   jobOpening  JobOpening?          @relation("OpeningOffers", fields: [jobOpeningId], references: [id])
   createdBy   Employee?            @relation("OfferCreator", fields: [createdById], references: [id])
   appointment CandidateAppointment?
+
+  // F7-REC — permintaan e-sign kandidat utk offer ini
+  esignRequests EsignRequest[]     @relation("EsignOffer")
 
   @@index([status, expiryDate]) // monitor expiry + reminder scheduler
   @@index([prId])
@@ -4196,4 +4206,105 @@ model CandidateAiScore {
   generatedBy Employee    @relation("AiScoreGenerator", fields: [generatedById], references: [id])
 
   @@index([candidateId, generatedAt])
+}
+
+// ============================================================================
+// RECRUITMENT — F7: OTOMASI, INTEGRASI & E-SIGN (DEVELOPMENT-PLAN-RECRUITMENT.md
+// §7 F7 — HRX F1-lite/F3-lite/E2/H3; semua config-over-code P6)
+//
+// • WebhookEndpoint + WebhookDelivery: webhook outbound — HMAC-SHA256 +
+//   idempotency key + retry backoff + DLQ (DB-backed queue, tanpa middleware
+//   baru — pola §2.1). Event: pr.approved, application.received,
+//   candidate.hired, offer.accepted (+ "*" semua).
+// • NotificationPref: preferensi notifikasi per karyawan (in-app/email/digest
+//   harian) — HRX F3 notification hub versi ringkas.
+// • RecruitmentSetting: key-value konfigurasi otomasi rekrutmen (auto-reply,
+//   auto-reminder, eskalasi SLA) + nanti aturan retensi F9 — config-over-code.
+// • EsignRequest: e-sign RINGKAS utk KANDIDAT EKSTERNAL (HRX E2 — tanpa akun):
+//   OTP email + typed signature + hash PDF tamper-evident + audit. Halaman
+//   tanda tangan di PORTAL KANDIDAT (aplikasi terpisah — Amandemen 1 §2.0),
+//   API publik aplikasi utama sebagai backend. (Karyawan internal tetap pakai
+//   mesin SignatureRecord RSA-PSS Task 80 — berbeda alur.)
+// ============================================================================
+
+// Endpoint webhook outbound per tenant.
+model WebhookEndpoint {
+  id         String   @id @default(cuid())
+  url        String // https://hooks.example.com/rk
+  eventsJson String // ["pr.approved","offer.accepted","*"]
+  secretEnc  String // TERENKRIPSI field-crypto — HMAC secret (jangan plaintext)
+  active     Boolean  @default(true)
+  note       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  deliveries WebhookDelivery[]
+
+  @@index([active])
+}
+
+// Antrean kirim (DB-backed queue + retry + DLQ). status: Pending|Success|Failed|Dead.
+model WebhookDelivery {
+  id          String    @id @default(cuid())
+  endpointId  String
+  event       String // pr.approved | application.received | candidate.hired | offer.accepted
+  payloadJson String
+  status      String    @default("Pending")
+  attempts    Int       @default(0)
+  nextRetryAt DateTime? // null = segera; backoff 5m/30m/2h/8h/24j lalu Dead
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextRetryAt])
+}
+
+// Preferensi notifikasi per karyawan (hub ringkas F7).
+model NotificationPref {
+  id         String   @id @default(cuid())
+  employeeId String   @unique
+  inApp      Boolean  @default(true)
+  email      Boolean  @default(true)
+  digest     Boolean  @default(false) // ringkasan harian (07:00)
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation("NotificationPrefEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+// Konfigurasi rekrutmen key-value (otomasi F7 + retensi F9). Default dibaca
+// service bila baris tidak ada (auto.reply.public-application=true dsb.).
+model RecruitmentSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// Permintaan tanda tangan kandidat eksternal (e-sign ringkas).
+model EsignRequest {
+  id             String    @id @default(cuid())
+  token          String    @unique // token URL portal /sign/<token> (random 32 byte)
+  letterId       String? // RecruitmentLetter (surat offer/pengangkatan)
+  offerId        String? // CandidateOffer (jejak cepat)
+  purpose        String // offer|appointment
+  signerName     String // nama kandidat (harus diketik persis saat menandatangani)
+  signerEmailEnc String // TERENKRIPSI — tujuan OTP
+  status         String    @default("Pending") // Pending|Signed|Expired|Cancelled
+  otpHash        String // hash OTP (scrypt — pola challenge Task 80)
+  otpExpiresAt   DateTime
+  typedName      String? // nama yang diketik kandidat (bukti typed signature)
+  pdfSha256      String? // hash PDF surat saat ttd — tamper-evident baseline
+  requestedById  String
+  signedAt       DateTime?
+  expiresAt      DateTime // masa berlaku link (default 7 hari)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  letter       RecruitmentLetter? @relation("EsignLetter", fields: [letterId], references: [id], onDelete: SetNull)
+  offer        CandidateOffer?   @relation("EsignOffer", fields: [offerId], references: [id], onDelete: SetNull)
+  requestedBy  Employee         @relation("EsignRequester", fields: [requestedById], references: [id])
+
+  @@index([status])
 }

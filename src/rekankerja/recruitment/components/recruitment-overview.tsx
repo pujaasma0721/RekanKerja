@@ -17,6 +17,7 @@ import {
   UserRoundSearch, Boxes, ListChecks, CheckCircle2, Circle, ArrowRight, Megaphone, BadgeCheck,
   Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList, UsersRound, Inbox, Layers3,
   UserRoundCheck, FileText, Handshake, UserRoundPlus, Clock, Calculator, Target, Coins, Award,
+  Webhook, FileSignature,
 } from "lucide-react";
 
 const TYPE_ICON: Record<string, React.ElementType> = {
@@ -54,6 +55,8 @@ export function RecruitmentOverview() {
     { key: "F3", label: "Kandidat & Proses Seleksi", labelEn: "Candidates & Selection Process", done: true },
     { key: "F4", label: "Offer & Appointment + Onboarding", labelEn: "Offer & Appointment + Onboarding", done: true },
     { key: "F5", label: "ESS, Rencana & Anggaran", labelEn: "ESS, Plan & Budget", done: true },
+    { key: "F6", label: "AI Rekrutmen (parse CV, skor, copilot)", labelEn: "Recruitment AI (CV parse, scoring, copilot)", done: true },
+    { key: "F7", label: "Otomasi, Webhook & E-sign", labelEn: "Automation, Webhooks & E-sign", done: true },
   ];
   const prApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/pr?limit=1");
   const ps = prApi.data?.stats;
@@ -123,6 +126,19 @@ export function RecruitmentOverview() {
   const budgetUsed = budgetApi.data?.row?.used ?? null;
   const demogApi = useApi<{ silver: { count: number } }>("/api/rekankerja/recruitment/demographics?stats=1");
   const silverCount = demogApi.data?.silver.count ?? null;
+
+  // F7 — webhook aktif + e-sign kandidat (GET settings; 403 tanpa akses → null "—")
+  const f7Api = useApi<{
+    webhooks: { active: boolean }[];
+    esignRequests: { status: string }[];
+  }>("/api/rekankerja/recruitment/settings");
+  const f7 = f7Api.data
+    ? {
+        webhooksActive: f7Api.data.webhooks.filter((w) => w.active).length,
+        esignSigned: f7Api.data.esignRequests.filter((r) => r.status === "Signed").length,
+        esignPending: f7Api.data.esignRequests.filter((r) => r.status === "Pending").length,
+      }
+    : null;
 
   return (
     <div>
@@ -405,6 +421,45 @@ export function RecruitmentOverview() {
                       <p className="text-lg font-semibold tabular-nums">
                         {s.value == null ? "—" : s.money ? fmtIDRShort(s.value) : String(s.value)}
                       </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ringkasan F7 — otomasi, webhook & e-sign */}
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Webhook className="h-4 w-4 ov-text-accent" aria-hidden />
+              {t("Otomasi & Integrasi (F7)", "Automation & Integration (F7)")}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {t(
+                "Webhook outbound event rekrutmen (signature HMAC terverifikasi), otomasi reminder/eskalasi, dan e-sign kandidat eksternal. Kelola di menu Pengaturan.",
+                "Outbound recruitment event webhooks (verified HMAC signature), reminder/escalation automation, and external candidate e-sign. Manage in the Settings menu.",
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {([
+                { icon: Webhook, label: t("Webhook Aktif", "Active Webhooks"), value: f7 ? f7.webhooksActive : null },
+                { icon: FileSignature, label: t("E-sign Ditandatangani", "E-sign Signed"), value: f7 ? f7.esignSigned : null },
+                { icon: Clock, label: t("E-sign Menunggu", "E-sign Pending"), value: f7 ? f7.esignPending : null },
+              ] as { icon: React.ElementType; label: string; value: number | null }[]).map((s, i) => {
+                const Icon = s.icon;
+                return (
+                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
+                    title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
+                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
+                      <p className="text-lg font-semibold tabular-nums">{s.value ?? "—"}</p>
                     </div>
                   </div>
                 );

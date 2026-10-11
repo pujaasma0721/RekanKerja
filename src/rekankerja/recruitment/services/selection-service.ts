@@ -19,6 +19,7 @@ import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
 import { getStepScorecards, scorecardGateOk } from "@/rekankerja/recruitment/services/scorecard-service";
+import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 
 // ============ konstanta domain ============
 
@@ -892,7 +893,9 @@ export async function issueInvitation(db: TenantDb, input: { stepId: string; act
   return { id: doc.id, letterNo, body, subject: template.subject, issuedAt: doc.issuedAt.toISOString(), existing: false };
 }
 
-/** PDF surat rekrutmen (kop perusahaan — letterPdfBuffer mesin surat). */
+/** PDF surat rekrutmen (kop perusahaan — letterPdfBuffer mesin surat).
+ *  F7: tanggal metadata PDF DIKUNCI ke issuedAt surat → byte PDF deterministik
+ *  lintas proses (hash sha256 e-sign kandidat dapat diverifikasi ulang). */
 export async function letterPdf(db: TenantDb, letterId: string): Promise<Uint8Array | null> {
   const letter = await db.recruitmentLetter.findUnique({ where: { id: letterId } });
   if (!letter) return null;
@@ -901,6 +904,9 @@ export async function letterPdf(db: TenantDb, letterId: string): Promise<Uint8Ar
   return letterPdfBuffer(
     { refNo: letter.letterNo, body: letter.body, subject: letter.subject },
     company ? { name: company.name, address: company.address, city: company.city, phone: company.phone, taxId: company.taxId } : null,
+    null,
+    null,
+    letter.issuedAt,
   );
 }
 
@@ -952,6 +958,10 @@ export async function getSelectionCalendar(db: TenantDb, month: string): Promise
  * Penerima: evaluator (performedById) → fallback officer PR → admin HR.
  */
 export async function jobSelectionReminders(db: TenantDb): Promise<{ reminded: number; notified: number }> {
+  // F7 — setting otomasi (default ON; baris "false" mematikan reminder)
+  if ((await getRecruitmentSetting(db, "auto.reminder.selection", "true").catch(() => "true")) === "false") {
+    return { reminded: 0, notified: 0 };
+  }
   const now = Date.now();
   const horizon = new Date(now + 3 * 86_400_000);
   const steps = await db.candidateSelectionStep.findMany({

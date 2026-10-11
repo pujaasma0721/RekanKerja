@@ -51,11 +51,13 @@ import { db as platformDb } from "@/lib/db";
 import { getTenantClient, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { DEFAULT_TEMPLATES_PLACEHOLDER } from "@/rekankerja/shared/services/email-defaults";
-import { notifyEmailEvent, type EmailRecipient } from "@/rekankerja/shared/services/email-service";
+import { notifyEmailEvent, sendSystemEmail, type EmailRecipient } from "@/rekankerja/shared/services/email-service";
 import { notifyEvent, pushNotification } from "@/rekankerja/shared/services/notification-service";
 import { retryFailedWebhookDeliveries } from "@/rekankerja/shared/services/webhook-service";
 import { jobSelectionReminders } from "@/rekankerja/recruitment/services/selection-service";
 import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service";
+import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webhook-service";
+import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 
 // ---------- konstanta & env flag ----------
 
@@ -1339,6 +1341,164 @@ async function jobAttendanceTransferReminder(db: TenantDb): Promise<{ periods: n
   return { periods: sent, notif };
 }
 
+// ---------- F7-REC: job otomasi rekrutmen ----------
+
+/** Ambang hari overdue → level eskalasi SLA tahap seleksi. */
+const SLA_ESCALATION_BANDS = [14, 7, 3] as const; // ≥14 → 3; ≥7 → 2; ≥3 → 1
+
+interface SlaEscalationSummary { escalated: number; notified: number }
+
+/**
+ * F7 — eskalasi SLA tahap seleksi (harian, dedupe ActivityLog "SlaEscalation"
+ * key per step per HARI — pola claimReminder):
+ *   · overdue ≥ 14 hari → notif officer PR + seluruh Admin/HR;
+ *   · overdue ≥ 7 hari  → notif officer PR + Admin/HR;
+ *   · overdue ≥ 3 hari  → notif officer PR (fallback Admin/HR bila kosong).
+ * Setting auto.escalate.sla = "false" mematikan (default ON).
+ */
+async function jobRecruitmentSlaEscalation(db: TenantDb): Promise<SlaEscalationSummary> {
+  const summary: SlaEscalationSummary = { escalated: 0, notified: 0 };
+  try {
+    if ((await getRecruitmentSetting(db, "auto.escalate.sla", "true")) === "false") return summary;
+    const now = Date.now();
+    const cutoff = new Date(now - SLA_ESCALATION_BANDS[SLA_ESCALATION_BANDS.length - 1]! * 86_400_000);
+    const steps = await db.candidateSelectionStep.findMany({
+      where: {
+        status: { in: ["Planned", "Acknowledged"] },
+        dueDate: { not: null, lt: cutoff },
+      },
+      include: {
+        selectionProcess: { select: { name: true } },
+        candidate: {
+          select: {
+            fullName: true,
+            pr: { select: { prNo: true, position: { select: { title: true } }, recruitmentOfficer: { select: { id: true, fullName: true } } } },
+          },
+        },
+      },
+      take: 200,
+    });
+
+    for (const s of steps) {
+      if (!s.dueDate) continue;
+      const overdueDays = Math.floor((now - s.dueDate.getTime()) / 86_400_000);
+      // level ordinal: 3 (≥14 hari) | 2 (≥7) | 1 (≥3)
+      const level = overdueDays >= SLA_ESCALATION_BANDS[0]! ? 3 : overdueDays >= SLA_ESCALATION_BANDS[1]! ? 2 : overdueDays >= SLA_ESCALATION_BANDS[2]! ? 1 : 0;
+      if (level <= 0) continue;
+      // dedupe: satu eskalasi per step per hari (level bisa naik di hari lain)
+      const key = `sla-escalation:${s.id}:${dayKey(new Date())}`;
+      const claimed = await db.$queryRaw<{ n: number }[]>`
+        SELECT COUNT(*)::int AS n FROM "ActivityLog"
+        WHERE "action" = 'SlaEscalation' AND "entity" = 'Scheduler' AND "entityId" = ${key}`.then((r) => r[0]?.n ?? 0);
+      if (claimed > 0) continue;
+
+      const pr = s.candidate.pr;
+      const title = `[Eskalasi SLA ≥${level === 3 ? "14" : level === 2 ? "7" : "3"} hari] ${s.selectionProcess.name} — ${s.candidate.fullName}`;
+      const body = `Tahap ${s.selectionProcess.name} kandidat ${s.candidate.fullName} TERLAMBAT ${overdueDays} hari (batas ${fmtDate(s.dueDate)}) — ${pr.prNo}${pr.position?.title ? ` · ${pr.position.title}` : ""}`;
+      const officer = pr.recruitmentOfficer;
+      if (level >= 2) {
+        // ≥7 hari: officer + tim Admin/HR
+        const rAdmin = await notifyEvent(db, {
+          to: "admins", docType: "RecruitmentSelection", docNo: pr.prNo,
+          title, body, kind: "recruitment", link: "recruitment:selection",
+        }).catch(() => ({ recipients: [] }));
+        summary.notified += rAdmin.recipients.length;
+      }
+      if (officer) {
+        const rOfficer = await notifyEvent(db, {
+          to: "employee", employeeId: officer.id, docType: "RecruitmentSelection", docNo: pr.prNo,
+          title, body, kind: "recruitment", link: "recruitment:selection",
+        }).catch(() => ({ recipients: [] }));
+        summary.notified += rOfficer.recipients.length;
+      } else if (level === 1) {
+        // officer PR kosong → fallback Admin/HR (level 2/3 sudah mengirim ke admin)
+        const rAdmin = await notifyEvent(db, {
+          to: "admins", docType: "RecruitmentSelection", docNo: pr.prNo,
+          title, body, kind: "recruitment", link: "recruitment:selection",
+        }).catch(() => ({ recipients: [] }));
+        summary.notified += rAdmin.recipients.length;
+      }
+      await db.activityLog.create({
+        data: {
+          actorType: "system", action: "SlaEscalation", entity: "Scheduler", entityId: key,
+          detail: `Eskalasi SLA level ${level}: tahap ${s.selectionProcess.name} kandidat ${s.candidate.fullName} (${pr.prNo}) terlambat ${overdueDays} hari`,
+        },
+      });
+      summary.escalated++;
+    }
+  } catch (e) {
+    // tabel F7 belum termigrasi → skip senyap siklus ini
+    console.warn(`[scheduler] sla-escalation skip: ${e instanceof Error ? e.message : e}`);
+  }
+  return summary;
+}
+
+interface DigestSummary { sent: number; recipients: number }
+
+/**
+ * F7 — ringkasan notifikasi harian (job notification-digest, dedupe per hari
+ * per karyawan via claimReminder): karyawan dgn NotificationPref.digest=true
+ * dan notifikasi UNREAD (readAt null) 24 jam terakhir > 0 → sendSystemEmail
+ * ringkasan (judul + jumlah, maks 8 baris) ke email karyawan.
+ */
+async function jobNotificationDigest(db: TenantDb): Promise<DigestSummary> {
+  const summary: DigestSummary = { sent: 0, recipients: 0 };
+  try {
+    const prefs = await db.notificationPref.findMany({ where: { digest: true }, take: 300 });
+    if (prefs.length === 0) return summary;
+    const since = new Date(Date.now() - 86_400_000);
+    for (const pref of prefs) {
+      const emp = await db.employee.findUnique({
+        where: { id: pref.employeeId },
+        select: { email: true, fullName: true },
+      }).catch(() => null);
+      if (!emp?.email) continue;
+
+      const unread = await db.notification.findMany({
+        where: {
+          readAt: null,
+          createdAt: { gte: since },
+          appUser: { employeeId: pref.employeeId, active: true },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+      });
+      if (unread.length === 0) continue;
+      const total = await db.notification.count({
+        where: {
+          readAt: null,
+          createdAt: { gte: since },
+          appUser: { employeeId: pref.employeeId, active: true },
+        },
+      });
+
+      const key = `notification-digest:${pref.employeeId}:${dayKey()}`;
+      const claimed = await claimReminder(
+        db,
+        key,
+        `Ringkasan notifikasi harian (${total} belum dibaca) dikirim ke ${emp.email}`,
+      );
+      if (!claimed) continue; // sudah dikirim hari ini
+
+      const lines = unread.map((n) => `• ${n.title}`);
+      if (total > unread.length) lines.push(`• … dan ${total - unread.length} lainnya`);
+      const r = await sendSystemEmail(db, {
+        event: "recruitment.digest",
+        to: { email: emp.email, name: emp.fullName },
+        subject: `[Ringkasan Harian] ${total} notifikasi belum dibaca`,
+        body: `Halo ${emp.fullName},\n\nAnda memiliki ${total} notifikasi belum dibaca dalam 24 jam terakhir:\n\n${lines.join("\n")}\n\nBuka RekanKerja HRIS untuk melihat seluruh notifikasi Anda.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.`,
+      });
+      if (r.ok) {
+        summary.sent++;
+        summary.recipients++;
+      }
+    }
+  } catch (e) {
+    console.warn(`[scheduler] notification-digest skip: ${e instanceof Error ? e.message : e}`);
+  }
+  return summary;
+}
+
 // ---------- orkestrasi per tenant ----------
 
 export interface SchedulerJobCounts {
@@ -1381,6 +1541,18 @@ export interface SchedulerJobCounts {
   offerReminded: number;
   /** F4-REC — penerima notifikasi in-app dari offer-reminder. */
   offerNotified: number;
+  /** F7-REC — antrean webhook rekrutmen terkirim job recruitment-webhook. */
+  recruitmentWebhookSent: number;
+  /** F7-REC — antrean webhook rekrutmen gagal (menunggu backoff retry). */
+  recruitmentWebhookFailed: number;
+  /** F7-REC — antrean webhook rekrutkan mati (Dead — maks percobaan). */
+  recruitmentWebhookDead: number;
+  /** F7-REC — tahap seleksi terlambat yang dieskalasi (3/7/14 hari; dedupe/hari). */
+  slaEscalations: number;
+  /** F7-REC — penerima notifikasi in-app dari sla-escalation. */
+  slaEscalationNotified: number;
+  /** F7-REC — email ringkasan notifikasi harian terkirim (digest, dedupe/hari). */
+  digestEmails: number;
 }
 
 export interface SchedulerRunResult {
@@ -1431,6 +1603,12 @@ export async function runAllJobs(
     offerExpiredRows: 0,
     offerReminded: 0,
     offerNotified: 0,
+    recruitmentWebhookSent: 0,
+    recruitmentWebhookFailed: 0,
+    recruitmentWebhookDead: 0,
+    slaEscalations: 0,
+    slaEscalationNotified: 0,
+    digestEmails: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1542,6 +1720,27 @@ export async function runAllJobs(
     jobs.offerReminded = r.reminded;
     jobs.offerNotified = r.notified;
   });
+  // F7-REC — antrean webhook rekrutmen: kirim delivery Pending/Failed jatuh
+  // tempo (backoff 5m/30m/2h/8h/24j → Dead; maks 6 percobaan).
+  await guarded("recruitment-webhook", async () => {
+    const r = await processWebhookDeliveries(db);
+    jobs.recruitmentWebhookSent = r.sent;
+    jobs.recruitmentWebhookFailed = r.failed;
+    jobs.recruitmentWebhookDead = r.dead;
+  });
+  // F7-REC — eskalasi SLA tahap seleksi overdue ≥3/7/14 hari (harian, dedupe
+  // ActivityLog "SlaEscalation" per step per hari; setting auto.escalate.sla).
+  await guarded("recruitment-sla-escalation", async () => {
+    const r = await jobRecruitmentSlaEscalation(db);
+    jobs.slaEscalations = r.escalated;
+    jobs.slaEscalationNotified = r.notified;
+  });
+  // F7-REC — ringkasan notifikasi harian per karyawan (NotificationPref.digest,
+  // dedupe claimReminder per hari — praktis ~07:00 pada siklus pagi).
+  await guarded("notification-digest", async () => {
+    const r = await jobNotificationDigest(db);
+    jobs.digestEmails = r.sent;
+  });
 
   const totalJobs =
     jobs.resignTerminated +
@@ -1566,6 +1765,11 @@ export async function runAllJobs(
     (jobs.selectionReminded > 0 ? `, ${jobs.selectionReminded} tahap seleksi diingatkan (SLA)` : "") +
     (jobs.offerExpiredRows > 0 ? `, ${jobs.offerExpiredRows} offer otomatis kedaluwarsa` : "") +
     (jobs.offerReminded > 0 ? `, ${jobs.offerReminded} offer diingatkan (akan berakhir)` : "") +
+    (jobs.recruitmentWebhookSent > 0 ? `, ${jobs.recruitmentWebhookSent} webhook rekrutmen terkirim` : "") +
+    (jobs.recruitmentWebhookFailed > 0 ? `, ${jobs.recruitmentWebhookFailed} webhook rekrutmen gagal (dijadwalkan ulang)` : "") +
+    (jobs.recruitmentWebhookDead > 0 ? `, ${jobs.recruitmentWebhookDead} webhook rekrutmen DEAD` : "") +
+    (jobs.slaEscalations > 0 ? `, ${jobs.slaEscalations} tahap dieskalasi SLA` : "") +
+    (jobs.digestEmails > 0 ? `, ${jobs.digestEmails} ringkasan notifikasi harian terkirim` : "") +
     (mutexSkipped > 0 ? `, ${mutexSkipped} job dilewati (dipegang proses lain)` : "") +
     (errors.length > 0 ? ` — galat: ${errors.join("; ")}` : "");
   await writeActivity(db, { action: "Scheduled", entity: "Scheduler", detail: `${detail} (${tenant})` });

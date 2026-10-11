@@ -29,8 +29,9 @@ import {
 } from "./offer-dialogs";
 import {
   AlarmClock, BadgeCheck, Check, Eye, FileText, Filter, Handshake, ListChecks,
-  Pencil, Plus, Send, Trash2, TrendingUp, UserRoundCheck, X,
+  Pencil, PenLine, Plus, Send, Trash2, TrendingUp, UserRoundCheck, X,
 } from "lucide-react";
+import { EsignRequestDialog, type EsignableOffer } from "./recruitment-settings";
 
 interface ListResp {
   rows: OfferRow[];
@@ -112,6 +113,22 @@ export function OffersPage() {
   const canSend = perms.canOp("recruitment", "offers", "op:send");
   const canRespond = perms.canOp("recruitment", "offers", "op:respond");
   const canAppoint = perms.canOp("recruitment", "offers", "op:appoint");
+  // F7 — op e-sign menu recruitment:settings (gating lintas-view via canOp)
+  const canEsign = perms.canOp("recruitment", "settings", "esign");
+
+  // ---------- F7: offer yang sudah DITANDATANGANI via e-sign kandidat ----------
+  // (lazy fetch 1× GET settings esignRequests — map by offerNo; 403 tanpa akses
+  // settings → badge tidak tampil, jalur lain tidak terpengaruh.)
+  const esignApi = useApi<{ esignRequests: { offerNo: string | null; status: string; signedAt: string | null }[] }>(
+    "/api/rekankerja/recruitment/settings", [],
+  );
+  const signedOffers = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of esignApi.data?.esignRequests ?? []) {
+      if (r.status === "Signed" && r.offerNo) m.set(r.offerNo, r.signedAt ?? "");
+    }
+    return m;
+  }, [esignApi.data]);
 
   // ---------- dialog state ----------
   const [formTarget, setFormTarget] = useState<OfferFormTarget | null>(null);
@@ -120,6 +137,7 @@ export function OffersPage() {
   const [letter, setLetter] = useState<LetterTarget | null>(null);
   const [appointId, setAppointId] = useState<string | null>(null);
   const [letterBusyId, setLetterBusyId] = useState<string | null>(null);
+  const [esignTarget, setEsignTarget] = useState<EsignableOffer | null>(null);
 
   // ---------- prefill kandidat dari board seleksi (navigate ... {id}) ----------
   const prefillCandidateId = nav.params?.id ?? null;
@@ -158,6 +176,7 @@ export function OffersPage() {
     listApi.refresh(); optionsApi.refresh(); funnelApi.refresh(); approvalsApi.refresh();
     fetchedAppt.current.clear();
     setEmpNos({});
+    esignApi.refresh(); // badge Ditandatangani ikut diperbarui setelah e-sign
   };
 
   // ---------- aksi ----------
@@ -277,6 +296,11 @@ export function OffersPage() {
     </button>
   );
 
+  // ---------- offer yang bisa dimintai tanda tangan (F7) ----------
+  const esignableOffers: EsignableOffer[] = rows
+    .filter((r) => (r.status === "Sent" || r.status === "Viewed") && r.candidateSource !== "Internal")
+    .map((r) => ({ id: r.id, offerNo: r.offerNo, candidateName: r.candidateName, positionTitle: r.positionTitle }));
+
   // ---------- render tabel ----------
   const rowActions = (row: OfferRow) => {
     const st = row.status;
@@ -332,6 +356,13 @@ export function OffersPage() {
               <X className="h-3.5 w-3.5" aria-hidden /> {t("Tolak", "Decline")}
             </Button>
           </>
+        )}
+        {(st === "Sent" || st === "Viewed") && canEsign && (
+          <Button variant="outline" size="sm" className="h-8 gap-1 border-emerald-200 px-2 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-400"
+            onClick={() => setEsignTarget({ id: row.id, offerNo: row.offerNo, candidateName: row.candidateName, positionTitle: row.positionTitle })}
+            title={t("kirim tautan tanda tangan + OTP ke email kandidat eksternal", "send the signing link + OTP to the external candidate's email")}>
+            <PenLine className="h-3.5 w-3.5" aria-hidden /> {t("Minta Tanda Tangan", "Request Signature")}
+          </Button>
         )}
         {st === "Accepted" && canAppoint && !row.hasAppointment && (
           <Button size="sm" className="ov-fill h-8 gap-1 px-2" onClick={() => setAppointId(row.id)}>
@@ -551,6 +582,12 @@ export function OffersPage() {
                                   {empNos[row.id] ? t("Karyawan {n}", "Employee {n}", { n: empNos[row.id]! }) : t("Diangkat", "Appointed")}
                                 </span>
                               )}
+                              {signedOffers.has(row.offerNo) && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"
+                                  title={t("surat offer ditandatangani kandidat via e-sign (hash PDF tercatat)", "offer letter signed by the candidate via e-sign (PDF hash recorded)")}>
+                                  <PenLine className="h-3 w-3" aria-hidden /> {t("Ditandatangani ✓", "Signed ✓")}
+                                </span>
+                              )}
                             </div>
                             {row.note && dim && (
                               <span className="max-w-[220px] truncate text-[10px] italic text-slate-400" title={row.note}>“{row.note}”</span>
@@ -662,6 +699,15 @@ export function OffersPage() {
       <DecisionDialog target={decision} onClose={() => setDecision(null)} onDone={refreshAll} />
       <OfferLetterDialog letter={letter} onClose={() => setLetter(null)} />
       <AppointFlowDialog offerId={appointId} onClose={() => setAppointId(null)} onDone={refreshAll} />
+      {/* F7 — minta tanda tangan kandidat eksternal (tautan portal + OTP) */}
+      {esignTarget && (
+        <EsignRequestDialog
+          offers={esignableOffers}
+          preselect={esignTarget}
+          onClose={() => setEsignTarget(null)}
+          onDone={refreshAll}
+        />
+      )}
     </div>
   );
 }

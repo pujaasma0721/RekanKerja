@@ -25,6 +25,7 @@ import {
   attachChainSummaries, type ChainSummary, type DecideActor,
 } from "@/rekankerja/shared/services/approval-engine";
 import { autoPostForApprovedPr } from "@/rekankerja/recruitment/services/opening-service";
+import { emitWebhookEvent } from "@/rekankerja/recruitment/services/webhook-service";
 
 // ============ konstanta domain ============
 
@@ -608,6 +609,13 @@ export async function decidePr(
         detail: `PR ${p.prNo} DISETUJUI penuh (${res.chain.totalLevels} jenjang, keputusan akhir: ${input.actor.name})${autoPostRef ? ` — lowongan ${autoPostRef} otomatis dipublikasikan (portal karir)` : ""}`,
       },
     });
+    // F7 — emit webhook pr.approved (antrean; TANPA PII kandidat)
+    void emitWebhookEvent(db, "pr.approved", {
+      prNo: p.prNo,
+      position: p.position?.title ?? null,
+      requiredNo: p.requiredNo,
+      approvedAt: new Date().toISOString(),
+    }).catch(() => {});
     return { prNo: p.prNo, status: "Approved", approval: summary, final: true };
   }
 
