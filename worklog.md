@@ -5814,3 +5814,35 @@ Stage Summary:
   offer Accepted sudah punya appointment) — teruji via type-check + konteks API curl; jalur
   demo: buat offer utk Budi (Passed) → kirim → terima → Angkat Kandidat.
 - Data demo dipulihkan ke 3 offer (OFF-2026-0004 hasil uji create dihapus via UI).
+
+---
+Task ID: F4-REC
+Agent: main (Z.ai Code) — koordinator
+Task: FASE F4 (Appointment, Offer & Integrasi Onboarding — effort M–L) per DEVELOPMENT-PLAN-RECRUITMENT.md §7 F4: backend penuh + subagent UI + verifikasi E2E + commit.
+
+Work Log:
+- Backend (koordinator): schema +2 model (CandidateOffer [OFF-YYYY-NNNN, gaji TERENKRIPSI vault, expiry timer, status Draft|PendingApproval|Sent|Viewed|Accepted|Declined|Expired, createdBy rel] + CandidateAppointment [penempatan prefill PR + backlink employeeId/onboardingId]) + back-relations 8 model + JobCandidate.status +Hired + tenant-db cache key F4REC (164 tabel).
+- offer-service.ts: nextOfferNo, offerOptions (PR offerable + kandidat + guidance rentang JO + budget), createOffer (guard PR Approved/OnHold + kandidat Passed/InProcess + tanpa offer aktif; gaji di luar rentang JO = peringatan non-blocking HRX E1 guidance), sendOffer (approval OPSIONAL config-over-code: ApprovalStructure RecruitmentOffer aktif → startApprovalChain + PendingApproval; tanpa → langsung performSend), decideOfferApproval (final approve → performSend otomatis; reject → Draft + note), performSend (surat REC_OFFER via mesin surat + email kandidat eksternal [PII decrypt] + notif officer), markViewed/respondOffer (accept|decline + counter sebagai note — HRX E3 versi awal), jobOfferExpiry (Sent/Viewed lewat expiry → Expired otomatis + reminder ≤3 hari dedupe ActivityLog per tanggal, target officer → fallback pembuat), offerFunnel (Talent Pool → Lamaran → Kandidat → per tahap → Offer → Diterima → Hired + acceptance rate).
+- appointment-service.ts: appointmentContext (prefill PR + checklist dokumen ApplicantDocument + preview kandidat lain yang akan ditolak + picker penempatan), appoint (guard offer Accepted + non-internal; surat REC_APPOINT + PR auto-Fulfilled saat appointed ≥ requiredNo + batch surat REC_REJECT ke sisa kandidat aktif + tahap aktif Cancelled + lamaran slot PR → Rejected + rejectionLetterNo), continueToOnboarding (guard; Employee via createEmployeeWithAssignment [prefix Company.code, PII pelamar decrypt → re-encrypt, gaji offer = baseSalary] + Onboarding checklist + email per bagian [butuh req] + backlink + kandidat Hired + Applicant Employed + lamaran PR sama → Hired + lamaran PR lain → Rejected).
+- approval-engine: +docType RecruitmentOffer (AMOUNT_DOC_TYPES + label "Penawaran Kandidat (Offer)" + alias delegasi). MENU_OPS recruitment:offers (send/respond/appoint). RECRUITMENT_NAV +offers (Handshake) + module case + overview kartu F4 + funnel chips + fase F4 done.
+- letter-defaults: +REC_OFFER (penawaran: gaji/mulai/expiry/jo_ref) + REC_APPOINT (pengangkatan: penempatan/atasan/gaji) + REC_REJECT (penolakan batch) + placeholder group +12 token. email-defaults: +recruitment.offer.sent/.reminder/.responded + recruitment.appointment.hired (4 event + EVENT_PLACEHOLDERS). scheduler: +job offer-expiry guarded + counter offerExpiredRows/offerReminded/offerNotified + ringkasan.
+- API /api/rekankerja/recruitment/offers: GET options|list|offerId|approvals|context|funnel|letterPdf (stream, reuse letterPdf F3) + POST 11 action (create/update/delete/send/approve/reject-approval/viewed/accept/decline/appoint/to-onboarding); moneyVisible gating via moneyViewForReq.
+- migrasi F4 idempoten (CREATE TABLE ×2 + index + FK drop-add self-heal termasuk createdBy) + referensi semua tenant (3 surat + AS-OFF-STD 1 jenjang HR_ADMIN aktif) + demo MII via jalur produksi: PR-2026-0004 (Rina offer Sent expiry 2 hari — target E2E; Fajar Declined + note counter) + PR-2026-0008 (Siti siklus PENUH → offer Accepted → appoint → onboarding → karyawan MII00048 + PR Fulfilled). provisioning ensureRecruitmentF4Reference + parity step recruitment-f4 + gap detection CandidateOffer.
+- Subagent F4-UI (sukses): offers.tsx REWRITE 667 baris + offer-dialogs.tsx BARU 1121 baris + selection.tsx tombol Handshake kartu Passed (navigate offers prefill) — terverifikasi browser oleh subagent (chips/PR picker/tabel/dialog create-edit-delete E2E/letter PDF funnel/ID-EN/toggle).
+- Verifikasi E2E koordinator (agent-browser sesi hrd): Direktori — Siti Rahmawati Chief Executive Officer MII00048 Permanent + Rina Wulandari Accountant MII00049 Contract (assignment benar; posisi Rina diperbaiki data demo pasca-uji curl tanpa positionId). UI flow Budi: create OFF-2026-0004 (dialog prefill + hint rentang JO) → Send (confirm) → Pending Approval → Approve → auto-send Surat → Accept (note) → tombol Appoint Candidate → dialog pengangkatan 3-keadaan state-1 (prefill posisi CEO dari PR + checklist dokumen 0/0 + warning "PR auto-fulfills (1/1) + batch rejection 5 kandidat: Gita, Bambang, Dewi, Maria, Yusuf") — DITUTUP tanpa submit (demo F3 board 7 kandidat dipertahankan) + offer uji dibersihkan via skrip.
+- Expiry reminder TERBUKTI jalan otomatis oleh scheduler live: marker ActivityLog "Pengingat offer OFF-2026-0001 kandidat Rina Wulandari (PR-2026-0004) — berakhir 2 hari lagi" (+ OFF-2026-0004 Budi 1 hari).
+- Mutasi data demo dari E2E: Rina offer Accepted → appointed 006/HR-RC/X/2026 → onboarding MII00049 (5 email bagian) → PR-2026-0004 Fulfilled → Fajar ditolak (surat 007/HR-RC/X/2026 + kandidat Failed + note); Siti (seed) MII00048 + PR-2026-0008 Fulfilled; lamaran Siti ke slot PR-2026-0004 ditutup (Rejected).
+- Gates: bun run lint 0 error (6 warning baseline no-img-element), tsc --noEmit 0 error, dev.log 0 error, 0 page/console error browser, mobile 375px tanpa h-scroll. Commit 64bfbe6 + push.
+
+Stage Summary:
+- F4 SELESAI & terverifikasi E2E penuh — seluruh acceptance §7 F4 terpenuhi:
+  · offer dikirim (surat REC_OFFER via mesin surat + PDF + email kandidat);
+  · expiry reminder jalan (scheduler live + badge countdown UI + notif);
+  · accepted → appoint → surat pengangkatan PDF (005/006 HR-RC/X/2026);
+  · onboarding → Employee muncul di Direktori dengan assignment benar (MII00048 CEO/Permanent, MII00049 Accountant/Contract + 8 tugas checklist + email per bagian);
+  · PR requiredNo=1 otomatis Fulfilled (PR-2026-0004 & PR-2026-0008);
+  · pelamar lain menerima surat penolakan (Fajar 007/HR-RC/X/2026 + kandidat Failed + lamaran Rejected);
+  · funnel cocok dengan data (8→6→10→3→2→2, acceptance rate 67%).
+  · approval offer scope recruitment/offer berjalan (AS-OFF-STD 1 jenjang HR_ADMIN aktif; tanpa struktur = jalur cepat; UI inbox + keputusan inline).
+- Fondasi siap F5 (ESS lowongan internal + RecruitmentPlan/Budget + demografi): Applicant/ApplicantApplication/JobOpening/JobOpeningMethod + status Employed/Hired + funnel data tersedia.
+- Menunggu "GO" user untuk lanjut F5.
