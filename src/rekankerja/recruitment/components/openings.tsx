@@ -24,13 +24,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
 import { encodeAdvParam, type AdvSearch, type AdvFieldDef, txt, dt, sel } from "@/rekankerja/shared/lib/adv-search";
-import type { JoRow, OpeningSlotRow, MethodRow, JoStats } from "@/rekankerja/recruitment/services/opening-service";
+import type { JoRow, OpeningSlotRow, MethodRow, JoStats, KnockoutRow } from "@/rekankerja/recruitment/services/opening-service";
 import type { PrRowUI } from "./recruitment-types";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
   Megaphone, Plus, Search, Send, Ban, Archive, Pencil, Trash2, Eye, ChevronLeft, ChevronRight,
-  Wallet, MapPin, MoreHorizontal, Layers3, UsersRound, CalendarRange,
+  Wallet, MapPin, MoreHorizontal, Layers3, UsersRound, CalendarRange, ShieldQuestion,
 } from "lucide-react";
 
 const PAGE_SIZE = 10;
@@ -197,6 +197,11 @@ export function OpeningsPage() {
   const [methodForm, setMethodForm] = useState<MethodForm>(emptyMethod());
   const [methodBusy, setMethodBusy] = useState(false);
 
+  // dialog pertanyaan knockout per slot (F6 — HRX B3)
+  const [koTarget, setKoTarget] = useState<{ jo: JoRow; slot: OpeningSlotRow } | null>(null);
+  const [koRows, setKoRows] = useState<KnockoutRow[]>([]);
+  const [koBusy, setKoBusy] = useState(false);
+
   useEffect(() => {
     const timer = setTimeout(() => { setDebouncedQ(query.trim()); setOffset(0); }, 300);
     return () => clearTimeout(timer);
@@ -234,6 +239,8 @@ export function OpeningsPage() {
   const canPost = perms.canOp("recruitment", "openings", "post");
   const canClose = perms.canOp("recruitment", "openings", "close");
   const canObsolete = perms.canOp("recruitment", "openings", "obsolete");
+  // F6 — pertanyaan knockout slot (op:knockout, guard server Draft/Posted saja).
+  const canKnockout = perms.canOp("recruitment", "openings", "knockout");
 
   // PR yang boleh dijadikan slot: Approved/OnHold & belum punya slot di JO manapun
   const usedPrIds = useMemo(
@@ -434,6 +441,57 @@ export function OpeningsPage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal menutup slot", "Failed to close the slot"));
     }
+  };
+
+  // ---------- pertanyaan knockout per slot (F6 — HRX B3) ----------
+
+  const openKnockouts = (jo: JoRow, slot: OpeningSlotRow) => {
+    setKoTarget({ jo, slot });
+    // salin pertanyaan slot — replace-all saat simpan (id dipertahankan utk update,
+    // baris yang dihapus UI = id tak dikirim = dihapus server).
+    setKoRows(slot.knockouts.map((k) => ({ ...k })));
+  };
+
+  const setKoRow = (idx: number, patch: Partial<KnockoutRow>) => {
+    setKoRows((rs) => rs.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  };
+
+  const addKoRow = () => {
+    if (koRows.length >= 10) return;
+    setKoRows((rs) => [...rs, { id: "", question: "", expectedValue: "", mode: "Equals", active: true, orderNo: rs.length + 1 }]);
+  };
+
+  const removeKoRow = (idx: number) => {
+    setKoRows((rs) => rs.filter((_, i) => i !== idx).map((r, i) => ({ ...r, orderNo: i + 1 })));
+  };
+
+  const saveKnockouts = async () => {
+    if (!koTarget) return;
+    setKoBusy(true);
+    try {
+      await apiSend("/api/rekankerja/recruitment/openings", "PATCH", {
+        action: "upsert-knockouts",
+        slotId: koTarget.slot.id,
+        knockouts: koRows.map((k) => ({
+          ...(k.id ? { id: k.id } : {}),
+          question: k.question,
+          expectedValue: k.expectedValue,
+          mode: k.mode,
+          active: k.active,
+        })),
+      });
+      toast.success(t(
+        "Pertanyaan knockout slot {pr} disimpan ({n} pertanyaan)",
+        "Slot {pr} knockout questions saved ({n} questions)",
+        { pr: koTarget.slot.prNo, n: String(koRows.length) },
+      ));
+      const joId = koTarget.jo.id;
+      setKoTarget(null);
+      await reloadDetail(joId);
+      refreshAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan pertanyaan knockout", "Failed to save the knockout questions"));
+    } finally { setKoBusy(false); }
   };
 
   // ---------- kanal & biaya ----------
@@ -930,7 +988,7 @@ export function OpeningsPage() {
                             <TableHead className="hidden md:table-cell">{t("Gaji Iklan", "Ad Salary")}</TableHead>
                             <TableHead>{t("Status", "Status")}</TableHead>
                             <TableHead className="hidden lg:table-cell">{t("Lamaran", "Applications")}</TableHead>
-                            <TableHead className="w-24" />
+                            <TableHead className="w-28" />
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -961,6 +1019,22 @@ export function OpeningsPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
+                                  {canKnockout && (
+                                    <Button variant="ghost" size="icon" className="relative h-7 w-7"
+                                      disabled={viewRow.status === "Closed" || viewRow.status === "Obsolete"}
+                                      title={viewRow.status === "Closed" || viewRow.status === "Obsolete"
+                                        ? t("Pertanyaan knockout hanya bisa diubah saat lowongan Draft/Posted", "Knockout questions can only be edited while the opening is Draft/Posted")
+                                        : t("Pertanyaan knockout slot (screening objektif)", "Slot knockout questions (objective screening)")}
+                                      aria-label={t("Pertanyaan knockout slot", "Slot knockout questions")}
+                                      onClick={() => openKnockouts(viewRow, s)}>
+                                      <ShieldQuestion className="h-3.5 w-3.5" />
+                                      {s.knockouts.filter((k) => k.active).length > 0 && (
+                                        <span className="absolute -right-0.5 -top-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-amber-500 px-0.5 text-[8px] font-bold text-white">
+                                          {s.knockouts.filter((k) => k.active).length}
+                                        </span>
+                                      )}
+                                    </Button>
+                                  )}
                                   {canUpdate && (viewRow.status === "Draft" || viewRow.status === "Posted") && (
                                     <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Ubah slot", "Edit slot")} onClick={() => openEditSlot(viewRow, s)}>
                                       <Pencil className="h-3.5 w-3.5" />
@@ -1257,6 +1331,116 @@ export function OpeningsPage() {
             <Button variant="outline" onClick={() => setMethodTarget(null)}>{t("Batal", "Cancel")}</Button>
             <Button onClick={saveMethod} disabled={methodBusy} className="ov-fill">
               {methodBusy ? t("Menyimpan…", "Saving…") : methodForm.id ? t("Simpan Perubahan", "Save Changes") : t("Tambah Kanal", "Add Channel")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== dialog pertanyaan knockout slot (F6 — HRX B3) ===== */}
+      <Dialog open={koTarget != null} onOpenChange={(o) => { if (!o) setKoTarget(null); }}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex flex-wrap items-center gap-2">
+              <ShieldQuestion className="h-4 w-4 text-brand-deep dark:text-brand/80" aria-hidden />
+              {t("Knockout — {slot} ({jo})", "Knockout — {slot} ({jo})", { slot: koTarget?.slot.prNo ?? "…", jo: koTarget?.jo.refNo ?? "" })}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-[11px] font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+              <ShieldQuestion className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>
+                {t(
+                  "Hanya pertanyaan OBJEKTIF (mis. kesediaan penempatan) — pertanyaan subjektif DILARANG (kebijakan fairness).",
+                  "Only OBJECTIVE questions (e.g. placement willingness) — subjective questions are FORBIDDEN (fairness policy).",
+                )}
+              </span>
+            </div>
+
+            {koRows.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-slate-300 p-3 text-center text-xs text-slate-500 dark:border-slate-700">
+                {t("Belum ada pertanyaan knockout untuk slot ini.", "No knockout questions for this slot yet.")}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {koRows.map((k, i) => (
+                  <div key={k.id || `new-${i}`} className="rounded-xl border border-slate-200 p-2.5 dark:border-slate-800">
+                    <div className="flex items-start gap-2">
+                      <Label className="mt-2 shrink-0 text-[11px] text-slate-400">#{i + 1}</Label>
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="min-w-[220px] flex-1 space-y-1">
+                            <Label className="text-[11px] text-slate-400">{t("Pertanyaan", "Question")}</Label>
+                            <Input
+                              className="h-8 text-xs"
+                              value={k.question}
+                              maxLength={200}
+                              onChange={(e) => setKoRow(i, { question: e.target.value })}
+                              placeholder={t("mis. Bersedia ditempatkan penuh di kantor Jakarta Pusat?", "e.g. Are you willing to be fully stationed at the Jakarta Pusat office?")}
+                            />
+                          </div>
+                          <div className="w-[150px] shrink-0 space-y-1">
+                            <Label className="text-[11px] text-slate-400">{t("Jawaban Diharapkan", "Expected Answer")}</Label>
+                            <Input
+                              className="h-8 text-xs"
+                              value={k.expectedValue}
+                              maxLength={80}
+                              onChange={(e) => setKoRow(i, { expectedValue: e.target.value })}
+                              placeholder={t("mis. Ya", "e.g. Yes")}
+                            />
+                          </div>
+                          <div className="w-[170px] shrink-0 space-y-1">
+                            <Label className="text-[11px] text-slate-400">{t("Cocok", "Match")}</Label>
+                            <Select value={k.mode} onValueChange={(v) => setKoRow(i, { mode: v })}>
+                              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Equals">{t("Sama dengan (Equals)", "Equals (exact)")}</SelectItem>
+                                <SelectItem value="Contains">{t("Mengandung (Contains)", "Contains")}</SelectItem>
+                                <SelectItem value="NotEquals">{t("Tidak sama (NotEquals)", "Not equals")}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <label className="flex w-fit cursor-pointer select-none items-center gap-2 text-xs text-slate-600 dark:text-slate-300"
+                          title={t("Pertanyaan nonaktif tidak ditampilkan di form lamaran publik", "Inactive questions are not shown on the public application form")}>
+                          <Switch checked={k.active} onCheckedChange={(v) => setKoRow(i, { active: v === true })} aria-label={t("aktif", "active")} />
+                          {k.active ? t("Aktif — tampil di form lamaran", "Active — shown on the application form") : t("Nonaktif", "Inactive")}
+                        </label>
+                      </div>
+                      <Button
+                        variant="ghost" size="icon"
+                        className="h-8 w-8 shrink-0 text-rose-600 hover:text-rose-700 dark:text-rose-400"
+                        onClick={() => removeKoRow(i)}
+                        title={t("hapus pertanyaan", "delete question")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={addKoRow} disabled={koRows.length >= 10}>
+                <Plus className="h-3.5 w-3.5" aria-hidden /> {t("Tambah Pertanyaan", "Add Question")}
+                <span className="text-[10px] text-slate-400">({koRows.length}/10)</span>
+              </Button>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                {t("maks 10 pertanyaan per slot", "max 10 questions per slot")}
+              </span>
+            </div>
+
+            <p className="rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+              {t(
+                "Pertanyaan muncul di form lamaran portal publik — kandidat yang menjawab “Tidak” pada knockout otomatis ditolak dengan sopan (status Rejected di staging, jawaban tersimpan untuk audit).",
+                "Questions appear on the public portal application form — a candidate answering “No” to a knockout is automatically rejected politely (Rejected status in staging, answers kept for audit).",
+              )}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setKoTarget(null)}>{t("Batal", "Cancel")}</Button>
+            <Button onClick={saveKnockouts} disabled={koBusy} className="ov-fill">
+              {koBusy ? t("Menyimpan…", "Saving…") : t("Simpan Knockout", "Save Knockouts")}
             </Button>
           </DialogFooter>
         </DialogContent>

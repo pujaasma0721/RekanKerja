@@ -122,10 +122,13 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "post", label: "Mempublikasikan lowongan", hint: "Menerbitkan draft lowongan (JO) ke portal karir" },
     { key: "close", label: "Menutup lowongan", hint: "Menutup lowongan beserta slot yang masih terbuka" },
     { key: "obsolete", label: "Menandai lowongan usang", hint: "Mengarsipkan lowongan yang tidak relevan (obsolete)" },
+    { key: "knockout", label: "Pertanyaan knockout slot", hint: "Mengelola pertanyaan screening objektif per slot — jawaban salah otomatis menolak lamaran publik (F6)" },
   ],
   "recruitment:applicants": [
     { key: "blacklist", label: "Blacklist / suspend pelamar", hint: "Blacklist (alasan wajib), suspend, atau melepas status pelamar" },
     { key: "apply", label: "Melamar ke slot", hint: "Mendaftarkan pelamar talent pool ke slot lowongan terbuka" },
+    { key: "parse-cv", label: "Parsing CV (AI)", hint: "Ekstraksi data CV (paste/dokumen) via AI + verifikasi hasil parsing oleh manusia (F6a)" },
+    { key: "search-ai", label: "Pencarian AI talent pool", hint: "Pencarian pelamar bahasa natural (interpretasi AI/simulasi + filter terstruktur) di talent pool (F6c)" },
   ],
   "recruitment:public-staging": [
     { key: "verify", label: "Memverifikasi lamaran publik", hint: "Verifikasi (upload ke talent pool), tolak, atau tandai spam" },
@@ -140,6 +143,8 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "schedule", label: "Menjadwalkan tahap seleksi", hint: "Mengatur jadwal (plan/SLA/evaluator) dan acknowledgement tahap kandidat" },
     { key: "result", label: "Mencatat hasil & memindahkan tahap", hint: "Catat hasil tahap (lulus/gagal/skor) dan naikkan kandidat ke tahap berikutnya (termasuk aksi board kanban)" },
     { key: "invite", label: "Menerbitkan surat undangan", hint: "Terbitkan surat undangan seleksi kandidat (PDF via Template Surat)" },
+    { key: "score", label: "Skor AI kandidat", hint: "Generate skor AI explainable per kandidat + kelola rubrik skor per PR (F6 — rekomendasi, keputusan tetap manusia)" },
+    { key: "copilot", label: "Recruiter Copilot (AI)", hint: "Asisten AI rekrutmen: draft JD, ringkas kandidat, pertanyaan interview, outreach, tanya-jawab pipeline, cek bias lowongan (F6c)" },
   ],
 
   // Recruitment F4 — offer & pengangkatan + integrasi onboarding

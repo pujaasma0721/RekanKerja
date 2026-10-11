@@ -769,6 +769,9 @@ export interface PublicPayload {
   educationLevel?: string | null; fieldOfStudy?: string | null; institution?: string | null; graduationYear?: number | null; gpa?: number | null;
   expYears?: number | null; lastPosition?: string | null; lastCompany?: string | null;
   expectedSalary?: number | null; notes?: string | null;
+  /** F6 (HRX B3): jawaban knockout yang dikirim form publik (audit — disalin
+   *  ke ApplicationAnswer saat staging diverifikasi). */
+  knockoutAnswers?: { questionId: string; answer: string | null; pass: boolean }[];
   /** tanda field terenkripsi di payloadJson — hanya utk dokumentasi. */
   [k: string]: unknown;
 }
@@ -893,7 +896,7 @@ function safePayload(tc: ReturnType<typeof tenantCryptoForDb>, json: string): Pu
  *  oleh attachment-service). */
 export async function submitPublicApplication(
   db: TenantDb, tenantSlug: string,
-  input: { jobOpeningId?: string | null; payload: PublicPayload; cv?: { buffer: Buffer; fileName: string; mimeType: string } | null; ipHash?: string | null; spam?: boolean },
+  input: { jobOpeningId?: string | null; payload: PublicPayload; cv?: { buffer: Buffer; fileName: string; mimeType: string } | null; ipHash?: string | null; spam?: boolean; knockoutRejected?: boolean; rejectNote?: string | null },
 ): Promise<{ id: string }> {
   const tc = tenantCryptoForDb(db);
   if (!input.payload.firstName?.trim()) throw new Error("Nama depan wajib diisi");
@@ -906,7 +909,8 @@ export async function submitPublicApplication(
   const pa = await db.publicApplication.create({
     data: {
       jobOpeningId: input.jobOpeningId || null,
-      status: input.spam === true ? "Spam" : "Pending",
+      status: input.spam === true ? "Spam" : input.knockoutRejected === true ? "Rejected" : "Pending",
+      rejectNote: input.knockoutRejected === true ? (input.rejectNote?.slice(0, 500) ?? "Gagal pertanyaan knockout") : null,
       payloadJson: encryptPayload(tc, input.payload),
       ipHash: input.ipHash ?? null,
       consentId: consent.id,
@@ -984,10 +988,32 @@ export async function verifyPublicApplication(
   }
 
   // lamaran ke slot (bila mengincar slot & slot masih layak)
+  let newApplicationId: string | null = null;
   if (pa.jobOpeningId && pa.jobOpening && pa.jobOpening.status === "Open" && pa.jobOpening.jobOpportunity.status === "Posted") {
-    await db.applicantApplication.create({
+    newApplicationId = await db.applicantApplication.create({
       data: { applicantId: applicant.id, jobOpeningId: pa.jobOpeningId, sourceNote: "Lamaran publik (portal karir)" },
-    }).catch(() => { /* unique — sudah melamar */ });
+    })
+      .then((r) => r.id)
+      .catch(() => null); /* unique — sudah melamar */
+  }
+
+  // F6 (HRX B3): salin jawaban knockout staging → ApplicationAnswer (audit
+  // per lamaran — hanya questionId yang masih valid di slot)
+  const koAnswers = Array.isArray(p.knockoutAnswers) ? p.knockoutAnswers : [];
+  if (newApplicationId && koAnswers.length > 0) {
+    const validQs = await db.knockoutQuestion.findMany({
+      where: { id: { in: koAnswers.map((a) => String(a.questionId)) } },
+      select: { id: true },
+    });
+    const validIds = new Set(validQs.map((q) => q.id));
+    const rows = koAnswers
+      .filter((a) => validIds.has(String(a.questionId)))
+      .map((a) => ({
+        applicationId: newApplicationId!,
+        questionId: String(a.questionId),
+        answer: a.answer != null ? String(a.answer).slice(0, 200) : null,
+      }));
+    if (rows.length > 0) await db.applicationAnswer.createMany({ data: rows, skipDuplicates: true });
   }
 
   // pindah CV staging → dokumen pelamar (requiredDocument CV bila ada)

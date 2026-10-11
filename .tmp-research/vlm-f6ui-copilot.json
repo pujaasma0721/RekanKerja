@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "1. **Yes**, it is a 'Recruiter Copilot' dialog containing exactly the 6 action chips mentioned: **Draf JD, Ringkas Kandidat, Pertanyaan Interview, Draf Outreach, Tanya Pipeline,** and **Cek Bias JD**.\n2. **Yes**, there is a result area featuring a yellow **'Simulasi'** badge, a **'Salin'** (Copy) button with an icon, and a 5-point summary text for candidate **Dewi Lestari (APP-26-00001)** covering education, experience, skills, position, and AI score.\n3. **No layout problems or overlaps** are visible; the dialog is well-spaced and all elements are clearly legible without any clipping or overlapping.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791724691,
+  "id": "20261011211809b4a5c5774688414b",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20261011211809b4a5c5774688414b",
+  "usage": {
+    "completion_tokens": 163,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 997,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 1160
+  }
+}

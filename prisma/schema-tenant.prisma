@@ -345,6 +345,10 @@ model Employee {
   // F5-REC — lamaran lowongan internal via ESS (MyJobOpportunity oranHR §2.10)
   empJobApplications  EmpJobApplication[]       @relation("EmpJobApplied")
 
+  // F6-REC — AI: verifikator hasil parsing CV / pemicu skor AI kandidat
+  cvParsesVerified   CvParseResult[]          @relation("CvParseVerifier")
+  aiScoresGenerated  CandidateAiScore[]       @relation("AiScoreGenerator")
+
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
   @@index([status])
@@ -3370,6 +3374,10 @@ model PersonnelRequisition {
   autoPostOpening          Boolean   @default(false) // auto buat JobOpening saat Approved (dipakai F2)
   slaTargetDays           Int? // target hari penyelesaian (HRX A3)
   replacedEmployeeId      String? // PR penggantian (attrition) — karyawan yang digantikan
+  // F6-REC — rubrik skor AI no-code per PR (HRX B2): JSON string
+  // [{name, weight, guide}] — snapshot disalin ke CandidateAiScore.rubricJson
+  // saat generate; bobot dinormalisasi service. Null = pakai rubrik default.
+  rubricJson              String? // [{name, weight, guide}] — bobot 0–1 relatif
   status                  String    @default("Draft") // Draft|Submitted|Approved|Rejected|OnHold|Fulfilled|Closed|Cancelled
   decisionNote            String? // catatan keputusan approver (reject/close)
   submittedAt             DateTime?
@@ -3483,6 +3491,9 @@ model JobOpening {
   // F4-REC — offer yang terikat slot ini (guidance rentang gaji iklan)
   offers            CandidateOffer[]       @relation("OpeningOffers")
 
+  // F6-REC — pertanyaan knockout per slot (HRX B3)
+  knockouts         KnockoutQuestion[]     @relation("OpeningKnockouts")
+
   @@unique([jobOpportunityId, prId])
   @@index([prId])
   @@index([status])
@@ -3575,6 +3586,8 @@ model Applicant {
   consents         ApplicantConsent[]
   // F3-REC — kandidat PR yang bersumber dari pelamar ini
   candidates       JobCandidate[]     @relation("ApplicantCandidates")
+  // F6-REC — hasil parsing CV (AI/manual/simulated) milik pelamar ini
+  cvParses         CvParseResult[]    @relation("ApplicantCvParses")
 
   @@index([status])
   @@index([keepOnFileUntil])
@@ -3666,6 +3679,9 @@ model ApplicantApplication {
 
   applicant  Applicant  @relation(fields: [applicantId], references: [id], onDelete: Cascade)
   jobOpening JobOpening @relation(fields: [jobOpeningId], references: [id])
+
+  // F6-REC — jawaban pertanyaan knockout lamaran ini
+  answers    ApplicationAnswer[] @relation("ApplicationAnswers")
 
   @@unique([applicantId, jobOpeningId])
   @@index([jobOpeningId])
@@ -3769,6 +3785,9 @@ model JobCandidate {
   // F5-REC — lamaran internal ESS yang menominasikan kandidat ini
   // (satu kandidat bisa dirujuk >1 lamaran slot berbeda dari PR yang sama)
   empApplications EmpJobApplication[] @relation("EmpJobApplicationCandidate")
+
+  // F6-REC — skor AI explainable (HRX B2) — histori generate per kandidat
+  aiScores         CandidateAiScore[]  @relation("CandidateAiScores")
 
   @@unique([prId, applicantId]) // 1 pelamar 1 PR (employee internal bebas)
   @@index([prId, status])
@@ -4079,4 +4098,102 @@ model EmpJobApplication {
   @@unique([employeeId, jobOpeningId])
   @@index([employeeId])
   @@index([jobOpeningId])
+}
+
+// ============================================================================
+// RECRUITMENT — F6: AI INTELLIGENCE (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F6 +
+// §4.3 — HRX Modul B; semua explainable per P2 + fallback manual D7)
+//
+// Aturan §2.4 mengikat: semua panggilan AI WAJIB lewat ai-provider.ts
+// (aiComplete); mode hasil selalu eksplisit "ai"|"simulated" (D7 — tidak
+// pernah memalsukan); skor = REKOMENDASI, keputusan tetap manusia.
+//
+// • KnockoutQuestion (B3): pertanyaan objektif per slot lowongan — dievaluasi
+//   saat apply (form publik/portal); jawaban ApplicationAnswer (per lamaran).
+// • CvParseResult (B1): hasil parsing CV → fieldsJson {field:{value,
+//   confidence}} + verifikasi manusia (verifiedBy/At) → pre-fill form
+//   pelamar (UI F6).
+// • CandidateAiScore (B2): skor 0–100 + factorsJson [{factor, weight,
+//   contribution, evidence}] — snapshot rubrik saat generate (rubricJson di
+//   PersonnelRequisition — no-code per PR).
+// ============================================================================
+
+// Pertanyaan knockout per slot (HRX B3 — hanya pertanyaan OBJEKTIF, mis.
+// "Bersedia ditempatkan di Bandung?"). Gagal knockout = auto-disposition
+// (staging Rejected/auto + surat penolakan ramah + audit — service F6).
+model KnockoutQuestion {
+  id            String    @id @default(cuid())
+  jobOpeningId String
+  question      String
+  expectedValue String // jawaban yang diharapkan (string/bool "Ya"/"Tidak")
+  mode          String    @default("Equals") // Equals|Contains|NotEquals
+  active        Boolean   @default(true)
+  orderNo       Int       @default(1)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  jobOpening JobOpening        @relation("OpeningKnockouts", fields: [jobOpeningId], references: [id], onDelete: Cascade)
+  answers    ApplicationAnswer[] @relation("KnockoutAnswers")
+
+  @@index([jobOpeningId])
+}
+
+// Jawaban pertanyaan knockout per lamaran (disimpan utk audit — HRX B3).
+model ApplicationAnswer {
+  id            String    @id @default(cuid())
+  applicationId String
+  questionId    String
+  answer        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  application ApplicantApplication @relation("ApplicationAnswers", fields: [applicationId], references: [id], onDelete: Cascade)
+  question    KnockoutQuestion     @relation("KnockoutAnswers", fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, questionId])
+}
+
+// Hasil parsing CV (HRX B1) — mode: "ai" (model nyata via ai-provider),
+// "simulated" (ekstraksi heuristik regex — berlabel), "manual" (input tangan).
+// fieldsJson: {fullName:{value,confidence}, email:…, phone:…, city:…,
+// birthDate:…, education:[…], experiences:[…], skills:[…], expectedSalary:…}.
+// Human-verify: UI pre-fill form pelamar dari hasil ini; koreksi disimpan
+// ulang (verifiedBy/verifiedAt menandai sudah dicek manusia).
+model CvParseResult {
+  id           String    @id @default(cuid())
+  applicantId  String
+  sourceKind   String // pdf|docx|txt|paste
+  storagePath  String? // jejak file sumber (bila dari ApplicantDocument)
+  fieldsJson   String
+  mode         String // ai|manual|simulated
+  model        String? // nama model (mode ai) — null utk simulated
+  verifiedById String?
+  verifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  applicant   Applicant  @relation("ApplicantCvParses", fields: [applicantId], references: [id], onDelete: Cascade)
+  verifiedBy  Employee? @relation("CvParseVerifier", fields: [verifiedById], references: [id])
+
+  @@index([applicantId])
+}
+
+// Skor AI explainable per kandidat (HRX B2) — histori; total 0–100.
+// factorsJson: [{factor, weight, score, contribution, evidence}] — evidence
+// = kutipan bukti dari CV/profil (P2: tidak ada black-box).
+model CandidateAiScore {
+  id            String   @id @default(cuid())
+  candidateId   String
+  rubricJson    String // snapshot rubrik saat generate ([{name,weight,guide}])
+  total         Float
+  factorsJson   String
+  mode          String // ai|manual|simulated
+  model         String?
+  generatedAt   DateTime @default(now())
+  generatedById String
+
+  candidate   JobCandidate @relation("CandidateAiScores", fields: [candidateId], references: [id], onDelete: Cascade)
+  generatedBy Employee    @relation("AiScoreGenerator", fields: [generatedById], references: [id])
+
+  @@index([candidateId, generatedAt])
 }

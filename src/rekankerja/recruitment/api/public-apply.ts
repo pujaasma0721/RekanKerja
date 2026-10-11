@@ -6,6 +6,7 @@ import { MAX_ATTACHMENT_BYTES } from "@/rekankerja/shared/services/attachment-se
 import {
   verifyCaptcha, ipHashOf, clientIpOf, listPublicOpenings,
 } from "@/rekankerja/recruitment/services/public-recruitment-service";
+import { evaluateKnockouts } from "@/rekankerja/recruitment/services/opening-service";
 import { submitPublicApplication } from "@/rekankerja/recruitment/services/applicant-service";
 
 // ============================================================================
@@ -20,7 +21,11 @@ import { submitPublicApplication } from "@/rekankerja/recruitment/services/appli
 //   website?           — HONEYPOT (terisi = bot → status Spam, respons tetap 201)
 //   consent*           — wajib "true" (UU PDP — dicatat ApplicantConsent)
 //   cv?                — File JPG/PNG/WEBP/PDF ≤ 5MB (opsional)
-// Response 201 { ok: true } — sukses maupun spam-honeypot (anti-enumeration).
+//   ko_<questionId>?   — F6 (HRX B3): jawaban pertanyaan knockout slot — salah
+//                        → staging Rejected otomatis (respons TETAP 201, catatan
+//                        di rejectNote + jawaban tersimpan utk audit).
+// Response 201 { ok: true } — sukses maupun spam-honeypot/knockout-gagal
+// (anti-enumeration).
 // Rate limit 5 lamaran / 15 menit / IP (hash disimpan, bukan IP mentah).
 // ============================================================================
 
@@ -134,6 +139,30 @@ export async function POST(req: NextRequest) {
       jobOpeningId = slot.id;
     }
 
+    // ---- F6 (HRX B3): evaluasi jawaban knockout ko_<questionId> ----
+    // Hanya field yang DIKIRIM form yang dievaluasi (form lama tanpa knockout
+    // tetap lolos) — jawaban tersimpan di payload utk audit + disalin ke
+    // ApplicationAnswer saat diverifikasi HR.
+    const koAnswers: Record<string, string> = {};
+    for (const [key, value] of form.entries()) {
+      if (key.startsWith("ko_") && typeof value === "string") koAnswers[key.slice(3)] = value;
+    }
+    const knockoutAnswers: { questionId: string; answer: string | null; pass: boolean }[] = [];
+    let rejectNote: string | null = null;
+    if (jobOpeningId && Object.keys(koAnswers).length > 0) {
+      const db = getTenantClient(schemaName);
+      const ev = await evaluateKnockouts(db, jobOpeningId, koAnswers);
+      for (const r of ev.results) {
+        knockoutAnswers.push({ questionId: r.questionId, answer: r.answer, pass: r.pass });
+      }
+      if (!ev.pass) {
+        const failed = ev.results.filter((r) => !r.pass);
+        rejectNote = `Gagal knockout: ${failed
+          .map((f) => `"${f.question}" (jawaban "${f.answer}", diharapkan ${f.mode === "NotEquals" ? `bukan "${f.expectedValue}"` : `"${f.expectedValue}"`})`)
+          .join("; ")}`;
+      }
+    }
+
     // ---- CV opsional (pattern applicant-documents: pre-check + service otoritatif) ----
     let cv: { buffer: Buffer; fileName: string; mimeType: string } | null = null;
     const file = form.get("cv");
@@ -176,6 +205,7 @@ export async function POST(req: NextRequest) {
       lastCompany: txt("lastCompany") || null,
       expectedSalary: num("expectedSalary"),
       notes: txt("notes") || null,
+      knockoutAnswers,
     };
     const res = await submitPublicApplication(db, tenantSlug, {
       jobOpeningId,
@@ -183,6 +213,8 @@ export async function POST(req: NextRequest) {
       cv,
       ipHash: ipHashOf(ip),
       spam,
+      knockoutRejected: rejectNote != null,
+      rejectNote,
     });
     void res;
 

@@ -6,7 +6,7 @@
 // Padanan oranHR EvaluationProcess/PerCandidate + HRX D1/D2/D3 (lihat
 // DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3). Dialog di selection-dialogs.tsx.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useApi } from "@/rekankerja/shared/lib/api";
+import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
@@ -16,23 +16,27 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
-  SELECTION_API, CANDIDATES_API,
+  SELECTION_API, CANDIDATES_API, AI_API, BLIND_LS_KEY,
   type BoardColumn, type CalendarEvent, type CandidateCard, type NominationOptions,
-  type ProcessOpt, type PrOpt, type SelectionBoard, type SummaryRow,
-  CandPill, Pill, daysLateOf,
+  type ProcessOpt, type PrOpt, type SelectionBoard, type SummaryRow, type AiScore,
+  CandPill, Pill, daysLateOf, AiScoreBadge,
 } from "./selection-shared";
+import { AiScoreDialog, AiRubricDialog } from "./ai-score-dialogs";
+import { CopilotPanel } from "./copilot-panel";
 import {
   CandidateDetailDialog, DayEventsDialog, ResultAdvanceDialog, RubricManagerDialog,
   TransferDialog, type ResultTarget,
 } from "./selection-dialogs";
 import {
-  AlarmClock, AlertTriangle, ArrowUpRight, BadgeCheck, CalendarDays, ClipboardCheck,
-  Handshake, KanbanSquare, Keyboard, MailCheck, Settings2, UserPlus, UserRoundCheck,
+  AlarmClock, AlertTriangle, ArrowUpRight, BadgeCheck, Bot, CalendarDays, ClipboardCheck,
+  Handshake, KanbanSquare, Keyboard, MailCheck, Settings2, SlidersHorizontal, Sparkles,
+  UserPlus, UserRoundCheck, EyeOff,
 } from "lucide-react";
 
 const SELECTION_MASTER = "/api/rekankerja/recruitment/masters?type=selection-process";
@@ -104,6 +108,10 @@ export function SelectionPage() {
   const canNominate = perms.canOp("recruitment", "candidates", "nominate");
   const canResult = perms.canOp("recruitment", "selection", "result");
   const canRubric = perms.can("recruitment", "selection", "update") || perms.can("recruitment", "selection", "create");
+  // F6b — skor AI explainable (generate + rubrik skor per PR) — op:score.
+  const canScore = perms.canOp("recruitment", "selection", "score");
+  // F6c — Recruiter Copilot (draf JD/ringkasan/interview/outreach/pipeline/bias) — op:copilot.
+  const canCopilot = perms.canOp("recruitment", "selection", "copilot");
 
   // ---------- dialog ----------
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -111,7 +119,33 @@ export function SelectionPage() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [rubricOpen, setRubricOpen] = useState(false);
   const [dayEvents, setDayEvents] = useState<{ day: string; events: CalendarEvent[] } | null>(null);
-  const dialogOpen = detailId != null || resultTarget != null || transferOpen || rubricOpen || dayEvents != null;
+  // F6b — dialog skor AI (per kandidat) + manager rubrik skor AI (per PR).
+  const [scoreTarget, setScoreTarget] = useState<{ id: string; displayName: string } | null>(null);
+  const [aiRubricOpen, setAiRubricOpen] = useState(false);
+  // F6c — panel Recruiter Copilot.
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const dialogOpen = detailId != null || resultTarget != null || transferOpen || rubricOpen || dayEvents != null
+    || scoreTarget != null || aiRubricOpen || copilotOpen;
+
+  // ---------- F6c — mode buta (blind screening, display-only) ----------
+  // localStorage rk-blind-selection; baca SETELAH mount (hindari hydration
+  // mismatch SSR) — data TIDAK pernah diubah, hanya tampilan yang disamarkan.
+  const [blind, setBlind] = useState(false);
+  useEffect(() => {
+    try {
+      // rehidrasi preferensi localStorage memang harus pasca-mount: SSR selalu
+      // false supaya hydration stabil, lalu beralih sekali ke nilai tersimpan.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- baca localStorage rk-blind-selection pasca-mount (pola i18n.tsx)
+      setBlind(window.localStorage.getItem(BLIND_LS_KEY) === "1");
+    } catch { /* storage bisa diblokir — abaikan */ }
+  }, []);
+  const toggleBlind = (on: boolean) => {
+    setBlind(on);
+    try { window.localStorage.setItem(BLIND_LS_KEY, on ? "1" : "0"); } catch { /* private mode */ }
+    toast(on
+      ? t("Mode Buta AKTIF — nama & institusi kandidat disamarkan di papan (data tidak berubah).", "Blind Mode ON — candidate names & institutions are masked on the board (data unchanged).")
+      : t("Mode Buta nonaktif — tampilan papan dipulihkan.", "Blind Mode off — board display restored."));
+  };
 
   const refreshAll = () => {
     boardApi.refresh(); summariesApi.refresh(); optionsApi.refresh();
@@ -126,6 +160,44 @@ export function SelectionPage() {
   const validSelected = useMemo(
     () => new Set(flatCards.filter((f) => selected.has(f.card.id)).map((f) => f.card.id)),
     [flatCards, selected],
+  );
+
+  // ---------- F6b — badge skor AI kartu (1 fetch bulk per PR via latest-scores) ----------
+  const [aiScores, setAiScores] = useState<Record<string, AiScore>>({});
+  const [scoreTick, setScoreTick] = useState(0);
+  const boardPrId = board?.pr.id ?? null;
+  useEffect(() => {
+    if (!boardPrId || !canScore) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const res = await apiSend<{ scores: AiScore[] }>(AI_API, "POST", { action: "latest-scores", prId: boardPrId });
+        if (alive) setAiScores(Object.fromEntries((res.scores ?? []).map((s) => [s.candidateId, s])));
+      } catch {
+        if (alive) setAiScores({}); // board tetap jalan tanpa badge (mis. endpoint sibuk)
+      }
+    })();
+    return () => { alive = false; };
+  }, [boardPrId, canScore, scoreTick]);
+  /** skor baru dari dialog → refresh badge semua kartu (1 fetch). */
+  const onScoredRefresh = () => setScoreTick((x) => x + 1);
+
+  // ---------- F6c — nomor anonim stabil per PR (urut nominatedAt, bukan id) ----------
+  const blindNoMap = useMemo(() => {
+    const all = (board?.columns ?? []).flatMap((c) => c.cards)
+      .slice().sort((a, b) => a.nominatedAt.localeCompare(b.nominatedAt) || a.id.localeCompare(b.id));
+    return new Map(all.map((c, i) => [c.id, i + 1]));
+  }, [board]);
+  /** nama tampil kartu/dialog — Mode Buta mengganti dgn "Kandidat #n". */
+  const displayNameOf = (card: { id: string; fullName: string }) =>
+    blind ? t("Kandidat #{n}", "Candidate #{n}", { n: String(blindNoMap.get(card.id) ?? 0) }) : card.fullName;
+  /** PR terpilih (utk dialog rubrik skor AI — jalan bahkan sebelum board termuat). */
+  const selectedPrOpt = prOptions.find((p) => p.id === prId) ?? null;
+
+  // F6c — opsi kandidat copilot: reuse kartu board (tanpa fetch tambahan).
+  const copilotCandidates = useMemo(
+    () => flatCards.map((f) => ({ id: f.card.id, name: f.card.fullName, sub: f.card.currentStageName ?? null })),
+    [flatCards],
   );
 
   // ---------- keyboard: J/K navigasi + Enter detail ----------
@@ -184,7 +256,7 @@ export function SelectionPage() {
     const master = stages.find((s) => s.id === origin.col.stageId);
     setResultTarget({
       mode: "advance",
-      cards: [{ id: origin.card.id, fullName: origin.card.fullName }],
+      cards: [{ id: origin.card.id, fullName: displayNameOf(origin.card) }],
       evaluatedStageName: origin.col.name,
       toStageName: col.name,
       resultType: master?.resultType ?? origin.col.resultType,
@@ -213,7 +285,7 @@ export function SelectionPage() {
     const nextCol = (board?.columns ?? []).find((c) => c.seqNo === (originCol?.seqNo ?? 0) + 1);
     setResultTarget({
       mode: "bulk",
-      cards: cards.map((c) => ({ id: c.id, fullName: c.fullName })),
+      cards: cards.map((c) => ({ id: c.id, fullName: displayNameOf(c) })),
       evaluatedStageName: originCol?.name ?? (first.currentStageName ?? ""),
       toStageName: nextCol?.name ?? null,
       resultType: master?.resultType ?? originCol?.resultType ?? null,
@@ -257,6 +329,7 @@ export function SelectionPage() {
     const focused = flatCards[focusIdx]?.card.id === card.id;
     const seq = card.currentSeqNo ?? card.totalSteps;
     const pct = card.totalSteps > 0 ? Math.round((card.passedSteps / card.totalSteps) * 100) : 0;
+    const ai = aiScores[card.id] ?? null;
     return (
       <div
         key={card.id}
@@ -278,8 +351,23 @@ export function SelectionPage() {
         )}
       >
         <div className="flex items-start justify-between gap-1">
-          <span className="min-w-0 truncate text-[13px] font-semibold text-slate-900 dark:text-slate-50">{card.fullName}</span>
-          <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          <span className="min-w-0 truncate text-[13px] font-semibold text-slate-900 dark:text-slate-50">{displayNameOf(card)}</span>
+          <span className="flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+            {canScore && (
+              ai
+                ? <AiScoreBadge total={ai.total} onClick={() => setScoreTarget({ id: card.id, displayName: displayNameOf(card) })} />
+                : (
+                  <Button
+                    variant="ghost" size="icon"
+                    className="h-6 w-6 text-slate-400 hover:text-brand-deep dark:hover:text-brand/80"
+                    title={t("Skor AI (belum ada) — buka dialog generate", "AI score (none yet) — open the generate dialog")}
+                    aria-label={t("Skor AI kandidat", "Candidate AI score")}
+                    onClick={() => setScoreTarget({ id: card.id, displayName: displayNameOf(card) })}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                  </Button>
+                )
+            )}
             <Checkbox
               className="opacity-0 transition-opacity group-hover:opacity-100 data-[state=checked]:opacity-100"
               checked={selected.has(card.id)}
@@ -463,6 +551,11 @@ export function SelectionPage() {
           "A per-PR kanban board of the selection process — advance candidates stage by stage (Record Result), manage scorecard panels & divergence, invitation letters, SLA, and the schedule calendar.",
         )}
         actions={<>
+          {canScore && (
+            <Button variant="outline" onClick={() => setAiRubricOpen(true)} className="gap-2">
+              <SlidersHorizontal className="h-4 w-4" aria-hidden /> {t("Rubrik Skor AI", "AI Score Rubric")}
+            </Button>
+          )}
           {canNominate && (
             <Button onClick={() => setTransferOpen(true)} className="ov-fill ov-glow gap-2">
               <UserPlus className="h-4 w-4" aria-hidden /> {t("Transfer Kandidat", "Transfer Candidate")}
@@ -495,10 +588,12 @@ export function SelectionPage() {
       <Card className="mb-4 border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="flex flex-wrap items-end justify-between gap-3 p-4">
           <div className="flex min-w-[260px] flex-1 flex-wrap items-end gap-3">
-            <div className="w-[300px] space-y-1.5">
+            {/* F6b fix mobile 375px: trigger shadcn w-fit + teks PR panjang →
+                luapan horizontal; jadikan full-width (kapsulation sm:w-[300px]). */}
+            <div className="w-full min-w-0 space-y-1.5 sm:w-[300px]">
               <Label>{t("Permintaan Karyawan (PR)", "Personnel Requisition (PR)")}</Label>
               <Select value={prId || undefined} onValueChange={changePr}>
-                <SelectTrigger><SelectValue placeholder={prs.length === 0 ? t("memuat…", "loading…") : t("Pilih PR…", "Pick a PR…")} /></SelectTrigger>
+                <SelectTrigger className="w-full"><SelectValue placeholder={prs.length === 0 ? t("memuat…", "loading…") : t("Pilih PR…", "Pick a PR…")} /></SelectTrigger>
                 <SelectContent className="max-h-64">
                   {prOptions.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
@@ -522,12 +617,32 @@ export function SelectionPage() {
               </div>
             )}
           </div>
-          <Tabs value={mode} onValueChange={(v) => setMode(v === "calendar" ? "calendar" : "board")}>
-            <TabsList>
-              <TabsTrigger value="board" className="gap-1.5"><KanbanSquare className="h-4 w-4" aria-hidden /> {t("Papan", "Board")}</TabsTrigger>
-              <TabsTrigger value="calendar" className="gap-1.5"><CalendarDays className="h-4 w-4" aria-hidden /> {t("Kalender", "Calendar")}</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* F6c — Recruiter Copilot (draf JD · ringkasan · interview · outreach · tanya pipeline · cek bias) */}
+            {canCopilot && (
+              <Button variant="outline" className="gap-2" onClick={() => setCopilotOpen(true)}>
+                <Bot className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden /> {t("Copilot", "Copilot")}
+              </Button>
+            )}
+            {/* F6c — mode buta: samarkan identitas di papan (display-only) */}
+            {blind && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-400">
+                <EyeOff className="h-3.5 w-3.5" aria-hidden /> {t("MODE BUTA AKTIF", "BLIND MODE ON")}
+              </span>
+            )}
+            <label className="flex h-9 cursor-pointer select-none items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 dark:border-slate-700 dark:text-slate-300"
+              title={t("Sembunyikan nama & institusi kandidat di papan — hanya tampilan, data tidak berubah.", "Mask candidate names & institutions on the board — display only, data unchanged.")}>
+              <EyeOff className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+              {t("Mode Buta", "Blind Mode")}
+              <Switch checked={blind} onCheckedChange={toggleBlind} aria-label={t("Mode Buta", "Blind Mode")} />
+            </label>
+            <Tabs value={mode} onValueChange={(v) => setMode(v === "calendar" ? "calendar" : "board")}>
+              <TabsList>
+                <TabsTrigger value="board" className="gap-1.5"><KanbanSquare className="h-4 w-4" aria-hidden /> {t("Papan", "Board")}</TabsTrigger>
+                <TabsTrigger value="calendar" className="gap-1.5"><CalendarDays className="h-4 w-4" aria-hidden /> {t("Kalender", "Calendar")}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </CardContent>
       </Card>
 
@@ -659,8 +774,13 @@ export function SelectionPage() {
         candidateId={detailId}
         employees={employees}
         stages={stages}
+        blind={blind}
+        displayName={detailId != null && flatCards.some((f) => f.card.id === detailId)
+          ? displayNameOf(flatCards.find((f) => f.card.id === detailId)!.card)
+          : null}
         onClose={() => setDetailId(null)}
         onMutated={() => { boardApi.refresh(); summariesApi.refresh(); }}
+        onScored={onScoredRefresh}
       />
       <ResultAdvanceDialog target={resultTarget} employees={employees} onClose={() => setResultTarget(null)} onDone={refreshAll} />
       <TransferDialog open={transferOpen} onClose={() => setTransferOpen(false)} prs={prOptions} employees={employees} defaultPrId={prId} onDone={refreshAll} />
@@ -670,6 +790,24 @@ export function SelectionPage() {
         events={dayEvents?.events ?? []}
         onClose={() => setDayEvents(null)}
         onOpenCandidate={(id) => setDetailId(id)}
+      />
+      {/* F6b — dialog skor AI per kandidat + manager rubrik skor per PR terpilih */}
+      <AiScoreDialog
+        candidate={scoreTarget}
+        canGenerate={canScore}
+        onClose={() => setScoreTarget(null)}
+        onScored={onScoredRefresh}
+      />
+      <AiRubricDialog
+        pr={aiRubricOpen && selectedPrOpt ? { id: selectedPrOpt.id, prNo: selectedPrOpt.prNo, positionTitle: selectedPrOpt.positionTitle } : null}
+        onClose={() => setAiRubricOpen(false)}
+      />
+      {/* F6c — panel Recruiter Copilot (opsi PR/kandidat reuse data view — tanpa fetch baru) */}
+      <CopilotPanel
+        open={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+        prs={prOptions.map((p) => ({ id: p.id, prNo: p.prNo, positionTitle: p.positionTitle }))}
+        candidates={copilotCandidates}
       />
     </div>
   );

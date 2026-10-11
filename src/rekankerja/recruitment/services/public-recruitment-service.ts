@@ -97,6 +97,9 @@ export interface PublicOpeningItem {
   jobSpecSummary: string | null;
   closingDate: string | null;
   employmentStatus: string | null;
+  /** F6 (HRX B3): pertanyaan knockout aktif — PERTANYAAN saja (jawaban yang
+   *  diharapkan TIDAK pernah dikirim ke klien — dievaluasi server-side). */
+  knockouts: { questionId: string; question: string }[];
 }
 
 /** Slot Posted+Open untuk portal publik — TANPA PII/data internal.
@@ -117,6 +120,7 @@ export async function listPublicOpenings(db: TenantDb, limit = 50): Promise<Publ
       workLocation: { select: { name: true, city: true } },
       jobOpportunity: { select: { refNo: true, lastAcceptDate: true } },
       pr: { select: { employmentStatus: true } },
+      knockouts: { where: { active: true }, orderBy: { orderNo: "asc" }, select: { id: true, question: true } },
     },
     orderBy: { postedAt: "desc" },
     take: Math.min(limit, 100),
@@ -135,5 +139,6 @@ export async function listPublicOpenings(db: TenantDb, limit = 50): Promise<Publ
     jobSpecSummary: s.jobSpecSummary,
     closingDate: s.jobOpportunity.lastAcceptDate ? s.jobOpportunity.lastAcceptDate.toISOString().slice(0, 10) : null,
     employmentStatus: s.pr.employmentStatus,
+    knockouts: s.knockouts.map((k) => ({ questionId: k.id, question: k.question })),
   }));
 }

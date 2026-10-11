@@ -1,7 +1,10 @@
 "use client";
 // RekanKerja Recruitment — Ringkasan modul (F0): status fondasi + jumlah
 // master + rantai tahap seleksi default + peta fase pengembangan.
-import { useApi, fmtIDRShort } from "@/rekankerja/shared/lib/api";
+// F6b: chip PR kandidat menambah badge rata-rata skor AI terbaru per PR.
+import { useEffect, useState } from "react";
+import { useApi, apiSend, fmtIDRShort } from "@/rekankerja/shared/lib/api";
+import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +12,7 @@ import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 import { MASTER_DEFS } from "./recruitment-types";
 import type { MasterType } from "@/rekankerja/recruitment/services/recruitment-master-service";
+import { AI_API, scoreToneKey, type AiScore } from "./selection-shared";
 import {
   UserRoundSearch, Boxes, ListChecks, CheckCircle2, Circle, ArrowRight, Megaphone, BadgeCheck,
   Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList, UsersRound, Inbox, Layers3,
@@ -36,6 +40,7 @@ interface SelectionRow {
 
 export function RecruitmentOverview() {
   const { t } = useI18n();
+  const perms = useMenuPerms();
   const counts = useApi<{ counts: Record<string, number> }>("/api/rekankerja/recruitment/masters");
   const chain = useApi<{ rows: SelectionRow[] }>("/api/rekankerja/recruitment/masters?type=selection-process");
 
@@ -65,6 +70,29 @@ export function RecruitmentOverview() {
     overdue: selApi.data ? selSum.reduce((a, s) => a + s.overdue, 0) : null,
     invitations: selApi.data ? selSum.reduce((a, s) => a + s.invitations, 0) : null,
   };
+
+  // F6b — rata-rata skor AI terbaru per PR berkandidat (badge chip PR; 1 POST
+  // latest-scores per PR, silent-fail — overview tetap jalan tanpa izin op:score).
+  const canScore = perms.canOp("recruitment", "selection", "score");
+  const [aiAvg, setAiAvg] = useState<Record<string, number | null>>({});
+  const selPrIds = selApi.data ? selSum.map((s) => s.prId).join(",") : null;
+  useEffect(() => {
+    if (!canScore || !selPrIds) return;
+    let alive = true;
+    const ids = selPrIds.split(",").filter(Boolean);
+    void (async () => {
+      const out: Record<string, number | null> = {};
+      await Promise.all(ids.map(async (id) => {
+        try {
+          const res = await apiSend<{ scores: AiScore[] }>(AI_API, "POST", { action: "latest-scores", prId: id });
+          const ss = res.scores ?? [];
+          out[id] = ss.length > 0 ? ss.reduce((a, s) => a + s.total, 0) / ss.length : null;
+        } catch { out[id] = null; }
+      }));
+      if (alive) setAiAvg(out);
+    })();
+    return () => { alive = false; };
+  }, [canScore, selPrIds]);
 
   // F2: statistik lowongan / talent pool / staging — 403 (tanpa menu terkait)
   // dirender "—" tanpa error console (useApi menangkap error sebagai string).
@@ -266,12 +294,25 @@ export function RecruitmentOverview() {
             </div>
             {selApi.data && selSum.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {selSum.map((s) => (
-                  <span key={s.prId} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                    {s.prNo}: {s.candidates} {t("kandidat", "candidates")}
-                    {s.overdue > 0 && <span className="ml-1 font-bold text-amber-600 dark:text-amber-400">· {s.overdue} {t("terlambat", "overdue")}</span>}
-                  </span>
-                ))}
+                {selSum.map((s) => {
+                  const avg = aiAvg[s.prId];
+                  return (
+                    <span key={s.prId} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                      {s.prNo}: {s.candidates} {t("kandidat", "candidates")}
+                      {s.overdue > 0 && <span className="ml-1 font-bold text-amber-600 dark:text-amber-400">· {s.overdue} {t("terlambat", "overdue")}</span>}
+                      {avg != null && (
+                        <span className={cn(
+                          "ml-1 font-bold tabular-nums",
+                          scoreToneKey(avg) === "emerald" ? "text-emerald-600 dark:text-emerald-400"
+                            : scoreToneKey(avg) === "amber" ? "text-amber-600 dark:text-amber-400"
+                              : "text-rose-600 dark:text-rose-400",
+                        )} title={t("rata-rata skor AI terbaru kandidat PR ini (rekomendasi)", "average latest AI score of this PR's candidates (recommendation)")}>
+                          · AI {avg.toFixed(1)}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </CardContent>

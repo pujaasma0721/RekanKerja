@@ -2538,6 +2538,7 @@ CREATE TABLE "PersonnelRequisition" (
     "autoPostOpening" BOOLEAN NOT NULL DEFAULT false,
     "slaTargetDays" INTEGER,
     "replacedEmployeeId" TEXT,
+    "rubricJson" TEXT,
     "status" TEXT NOT NULL DEFAULT 'Draft',
     "decisionNote" TEXT,
     "submittedAt" TIMESTAMP(3),
@@ -2981,6 +2982,65 @@ CREATE TABLE "EmpJobApplication" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "EmpJobApplication_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "KnockoutQuestion" (
+    "id" TEXT NOT NULL,
+    "jobOpeningId" TEXT NOT NULL,
+    "question" TEXT NOT NULL,
+    "expectedValue" TEXT NOT NULL,
+    "mode" TEXT NOT NULL DEFAULT 'Equals',
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "orderNo" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "KnockoutQuestion_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApplicationAnswer" (
+    "id" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "questionId" TEXT NOT NULL,
+    "answer" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ApplicationAnswer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CvParseResult" (
+    "id" TEXT NOT NULL,
+    "applicantId" TEXT NOT NULL,
+    "sourceKind" TEXT NOT NULL,
+    "storagePath" TEXT,
+    "fieldsJson" TEXT NOT NULL,
+    "mode" TEXT NOT NULL,
+    "model" TEXT,
+    "verifiedById" TEXT,
+    "verifiedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CvParseResult_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CandidateAiScore" (
+    "id" TEXT NOT NULL,
+    "candidateId" TEXT NOT NULL,
+    "rubricJson" TEXT NOT NULL,
+    "total" DOUBLE PRECISION NOT NULL,
+    "factorsJson" TEXT NOT NULL,
+    "mode" TEXT NOT NULL,
+    "model" TEXT,
+    "generatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "generatedById" TEXT NOT NULL,
+
+    CONSTRAINT "CandidateAiScore_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -3718,6 +3778,18 @@ CREATE INDEX "EmpJobApplication_jobOpeningId_idx" ON "EmpJobApplication"("jobOpe
 -- CreateIndex
 CREATE UNIQUE INDEX "EmpJobApplication_employeeId_jobOpeningId_key" ON "EmpJobApplication"("employeeId", "jobOpeningId");
 
+-- CreateIndex
+CREATE INDEX "KnockoutQuestion_jobOpeningId_idx" ON "KnockoutQuestion"("jobOpeningId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ApplicationAnswer_applicationId_questionId_key" ON "ApplicationAnswer"("applicationId", "questionId");
+
+-- CreateIndex
+CREATE INDEX "CvParseResult_applicantId_idx" ON "CvParseResult"("applicantId");
+
+-- CreateIndex
+CREATE INDEX "CandidateAiScore_candidateId_generatedAt_idx" ON "CandidateAiScore"("candidateId", "generatedAt");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -4353,4 +4425,25 @@ ALTER TABLE "EmpJobApplication" ADD CONSTRAINT "EmpJobApplication_jobOpeningId_f
 
 -- AddForeignKey
 ALTER TABLE "EmpJobApplication" ADD CONSTRAINT "EmpJobApplication_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "JobCandidate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "KnockoutQuestion" ADD CONSTRAINT "KnockoutQuestion_jobOpeningId_fkey" FOREIGN KEY ("jobOpeningId") REFERENCES "JobOpening"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicationAnswer" ADD CONSTRAINT "ApplicationAnswer_applicationId_fkey" FOREIGN KEY ("applicationId") REFERENCES "ApplicantApplication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApplicationAnswer" ADD CONSTRAINT "ApplicationAnswer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "KnockoutQuestion"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CvParseResult" ADD CONSTRAINT "CvParseResult_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CvParseResult" ADD CONSTRAINT "CvParseResult_verifiedById_fkey" FOREIGN KEY ("verifiedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAiScore" ADD CONSTRAINT "CandidateAiScore_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "JobCandidate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAiScore" ADD CONSTRAINT "CandidateAiScore_generatedById_fkey" FOREIGN KEY ("generatedById") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

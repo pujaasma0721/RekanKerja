@@ -5,7 +5,7 @@ import { parseAdvSearchReq } from "@/rekankerja/shared/services/adv-search-serve
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import {
   listJos, getJo, createJo, updateJo, addSlot, updateSlot, postJo, closeJo, obsoleteJo, closeSlot,
-  upsertMethod, deleteMethod,
+  upsertMethod, deleteMethod, upsertKnockouts, type KnockoutInput,
   type JoInput, type SlotInput, type MethodInput,
 } from "@/rekankerja/recruitment/services/opening-service";
 
@@ -15,10 +15,10 @@ import {
 //   GET    ?id= | ?status=&q=&adv=&sortBy=&sortDir=&limit=&offset=  → { rows|row, total, stats }
 //   POST   { …header, postNow?, slots: [...] }                      → buat JO
 //   PATCH  { action: update|post|close|obsolete|add-slot|update-slot|close-slot
-//           |upsert-method|delete-method, … }                        → transisi/aksi
+//           |upsert-method|delete-method|upsert-knockouts, … }           → transisi/aksi
 //   DELETE ?methodId=                                               → hapus kanal
 // Guard menu: recruitment:openings (view/create/update/delete +
-// op:post/close/obsolete). ActivityLog di service. Notifikasi in-app saat
+// op:post/close/obsolete/knockout). ActivityLog di service. Notifikasi in-app saat
 // JO dipublikasikan (link recruitment:openings).
 // ============================================================================
 
@@ -107,6 +107,7 @@ export async function PATCH(req: NextRequest) {
       action === "post" ? "op:post" :
       action === "close" ? "op:close" :
       action === "obsolete" ? "op:obsolete" :
+      action === "upsert-knockouts" ? "op:knockout" :
       b.id ? "update" : "create";
     const m = await requireMenuAction(req, "recruitment:openings", op);
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
@@ -204,6 +205,22 @@ export async function PATCH(req: NextRequest) {
     if (action === "delete-method" && b.id) {
       await deleteMethod(db, String(b.id), m.actor.name);
       return NextResponse.json({ ok: true });
+    }
+
+    // F6 — pertanyaan knockout per slot (replace-all; kosong = hapus semua)
+    if (action === "upsert-knockouts" && b.slotId) {
+      const raw = Array.isArray(b.knockouts) ? b.knockouts : [];
+      const items: KnockoutInput[] = raw
+        .filter((k): k is Record<string, unknown> => !!k && typeof k === "object")
+        .map((k) => ({
+          id: k.id ? String(k.id) : undefined,
+          question: String(k.question ?? ""),
+          expectedValue: String(k.expectedValue ?? ""),
+          mode: k.mode ? String(k.mode) : "Equals",
+          active: k.active !== false,
+        }));
+      const knockouts = await upsertKnockouts(db, String(b.slotId), items, m.actor.name);
+      return NextResponse.json({ ok: true, knockouts });
     }
 
     return NextResponse.json({ error: `Aksi tidak dikenal: ${action}` }, { status: 400 });

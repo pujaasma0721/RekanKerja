@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "1) **Yes.** There is a search bar with the query \"akunten S1 pengalaman 3 tahun\" and a blue \"Cari\" (Search) button.\n2) **Yes.** Below it is a result panel containing:\n    *   An amber \"Simulasi\" badge.\n    *   Italic interpreted text explaining the query logic.\n    *   A \"**1 pelamar cocok**\" (1 matching applicant) count.\n    *   A \"**Bersihkan**\" (Clear) button with an 'X' icon.\n    *   A table header is visible, but **the table row for \"Dewi Lestari\" is cut off** at the bottom of the image and not fully visible.\n3) **Layout Problem:** The search results table is partially obscured/cut off at the bottom edge of the screenshot, preventing the full view of the applicant's data.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791724682,
+  "id": "2026101121180016a9ea8abe9244b0",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "2026101121180016a9ea8abe9244b0",
+  "usage": {
+    "completion_tokens": 191,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 972,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 1163
+  }
+}

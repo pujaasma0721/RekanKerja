@@ -30,12 +30,14 @@ import type {
 } from "@/rekankerja/recruitment/services/applicant-service";
 import type { JoRow } from "@/rekankerja/recruitment/services/opening-service";
 import type { PrOptions } from "./recruitment-types";
+import { ParseCvDialog, CvParseSection } from "./ai-cv-dialogs";
+import { AiSearchBar } from "./ai-search-bar";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
   UserPlus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight, MoreHorizontal, UsersRound,
   Ban, PauseCircle, PlayCircle, CircleCheckBig, Send, GraduationCap, BriefcaseBusiness, Sparkles,
-  FileCheck2, UploadCloud, Wallet, CalendarRange, Inbox,
+  FileCheck2, UploadCloud, Wallet, CalendarRange, Inbox, FileSearch,
 } from "lucide-react";
 
 const PAGE_SIZE = 10;
@@ -187,6 +189,8 @@ export function ApplicantsPage() {
   const [blTarget, setBlTarget] = useState<ApplicantRow | null>(null);
   const [susTarget, setSusTarget] = useState<ApplicantRow | null>(null);
   const [applyTarget, setApplyTarget] = useState<ApplicantRow | null>(null);
+  // dialog Parse CV (F6a — dipicu aksi baris; tab detail pakai CvParseSection)
+  const [cvTarget, setCvTarget] = useState<{ id: string; applicantNo: string; fullName: string } | null>(null);
   const [noteText, setNoteText] = useState("");
   const [untilText, setUntilText] = useState("");
   const [applySlotId, setApplySlotId] = useState("");
@@ -234,6 +238,7 @@ export function ApplicantsPage() {
   const canDelete = perms.can("recruitment", "applicants", "delete");
   const canBlacklist = perms.canOp("recruitment", "applicants", "blacklist");
   const canApply = perms.canOp("recruitment", "applicants", "apply");
+  const canParseCv = perms.canOp("recruitment", "applicants", "parse-cv");
 
   // slot terbuka (JO Posted + slot Open) untuk "Lamar ke Slot"
   const openSlots = useMemo(
@@ -599,6 +604,9 @@ export function ApplicantsPage() {
         </button>
       </div>
 
+      {/* F6c — pencarian bebas natural-language (AI) di atas tabel */}
+      <AiSearchBar onOpenDetail={(r) => void openDetail(r)} />
+
       <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="p-4">
           {/* toolbar */}
@@ -690,6 +698,11 @@ export function ApplicantsPage() {
                           <DropdownMenuContent align="end" className="w-60">
                             <DropdownMenuItem onClick={() => void openDetail(r)}><Eye className="h-4 w-4" /> {t("Lihat detail", "View detail")}</DropdownMenuItem>
                             {canUpdate && <DropdownMenuItem onClick={() => void openEdit(r)}><Pencil className="h-4 w-4" /> {t("Ubah", "Edit")}</DropdownMenuItem>}
+                            {canParseCv && (
+                              <DropdownMenuItem onClick={() => setCvTarget({ id: r.id, applicantNo: r.applicantNo, fullName: r.fullName })}>
+                                <FileSearch className="h-4 w-4" /> {t("Parse CV (AI)…", "Parse CV (AI)…")}
+                              </DropdownMenuItem>
+                            )}
                             {canApply && <DropdownMenuItem onClick={() => { setApplyTarget(r); setApplySlotId(""); setApplyNote(""); }}><Send className="h-4 w-4" /> {t("Lamar ke Slot…", "Apply to Slot…")}</DropdownMenuItem>}
                             {canBlacklist && !r.blacklist && (
                               <DropdownMenuItem className="text-rose-600 focus:text-rose-600" onClick={() => { setBlTarget(r); setNoteText(""); }}>
@@ -1000,6 +1013,11 @@ export function ApplicantsPage() {
                 <TabsTrigger value="profil" className="px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">{t("Profil", "Profile")}</TabsTrigger>
                 <TabsTrigger value="edu" className="px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">{t("Pendidikan & Skill", "Education & Skills")}</TabsTrigger>
                 <TabsTrigger value="docs" className="px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">{t("Dokumen ({n})", "Documents ({n})", { n: String(detail.documents.length) })}</TabsTrigger>
+                {canParseCv && (
+                  <TabsTrigger value="cvparse" className="gap-1 px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">
+                    <FileSearch className="h-3.5 w-3.5" aria-hidden /> {t("Parse CV", "Parse CV")}
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="apps" className="px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">{t("Lamaran ({n})", "Applications ({n})", { n: String(detail.applications.length) })}</TabsTrigger>
                 <TabsTrigger value="consent" className="px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">{t("Consent ({n})", "Consent ({n})", { n: String(detail.consents.length) })}</TabsTrigger>
               </TabsList>
@@ -1239,6 +1257,18 @@ export function ApplicantsPage() {
                 )}
               </TabsContent>
 
+              {/* (c2) parse CV — F6a human-verify (tab terpisah: seksi hasil besar,
+                  tab Dokumen sudah padat form upload + tabel + toggle verifikasi) */}
+              {canParseCv && (
+                <TabsContent value="cvparse" className="mt-3">
+                  <CvParseSection
+                    applicant={{ id: detail.id, applicantNo: detail.applicantNo, fullName: detail.fullName }}
+                    documents={detail.documents}
+                    canVerify={canUpdate}
+                  />
+                </TabsContent>
+              )}
+
               {/* (d) lamaran */}
               <TabsContent value="apps" className="mt-3 space-y-3">
                 <div className="flex items-center justify-between">
@@ -1416,6 +1446,14 @@ export function ApplicantsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ===== dialog Parse CV (F6a — aksi baris tabel) ===== */}
+      <ParseCvDialog
+        open={cvTarget != null}
+        onOpenChange={(o) => { if (!o) setCvTarget(null); }}
+        applicant={cvTarget}
+        canVerify={canUpdate}
+      />
     </div>
   );
 }

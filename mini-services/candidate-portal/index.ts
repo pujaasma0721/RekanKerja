@@ -2,19 +2,34 @@
 // Lihat README.md: keputusan AMANDEMEN 1 — portal karir publik TIDAK menyatu dengan
 // aplikasi utama (domain produksi berbeda: karir.<perusahaan> vs app.<perusahaan>).
 //
-// Server bun murni — TANPA dependensi (tidak ada node_modules, tidak ada React di sini
-// sampai scaffolding Next.js penuh pada resume F2). Tugas layanan ini:
-//   GET /         → halaman karir SSR: daftar slot lowongan Posted (fetch server-side
-//                   dari API publik aplikasi utama; fallback rapi bila utama mati).
-//   GET /healthz  → status layanan (JSON).
+// Server bun murni — TANPA dependensi (tidak ada node_modules, tidak ada React di
+// sini). Tugas layanan ini (F2-PORTAL-FORM):
+//   GET  /                          → halaman karir SSR: daftar slot lowongan Posted
+//                                     (fetch server-side dari API publik aplikasi
+//                                     utama; fallback rapi bila utama mati) + FORM
+//                                     LAMARAN (dialog vanilla JS — data diri,
+//                                     pendidikan, pengalaman, upload CV, captcha,
+//                                     consent UU PDP, honeypot anti-bot).
+//   ANY  /api/public/recruitment/*  → PROXY server-side ke aplikasi utama (MAIN_APP):
+//     - mode direct http://127.0.0.1:3010 → browser fetch URL RELATIF
+//       "/api/public/recruitment/..." ditangani proxy ini (method+headers+body
+//       di-relay; multipart CV di-stream apa adanya — boundary TIDAK pernah
+//       disentuh manual).
+//     - mode gateway ?XTransformPort=3010 → halaman dilayani portal, fetch relatif
+//       browser menuju gateway → diteruskan aplikasi utama (proxy tidak dipakai).
+//   GET  /healthz                   → status layanan (JSON).
 //
 // Kontrak API publik aplikasi utama (satu-satunya integrasi — tidak ada akses DB):
-//   GET /api/public/recruitment/openings?t=<slug>
+//   GET  /api/public/recruitment/openings?t=<slug>
+//   GET  /api/public/recruitment/captcha
+//   POST /api/public/recruitment/apply?t=<slug>   (multipart/form-data)
 //
 // Port tetap 3010 (konvensi mini-services — jangan pakai env PORT).
 const PORT = 3010;
 const MAIN_APP = process.env.CANDIDATE_PORTAL_MAIN_URL ?? "http://127.0.0.1:3000";
 const FETCH_TIMEOUT_MS = 2000;
+const PROXY_TIMEOUT_MS = 30000;
+const PUBLIC_API_PREFIX = "/api/public/recruitment/";
 
 interface PublicOpeningItem {
   slotId: string;
@@ -30,6 +45,7 @@ interface PublicOpeningItem {
   jobSpecSummary: string | null;
   closingDate: string | null;
   employmentStatus: string | null;
+  knockouts?: { questionId: string; question: string }[]; // F6b — pertanyaan objektif per slot (jawaban Tidak → ditolak otomatis dengan sopan)
 }
 interface OpeningsResponse {
   tenant: { slug: string; companyName: string } | null;
@@ -52,6 +68,49 @@ async function fetchOpenings(tenantSlug: string | null): Promise<OpeningsRespons
   }
 }
 
+// ============ PROXY server-side /api/public/recruitment/* → MAIN_APP ============
+// Alasan: mode akses (a) direct 127.0.0.1:3010 — fetch relatif dari browser TIDAK
+// bisa menemukan API aplikasi utama, maka portal me-relay-nya sendiri. Body POST
+// (multipart + boundary) di-relay sebagai stream apa adanya; header hop-by-hop
+// dibuang; respons di-relay status+body (content-encoding/length dibuang karena
+// bun fetch sudah mendekompresi).
+
+const HOP_REQ_HEADERS = new Set([
+  "host", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+  "te", "trailer", "transfer-encoding", "upgrade", "content-length",
+]);
+const HOP_RES_HEADERS = new Set([
+  "content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive",
+]);
+
+async function proxyPublicApi(req: Request, url: URL): Promise<Response> {
+  const upstream = new URL(url.pathname + url.search, MAIN_APP);
+  const headers = new Headers();
+  req.headers.forEach((v, k) => {
+    if (!HOP_REQ_HEADERS.has(k.toLowerCase())) headers.set(k, v);
+  });
+  const init: RequestInit = { method: req.method, headers };
+  if (req.method !== "GET" && req.method !== "HEAD") init.body = req.body; // stream relay (bun support)
+  try {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), PROXY_TIMEOUT_MS);
+    const res = await fetch(upstream, { ...init, signal: ac.signal });
+    clearTimeout(timer);
+    const out = new Headers();
+    res.headers.forEach((v, k) => {
+      if (!HOP_RES_HEADERS.has(k.toLowerCase())) out.set(k, v);
+    });
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers: out });
+  } catch {
+    return Response.json(
+      { error: "Portal tidak dapat menghubungi layanan rekrutmen. Silakan coba lagi nanti." },
+      { status: 502 },
+    );
+  }
+}
+
+// ============ helper render ============
+
 const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
 
@@ -59,54 +118,222 @@ function idr(n: number): string {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 }
 
-function salaryLabel(o: PublicOpeningItem): string | null {
+/** Label satuan gaji [id, en] — API mengirim "Monthly"/"Yearly"/… (kompatibel lowercase). */
+const SALARY_UNIT_LABEL: Record<string, [string, string]> = {
+  Monthly: ["/bulan", "/month"], monthly: ["/bulan", "/month"], month: ["/bulan", "/month"],
+  Yearly: ["/tahun", "/year"], yearly: ["/tahun", "/year"], year: ["/tahun", "/year"],
+  Weekly: ["/minggu", "/week"], weekly: ["/minggu", "/week"],
+  Daily: ["/hari", "/day"], daily: ["/hari", "/day"],
+  Hourly: ["/jam", "/hour"], hourly: ["/jam", "/hour"],
+};
+
+/** Label status kerja [id, en] — nilai PR.employmentStatus. */
+const EMPLOYMENT_LABEL: Record<string, [string, string]> = {
+  Permanent: ["Tetap", "Permanent"],
+  Contract: ["Kontrak", "Contract"],
+  Probation: ["Percobaan", "Probation"],
+  Outsourcing: ["Outsourcing", "Outsourcing"],
+};
+
+function salaryAmount(o: PublicOpeningItem): string | null {
   if (o.salaryMin == null && o.salaryMax == null) return null;
-  const unit = o.salaryUnit === "month" ? "/bulan" : o.salaryUnit === "year" ? "/tahun" : "";
-  if (o.salaryMin != null && o.salaryMax != null) return `${idr(o.salaryMin)} – ${idr(o.salaryMax)}${unit}`;
-  if (o.salaryMin != null) return `≥ ${idr(o.salaryMin)}${unit}`;
-  return `≤ ${idr(o.salaryMax)}${unit}`;
+  if (o.salaryMin != null && o.salaryMax != null && o.salaryMin !== o.salaryMax) {
+    return `${idr(o.salaryMin)} – ${idr(o.salaryMax)}`;
+  }
+  return idr(o.salaryMax ?? o.salaryMin ?? 0);
 }
 
-function fmtDate(iso: string | null): string | null {
+function fmtDate(iso: string | null, locale: string): string | null {
   if (!iso) return null;
-  const d = new Date(iso);
+  // date-only "YYYY-MM-DD" diparse sebagai T00:00:00 LOKAL supaya tidak bergeser hari per timezone.
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(iso + "T00:00:00") : new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(d);
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(d);
 }
 
-function renderOpeningCard(o: PublicOpeningItem): string {
-  const salary = salaryLabel(o);
-  const closing = fmtDate(o.closingDate);
+function renderOpeningCard(o: PublicOpeningItem, idx: number): string {
+  const amount = salaryAmount(o);
+  const unit = amount ? SALARY_UNIT_LABEL[o.salaryUnit ?? ""] : null;
+  const closingId = fmtDate(o.closingDate, "id-ID");
+  const closingEn = closingId ? fmtDate(o.closingDate, "en-US") : null;
   const place = [o.location, o.city].filter(Boolean).join(" · ") || "—";
   const summary = o.jobDescSummary || o.jobSpecSummary;
+  const emp = o.employmentStatus ? EMPLOYMENT_LABEL[o.employmentStatus] : null;
+  const empHtml = o.employmentStatus
+    ? `<span class="chip">${emp ? `<span data-id="${esc(emp[0])}" data-en="${esc(emp[1])}">${esc(emp[0])}</span>` : esc(o.employmentStatus)}</span>`
+    : "";
   return `
-        <article class="card" aria-label="${esc(o.title)}">
-          <div class="card-top">
-            <h3>${esc(o.title)}</h3>
-            ${o.employmentStatus ? `<span class="chip">${esc(o.employmentStatus)}</span>` : ""}
+      <article class="card" role="button" tabindex="0" data-idx="${idx}">
+        <div class="card-top">
+          <div class="ct-txt">
+            <span class="refno">${esc(o.joRefNo)}</span>
+            <h3 title="${esc(o.title)}">${esc(o.title)}</h3>
           </div>
-          <p class="meta"><span aria-hidden="true">📍</span> ${esc(place)}</p>
-          ${salary ? `<p class="meta"><span aria-hidden="true">💰</span> ${esc(salary)}</p>` : ""}
-          ${closing ? `<p class="meta"><span aria-hidden="true">🗓️</span> Ditutup ${esc(closing)}</p>` : ""}
-          ${summary ? `<p class="summary">${esc(summary)}</p>` : ""}
-          <p class="ref">Ref: ${esc(o.joRefNo)}</p>
-        </article>`;
+          ${empHtml}
+        </div>
+        <p class="meta"><span aria-hidden="true">📍</span> ${esc(place)}</p>
+        ${amount ? `<p class="meta"><span aria-hidden="true">💰</span> ${esc(amount)}${unit ? `<span data-id="${esc(unit[0])}" data-en="${esc(unit[1])}">${esc(unit[0])}</span>` : ""}</p>` : ""}
+        ${closingId ? `<p class="meta"><span aria-hidden="true">🗓️</span> <span data-id="Ditutup ${esc(closingId)}" data-en="Closes ${esc(closingEn ?? closingId)}">Ditutup ${esc(closingId)}</span></p>` : ""}
+        ${summary ? `<p class="summary">${esc(summary)}</p>` : ""}
+        <button type="button" class="btn primary block" data-id="Lamar Sekarang" data-en="Apply Now">Lamar Sekarang</button>
+      </article>`;
 }
+
+// ---- pembangun field form (label dwibahasa via data-id/data-en — pola halaman) ----
+
+function fld(
+  name: string, labelId: string, labelEn: string,
+  opts: { req?: boolean; type?: string; attrs?: string; hint?: [string, string]; ph?: [string, string] } = {},
+): string {
+  const type = opts.type ?? "text";
+  const reqHtml = opts.req ? ` <b class="req" aria-hidden="true">*</b>` : "";
+  const hintHtml = opts.hint
+    ? `\n          <p class="hint" data-id="${esc(opts.hint[0])}" data-en="${esc(opts.hint[1])}">${esc(opts.hint[0])}</p>`
+    : "";
+  const phHtml = opts.ph
+    ? ` placeholder="${esc(opts.ph[0])}" data-id-ph="${esc(opts.ph[0])}" data-en-ph="${esc(opts.ph[1])}"`
+    : "";
+  return `
+          <div class="field">
+            <label for="ap-${name}"><span data-id="${esc(labelId)}" data-en="${esc(labelEn)}">${esc(labelId)}</span>${reqHtml}</label>
+            <input id="ap-${name}" name="${name}" type="${type}"${opts.attrs ? ` ${opts.attrs}` : ""}${phHtml}>
+            ${hintHtml}
+            <p class="ferr" data-for="${name}"></p>
+          </div>`;
+}
+
+function selField(
+  name: string, labelId: string, labelEn: string,
+  options: [string, string, string][], // [value, teks ID, teks EN]
+): string {
+  const optsHtml = options
+    .map(([v, id, en]) => `            <option value="${esc(v)}" data-id="${esc(id)}" data-en="${esc(en)}">${esc(id)}</option>`)
+    .join("\n");
+  return `
+          <div class="field">
+            <label for="ap-${name}"><span data-id="${esc(labelId)}" data-en="${esc(labelEn)}">${esc(labelId)}</span></label>
+            <select id="ap-${name}" name="${name}">
+${optsHtml}
+          </select>
+            <p class="ferr" data-for="${name}"></p>
+          </div>`;
+}
+
+const FORM_IDENTITY_FIELDS = [
+  fld("firstName", "Nama Depan", "First Name", { req: true, attrs: 'maxlength="80" autocomplete="given-name"' }),
+  fld("middleName", "Nama Tengah", "Middle Name", { attrs: 'maxlength="80" autocomplete="additional-name"' }),
+  fld("lastName", "Nama Belakang", "Last Name", { attrs: 'maxlength="80" autocomplete="family-name"' }),
+  fld("email", "Email", "Email", { req: true, type: "email", attrs: 'maxlength="120" autocomplete="email"' }),
+  fld("phone", "No. Telepon", "Phone Number", { type: "tel", attrs: 'maxlength="32" autocomplete="tel"' }),
+  fld("city", "Kota", "City", { attrs: 'maxlength="80" autocomplete="address-level2"' }),
+  fld("birthDate", "Tanggal Lahir", "Date of Birth", { type: "date", attrs: 'autocomplete="bday"' }),
+  selField("gender", "Jenis Kelamin", "Gender", [
+    ["", "— Tidak diisi —", "— Not specified —"],
+    ["L", "Laki-laki", "Male"],
+    ["P", "Perempuan", "Female"],
+  ]),
+].join("\n");
+
+const FORM_EDU_FIELDS = [
+  selField("educationLevel", "Jenjang Pendidikan", "Education Level", [
+    ["", "— Tidak diisi —", "— Not specified —"],
+    ["SMP", "SMP", "Junior High School (SMP)"],
+    ["SMA", "SMA", "Senior High School (SMA)"],
+    ["SMK", "SMK", "Vocational High School (SMK)"],
+    ["D3", "D3 — Diploma", "D3 — Diploma"],
+    ["S1", "S1 — Sarjana", "S1 — Bachelor's"],
+    ["S2", "S2 — Magister", "S2 — Master's"],
+    ["S3", "S3 — Doktor", "S3 — Doctorate"],
+    ["PROF", "Profesi", "Professional"],
+  ]),
+  fld("fieldOfStudy", "Bidang Studi", "Field of Study", { attrs: 'maxlength="80"' }),
+  fld("institution", "Institusi", "Institution", { attrs: 'maxlength="120"' }),
+  fld("graduationYear", "Tahun Lulus", "Graduation Year", { type: "number", attrs: 'inputmode="numeric" min="1900" max="2100"' }),
+  fld("gpa", "IPK", "GPA", { type: "number", attrs: 'inputmode="decimal" step="0.01" min="0" max="4"', hint: ["Skala 0–4", "Scale 0–4"] }),
+].join("\n");
+
+const FORM_EXP_FIELDS = [
+  fld("expYears", "Pengalaman Kerja (tahun)", "Work Experience (years)", { type: "number", attrs: 'inputmode="numeric" min="0" step="1"' }),
+  fld("lastPosition", "Posisi Terakhir", "Last Position", { attrs: 'maxlength="120"' }),
+  fld("lastCompany", "Perusahaan Terakhir", "Last Company", { attrs: 'maxlength="120"' }),
+  fld("expectedSalary", "Ekspektasi Gaji", "Expected Salary", { type: "number", attrs: 'inputmode="numeric" min="0" step="1000"', hint: ["Dalam Rupiah per bulan", "In Rupiah per month"] }),
+  `
+          <div class="field span2">
+            <label for="ap-notes"><span data-id="Catatan" data-en="Notes">Catatan</span></label>
+            <textarea id="ap-notes" name="notes" rows="3" maxlength="2000" placeholder="Ceritakan singkat mengapa Anda cocok untuk peran ini…" data-id-ph="Ceritakan singkat mengapa Anda cocok untuk peran ini…" data-en-ph="Briefly tell us why you're a good fit for this role…"></textarea>
+            <p class="ferr" data-for="notes"></p>
+          </div>`,
+].join("\n");
+
+// ============ halaman penuh ============
 
 function renderPage(data: OpeningsResponse | null, tenantSlug: string | null): string {
   const companyName = data?.tenant?.companyName ?? null;
   const openings = data?.openings ?? [];
-  const listHtml = openings.length
-    ? openings.map(renderOpeningCard).join("\n")
-    : `
+  const tenants = data?.tenants ?? [];
+  const activeSlug = data?.tenant?.slug ?? tenantSlug;
+  const live = data != null;
+  const year = new Date().getFullYear();
+
+  // data untuk client JS (kartu klik → dialog; ?t= untuk POST apply)
+  const dataJson = JSON.stringify({
+    live,
+    slug: activeSlug,
+    company: companyName,
+    openings: openings.map((o) => ({
+      slotId: o.slotId,
+      joRefNo: o.joRefNo,
+      title: o.title,
+      knockouts: (o.knockouts ?? []).map((k) => ({ questionId: k.questionId, question: k.question })), // F6b — pertanyaan wajib posisi
+    })),
+  }).replace(/</g, "\\u003c");
+
+  const chipsHtml = live && tenants.length > 1
+    ? `
+    <nav class="chips" aria-label="Pilih perusahaan / choose a company">
+      <span class="chips-label" data-id="Perusahaan" data-en="Company">Perusahaan</span>
+      ${tenants.map((tn) => `<a class="chipbtn${tn.slug === activeSlug ? " on" : ""}" href="/?t=${encodeURIComponent(tn.slug)}">${esc(tn.companyName)}</a>`).join("")}
+    </nav>`
+    : "";
+
+  const listHtml = live
+    ? openings.length
+      ? openings.map((o, i) => renderOpeningCard(o, i)).join("\n")
+      : `
         <div class="empty" role="status">
           <p class="empty-title" data-id="Belum ada lowongan terbuka saat ini" data-en="No open positions right now">Belum ada lowongan terbuka saat ini</p>
-          <p class="empty-sub" data-id="Silakan kembali lagi nanti — lowongan baru akan dipublikasikan di halaman ini." data-en="Please check back later — new openings will be published on this page.">Silakan kembali lagi nanti — lowongan baru akan dipublikasikan di halaman ini.</p>
-        </div>`;
-  const notice = data
+          <p class="empty-sub" data-id="Silakan kembali lagi nanti — atau kirim lamaran umum agar profil Anda tersimpan di talent pool kami." data-en="Please check back later — or send a general application so your profile is kept in our talent pool.">Silakan kembali lagi nanti — atau kirim lamaran umum agar profil Anda tersimpan di talent pool kami.</p>
+        </div>`
+    : "";
+
+  const listSectionHtml = live
+    ? `
+    ${chipsHtml}
+    <section class="listwrap" aria-labelledby="openings-h">
+      <h2 id="openings-h" class="list-title"><span data-id="Lowongan Terbuka" data-en="Open Positions">Lowongan Terbuka</span> <span class="count">(${openings.length})</span></h2>
+      <div class="grid" id="openings">
+${listHtml}
+      </div>
+    </section>
+    <section class="genbox">
+      <div class="genbox-txt">
+        <p class="genbox-title" data-id="Tidak menemukan posisi yang cocok?" data-en="Didn't find a matching position?">Tidak menemukan posisi yang cocok?</p>
+        <p class="genbox-sub" data-id="Kirim lamaran umum — profil Anda akan tersimpan di talent pool kami." data-en="Send a general application — your profile will be kept in our talent pool.">Kirim lamaran umum — profil Anda akan tersimpan di talent pool kami.</p>
+      </div>
+      <button type="button" class="btn warm" id="apply-general" data-id="Lamar Umum" data-en="General Application">Lamar Umum</button>
+    </section>`
+    : "";
+
+  const noticeHtml = live
     ? ""
     : `
-        <p class="notice" role="status" data-id="Daftar lowongan live belum tersedia (layanan rekrutmen internal sedang tidak aktif). Halaman ini adalah Portal Kandidat — aplikasi terpisah dari sistem HR internal." data-en="Live openings are unavailable right now (the internal recruitment service is offline). This page is the Candidate Portal — a separate application from the internal HR system.">Daftar lowongan live belum tersedia (layanan rekrutmen internal sedang tidak aktif). Halaman ini adalah Portal Kandidat — aplikasi terpisah dari sistem HR internal.</p>`;
+      <p class="notice" role="status" data-id="Daftar lowongan live sementara tidak tersedia — layanan rekrutmen internal sedang tidak aktif. Halaman ini adalah Portal Kandidat — aplikasi terpisah dari sistem HR internal." data-en="Live openings are temporarily unavailable — the internal recruitment service is offline. This page is the Candidate Portal — a separate application from the internal HR system.">Daftar lowongan live sementara tidak tersedia — layanan rekrutmen internal sedang tidak aktif. Halaman ini adalah Portal Kandidat — aplikasi terpisah dari sistem HR internal.</p>
+      <p class="retry-row"><button type="button" class="btn ghost" id="retry-btn" data-id="Coba Lagi" data-en="Try Again">Coba Lagi</button></p>`;
+
+  const companyStrong = companyName
+    ? `<strong>${esc(companyName)}</strong>`
+    : `<strong data-id="perusahaan" data-en="the company">perusahaan</strong>`;
+
   return `<!doctype html>
 <html lang="id">
 <head>
@@ -115,61 +342,287 @@ function renderPage(data: OpeningsResponse | null, tenantSlug: string | null): s
 <meta name="robots" content="index,follow">
 <title>${companyName ? `Karir — ${esc(companyName)}` : "Portal Karir"} · RekanKerja</title>
 <meta name="description" content="${companyName ? `Lowongan terbuka di ${esc(companyName)}.` : "Portal karir publik."} Lamar tanpa akun — konfirmasi via email.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23ea580c'/%3E%3C/svg%3E">
 <style>
-  :root { --accent:#ea580c; --ink:#1c1917; --muted:#78716c; --bg:#faf9f5; --card:#ffffff; --line:#e7e5e0; }
+  :root { --accent:#ea580c; --accent-dark:#c2410c; --ink:#1c1917; --muted:#78716c; --bg:#faf9f5; --card:#ffffff; --line:#e7e5e0; --bad:#dc2626; --ok:#059669; }
   * { box-sizing:border-box; margin:0; padding:0; }
   html,body { height:100%; }
   body { font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:var(--ink); display:flex; flex-direction:column; min-height:100vh; line-height:1.55; }
+  body.no-scroll { overflow:hidden; }
   header.site { background:var(--card); border-bottom:1px solid var(--line); padding:.9rem 1.25rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; position:sticky; top:0; z-index:5; }
-  .wordmark { font-weight:800; letter-spacing:-.02em; font-size:1.05rem; display:flex; align-items:center; gap:.55rem; }
-  .wordmark .dot { width:.65rem; height:.65rem; border-radius:9999px; background:var(--accent); }
+  .wordmark { font-weight:800; letter-spacing:-.02em; font-size:1.05rem; display:flex; align-items:center; gap:.55rem; min-width:0; }
+  .wordmark .dot { width:.65rem; height:.65rem; border-radius:9999px; background:var(--accent); flex-shrink:0; }
+  .wordmark .co { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .lang { background:transparent; border:1px solid var(--line); border-radius:.6rem; padding:.35rem .7rem; font-size:.78rem; font-weight:600; color:var(--muted); cursor:pointer; min-height:44px; }
   .lang:hover { border-color:var(--accent); color:var(--accent); }
   main { flex:1; width:100%; max-width:56rem; margin:0 auto; padding:2.25rem 1.25rem 3rem; }
+  a { color:var(--accent); }
+  .hero-tag { display:inline-flex; align-items:center; gap:.4rem; border:1px solid #fed7aa; background:#fff7ed; color:#9a3412; border-radius:9999px; padding:.28rem .8rem; font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.12em; margin-bottom:.85rem; }
   .hero h1 { font-size:clamp(1.6rem,4vw,2.3rem); letter-spacing:-.03em; line-height:1.15; }
   .hero h1 em { font-style:normal; color:var(--accent); }
   .hero p.sub { color:var(--muted); margin-top:.6rem; max-width:38rem; }
   .notice { margin-top:1.25rem; border:1px dashed var(--accent); background:#fff7ed; color:#7c2d12; border-radius:.85rem; padding:.85rem 1rem; font-size:.85rem; }
-  .grid { margin-top:1.75rem; display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(19rem,1fr)); }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:1rem; padding:1.15rem 1.2rem; display:flex; flex-direction:column; gap:.5rem; transition:transform .15s ease, box-shadow .15s ease; }
-  .card:hover { transform:translateY(-2px); box-shadow:0 10px 24px -14px rgba(28,25,23,.25); }
+  .retry-row { margin-top:.8rem; }
+  .chips { margin-top:1.75rem; display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
+  .chips-label { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-right:.2rem; }
+  .chipbtn { font-size:.8rem; font-weight:600; color:#57534e; background:var(--card); border:1px solid var(--line); border-radius:9999px; padding:.42rem .95rem; text-decoration:none; transition:all .15s ease; }
+  .chipbtn:hover { border-color:var(--accent); color:var(--accent); transform:translateY(-1px); }
+  .chipbtn.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .listwrap { margin-top:.25rem; }
+  .list-title { font-size:1.25rem; letter-spacing:-.02em; margin-top:1.6rem; }
+  .count { color:var(--accent); font-size:.95rem; font-weight:700; }
+  .grid { margin-top:1rem; display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(19rem,1fr)); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:1rem; padding:1.15rem 1.2rem; display:flex; flex-direction:column; gap:.5rem; cursor:pointer; transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+  .card:hover, .card:focus-visible { transform:translateY(-2px); box-shadow:0 10px 24px -14px rgba(28,25,23,.25); border-color:#fdba74; outline:none; }
   .card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; }
-  .card h3 { font-size:1.02rem; letter-spacing:-.01em; }
+  .ct-txt { min-width:0; }
+  .refno { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--accent); }
+  .card h3 { font-size:1.02rem; letter-spacing:-.01em; margin-top:.1rem; }
   .chip { flex-shrink:0; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); border:1px solid #fed7aa; background:#fff7ed; border-radius:9999px; padding:.22rem .6rem; }
   .meta { font-size:.83rem; color:var(--muted); }
   .summary { font-size:.86rem; color:#44403c; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-  .ref { font-size:.7rem; color:#a8a29e; margin-top:auto; padding-top:.4rem; border-top:1px dashed var(--line); }
   .empty { grid-column:1/-1; text-align:center; border:1px dashed var(--line); border-radius:1rem; padding:3rem 1.5rem; background:var(--card); }
   .empty-title { font-weight:700; }
   .empty-sub { color:var(--muted); font-size:.9rem; margin-top:.4rem; }
+  .genbox { margin-top:1.6rem; border:1px dashed #fed7aa; background:#fff7ed; border-radius:1rem; padding:1.2rem 1.3rem; display:flex; flex-wrap:wrap; gap:.9rem 1.5rem; align-items:center; justify-content:space-between; }
+  .genbox-title { font-weight:700; }
+  .genbox-sub { color:var(--muted); font-size:.85rem; margin-top:.15rem; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; font:inherit; font-size:.88rem; font-weight:700; border-radius:.75rem; padding:.6rem 1.1rem; cursor:pointer; border:1px solid transparent; transition:background .15s ease, border-color .15s ease, color .15s ease; min-height:44px; }
+  .btn.primary { background:var(--accent); color:#fff; }
+  .btn.primary:hover { background:var(--accent-dark); }
+  .btn.ghost { background:var(--card); border-color:var(--line); color:#44403c; }
+  .btn.ghost:hover { border-color:var(--accent); color:var(--accent); }
+  .btn.warm { background:#fff7ed; border-color:#fdba74; color:var(--accent-dark); }
+  .btn.warm:hover { background:#ffedd5; border-color:var(--accent); }
+  .btn.block { width:100%; margin-top:.6rem; }
+  .btn[disabled] { opacity:.6; cursor:not-allowed; }
   footer.site { margin-top:auto; background:var(--card); border-top:1px solid var(--line); padding:1rem 1.25rem; padding-bottom:calc(1rem + env(safe-area-inset-bottom)); display:flex; flex-wrap:wrap; gap:.5rem 1.25rem; align-items:center; justify-content:space-between; font-size:.75rem; color:var(--muted); }
-  a { color:var(--accent); }
+  footer.site .pdp { max-width:34rem; }
+
+  /* ---------- dialog lamaran ---------- */
+  .overlay { position:fixed; inset:0; z-index:60; background:rgba(28,25,23,.52); display:none; padding:1rem; }
+  .overlay.open { display:flex; align-items:flex-start; justify-content:center; overflow-y:auto; }
+  .modal { background:var(--card); width:100%; max-width:560px; margin:min(7vh,3.5rem) auto; border-radius:1rem; box-shadow:0 24px 60px -20px rgba(28,25,23,.45); display:flex; flex-direction:column; max-height:85vh; overflow:hidden; }
+  .modal-head { flex-shrink:0; display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; padding:1.05rem 1.25rem .85rem; border-bottom:1px solid var(--line); }
+  .mh-txt { min-width:0; }
+  .mh-txt h3 { font-size:1.08rem; letter-spacing:-.015em; line-height:1.3; }
+  .modal-sub { font-size:.78rem; color:var(--muted); display:flex; flex-wrap:wrap; gap:.15rem .6rem; margin-top:.2rem; }
+  .xbtn { flex-shrink:0; border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:.55rem; width:2rem; height:2rem; font-size:.9rem; cursor:pointer; line-height:1; }
+  .xbtn:hover { border-color:var(--accent); color:var(--accent); }
+  .modal-body { overflow-y:auto; padding:1.1rem 1.25rem 1.3rem; }
+  .banner { display:none; border:1px solid #fecaca; background:#fef2f2; color:#b91c1c; border-radius:.7rem; padding:.6rem .85rem; font-size:.82rem; font-weight:600; margin-bottom:.9rem; }
+  .banner.show { display:block; }
+  .sect { display:flex; align-items:center; gap:.5rem; font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin:1.25rem 0 .75rem; }
+  form .sect:first-child { margin-top:0; }
+  .sect .ico { width:1.55rem; height:1.55rem; display:inline-flex; align-items:center; justify-content:center; background:#ffedd5; border-radius:.5rem; font-size:.75rem; flex-shrink:0; }
+  .fgrid { display:grid; grid-template-columns:1fr; gap:.7rem 1rem; }
+  @media (min-width:640px) { .fgrid { grid-template-columns:1fr 1fr; } .span2 { grid-column:1 / -1; } }
+  .field { display:flex; flex-direction:column; gap:.28rem; min-width:0; }
+  .field label { font-size:.78rem; font-weight:600; color:#44403c; }
+  .req { color:var(--accent); }
+  .field input, .field select, .field textarea { font:inherit; font-size:.9rem; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:.6rem; padding:.55rem .7rem; width:100%; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(234,88,12,.14); }
+  .field input.bad, .field select.bad, .field textarea.bad { border-color:var(--bad); }
+  .ferr { font-size:.72rem; color:var(--bad); font-weight:600; }
+  .hint { font-size:.72rem; color:#a8a29e; }
+  .fname { display:none; font-size:.75rem; color:var(--ok); font-weight:600; }
+  .fname.show { display:block; }
+  .filebox { border:1px dashed var(--line); background:#fafaf9; border-radius:.7rem; padding:.55rem .65rem; }
+  .filebox input[type=file] { font-size:.78rem; color:var(--muted); width:100%; }
+  input[type=file]::file-selector-button { font:inherit; font-size:.72rem; font-weight:700; color:#fff; background:var(--accent); border:0; border-radius:.5rem; padding:.45rem .8rem; margin-right:.7rem; cursor:pointer; }
+  input[type=file]::file-selector-button:hover { background:var(--accent-dark); }
+  .cap-row { display:flex; gap:.5rem; align-items:stretch; }
+  .cap-q { flex:1; min-width:0; display:flex; align-items:center; background:#fff7ed; border:1px solid #fed7aa; border-radius:.6rem; padding:.55rem .8rem; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.95rem; font-weight:700; letter-spacing:.05em; color:#7c2d12; }
+  .cap-in { flex-shrink:0; width:5.2rem; text-align:center; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-weight:700; }
+  .cap-btn { flex-shrink:0; width:44px; border:1px solid var(--line); background:var(--card); border-radius:.6rem; cursor:pointer; font-size:1.05rem; color:var(--muted); }
+  .cap-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .cap-btn.spin { animation:cpspin 1s linear infinite; }
+  @keyframes cpspin { to { transform:rotate(360deg); } }
+  .consent { display:flex; flex-wrap:wrap; align-items:flex-start; gap:.6rem; background:#fff; border:1px solid var(--line); border-radius:.7rem; padding:.8rem .9rem; }
+  .ko-box { background:#fff; border:1px solid var(--line); border-radius:.7rem; padding:.9rem; display:flex; flex-direction:column; gap:.65rem; }
+  .ko-title { font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--accent); }
+  .ko-q { font-size:.8rem; color:#44403c; line-height:1.5; }
+  .ko-opts { display:flex; gap:1rem; margin-top:.25rem; }
+  .ko-opt { display:flex; align-items:center; gap:.4rem; cursor:pointer; font-size:.8rem; font-weight:600; color:#44403c; }
+  .ko-opt input { width:1.05rem; height:1.05rem; accent-color:var(--accent); cursor:pointer; }
+  .consent input[type=checkbox] { width:1.05rem; height:1.05rem; margin-top:.22rem; accent-color:var(--accent); flex-shrink:0; cursor:pointer; }
+  .consent input[type=checkbox].bad { outline:2px solid var(--bad); outline-offset:2px; border-radius:.2rem; }
+  .consent-txt { font-size:.78rem; color:#44403c; line-height:1.55; cursor:pointer; }
+  .consent .ferr { flex-basis:100%; }
+  .hp { position:absolute; left:-9999px; top:-9999px; width:1px; height:1px; overflow:hidden; }
+  .actions { display:flex; gap:.6rem; justify-content:flex-end; margin-top:1.3rem; flex-wrap:wrap; }
+  .okwrap { display:none; text-align:center; padding:1.6rem .5rem 1rem; flex-direction:column; gap:.7rem; align-items:center; }
+  .okwrap.show { display:flex; }
+  .okcircle { width:4rem; height:4rem; border-radius:9999px; background:#ffedd5; color:var(--accent); font-size:2rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .okwrap h3 { font-size:1.25rem; letter-spacing:-.02em; }
+  .okwrap p { color:var(--muted); font-size:.88rem; max-width:26rem; }
 </style>
 </head>
 <body>
   <header class="site">
-    <div class="wordmark" aria-label="Portal Karir"><span class="dot" aria-hidden="true"></span>Karir${companyName ? ` · ${esc(companyName)}` : ""}</div>
+    <div class="wordmark" aria-label="Portal Karir"><span class="dot" aria-hidden="true"></span><span class="co">Karir${companyName ? ` · ${esc(companyName)}` : ""}</span></div>
     <button class="lang" id="lang-toggle" type="button" aria-label="Ganti bahasa / switch language">EN</button>
   </header>
   <main>
     <section class="hero">
+      <span class="hero-tag" data-id="Rekrutmen Terbuka" data-en="We're Hiring">Rekrutmen Terbuka</span>
       <h1 data-id="Berkarir <em>bersama kami</em>" data-en="Build your career <em>with us</em>">Berkarir <em>bersama kami</em></h1>
       <p class="sub" data-id="Lamar langsung tanpa membuat akun — cukup satu formulir, CV, dan konfirmasi email. Data Anda kami perlakukan sesuai UU PDP No. 27/2022." data-en="Apply directly without creating an account — just one form, your CV, and an email confirmation. Your data is handled under Indonesia's PDP Law No. 27/2022.">Lamar langsung tanpa membuat akun — cukup satu formulir, CV, dan konfirmasi email. Data Anda kami perlakukan sesuai UU PDP No. 27/2022.</p>
-      ${notice}
+      ${noticeHtml}
     </section>
-    <section class="grid" aria-label="Daftar lowongan">
-      ${listHtml}
-    </section>
+    ${listSectionHtml}
   </main>
   <footer class="site">
-    <span>${companyName ? `© ${new Date().getFullYear()} ${esc(companyName)}` : "Portal Karir"}</span>
-    <span data-id="Portal Kandidat — aplikasi terpisah dari sistem HR internal (RekanKerja)" data-en="Candidate Portal — a separate application from the internal HR system (RekanKerja)">Portal Kandidat — aplikasi terpisah dari sistem HR internal (RekanKerja)</span>
+    <span>© ${year} ${companyName ? esc(companyName) : "Portal Karir"} — RekanKerja</span>
+    <span class="pdp" data-id="Data pribadi yang Anda kirim diproses hanya untuk keperluan rekrutmen dan dilindungi sesuai UU No. 27/2022 tentang Pelindungan Data Pribadi." data-en="Personal data you submit is processed solely for recruitment and is protected under Indonesian Personal Data Protection Law No. 27/2022.">Data pribadi yang Anda kirim diproses hanya untuk keperluan rekrutmen dan dilindungi sesuai UU No. 27/2022 tentang Pelindungan Data Pribadi.</span>
   </footer>
+
+  <!-- ============ DIALOG FORM LAMARAN (custom modal — bukan <dialog>) ============ -->
+  <div class="overlay" id="apply-overlay" role="dialog" aria-modal="true" aria-labelledby="apply-title">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="mh-txt">
+          <h3 id="apply-title">—</h3>
+          <p class="modal-sub"><span id="apply-ref" class="refno"></span><span id="apply-desc"></span></p>
+        </div>
+        <button type="button" class="xbtn" id="apply-close" aria-label="Tutup / Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="banner" id="apply-banner" role="alert"></div>
+        <form id="apply-form" novalidate>
+          <h4 class="sect"><span class="ico" aria-hidden="true">👤</span><span data-id="Data Diri" data-en="Personal Details">Data Diri</span></h4>
+          <div class="fgrid">
+${FORM_IDENTITY_FIELDS}
+          </div>
+
+          <h4 class="sect"><span class="ico" aria-hidden="true">🎓</span><span data-id="Pendidikan" data-en="Education">Pendidikan</span></h4>
+          <div class="fgrid">
+${FORM_EDU_FIELDS}
+          </div>
+
+          <h4 class="sect"><span class="ico" aria-hidden="true">💼</span><span data-id="Pengalaman" data-en="Experience">Pengalaman</span></h4>
+          <div class="fgrid">
+${FORM_EXP_FIELDS}
+          </div>
+
+          <h4 class="sect"><span class="ico" aria-hidden="true">📎</span><span data-id="Dokumen &amp; Konfirmasi" data-en="Documents &amp; Confirmation">Dokumen &amp; Konfirmasi</span></h4>
+          <div class="fgrid">
+            <div class="field span2">
+              <label for="ap-cv"><span data-id="CV / Resume (opsional)" data-en="CV / Resume (optional)">CV / Resume (opsional)</span></label>
+              <div class="filebox"><input id="ap-cv" name="cv" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf"></div>
+              <p class="hint" data-id="JPG, PNG, WEBP, atau PDF — maksimal 5 MB." data-en="JPG, PNG, WEBP, or PDF — max 5 MB.">JPG, PNG, WEBP, atau PDF — maksimal 5 MB.</p>
+              <p class="fname" id="ap-cv-name"></p>
+              <p class="ferr" id="ap-cv-err" role="alert"></p>
+            </div>
+
+            <div class="field span2" id="ap-knockouts-wrap" style="display:none">
+              <div class="ko-box">
+                <div class="ko-title"><span data-id="Pertanyaan Wajib Posisi" data-en="Required Position Questions">Pertanyaan Wajib Posisi</span></div>
+                <div id="ap-knockouts"></div>
+                <p class="hint" data-id="Jawaban jujur menghemat waktu Anda — posisi ini memiliki syarat objektif tertentu." data-en="An honest answer saves your time — this position has specific objective requirements.">Jawaban jujur menghemat waktu Anda — posisi ini memiliki syarat objektif tertentu.</p>
+              </div>
+            </div>
+
+            <div class="field span2">
+              <label for="ap-captcha"><span data-id="Verifikasi Keamanan" data-en="Security Verification">Verifikasi Keamanan</span> <b class="req" aria-hidden="true">*</b></label>
+              <div class="cap-row">
+                <div class="cap-q" id="captcha-q" aria-live="polite">…</div>
+                <input class="cap-in" id="ap-captcha" name="captchaAnswer" inputmode="numeric" pattern="[0-9]*" placeholder="?" autocomplete="off">
+                <button type="button" class="cap-btn" id="cap-refresh" title="Segarkan soal" aria-label="Segarkan soal captcha">↻</button>
+              </div>
+              <p class="hint" data-id="Jawab pertanyaan di atas (angka). Tantangan berlaku 10 menit — segarkan bila kedaluwarsa." data-en="Answer the question above (a number). The challenge is valid for 10 minutes — refresh it if expired.">Jawab pertanyaan di atas (angka). Tantangan berlaku 10 menit — segarkan bila kedaluwarsa.</p>
+              <p class="ferr" data-for="captcha"></p>
+            </div>
+
+            <div class="consent span2">
+              <input type="checkbox" id="ap-consent">
+              <label for="ap-consent" class="consent-txt"><span data-id="Saya setuju data pribadi saya pada formulir ini diproses oleh" data-en="I consent to my personal data in this form being processed by">Saya setuju data pribadi saya pada formulir ini diproses oleh</span> ${companyStrong} <span data-id="untuk keperluan proses rekrutmen sesuai UU No. 27/2022 (UU PDP). Persetujuan ini dapat saya tarik kembali kapan saja." data-en="for recruitment purposes under Law No. 27/2022 (Indonesian PDP Law). I may withdraw this consent at any time.">untuk keperluan proses rekrutmen sesuai UU No. 27/2022 (UU PDP). Persetujuan ini dapat saya tarik kembali kapan saja.</span></label>
+              <p class="ferr" data-for="consent"></p>
+            </div>
+
+            <!-- HONEYPOT — tersembunyi dari manusia; bot yang mengisinya ditandai Spam server (respons 201 identik). -->
+            <div class="hp" aria-hidden="true">
+              <label for="hp-website">Website</label>
+              <input id="hp-website" name="website" type="text" tabindex="-1" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="btn ghost" id="apply-cancel" data-id="Batal" data-en="Cancel">Batal</button>
+            <button type="submit" class="btn primary" id="apply-submit">Kirim Lamaran</button>
+          </div>
+        </form>
+
+        <div class="okwrap" id="apply-success">
+          <div class="okcircle" aria-hidden="true">✓</div>
+          <h3 data-id="Lamaran Terkirim!" data-en="Application Sent!">Lamaran Terkirim!</h3>
+          <p data-id="Terima kasih! Lamaran Anda telah kami terima dan akan ditinjau oleh tim HR. Konfirmasi akan dikirim ke email Anda." data-en="Thank you! Your application has been received and will be reviewed by the HR team. A confirmation will be sent to your email.">Terima kasih! Lamaran Anda telah kami terima dan akan ditinjau oleh tim HR. Konfirmasi akan dikirim ke email Anda.</p>
+          <button type="button" class="btn primary" id="apply-ok" data-id="Tutup" data-en="Close">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script id="portal-data" type="application/json">${dataJson}</script>
   <script>
     (function () {
+      "use strict";
+      // ---- data SSR (openings utk klik kartu; slug utk ?t= pada POST apply) ----
       var KEY = "portal-lang", cur = "id";
       try { cur = localStorage.getItem(KEY) || "id"; } catch (e) {}
-      var btn = document.getElementById("lang-toggle");
+      var DATA = {};
+      try { DATA = JSON.parse(document.getElementById("portal-data").textContent) || {}; } catch (e) {}
+      var ACTIVE_SLUG = DATA.slug || null;
+      var OPENINGS = DATA.openings || [];
+
+      var EMAIL_RE = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+      var CV_EXTS = ["jpg", "jpeg", "png", "webp", "pdf"];
+      var CV_MAX = 5 * 1024 * 1024;
+
+      // pesan error server (ID) -> padanan EN (pola SERVER_ERRORS career-portal.tsx)
+      var SERVER_ERRORS = {
+        "Terlalu banyak permintaan. Coba lagi nanti.": "Too many requests. Please try again later.",
+        "Terlalu banyak lamaran terkirim. Silakan coba lagi nanti.": "Too many applications submitted. Please try again later.",
+        "Verifikasi keamanan salah atau kedaluwarsa. Silakan coba lagi.": "Security verification is incorrect or expired. Please try again.",
+        "Persetujuan pemrosesan data pribadi wajib diberikan.": "Consent to personal data processing is required.",
+        "Nama depan wajib diisi": "First name is required.",
+        "Email valid wajib diisi": "A valid email address is required.",
+        "Lowongan sudah tidak tersedia. Silakan pilih lowongan lain.": "This opening is no longer available. Please choose another one.",
+        "CV harus JPG/PNG/WEBP/PDF dan maksimum 5 MB": "The CV must be a JPG/PNG/WEBP/PDF file of at most 5 MB.",
+        "Perusahaan tidak ditemukan. Pilih perusahaan pada halaman karier.": "Company not found. Please choose a company on the career page.",
+        "Request harus multipart/form-data": "Invalid request format."
+      };
+      function t(id, en) { return cur === "id" ? id : en; }
+      function serverMsg(msg) { return cur === "en" && SERVER_ERRORS[msg] ? SERVER_ERRORS[msg] : msg; }
+
+      // ---- elemen ----
+      var langBtn = document.getElementById("lang-toggle");
+      var overlay = document.getElementById("apply-overlay");
+      var form = document.getElementById("apply-form");
+      var titleEl = document.getElementById("apply-title");
+      var refEl = document.getElementById("apply-ref");
+      var descEl = document.getElementById("apply-desc");
+      var banner = document.getElementById("apply-banner");
+      var successBox = document.getElementById("apply-success");
+      var submitBtn = document.getElementById("apply-submit");
+      var cancelBtn = document.getElementById("apply-cancel");
+      var capQ = document.getElementById("captcha-q");
+      var capRefresh = document.getElementById("cap-refresh");
+      var capInput = document.getElementById("ap-captcha");
+      var cvInput = document.getElementById("ap-cv");
+      var cvName = document.getElementById("ap-cv-name");
+      var cvErr = document.getElementById("ap-cv-err");
+      var consentBox = document.getElementById("ap-consent");
+      var hpInput = document.getElementById("hp-website");
+
+      var ALL_FIELDS = ["firstName","middleName","lastName","email","phone","city","birthDate","gender","educationLevel","fieldOfStudy","institution","graduationYear","gpa","expYears","lastPosition","lastCompany","expectedSalary","notes","captcha"];
+      var capToken = null, capBusy = false, cvFile = null, cvBad = null;
+      var target = null, submitting = false, submitted = false;
+
+      // ---- bahasa (pola data-id/data-en + placeholder varian) ----
+      function updateSubmitLabel() {
+        submitBtn.textContent = submitting ? t("Mengirim…", "Sending…") : t("Kirim Lamaran", "Submit Application");
+      }
       function apply(lang) {
         cur = lang;
         document.documentElement.lang = lang;
@@ -177,11 +630,282 @@ function renderPage(data: OpeningsResponse | null, tenantSlug: string | null): s
           var v = el.getAttribute(lang === "id" ? "data-id" : "data-en");
           if (v != null) el.innerHTML = v;
         });
-        btn.textContent = lang === "id" ? "EN" : "ID";
+        document.querySelectorAll("[data-id-ph]").forEach(function (el) {
+          var v = el.getAttribute(lang === "id" ? "data-id-ph" : "data-en-ph");
+          if (v != null) el.setAttribute("placeholder", v);
+        });
+        langBtn.textContent = lang === "id" ? "EN" : "ID";
+        if (cvBad) cvErr.textContent = t(cvBad.id, cvBad.en);
+        updateSubmitLabel();
         try { localStorage.setItem(KEY, lang); } catch (e) {}
       }
-      btn.addEventListener("click", function () { apply(cur === "id" ? "en" : "id"); });
-      apply(cur);
+      langBtn.addEventListener("click", function () { apply(cur === "id" ? "en" : "id"); });
+
+      // ---- util field ----
+      function el(name) { return document.getElementById("ap-" + name); }
+      function val(name) { var e = el(name); return e ? String(e.value == null ? "" : e.value).trim() : ""; }
+      function fErr(name) { return document.querySelector('.ferr[data-for="' + name + '"]'); }
+      function setErr(name, msg) {
+        var p = fErr(name); if (p) p.textContent = msg;
+        var e = el(name); if (e) e.classList.add("bad");
+        if (name === "consent") consentBox.classList.add("bad");
+      }
+      function clearErr(name) {
+        var p = fErr(name); if (p) p.textContent = "";
+        var e = el(name); if (e) e.classList.remove("bad");
+        if (name === "consent") consentBox.classList.remove("bad");
+      }
+      ALL_FIELDS.forEach(function (n) {
+        var e = el(n);
+        if (e) {
+          e.addEventListener("input", function () { clearErr(n); });
+          e.addEventListener("change", function () { clearErr(n); });
+        }
+      });
+      consentBox.addEventListener("change", function () { clearErr("consent"); });
+      capInput.addEventListener("input", function () {
+        capInput.value = capInput.value.replace(/[^0-9]/g, "");
+      });
+      var bd = el("birthDate");
+      if (bd) bd.max = new Date().toISOString().slice(0, 10);
+
+      function showBanner(msg) {
+        banner.textContent = msg;
+        banner.classList.add("show");
+        if (banner.scrollIntoView) banner.scrollIntoView({ block: "nearest" });
+      }
+      function hideBanner() { banner.classList.remove("show"); banner.textContent = ""; }
+
+      // ---- captcha: challenge baru (dialog dibuka + tombol ↻ + auto setelah 400) ----
+      function refreshCaptcha() {
+        if (capBusy) return;
+        capBusy = true;
+        capQ.textContent = "…";
+        capRefresh.classList.add("spin");
+        fetch("/api/public/recruitment/captcha")
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+          .then(function (res) {
+            if (res.ok && res.j && res.j.token) {
+              capToken = res.j.token;
+              capQ.textContent = res.j.question || "?";
+              clearErr("captcha");
+            } else {
+              capToken = null;
+              capQ.textContent = "?";
+              setErr("captcha", serverMsg((res.j && res.j.error) || "Gagal memuat verifikasi keamanan."));
+            }
+          })
+          .catch(function () {
+            capToken = null;
+            capQ.textContent = "?";
+            setErr("captcha", t("Gagal memuat verifikasi keamanan. Periksa koneksi Anda.", "Failed to load the security verification. Check your connection."));
+          })
+          .then(function () { capBusy = false; capRefresh.classList.remove("spin"); });
+      }
+      capRefresh.addEventListener("click", refreshCaptcha);
+
+      // ---- CV: pre-check klien (ekstensi + ukuran; server tetap otoritatif) ----
+      cvInput.addEventListener("change", function () {
+        var f = (cvInput.files && cvInput.files[0]) || null;
+        cvInput.value = ""; // izinkan memilih ulang file yang sama
+        cvFile = null; cvBad = null;
+        cvErr.textContent = "";
+        cvName.textContent = ""; cvName.classList.remove("show");
+        if (!f) return;
+        var parts = f.name.toLowerCase().split(".");
+        var ext = parts.length > 1 ? parts[parts.length - 1] : "";
+        if (CV_EXTS.indexOf(ext) === -1) {
+          cvBad = { id: "Format CV harus JPG, PNG, WEBP, atau PDF.", en: "CV format must be JPG, PNG, WEBP, or PDF." };
+          cvErr.textContent = t(cvBad.id, cvBad.en);
+          return;
+        }
+        if (f.size > CV_MAX) {
+          cvBad = { id: "Ukuran CV maksimum 5 MB.", en: "CV must be at most 5 MB." };
+          cvErr.textContent = t(cvBad.id, cvBad.en);
+          return;
+        }
+        cvFile = f;
+        cvName.textContent = f.name + " · " + (f.size / 1048576).toFixed(2) + " MB";
+        cvName.classList.add("show");
+      });
+
+      // ---- dialog ----
+      function resetForm() {
+        form.reset();
+        cvFile = null; cvBad = null;
+        cvErr.textContent = ""; cvName.textContent = ""; cvName.classList.remove("show");
+        ALL_FIELDS.forEach(clearErr);
+        clearErr("consent");
+        hideBanner();
+        submitted = false;
+        renderKnockouts(null);
+      }
+      // F6b — render pertanyaan knockout slot yang dilamar (radio Ya/Tidak per pertanyaan)
+      function escHtml(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+        });
+      }
+      function renderKnockouts(slot) {
+        var wrap = document.getElementById("ap-knockouts-wrap");
+        var box = document.getElementById("ap-knockouts");
+        if (!wrap || !box) return;
+        var kos = (slot && slot.knockouts && slot.knockouts.length) ? slot.knockouts : null;
+        box.innerHTML = "";
+        wrap.style.display = kos ? "" : "none";
+        if (!kos) return;
+        kos.forEach(function (k, i) {
+          var qid = "ko_" + k.questionId;
+          var div = document.createElement("div");
+          div.className = "ko-q";
+          div.innerHTML =
+            '<div>' + (i + 1) + '. ' + escHtml(k.question) + '</div>' +
+            '<div class="ko-opts">' +
+              '<label class="ko-opt"><input type="radio" name="' + qid + '" value="Ya" required> <span data-id="Ya" data-en="Yes">Ya</span></label>' +
+              '<label class="ko-opt"><input type="radio" name="' + qid + '" value="Tidak"> <span data-id="Tidak" data-en="No">Tidak</span></label>' +
+            '</div>';
+          box.appendChild(div);
+        });
+        apply(cur); // terapkan bahasa aktif pada label baru
+      }
+      function openApply(slot) {
+        target = slot || null;
+        titleEl.textContent = slot ? slot.title : t("Lamaran Umum", "General Application");
+        refEl.textContent = slot ? slot.joRefNo : "";
+        descEl.textContent = slot
+          ? t("Lengkapi data berikut untuk melamar posisi ini.", "Fill in the following details to apply for this position.")
+          : t("Tidak memilih lowongan tertentu? Profil Anda akan tersimpan di talent pool kami.", "Not applying for a specific opening? Your profile will be kept in our talent pool.");
+        renderKnockouts(slot); // F6b — pertanyaan wajib posisi (bila ada)
+        hideBanner();
+        successBox.classList.remove("show");
+        form.style.display = "";
+        overlay.classList.add("open");
+        document.body.classList.add("no-scroll");
+        refreshCaptcha(); // token diminta saat dialog DIBUKA
+        setTimeout(function () { var f = el("firstName"); if (f) f.focus(); }, 60);
+      }
+      function closeApply() {
+        if (submitting) return;
+        overlay.classList.remove("open");
+        document.body.classList.remove("no-scroll");
+        if (submitted) resetForm(); // reset isi form HANYA setelah sukses
+      }
+      document.getElementById("apply-close").addEventListener("click", closeApply);
+      cancelBtn.addEventListener("click", closeApply);
+      document.getElementById("apply-ok").addEventListener("click", closeApply);
+      overlay.addEventListener("click", function (e) { if (e.target === overlay) closeApply(); });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && overlay.classList.contains("open")) closeApply();
+      });
+
+      // ---- pemicu buka dialog: kartu lowongan / lamaran umum / coba lagi ----
+      var grid = document.getElementById("openings");
+      if (grid) {
+        grid.addEventListener("click", function (e) {
+          var card = e.target && e.target.closest ? e.target.closest("[data-idx]") : null;
+          if (!card) return;
+          var o = OPENINGS[Number(card.getAttribute("data-idx"))];
+          if (o) openApply(o);
+        });
+        Array.prototype.forEach.call(grid.querySelectorAll("[data-idx]"), function (card) {
+          card.addEventListener("keydown", function (e) {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            e.preventDefault();
+            var o = OPENINGS[Number(card.getAttribute("data-idx"))];
+            if (o) openApply(o);
+          });
+        });
+      }
+      var genBtn = document.getElementById("apply-general");
+      if (genBtn) genBtn.addEventListener("click", function () { openApply(null); });
+      var retryBtn = document.getElementById("retry-btn");
+      if (retryBtn) retryBtn.addEventListener("click", function () { location.reload(); });
+
+      // ---- validasi klien (per-field: border merah + teks kecil) ----
+      function validate() {
+        var bad = false;
+        if (!val("firstName")) { setErr("firstName", t("Nama depan wajib diisi.", "First name is required.")); bad = true; }
+        var em = val("email");
+        if (!em || !EMAIL_RE.test(em)) { setErr("email", t("Email valid wajib diisi.", "A valid email address is required.")); bad = true; }
+        if (!/^[0-9]+$/.test(val("captcha"))) { setErr("captcha", t("Jawab pertanyaan verifikasi keamanan (angka).", "Answer the security verification question (a number).")); bad = true; }
+        if (!consentBox.checked) { setErr("consent", t("Persetujuan pemrosesan data pribadi wajib diberikan.", "Consent to personal data processing is required.")); bad = true; }
+        if (cvBad) { cvErr.textContent = t(cvBad.id, cvBad.en); bad = true; }
+        // F6b — semua pertanyaan wajib posisi harus dijawab (required radio menangani native; jaga validasi eksplisit)
+        var koWrap = document.getElementById("ap-knockouts-wrap");
+        if (koWrap && koWrap.style.display !== "none") {
+          var kos = koWrap.querySelectorAll("input[type=radio][name^='ko_']");
+          var seen = {};
+          for (var ki = 0; ki < kos.length; ki++) { seen[kos[ki].name] = seen[kos[ki].name] || kos[ki].checked; }
+          var missing = Object.keys(seen).filter(function (n) { return !seen[n]; });
+          if (missing.length > 0) { showBanner(t("Jawab semua pertanyaan wajib posisi terlebih dahulu.", "Please answer all required position questions first.")); bad = true; }
+        }
+        var gy = val("graduationYear");
+        if (gy && !/^[0-9]+$/.test(gy)) { setErr("graduationYear", t("Tahun lulus harus angka (1900–2100).", "Graduation year must be a number (1900–2100).")); bad = true; }
+        var gp = val("gpa");
+        if (gp && !/^[0-9]+([.,][0-9]+)?$/.test(gp)) { setErr("gpa", t("IPK harus angka 0–4 (contoh: 3.50).", "GPA must be a number 0–4 (e.g. 3.50).")); bad = true; }
+        var ex = val("expYears");
+        if (ex && !/^[0-9]+$/.test(ex)) { setErr("expYears", t("Pengalaman kerja harus angka (tahun).", "Work experience must be a number (years).")); bad = true; }
+        var es = val("expectedSalary");
+        if (es && !/^[0-9]+$/.test(es)) { setErr("expectedSalary", t("Ekspektasi gaji harus angka (Rupiah).", "Expected salary must be a number (Rupiah).")); bad = true; }
+        if (bad) showBanner(t("Periksa kembali isian yang ditandai merah.", "Please review the fields highlighted in red."));
+        return bad;
+      }
+
+      // ---- kirim lamaran (multipart — JANGAN set Content-Type manual) ----
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (submitting) return;
+        if (validate()) return;
+        var fd = new FormData();
+        if (target && target.slotId) fd.append("slotId", target.slotId);
+        ["firstName","middleName","lastName","email","phone","city","birthDate","gender","educationLevel","fieldOfStudy","institution","graduationYear","gpa","expYears","lastPosition","lastCompany","expectedSalary","notes"].forEach(function (n) {
+          fd.append(n, val(n));
+        });
+        fd.append("captchaToken", capToken || "");
+        fd.append("captchaAnswer", val("captcha"));
+        fd.append("consent", "true");
+        fd.append("website", hpInput ? hpInput.value : ""); // HONEYPOT dari DOM
+        // F6b — jawaban pertanyaan wajib posisi (ko_<questionId>)
+        var koRadios = form.querySelectorAll("input[type=radio][name^='ko_']:checked");
+        for (var kri = 0; kri < koRadios.length; kri++) fd.append(koRadios[kri].name, koRadios[kri].value);
+        if (cvFile) fd.append("cv", cvFile);
+        submitting = true;
+        updateSubmitLabel();
+        submitBtn.disabled = true;
+        cancelBtn.disabled = true;
+        hideBanner();
+        var qs = ACTIVE_SLUG ? "?t=" + encodeURIComponent(ACTIVE_SLUG) : "";
+        fetch("/api/public/recruitment/apply" + qs, { method: "POST", body: fd })
+          .then(function (r) {
+            if (r.status === 201) {
+              // respons 201 = sukses (maupun spam-honeypot — identik by design)
+              submitted = true;
+              form.style.display = "none";
+              successBox.classList.add("show");
+              document.getElementById("apply-ok").focus();
+              return null;
+            }
+            return r.json().catch(function () { return {}; }).then(function (j) {
+              showBanner(serverMsg((j && j.error) || ("HTTP " + r.status)));
+              if (r.status === 400) {
+                // challenge bisa basi/kedaluwarsa → segarkan otomatis
+                capInput.value = "";
+                refreshCaptcha();
+              }
+            });
+          })
+          .catch(function () {
+            showBanner(t("Gagal mengirim lamaran. Periksa koneksi internet Anda lalu coba lagi.", "Failed to send the application. Check your internet connection and try again."));
+          })
+          .then(function () {
+            submitting = false;
+            submitBtn.disabled = false;
+            cancelBtn.disabled = false;
+            updateSubmitLabel();
+          });
+      });
+
+      apply(cur); // terapkan bahasa tersimpan
     })();
   </script>
 </body>
@@ -195,6 +919,11 @@ const server = Bun.serve({
     if (url.pathname === "/healthz") {
       return Response.json({ ok: true, service: "candidate-portal", port: PORT, mainApp: MAIN_APP });
     }
+    // PROXY server-side: semua /api/public/recruitment/* di-relay ke aplikasi utama
+    // (mode direct :3010 — mode gateway tidak menyentuh jalur ini).
+    if (url.pathname.startsWith(PUBLIC_API_PREFIX)) {
+      return proxyPublicApi(req, url);
+    }
     if (url.pathname === "/" || url.pathname === "/index.html") {
       const t = url.searchParams.get("t");
       const data = await fetchOpenings(t);
@@ -204,4 +933,6 @@ const server = Bun.serve({
   },
 });
 
-console.log(`[candidate-portal] OK — http://127.0.0.1:${PORT} (aplikasi TERPISAH; gateway: /?XTransformPort=${PORT}) · main app: ${MAIN_APP}`);
+console.log(
+  `[candidate-portal] OK — http://127.0.0.1:${PORT} (aplikasi TERPISAH + form lamaran; proxy ${PUBLIC_API_PREFIX}* → ${MAIN_APP}; gateway: /?XTransformPort=${PORT})`,
+);

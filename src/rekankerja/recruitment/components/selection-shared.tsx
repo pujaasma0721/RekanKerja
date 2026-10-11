@@ -3,11 +3,17 @@
 // Mirror serializer selection-service.ts / scorecard-service.ts (pola F2:
 // komponen client TIDAK meng-import file service — interface lokal identik).
 // Dipakai selection.tsx (papan/kalender) + selection-dialogs.tsx (dialog).
+// F6b: + tipe mirror kontrak /api/…/recruitment/ai (skor AI + rubrik per PR).
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
 export const SELECTION_API = "/api/rekankerja/recruitment/selection";
 export const CANDIDATES_API = "/api/rekankerja/recruitment/candidates";
+/** API AI rekrutmen (F6a parse CV + F6b skor AI/rubrik — sama-sama /ai). */
+export const AI_API = "/api/rekankerja/recruitment/ai";
+
+/** localStorage switch "Mode Buta" board seleksi (HRX B6/F6c — display only). */
+export const BLIND_LS_KEY = "rk-blind-selection";
 
 // ============ tipe (mirror JSON API F3) ============
 
@@ -318,6 +324,103 @@ export function StepPill({ status }: { status: string }) {
 export function RecPill({ rec }: { rec: string }) {
   const { t } = useI18n();
   return <Pill tone={REC_TONE[rec] ?? "slate"}>{t(REC_LABEL[rec] ?? rec, REC_LABEL_EN[rec] ?? rec)}</Pill>;
+}
+
+// ============ tipe (mirror JSON API F6b — skor AI & rubrik per PR) ============
+
+/** Satu faktor rubrik skor (PR.rubricJson — no-code). */
+export interface RubricFactorUI {
+  name: string;
+  /** bobot relatif 0–1 (server menormalisasi Σ=1 saat generate). */
+  weight: number;
+  guide?: string | null;
+}
+
+/** Satu faktor hasil skor (factorsJson CandidateAiScore). */
+export interface AiScoreFactor {
+  factor: string;
+  weight: number;
+  score: number; // 0–100
+  contribution: number; // weight × score
+  evidence: string;
+}
+
+export interface AiScore {
+  id: string;
+  candidateId: string;
+  candidateName: string;
+  prNo: string;
+  total: number; // 0–100
+  mode: string; // ai|simulated
+  model: string | null;
+  generatedAt: string;
+  generatedByName: string | null;
+  factors: AiScoreFactor[];
+}
+
+/** Snapshot rubrik default service (3 faktor generik) — utk deteksi hint
+ *  "rubrik default" di UI (getRubric fallback diam-diam bila PR belum di-set). */
+export const DEFAULT_RUBRIC_UI: RubricFactorUI[] = [
+  { name: "Pendidikan & Sertifikasi", weight: 0.3, guide: "Relevansi jenjang & bidang studi dengan kebutuhan posisi" },
+  { name: "Relevansi Pengalaman", weight: 0.4, guide: "Lama & kedekatan pengalaman kerja dengan peran yang dilamar" },
+  { name: "Keahlian Teknis", weight: 0.3, guide: "Penguasaan tools/metode kunci posisi" },
+];
+
+/** true bila daftar faktor identik dgn rubrik default (nama sama, urutan sama). */
+export function isDefaultRubric(factors: RubricFactorUI[] | null | undefined): boolean {
+  if (!factors || factors.length !== DEFAULT_RUBRIC_UI.length) return false;
+  return DEFAULT_RUBRIC_UI.every((d, i) =>
+    (factors[i]?.name ?? "").trim().toLowerCase() === d.name.trim().toLowerCase());
+}
+
+/** Ambang badge skor AI (F6b): ≥70 emerald · 50–69 amber · <50 rose. */
+export function scoreToneKey(total: number): "emerald" | "amber" | "rose" {
+  if (total >= 70) return "emerald";
+  if (total >= 50) return "amber";
+  return "rose";
+}
+
+const SCORE_TONE_CLS: Record<string, string> = {
+  emerald: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400",
+  amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
+  rose: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
+};
+const SCORE_TONE_BAR: Record<string, string> = {
+  emerald: "bg-emerald-500", amber: "bg-amber-500", rose: "bg-rose-500",
+};
+
+/** Pill skor AI mini (badge kartu board — "AI 62.9"). */
+export function AiScoreBadge({ total, onClick, title }: { total: number; onClick?: () => void; title?: string }) {
+  const { t } = useI18n();
+  const key = scoreToneKey(total);
+  const cls = cn(
+    "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-bold tabular-nums whitespace-nowrap",
+    SCORE_TONE_CLS[key],
+    onClick && "cursor-pointer hover:brightness-95 dark:hover:brightness-125",
+  );
+  const body = (
+    <>
+      <span className="font-semibold">AI</span> {total.toFixed(1)}
+    </>
+  );
+  return onClick ? (
+    <button type="button" className={cls} onClick={onClick} title={title ?? t("skor AI kandidat (rekomendasi)", "candidate AI score (recommendation)")}>
+      {body}
+    </button>
+  ) : (
+    <span className={cls} title={title}>{body}</span>
+  );
+}
+
+/** Bar skor 0–100 ber-tone ambang (breakdown faktor & total dialog). */
+export function ScoreBar({ value, className }: { value: number; className?: string }) {
+  const key = scoreToneKey(value);
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <span className={cn("block h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700", className)} aria-hidden>
+      <span className={cn("block h-full rounded-full", SCORE_TONE_BAR[key])} style={{ width: `${pct}%` }} />
+    </span>
+  );
 }
 
 // ============ helper kecil ============

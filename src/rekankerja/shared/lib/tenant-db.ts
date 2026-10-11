@@ -72,13 +72,17 @@ export type { TenantPrismaClient };
 // EmpJobApplication) + kolom JobOpportunity.internalOnly/internalFirstUntil
 // masuk client hasil generate; instance lama (pra-F5REC, DMMF tanpa
 // db.recruitmentPlan dst.) tidak boleh dipakai ulang.
+// F6-REC: versi dinaikkan lagi (F6REC) — model AI rekrutmen (KnockoutQuestion,
+// ApplicationAnswer, CvParseResult, CandidateAiScore) + kolom
+// PersonnelRequisition.rubricJson masuk client hasil generate; instance lama
+// (pra-F6REC, DMMF tanpa db.knockoutQuestion dst.) tidak boleh dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  rekankerjaTenantClientsF5REC: Map<string, TenantPrismaClient> | undefined;
+  rekankerjaTenantClientsF6REC: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.rekankerjaTenantClientsF5REC ?? new Map();
-globalForTenants.rekankerjaTenantClientsF5REC = tenantClients;
+  globalForTenants.rekankerjaTenantClientsF6REC ?? new Map();
+globalForTenants.rekankerjaTenantClientsF6REC = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

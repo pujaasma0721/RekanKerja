@@ -61,6 +61,7 @@ const JO_INCLUDE = {
     include: {
       pr: { select: { id: true, prNo: true, status: true, requiredNo: true, employmentStatus: true, position: { select: { title: true } } } },
       workLocation: { select: { id: true, name: true, city: true } },
+      knockouts: { orderBy: { orderNo: "asc" } },
       _count: { select: { applications: true, publicApplications: true } },
     },
   },
@@ -99,6 +100,28 @@ export interface OpeningSlotRow {
   closedAt: string | null;
   applicationCount: number; // ApplicantApplication
   publicApplicationCount: number; // staging Pending (belum jadi pelamar)
+  knockouts: KnockoutRow[]; // F6: pertanyaan knockout slot ini
+}
+
+/** Pertanyaan knockout per slot (F6 — HRX B3): pertanyaan OBJEKTIF, mis.
+ *  "Bersedia ditempatkan di Bandung?" dengan jawaban yang diharapkan. */
+export interface KnockoutInput {
+  id?: string;
+  question: string;
+  expectedValue: string;
+  /** Equals (default) | Contains | NotEquals. */
+  mode?: string;
+  active?: boolean;
+  orderNo?: number;
+}
+
+export interface KnockoutRow {
+  id: string;
+  question: string;
+  expectedValue: string;
+  mode: string;
+  active: boolean;
+  orderNo: number;
 }
 
 export interface MethodRow {
@@ -229,6 +252,14 @@ function slotRow(s: Prisma.JobOpeningGetPayload<typeof JO_INCLUDE.openings>): Op
     closedAt: iso(s.closedAt),
     applicationCount: s._count.applications,
     publicApplicationCount: s._count.publicApplications,
+    knockouts: s.knockouts.map((k) => ({
+      id: k.id,
+      question: k.question,
+      expectedValue: k.expectedValue,
+      mode: k.mode,
+      active: k.active,
+      orderNo: k.orderNo,
+    })).sort((a, b) => a.orderNo - b.orderNo),
   };
 }
 
@@ -614,6 +645,105 @@ export async function deleteMethod(db: TenantDb, id: string, actorName?: string 
   await db.activityLog.create({
     data: { action: "Deleted", entity: "JobOpeningMethod", entityId: m.jobOpportunity.refNo, detail: `Kanal ${m.methodId} dihapus dari ${m.jobOpportunity.refNo}${actorName ? ` oleh ${actorName}` : ""}` },
   });
+}
+
+// ============ pertanyaan knockout per slot (F6 — HRX B3) ============
+
+function knockoutRow(k: { id: string; question: string; expectedValue: string; mode: string; active: boolean; orderNo: number }): KnockoutRow {
+  return { id: k.id, question: k.question, expectedValue: k.expectedValue, mode: k.mode, active: k.active, orderNo: k.orderNo };
+}
+
+/** Ganti seluruh daftar knockout slot (replace-all — item tanpa id = baru,
+ *  id yang tidak dikirim = dihapus). Pertanyaan hanya boleh OBJEKTIF. */
+export async function upsertKnockouts(
+  db: TenantDb, slotId: string, items: KnockoutInput[], actorName?: string | null,
+): Promise<KnockoutRow[]> {
+  const slot = await db.jobOpening.findUnique({
+    where: { id: slotId },
+    include: { jobOpportunity: { select: { refNo: true, status: true } } },
+  });
+  if (!slot) throw new Error("Slot tidak ditemukan");
+  if (slot.jobOpportunity.status === "Closed" || slot.jobOpportunity.status === "Obsolete") {
+    throw new Error(`Lowongan ${slot.jobOpportunity.refNo} berstatus ${slot.jobOpportunity.status} — knockout tidak dapat diubah`);
+  }
+  if (items.length > 10) throw new Error("Maksimum 10 pertanyaan knockout per slot");
+
+  const validModes = ["Equals", "Contains", "NotEquals"];
+  const cleaned = items.map((it, i) => {
+    const question = it.question?.trim() ?? "";
+    if (question.length < 5) throw new Error(`Pertanyaan knockout ke-${i + 1} minimal 5 karakter`);
+    const expected = it.expectedValue?.trim() ?? "";
+    if (!expected) throw new Error(`Jawaban yang diharapkan untuk "${question.slice(0, 40)}" wajib diisi`);
+    const mode = validModes.includes(it.mode ?? "") ? it.mode! : "Equals";
+    return { id: it.id || undefined, question: question.slice(0, 200), expectedValue: expected.slice(0, 80), mode, active: it.active !== false, orderNo: i + 1 };
+  });
+
+  await db.$transaction(async (tx) => {
+    const keepIds = cleaned.filter((c) => c.id).map((c) => c.id!);
+    await tx.knockoutQuestion.deleteMany({
+      where: { jobOpeningId: slot.id, ...(keepIds.length > 0 ? { id: { notIn: keepIds } } : {}) },
+    });
+    for (const c of cleaned) {
+      if (c.id) {
+        await tx.knockoutQuestion.update({
+          where: { id: c.id },
+          data: { question: c.question, expectedValue: c.expectedValue, mode: c.mode, active: c.active, orderNo: c.orderNo },
+        });
+      } else {
+        await tx.knockoutQuestion.create({
+          data: { jobOpeningId: slot.id, question: c.question, expectedValue: c.expectedValue, mode: c.mode, active: c.active, orderNo: c.orderNo },
+        });
+      }
+    }
+  });
+
+  await db.activityLog.create({
+    data: {
+      action: "Updated", entity: "KnockoutQuestion", entityId: slot.jobOpportunity.refNo,
+      detail: `Pertanyaan knockout slot "${slot.titleToShow}" (${slot.jobOpportunity.refNo}) disimpan: ${cleaned.length} pertanyaan${actorName ? ` oleh ${actorName}` : ""}`,
+    },
+  });
+  const rows = await db.knockoutQuestion.findMany({ where: { jobOpeningId: slot.id }, orderBy: { orderNo: "asc" } });
+  return rows.map(knockoutRow);
+}
+
+/** Daftar knockout slot (urut orderNo — utk dialog admin). */
+export async function listKnockouts(db: TenantDb, slotId: string): Promise<KnockoutRow[]> {
+  const rows = await db.knockoutQuestion.findMany({ where: { jobOpeningId: slotId }, orderBy: { orderNo: "asc" } });
+  return rows.map(knockoutRow);
+}
+
+export interface KnockoutEvalResult {
+  questionId: string;
+  question: string;
+  answer: string;
+  expectedValue: string;
+  mode: string;
+  pass: boolean;
+}
+
+/** Evaluasi jawaban kandidat terhadap knockout AKTIF slot.
+ *  Hanya jawaban yang DIKIRIM (key ko_<questionId> ada di form) yang dievaluasi
+ *  — pertanyaan tak dijawab form (mis. form lama tanpa knockout) dibiarkan lolos;
+ *  form portal yang merender pertanyaan wajib mengirim semua jawaban. */
+export async function evaluateKnockouts(
+  db: TenantDb, slotId: string, answers: Record<string, string>,
+): Promise<{ results: KnockoutEvalResult[]; pass: boolean }> {
+  const qs = await db.knockoutQuestion.findMany({
+    where: { jobOpeningId: slotId, active: true },
+    orderBy: { orderNo: "asc" },
+  });
+  const results: KnockoutEvalResult[] = [];
+  for (const q of qs) {
+    if (!(q.id in answers)) continue; // form tidak mengirim jawaban utk pertanyaan ini
+    const answer = String(answers[q.id] ?? "").trim();
+    const expected = q.expectedValue.trim();
+    const a = answer.toLowerCase();
+    const e = expected.toLowerCase();
+    const pass = q.mode === "NotEquals" ? a !== e : q.mode === "Contains" ? a.includes(e) : a === e;
+    results.push({ questionId: q.id, question: q.question, answer, expectedValue: q.expectedValue, mode: q.mode, pass });
+  }
+  return { results, pass: results.every((r) => r.pass) };
 }
 
 // ============ auto-post (hook PR Approved) ============

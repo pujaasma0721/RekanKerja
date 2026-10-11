@@ -36,6 +36,7 @@ import {
   type InvitationResult, type PanelResult, type ProcessOpt, type PrOpt, type StepRow,
   type TemplateRow, Pill, CandPill, StepPill, RecPill, daysLateOf, monthsLabel,
 } from "./selection-shared";
+import { AiScorePanel } from "./ai-score-dialogs";
 import {
   AlertTriangle, AlarmClock, ArrowUpRight, BadgeCheck, CalendarPlus, Check, ChevronLeft, ChevronRight,
   ChevronsUpDown, ClipboardCheck, Download, FileText, Info, ListChecks, MailCheck, Pencil, Plus, Settings2,
@@ -1107,12 +1108,18 @@ export function DayEventsDialog({ day, events, onClose, onOpenCandidate }: {
 // Dialog detail kandidat (multi-tab)
 // ============================================================
 
-export function CandidateDetailDialog({ candidateId, employees, stages, onClose, onMutated }: {
+export function CandidateDetailDialog({ candidateId, employees, stages, blind = false, displayName = null, onClose, onMutated, onScored }: {
   candidateId: string | null;
   employees: EmployeeOpt[];
   stages: ProcessOpt[];
+  /** F6c mode buta — sembunyikan nama & detail identitas (display-only). */
+  blind?: boolean;
+  /** nama tampil (Mode Buta → "Kandidat #n") — null = pakai nama asli. */
+  displayName?: string | null;
   onClose: () => void;
   onMutated: () => void;
+  /** F6b — dipanggil setelah skor AI baru digenerate (refresh badge board). */
+  onScored?: () => void;
 }) {
   const { t, locale } = useI18n();
   const perms = useMenuPerms();
@@ -1141,6 +1148,11 @@ export function CandidateDetailDialog({ candidateId, employees, stages, onClose,
   const canScorecard = perms.can("recruitment", "selection", "update");
   const canNote = perms.can("recruitment", "candidates", "update");
   const canWithdraw = perms.canOp("recruitment", "candidates", "withdraw");
+  // F6b — skor AI kandidat (generate + breakdown) — op:score.
+  const canScore = perms.canOp("recruitment", "selection", "score");
+
+  // nama tampil — Mode Buta mengganti identitas dgn nomor anonim per PR.
+  const shownName = row ? (displayName ?? row.card.fullName) : "…";
 
   useEffect(() => { setTab("steps"); setNoteDraft(null); setAddStepId(""); }, [candidateId]);
 
@@ -1205,10 +1217,10 @@ export function CandidateDetailDialog({ candidateId, employees, stages, onClose,
 
   const doDelete = async () => {
     if (!row) return;
-    if (!window.confirm(t(`Hapus kandidat ${row.card.fullName} dari ${row.pr.prNo}? Hanya bisa bila belum ada tahap yang dilaksanakan.`, `Delete candidate ${row.card.fullName} from ${row.pr.prNo}? Only possible when no stage has been performed yet.`))) return;
+    if (!window.confirm(t(`Hapus kandidat ${shownName} dari ${row.pr.prNo}? Hanya bisa bila belum ada tahap yang dilaksanakan.`, `Delete candidate ${shownName} from ${row.pr.prNo}? Only possible when no stage has been performed yet.`))) return;
     try {
       await apiSend(`${CANDIDATES_API}?id=${row.card.id}`, "DELETE");
-      toast.success(t(`${row.card.fullName} dihapus dari proses`, `${row.card.fullName} removed from the process`));
+      toast.success(t(`${shownName} dihapus dari proses`, `${shownName} removed from the process`));
       onMutated();
       onClose();
     } catch (e) {
@@ -1265,7 +1277,7 @@ export function CandidateDetailDialog({ candidateId, employees, stages, onClose,
             <>
               <DialogHeader>
                 <DialogTitle className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold">{row.card.fullName}</span>
+                  <span className="font-semibold">{shownName}</span>
                   {row.card.source === "Internal"
                     ? <Pill tone="brand">{t("Internal", "Internal")}</Pill>
                     : <Pill tone="slate">{t("Eksternal", "External")}</Pill>}
@@ -1278,9 +1290,10 @@ export function CandidateDetailDialog({ candidateId, employees, stages, onClose,
               </DialogHeader>
 
               <Tabs value={tab} onValueChange={setTab}>
-                <TabsList>
+                <TabsList className="h-auto flex flex-wrap gap-1">
                   <TabsTrigger value="steps">{t("Tahapan", "Stages")}</TabsTrigger>
                   <TabsTrigger value="scorecard">{t("Scorecard", "Scorecard")}</TabsTrigger>
+                  {canScore && <TabsTrigger value="aiscore">{t("Skor AI", "AI Score")}</TabsTrigger>}
                   <TabsTrigger value="profile">{t("Profil", "Profile")}</TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -1477,6 +1490,16 @@ export function CandidateDetailDialog({ candidateId, employees, stages, onClose,
                 </div>
               )}
 
+              {/* ============ TAB SKOR AI (F6b) ============ */}
+              {tab === "aiscore" && row && (
+                <AiScorePanel
+                  candidateId={row.card.id}
+                  displayName={shownName}
+                  canGenerate={canScore}
+                  onScored={onScored}
+                />
+              )}
+
               {/* ============ TAB PROFIL ============ */}
               {tab === "profile" && row && (
                 <div className="space-y-4">
@@ -1490,9 +1513,11 @@ export function CandidateDetailDialog({ candidateId, employees, stages, onClose,
                     <Field label={t("Telepon", "Phone")} value={row.profile.phone ?? "—"} />
                     <Field label={t("Kota", "City")} value={row.profile.city ?? "—"} />
                     <Field label={t("Pendidikan", "Education")} value={
-                      row.profile.educationLevel
-                        ? `${row.profile.educationLevel}${row.profile.gpa != null ? ` · IPK ${row.profile.gpa.toFixed(2)}` : ""}`
-                        : "—"} />
+                      blind
+                        ? <span className="italic text-slate-400" title={t("disembunyikan Mode Buta", "hidden by Blind Mode")}>—{t("disembunyikan", "hidden")}—</span>
+                        : row.profile.educationLevel
+                          ? `${row.profile.educationLevel}${row.profile.gpa != null ? ` · IPK ${row.profile.gpa.toFixed(2)}` : ""}`
+                          : "—"} />
                     <Field label={t("Pengalaman", "Experience")} value={monthsLabel(row.profile.totalExpMonths, locale === "en-US")} />
                     <Field label={t("Ekspektasi Gaji", "Expected Salary")}
                       value={row.profile.expectedSalary == null
@@ -1548,12 +1573,12 @@ export function CandidateDetailDialog({ candidateId, employees, stages, onClose,
       <CancelStepDialog step={cancelStep} onClose={() => setCancelStep(null)} onDone={refreshAll} />
       <InvitePreviewDialog letter={invite} onClose={() => setInvite(null)} />
       <ScorecardFillDialog step={fillStep} employees={employees} onClose={() => setFillStep(null)} onDone={refreshAll} />
-      <WithdrawDialog candidateId={withdrawOpen ? (row?.card.id ?? null) : null} name={row?.card.fullName ?? ""} onClose={() => setWithdrawOpen(false)} onDone={() => { refreshAll(); }} />
+      <WithdrawDialog candidateId={withdrawOpen ? (row?.card.id ?? null) : null} name={shownName} onClose={() => setWithdrawOpen(false)} onDone={() => { refreshAll(); }} />
       <ResultAdvanceDialog
         target={resultStep ? {
           mode: "result",
           stepId: resultStep.id,
-          cards: [{ id: row?.card.id ?? "", fullName: row?.card.fullName ?? "" }],
+          cards: [{ id: row?.card.id ?? "", fullName: shownName }],
           evaluatedStageName: resultStep.stageName,
           resultType: resultStep.resultType,
           minResultPass: resultStep.minResultPass,
