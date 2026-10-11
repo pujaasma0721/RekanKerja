@@ -166,6 +166,13 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "update", label: "Mengubah pengaturan & preferensi", hint: "Mengubah otomasi rekrutmen (auto-reply, reminder, eskalasi SLA, retensi) dan preferensi notifikasi pribadi" },
   ],
 
+  // Recruitment F8 — analytics & prediktif (dashboard, metrik, adverse-impact,
+  // proyeksi, tampilan tersimpan + export)
+  "recruitment:reports": [
+    { key: "export", label: "Mengekspor laporan", hint: "Mengunduh CSV dashboard/metrik/adverse-impact rekrutmen" },
+    { key: "views", label: "Mengelola tampilan tersimpan", hint: "Menyimpan/menghapus/jadwal tampilan laporan pribadi (ringkasan email mingguan)" },
+  ],
+
   // Travel
   "travel:travel-request": [{ key: "cancel", label: "Membatalkan permintaan travel", hint: "Membatalkan permintaan perjalanan dinas" }],
   "travel:travel-approval": [{ key: "approve", label: "Menyetujui / menolak travel", hint: "Aksi Setujui & Tolak pada persetujuan travel" }],

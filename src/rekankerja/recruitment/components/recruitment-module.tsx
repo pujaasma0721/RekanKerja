@@ -19,6 +19,7 @@ import { OffersPage } from "@/rekankerja/recruitment/components/offers";
 import { PlanBudgetPage } from "@/rekankerja/recruitment/components/plan-budget";
 import { DemographicsPage } from "@/rekankerja/recruitment/components/demographics";
 import { RecruitmentSettingsPage } from "@/rekankerja/recruitment/components/recruitment-settings";
+import { ReportsPage } from "@/rekankerja/recruitment/components/reports";
 
 export function RecruitmentModule({ view }: { view: string }) {
   switch (view) {
@@ -33,6 +34,7 @@ export function RecruitmentModule({ view }: { view: string }) {
     case "plan": return <PlanBudgetPage />;
     case "demographics": return <DemographicsPage />;
     case "settings": return <RecruitmentSettingsPage />;
+    case "reports": return <ReportsPage />;
     default: return <RecruitmentOverview />;
   }
 }

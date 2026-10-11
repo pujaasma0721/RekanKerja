@@ -58,6 +58,7 @@ import { jobSelectionReminders } from "@/rekankerja/recruitment/services/selecti
 import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service";
 import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webhook-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
+import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
 
 // ---------- konstanta & env flag ----------
 
@@ -1499,6 +1500,93 @@ async function jobNotificationDigest(db: TenantDb): Promise<DigestSummary> {
   return summary;
 }
 
+// ---------- F8-REC: job analitik rekrutmen ----------
+
+interface MetricsSnapshotSummary { rows: number }
+
+/**
+ * F8 — snapshot metrik harian (job recruitment-metrics-snapshot): hitung
+ * katalog metrik + dims per posisi → upsert MetricSnapshot periode YYYY-MM
+ * berjalan (idempoten — re-run = overwrite periode sama; dedupe klaim per
+ * HARI supaya siklus 6-jam tidak mengulang menulis). Tabel F8 belum
+ * termigrasi → skip senyap siklus ini.
+ */
+async function jobRecruitmentMetricsSnapshot(db: TenantDb): Promise<MetricsSnapshotSummary> {
+  const summary: MetricsSnapshotSummary = { rows: 0 };
+  try {
+    const key = `metrics-snapshot:${dayKey()}`;
+    const claimed = await claimReminder(
+      db,
+      key,
+      `Snapshot metrik rekrutmen periode berjalan diperbarui (${dayKey()})`,
+    );
+    if (!claimed) return summary; // sudah disnapshot hari ini
+    summary.rows = await snapshotMetrics(db);
+  } catch (e) {
+    console.warn(`[scheduler] metrics-snapshot skip: ${e instanceof Error ? e.message : e}`);
+  }
+  return summary;
+}
+
+interface ReportDigestSummary { sent: number; views: number }
+
+/** Kunci dedupe mingguan ISO (tahun-Www). */
+function isoWeekKey(d: Date = new Date()): string {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = t.getUTCDay() || 7; // Sen=1 … Min=7
+  t.setUTCDate(t.getUTCDate() + 4 - dayNum); // Kamis minggu ISO
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((t.getTime() - yearStart.getTime()) / DAY_MS + 1) / 7);
+  return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+/**
+ * F8 — ringkasan email mingguan tampilan laporan tersimpan (job
+ * recruitment-report-digest, Senin saja): SavedReportView schedule=weekly →
+ * email ringkasan KATALOG METRIK UTAMA (bukan apply filter — sederhana by
+ * design) via sendSystemEmail event recruitment.digest. Dedupe klaim per
+ * tampilan per MINGGU — aman terhadap siklus berganda hari Senin.
+ */
+async function jobRecruitmentReportDigest(db: TenantDb): Promise<ReportDigestSummary> {
+  const summary: ReportDigestSummary = { sent: 0, views: 0 };
+  try {
+    // hanya hari Senin (getDay(): 0=Min, 1=Sen)
+    if (new Date().getDay() !== 1) return summary;
+    const views = await db.savedReportView.findMany({
+      where: { schedule: "weekly" },
+      include: { owner: { select: { id: true, fullName: true, email: true } } },
+      take: 200,
+    });
+    if (views.length === 0) return summary;
+    const catalog = await getMetricsCatalog(db);
+    const lines = catalog.map((m) =>
+      `• ${m.labelId}: ${m.value == null ? "belum ada data" : `${m.value} ${m.unit === "%" ? "%" : m.unit}`}`,
+    );
+    for (const v of views) {
+      if (!v.owner?.email) continue;
+      const key = `report-digest:${v.id}:${isoWeekKey()}`;
+      const claimed = await claimReminder(
+        db,
+        key,
+        `Ringkasan metrik mingguan tampilan "${v.name}" dikirim ke ${v.owner.email}`,
+      );
+      if (!claimed) continue; // sudah terkirim minggu ini
+      const r = await sendSystemEmail(db, {
+        event: "recruitment.digest",
+        to: { email: v.owner.email, name: v.owner.fullName },
+        subject: `[Laporan Rekrutmen] Ringkasan metrik — ${v.name}`,
+        body:
+          `Halo ${v.owner.fullName},\n\nRingkasan metrik rekrutmen Anda (tampilan "${v.name}"):\n\n${lines.join("\n")}\n\nBuka RekanKerja HRIS → Rekrutmen → Laporan untuk detail lengkap (dashboard, adverse-impact, proyeksi).\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.`,
+      });
+      summary.views++;
+      if (r.ok) summary.sent++;
+    }
+  } catch (e) {
+    console.warn(`[scheduler] report-digest skip: ${e instanceof Error ? e.message : e}`);
+  }
+  return summary;
+}
+
 // ---------- orkestrasi per tenant ----------
 
 export interface SchedulerJobCounts {
@@ -1553,6 +1641,10 @@ export interface SchedulerJobCounts {
   slaEscalationNotified: number;
   /** F7-REC — email ringkasan notifikasi harian terkirim (digest, dedupe/hari). */
   digestEmails: number;
+  /** F8-REC — baris MetricSnapshot ditulis job metrics-snapshot (harian). */
+  metricsSnapshotRows: number;
+  /** F8-REC — email ringkasan metrik mingguan terkirim (saved views weekly). */
+  reportDigestsSent: number;
 }
 
 export interface SchedulerRunResult {
@@ -1609,6 +1701,8 @@ export async function runAllJobs(
     slaEscalations: 0,
     slaEscalationNotified: 0,
     digestEmails: 0,
+    metricsSnapshotRows: 0,
+    reportDigestsSent: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1741,6 +1835,17 @@ export async function runAllJobs(
     const r = await jobNotificationDigest(db);
     jobs.digestEmails = r.sent;
   });
+  // F8-REC — snapshot metrik rekrutmen harian (MetricSnapshot periode YYYY-MM;
+  // upsert idempoten, klaim dedupe per hari).
+  await guarded("recruitment-metrics-snapshot", async () => {
+    jobs.metricsSnapshotRows = (await jobRecruitmentMetricsSnapshot(db)).rows;
+  });
+  // F8-REC — ringkasan metrik mingguan ke pemilik tampilan tersimpan
+  // (SavedReportView schedule=weekly; Senin saja, dedupe per ISO-minggu).
+  await guarded("recruitment-report-digest", async () => {
+    const r = await jobRecruitmentReportDigest(db);
+    jobs.reportDigestsSent = r.sent;
+  });
 
   const totalJobs =
     jobs.resignTerminated +
@@ -1770,6 +1875,8 @@ export async function runAllJobs(
     (jobs.recruitmentWebhookDead > 0 ? `, ${jobs.recruitmentWebhookDead} webhook rekrutmen DEAD` : "") +
     (jobs.slaEscalations > 0 ? `, ${jobs.slaEscalations} tahap dieskalasi SLA` : "") +
     (jobs.digestEmails > 0 ? `, ${jobs.digestEmails} ringkasan notifikasi harian terkirim` : "") +
+    (jobs.metricsSnapshotRows > 0 ? `, ${jobs.metricsSnapshotRows} metrik disnapshot (F8)` : "") +
+    (jobs.reportDigestsSent > 0 ? `, ${jobs.reportDigestsSent} ringkasan laporan mingguan terkirim` : "") +
     (mutexSkipped > 0 ? `, ${mutexSkipped} job dilewati (dipegang proses lain)` : "") +
     (errors.length > 0 ? ` — galat: ${errors.join("; ")}` : "");
   await writeActivity(db, { action: "Scheduled", entity: "Scheduler", detail: `${detail} (${tenant})` });

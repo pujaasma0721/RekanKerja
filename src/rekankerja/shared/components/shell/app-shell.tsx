@@ -295,6 +295,8 @@ const RECRUITMENT_NAV: NavGroup[] = [
     // + RecruitmentBudget + ApplicantDemography)
     { id: "plan", label: "Rencana & Anggaran", icon: Calculator },
     { id: "demographics", label: "Demografi & Segmen", icon: PieChart },
+    // F8 — analitik & prediktif rekrutmen (recruitment:reports)
+    { id: "reports", label: "Laporan", icon: BarChart3 },
   ] },
   { section: "recruitment", label: "Pengaturan Rekrutmen", children: [
     { id: "masters", label: "Master Rekrutmen", icon: Boxes },

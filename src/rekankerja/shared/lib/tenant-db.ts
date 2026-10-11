@@ -79,13 +79,15 @@ export type { TenantPrismaClient };
 // F7-REC: versi dinaikkan lagi (F7REC) — model F7 (WebhookEndpoint,
 // WebhookDelivery, NotificationPref, RecruitmentSetting, EsignRequest) masuk
 // client hasil generate; instance lama tidak boleh dipakai ulang.
+// F8-REC: versi dinaikkan (F8REC) — MetricSnapshot + SavedReportView masuk
+// client hasil generate; instance lama tidak boleh dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  rekankerjaTenantClientsF7REC: Map<string, TenantPrismaClient> | undefined;
+  rekankerjaTenantClientsF8REC: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.rekankerjaTenantClientsF7REC ?? new Map();
-globalForTenants.rekankerjaTenantClientsF7REC = tenantClients;
+  globalForTenants.rekankerjaTenantClientsF8REC ?? new Map();
+globalForTenants.rekankerjaTenantClientsF8REC = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

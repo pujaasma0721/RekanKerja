@@ -3118,6 +3118,33 @@ CREATE TABLE "EsignRequest" (
     CONSTRAINT "EsignRequest_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "MetricSnapshot" (
+    "id" TEXT NOT NULL,
+    "metric" TEXT NOT NULL,
+    "period" TEXT NOT NULL,
+    "dimsJson" TEXT,
+    "value" DOUBLE PRECISION NOT NULL,
+    "computedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MetricSnapshot_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SavedReportView" (
+    "id" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "view" TEXT NOT NULL,
+    "filtersJson" TEXT NOT NULL,
+    "schedule" TEXT NOT NULL DEFAULT 'none',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SavedReportView_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -3883,6 +3910,15 @@ CREATE UNIQUE INDEX "EsignRequest_token_key" ON "EsignRequest"("token");
 -- CreateIndex
 CREATE INDEX "EsignRequest_status_idx" ON "EsignRequest"("status");
 
+-- CreateIndex
+CREATE INDEX "MetricSnapshot_metric_period_idx" ON "MetricSnapshot"("metric", "period");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MetricSnapshot_metric_period_dimsJson_key" ON "MetricSnapshot"("metric", "period", "dimsJson");
+
+-- CreateIndex
+CREATE INDEX "SavedReportView_ownerId_idx" ON "SavedReportView"("ownerId");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -4554,4 +4590,7 @@ ALTER TABLE "EsignRequest" ADD CONSTRAINT "EsignRequest_offerId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "EsignRequest" ADD CONSTRAINT "EsignRequest_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SavedReportView" ADD CONSTRAINT "SavedReportView_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

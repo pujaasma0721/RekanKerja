@@ -353,6 +353,9 @@ model Employee {
   esignRequested     EsignRequest[]           @relation("EsignRequester")
   notificationPref   NotificationPref?         @relation("NotificationPrefEmployee")
 
+  // F8-REC — analitik: tampilan laporan tersimpan milik karyawan ini
+  savedReportViews   SavedReportView[]         @relation("SavedReportViewOwner")
+
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
   @@index([status])
@@ -4307,4 +4310,45 @@ model EsignRequest {
   requestedBy  Employee         @relation("EsignRequester", fields: [requestedById], references: [id])
 
   @@index([status])
+}
+
+// ============================================================================
+// RECRUITMENT — F8: ANALYTICS & PREDIKTIF (DEVELOPMENT-PLAN-RECRUITMENT.md
+// §7 F8 — HRX G; A2/B7 antarmuka MetricSnapshot disiapkan, ML = backlog)
+//
+// • MetricSnapshot: nilai metrik per periode (YYYY | YYYY-MM | YYYY-Q) +
+//   dimsJson ({"office":"BDG","source":"Referral"}) — fondasi historis untuk
+//   proyeksi & (kelak) ML. Di-upsert job scheduler harian (unique per
+//   metric+period+dims) — pola §2.1 tanpa middleware baru.
+// • SavedReportView: "saved views" laporan rekrutmen (G3) — filter tersimpan
+//   per user + opsi jadwal ringkasan mingguan via email (ringkas).
+// ============================================================================
+
+model MetricSnapshot {
+  id          String   @id @default(cuid())
+  metric      String // time_to_fill | offer_acceptance_rate | interview_pass_rate | source_effectiveness | requisition_aging | cost_per_hire | ...
+  period      String // "2026" | "2026-10" | "2026-Q4"
+  dimsJson    String? // {"position":"Accountant","source":"Referral"}
+  value       Float
+  computedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([metric, period, dimsJson])
+  @@index([metric, period])
+}
+
+// Tampilan laporan tersimpan (G3) — milik karyawan (ownerId).
+model SavedReportView {
+  id          String    @id @default(cuid())
+  ownerId     String
+  name        String
+  view        String // reports|applicants|selection|...
+  filtersJson String // parameter filter (pr, periode, sumber, dst.)
+  schedule    String    @default("none") // none|weekly — ringkasan email mingguan
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  owner Employee @relation("SavedReportViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
 }
