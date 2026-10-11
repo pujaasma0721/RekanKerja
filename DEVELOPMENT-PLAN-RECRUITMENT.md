@@ -6,6 +6,13 @@
 > RekanKerja. Menggantikan §8 *roadmap* pada `ANALISA-RECRUITMENT.md` (dokumen analisa tetap
 > berlaku sebagai bukti & rujukan teknis).
 > **Tanggal**: 2026-10-10 · **Sifat**: rencana — belum ada baris kode aplikasi yang diubah.
+> **AMANDEMEN 1 (2026-10-11)**: keputusan user — **Portal Kandidat = aplikasi TERPISAH**
+> dari aplikasi RekanKerja (domain produksi berbeda: `karir.<perusahaan>` ≠
+> `app.<perusahaan>`). Seluruh deliverable UI publik kandidat dipindah ke layanan
+> `mini-services/candidate-portal/` (port dev 3010). Rincian di §2.0, §5, F2, D1, §11.
+> Aplikasi utama RekanKerja **tidak menyajikan UI publik kandidat** — hanya API publik
+> sebagai backend portal. (Implementasi F0–F5 sebelumnya sempat melanggar ini —
+> career-portal.tsx di AuthGate — dan telah dibongkar/dipindah.)
 
 ---
 
@@ -67,6 +74,38 @@ kegagalan.
 
 ## 2. KEPUTUSAN ARSITEKTUR (ADAPTASI HRX → REALITAS REKANKERJA)
 
+### 2.0 DUA APLIKASI TERPISAH — RekanKerja (internal) vs Portal Kandidat (publik) — AMANDEMEN 1
+
+Keputusan user 2026-10-11 (**mengikat semua fase**): modul rekrutmen hidup di **DUA
+aplikasi berbeda** yang di-deploy di **domain berbeda**:
+
+| | **Aplikasi 1 — RekanKerja (internal)** | **Aplikasi 2 — Portal Kandidat (eksternal)** |
+|---|---|---|
+| Isi | ATS admin (PR → selection → appointment) + ESS "Karier Internal" | Career site publik: daftar lowongan + form lamaran anonim |
+| Audiens | HR/recruiter/approver + karyawan (sesi + MFA) | **Pelamar publik — TANPA akun** |
+| Domain produksi | `app.<perusahaan>.co.id` | **`karir.<perusahaan>.co.id`** (beda domain — alasan keputusan) |
+| Lokasi kode | `src/rekankerja/recruitment/**` (modul di dalam repo utama) | `mini-services/candidate-portal/**` (proyek bun mandiri, port dev **3010**) |
+| Akses DB | Schema tenant PostgreSQL (PII field-crypto, vault uang) | **TIDAK ADA** — hanya konsumen API publik aplikasi 1 |
+| Kunci enkripsi | Ya | **TIDAK PERNAH** — PII dienkripsi/divalidasi hanya di batas aplikasi 1 |
+
+**Kontrak satu-satunya antar keduanya** — API publik aplikasi utama (backend portal / BFF):
+`GET /api/public/recruitment/openings` · `GET /api/public/recruitment/captcha` ·
+`POST /api/public/recruitment/apply` (semua rate-limited, honeypot, consent UU PDP;
+resolusi tenant via `?t=` → host → default). Produksi: domain `karir.*` mem-proxy `/api/*`
+ke aplikasi utama, atau aplikasi utama membuka CORS utk origin portal.
+
+**Aturan yang diikuti semua fase**:
+1. **TIDAK ADA UI publik kandidat di aplikasi RekanKerja** — tidak ada guest section di
+   route `/`, tidak ada halaman karir di AuthGate/shell aplikasi utama. (Implementasi F2
+   lama sempat memasang career-portal.tsx di AuthGate — pengunjung anonim mendarat di
+   portal karier dari aplikasi utama — dan telah DIBONGKAR: komponen dipindah ke
+   `mini-services/candidate-portal/src/`, AuthGate dikembalikan ke perilaku semula
+   yaitu langsung AuthScreen.)
+2. Verifikasi lamaran publik (staging → Applicant) tetap di sisi internal: view
+   `public-staging` modul rekrutmen aplikasi utama.
+3. Portal kandidat tetap **ringan & anonim** (tanpa akun) sampai backlog "portal akun
+   pelamar" dibuka — dan bila dibuka, tetap di aplikasi portal ini, bukan aplikasi utama.
+
 ### 2.1 Pemetaan stack
 
 HRX ditulis untuk proyek greenfield. RekanKerja adalah aplikasi berjalan — stack HRX
@@ -82,7 +121,7 @@ HRX ditulis untuk proyek greenfield. RekanKerja adalah aplikasi berjalan — sta
 | S3 + signed URLs | **Pattern attachment existing** (local storage terenkripsi, MIME whitelist + magic number) dengan lapisan abstraksi path agar bisa pindah S3 | Keamanan upload sudah ter-audit (EmployeeDocument) |
 | WebSockets Socket.IO | **Mini-service socket.io existing** (gateway `?XTransformPort=`) bila perlu real-time; default cukup polling + notifikasi in-app | Real-time bukan kebutuhan inti rekrutmen |
 | AI layer provider-agnostic | **`src/rekankerja/shared/services/ai-provider.ts`** sudah ada (z-ai-web-dev-sdk, backend-only) | Tepat memenuhi "no vendor hard-depend"; SDK hanya di server |
-| OAuth2/OIDC, SAML SSO | Sesi existing (HMAC + sessionVersion + MFA) — autentikasi karyawan; pelamar publik **tanpa akun** (backlog: portal pelamar) | Keamanan sesi sudah ter-audit; mengurangi PII & permukaan serangan |
+| OAuth2/OIDC, SAML SSO | Sesi existing (HMAC + sessionVersion + MFA) — autentikasi karyawan; pelamar publik **tanpa akun**, dilayani **aplikasi terpisah** Portal Kandidat (lihat §2.0; akun pelamar = backlog di portal tsb) | Keamanan sesi sudah ter-audit; mengurangi PII & permukaan serangan |
 | UUIDv7 PK | **cuid** (konvensi proyek) | Ekuivalen (sort-stable, collision-safe) |
 | Kubernetes, CI pipelines | Deploy PM2 + runbook existing (`DEPLOY-RUNBOOK.md`) | Lingkungan produksi nyata proyek |
 | Monorepo terpisah | Satu repo aplikasi + `mini-services/` untuk proses sampingan | Konvensi proyek |
@@ -108,6 +147,7 @@ Bounded context HRX → penempatan di RekanKerja (semua di bawah `src/rekankerja
 | analytics | `services/analytics.ts` + view `reports` | F4 (dasar) → F8 (penuh) |
 | compliance | `services/consent.ts`, `services/retention.ts` + hook scheduler | F2 (capture) → F9 (lengkap) |
 | platform (auth, notif, files) | **TUMPANG EXISTING**: sesi, notifications + email config, attachments, letter engine, approval engine | F0–F5 |
+| **candidate-portal (UI publik)** | **APLIKASI TERPISAH** `mini-services/candidate-portal/` — BUKAN bagian `src/rekankerja/`; konsumen API publik §5 | F2 (skeleton ada sejak Amande men 1) |
 
 ### 2.3 Event backbone (adaptasi)
 
@@ -165,7 +205,7 @@ Legenda keputusan: **ADOPT** (dibangun) · **ADAPT** (dibangun versi rasional) �
 
 | Fitur (HRX) | Bukti oranHR (analisa) | Keputusan RekanKerja | Fase |
 |---|---|---|---|
-| C1 Career site builder no-code + SEO + one-click apply | JobDescription publik + ApplicantWeb staging (§2.4, §2.5) | **ADAPT**: section guest di route `/` (tanpa login): daftar lowongan publik read-only + form lamaran anonim → staging → verifikasi HR. Builder no-code penuh → **BACKLOG** | F2 |
+| C1 Career site builder no-code + SEO + one-click apply | JobDescription publik + ApplicantWeb staging (§2.4, §2.5) | **ADAPT** (Amande men 1 §2.0): **Portal Kandidat — aplikasi TERPISAH** `mini-services/candidate-portal/` (domain `karir.<perusahaan>`): daftar lowongan publik read-only + form lamaran anonim → staging → verifikasi HR. Builder no-code penuh → **BACKLOG** | F2 |
 | C2 Multi-posting hub (Glints/Kalibrr/JobStreet/LinkedIn) | Metode advertensi dicatat manual + cost (§2.4) | **BACKLOG** (feed XML/JSON generik bisa disiapkan di F7 sebagai fondasi) | — |
 | C3 Referral engine (portal + tracking + milestone rewards IDR) | Field `referral_employee` (§2.5) | **ADAPT**: catat referal karyawan saat input/apply (F2); *tracker berinsentif* → **BACKLOG** | F2 |
 | C4 Talent CRM (segmentasi silver medalist, drip campaign) | Applicant + keep-on-file 12 bln + Outdated (§2.5) | **ADAPT**: talent pool + segmen (silver medalist = Passed tapi tak di-appoint) F5; *drip campaign* → **BACKLOG** | F5 |
@@ -234,7 +274,7 @@ Legenda keputusan: **ADOPT** (dibangun) · **ADAPT** (dibangun versi rasional) �
 | Fitur oranHR | Alasan | Pengganti |
 |---|---|---|
 | Engine psikotest online (5 instrumen + proctoring kamera, 14 halaman master) | Sangat berat, niche, risiko privasi tinggi (kamera kandidat) | Catat hasil tes manual + upload laporan (F3); bila suatu saat online → fase tersendiri (BACKLOG) |
-| Portal akun pelamar (password + aktivasi) | Perluasaan permukaan serangan & PII; nilai MVP rendah | Form publik anonim + email konfirmasi (F2); portal self-service → BACKLOG |
+| Portal akun pelamar (password + aktivasi) | Perluasaan permukaan serangan & PII; nilai MVP rendah | Form publik anonim + email konfirmasi di **aplikasi terpisah** Portal Kandidat (§2.0, F2); portal self-service → BACKLOG (di aplikasi portal) |
 | RecruitmentIdentity per company (penomoran terpusat khusus modul) | Duplikasi mekanisme | Pola docNo proyek: prefix-tahun-seq (`PR-2026-0001`) |
 | Multi-company lintas tenant | RekanKerja schema-per-tenant | Relasi `Company` internal tenant (sudah ada) |
 | Grid manpower 24-kolom ala spreadsheet | Overkill, rawan error | Versi ringkas 6–8 kolom + rekonsiliasi otomatis (F5) |
@@ -521,8 +561,11 @@ GET/POST/PATCH   /api/rekankerja/recruitment/openings              # JO + slot +
 GET/POST/PATCH   /api/rekankerja/recruitment/applicants            # talent pool + filter multi-dimensi
 GET/POST/PATCH   /api/rekankerja/recruitment/applicants/{education|experience|skill|documents}
 POST             /api/rekankerja/recruitment/public-applications/{id}/verify   # staging → Applicant
-# publik (section guest route "/", tanpa login, rate-limited):
+# publik — BACKEND PORTAL KANDIDAT (aplikasi TERPISAH, §2.0; TANPA login, rate-limited,
+# honeypot, consent UU PDP; resolusi tenant ?t= → host → default; dikonsumsi layanan
+# mini-services/candidate-portal — aplikasi utama TIDAK punya UI publik kandidat):
 GET              /api/public/recruitment/openings                   # hanya slot Posted
+GET              /api/public/recruitment/captcha                    # challenge HMAC TTL 10 mnt
 POST             /api/public/recruitment/apply                     # → PublicApplication + consent
 
 # F3
@@ -591,7 +634,7 @@ GET/POST /api/rekankerja/ess/pr               GET  /api/rekankerja/ess/pr-to-app
 |---|---|---|---|
 | **F0** | Fondasi Modul & Master | HRX Phase 0 (adaptasi — banyak sudah ada) | **M** |
 | **F1** | Permintaan Karyawan (PR) + Approval | Analisa P1 + HRX A3 | **L** |
-| **F2** | Lowongan, Pelamar & Talent Pool + Form Publik | Analisa P2 + HRX C1-lite/I1/E4 | **L** |
+| **F2** | Lowongan, Pelamar & Talent Pool + **Portal Kandidat (Terpisah)** | Analisa P2 + HRX C1-lite/I1/E4 | **L** |
 | **F3** | Kandidat & Proses Seleksi Terstruktur (scorecard + kanban + SLA) | Analisa P3 + HRX D1/D2/D3/D6 | **L** |
 | **F4** | Appointment, Offer & Integrasi Onboarding | Analisa P4 + HRX E1/E3/H1/H2 | **M–L** |
 | **F5** | ESS, Rencana & Anggaran, Demografi | Analisa P5 + HRX A1-lite/C4-lite | **M–L** |
@@ -638,7 +681,7 @@ email submit/approve/reject + ActivityLog + masking.
 `Rejected`; ESS manager mengajukan & menyetujui tanpa buka app admin; advance search bekerja.
 **Dependensi**: F0. **Risiko**: kalibrasi dimensi approval → mitigasi default 1 lapis.
 
-### F2 — Lowongan, Pelamar & Talent Pool + Form Publik (L)
+### F2 — Lowongan, Pelamar & Talent Pool + **Portal Kandidat (Terpisah)** (L)
 **Scope**: (1) `JobOpportunity` + `JobOpening` (slot per PR; `autoPostOpening` saat PR
 Approved) + `JobOpeningMethod` (kanal + biaya terencana/aktual); view `openings`
 master-detail; (2) `Applicant` penuh + education/experience/skill + `ApplicantApplication`
@@ -647,15 +690,20 @@ pattern EmployeeDocument: MIME whitelist + magic number + ukuran maks); (3) **ta
 view `applicants` + query builder rasional (pendidikan/bidang/IPK, pengalaman, ekspektasi
 gaji, umur, status, sumber, skill) — padanan ApplicantEngine versi aman (bukan SQL bebas);
 (4) auto **Outdated** via scheduler existing saat lewat `keepOnFileMonths` + blacklist/suspend
-**wajib alasan**; (5) **form publik minimal** (section guest route `/` tanpa login):
-daftar slot Posted (judul, lokasi, rentang gaji opsional, ringkasan) + form lamaran anonim
-→ `PublicApplication` (Pending) → HR verifikasi "Upload" ke talent pool + email konfirmasi
-+ **consent UU PDP** + rate-limit per IP + honeypot + captcha ringan; (6) pencatatan
+**wajib alasan**; (5) **PORTAL KANDIDAT — APLIKASI TERPISAH** (Amande men 1 §2.0:
+`mini-services/candidate-portal/`, port dev 3010, domain produksi `karir.<perusahaan>` —
+BUKAN section guest route `/` di aplikasi utama): daftar slot Posted (judul, lokasi, rentang
+gaji opsional, ringkasan) + form lamaran anonim → `PublicApplication` (Pending) → HR
+verifikasi "Upload" di view `public-staging` (internal) → masuk talent pool + email
+konfirmasi + **consent UU PDP** + rate-limit per IP + honeypot + captcha ringan — portal
+hanya memanggil 3 endpoint publik §5, tanpa akses DB/kunci; (6) pencatatan
 referral employee.
-**Acceptance**: PR approved → JO auto-post → slot tampil publik; lamaran publik masuk
+**Acceptance**: PR approved → JO auto-post → slot tampil **di Portal Kandidat (layanan
+terpisah, via API publik)**; lamaran publik masuk
 staging → diverifikasi → jadi Applicant; input manual + CV; pelamar melamar 2 slot; filter
 kombinasi talent pool menemukan pelamar; keep-on-file lewat → Outdated.
-**Dependensi**: F1. **Risiko**: volume PII & spam publik → enkripsi + consent + staging.
+**Dependensi**: F1. **Risiko**: volume PII & spam publik → enkripsi + consent + staging;
+latensi antar-layanan portal↔API → SSR + fallback rapi.
 
 ### F3 — Kandidat & Proses Seleksi Terstruktur (L)
 **Scope**: (1) `JobCandidate` — transfer dari applicant / **kandidat internal** (employee;
@@ -782,13 +830,13 @@ pool; log akses PII bisa diexport.
 | Item | Prasyarat |
 |---|---|
 | Engine psikotest online (DISC/Papikostik/WPT/Kraepelin/MSDT + proctoring) | Keputusan bisnis + review privasi kamera |
-| Portal self-service pelamar (akun + status + upload mandiri) | Volume pelamar membenarkan; setelah F9 |
+| Portal self-service pelamar (akun + status + upload mandiri) | Volume pelamar membenarkan; setelah F9 — **di aplikasi Portal Kandidat terpisah (§2.0), bukan aplikasi utama** |
 | Multi-posting job board (Glints/Kalibrr/JobStreet/LinkedIn) | API partner; fondasi feed F7 |
 | WhatsApp Business API (notif + apply) | Akses API resmi |
 | Referral engine berinsentif (matriks bonus IDR + milestone) | Kebijakan kompensasi klien |
 | Video interview (live + one-way async) | Integrasi Zoom/Meet + storage |
 | Assessment adapter eksternal (psikometrik/coding) | Partner |
-| Career site builder no-code penuh (SEO, tema) | Setelah section publik F2 terbukti |
+| Career site builder no-code penuh (SEO, tema) | Setelah Portal Kandidat (aplikasi terpisah §2.0) terbukti |
 | Internal mobility marketplace (fit score + manager consent) | Data historis + A2 |
 | Attrition prediction & offer acceptance ML (A2/B7) | Data historis 12+ bln (MetricSnapshot) |
 | Budget guardrail blocking real-time (A5) | Kebijakan keuangan klien |
@@ -798,7 +846,7 @@ pool; log akses PII bisa diexport.
 
 | ID | Keputusan | Default | Alasan kombinasi |
 |---|---|---|---|
-| D1 | Portal publik sejak awal? | **Ya, versi minimal di F2** (form staging), versi penuh backlog | HRX P3 "candidate = customer" mengangkat prioritas; analisa semula menaruhnya di P5 demi keamanan → kompromi: form anonim + staging + verifikasi manual (aman), bukan portal akun |
+| D1 | Portal publik sejak awal? | **Ya — sebagai APLIKASI TERPISAH sejak F2** (`mini-services/candidate-portal/`, port 3010; domain produksi `karir.<perusahaan>` ≠ aplikasi utama — Amande men 1 §2.0). Form anonim + staging + verifikasi manual; versi portal akun self-service → backlog di aplikasi portal | HRX P3 "candidate = customer" mengangkat prioritas; user menegaskan pemisahan domain — portal TIDAK digabung ke aplikasi utama (tidak ada guest section route `/`) |
 | D2 | Anggaran rekrutmen di fase berapa? | Field di PR sejak F1; pelacakan & rekap di F5 | Nilai bisnis alur inti dulu (analisa), data tetap tertangkap sejak awal (HRX A5) |
 | D3 | Kandidat internal masuk? | **Ya, F3** | Rekomendasi analisa + selaras HRX A4 internal-first; modal Employee sudah ada |
 | D4 | Pola manpower plan? | Ringkas 6–8 kolom + rekonsiliasi otomatis (F5) | 24-kolom oranHR overkill (analisa §3.10) |
@@ -862,7 +910,7 @@ pool; log akses PII bisa diexport.
 |---|---|
 | PII pelamar (UU PDP 27/2022): data pihak ketiga — consent, retensi, akses | Consent versioned sejak input (F2), enkripsi field-crypto + masking per role, retention + anonimisasi (F9), log akses PII, blacklist wajib alasan |
 | Upload berbahaya (CV/ijazah) | Pattern EmployeeDocument: whitelist MIME + magic number + ukuran maks + anti-virus opsional |
-| Spam/abuse form publik (F2) | Rate-limit per IP (hash), honeypot, captcha ringan, staging + verifikasi manual sebelum jadi Applicant |
+| Spam/abuse form publik (F2) | Rate-limit per IP (hash) di batas API publik aplikasi utama, honeypot, captcha ringan, staging + verifikasi manual sebelum jadi Applicant; portal terpisah bisa menambah rate-limit edge sendiri |
 | Bias & tanggung jawab hukum AI (F6) | Explainable wajib (P2), human-in-the-loop untuk semua keputusan, knockout hanya untuk pertanyaan objektif, blind screening toggle, adverse-impact dashboard (F8), audit log |
 | AI jadi titik tunggal kegagalan | Fallback manual penuh di semua fitur; mode simulated berlabel; batas kuota + cache |
 | Scope creep psikotest / portal pelamar / WhatsApp | Semua di backlog dengan prasyarat jelas (§7); tidak boleh menyusup ke F0–F5 |
@@ -880,7 +928,7 @@ pool; log akses PII bisa diexport.
 > Adaptasi §11 master prompt HRX ke konteks RekanKerja:
 
 Seorang recruiter dapat: menyusun rencana kebutuhan ringkas → mengajukan PR → mendapatkan
-approval berjenjang → mempublikasikan lowongan (lowongan internal ESS + halaman publik) →
+approval berjenjang → mempublikasikan lowongan (lowongan internal ESS + **Portal Kandidat — aplikasi terpisah di domain `karir.<perusahaan>`, via API publik**) →
 menerima lamaran (form publik anonim ter-verifikasi staging, input manual, referal, dan
 kandidat internal) → mengelola talent pool dengan pencarian multi-dimensi → melihat
 kandidat ter-rank dengan skor explainable (dengan fallback manual penuh) → menjalankan
@@ -897,7 +945,8 @@ UU PDP No. 27/2022.
 ## LAMPIRAN A — ASUMSI (dicatat, dapat direvisi user)
 
 1. Mata uang IDR; gaji bulanan; format tanggal & angka mengikuti locale Indonesia.
-2. Kanal lamaran awal: form publik + input manual + referal karyawan + kandidat internal;
+2. Kanal lamaran awal: form publik di **Portal Kandidat (aplikasi terpisah §2.0)** + input
+   manual + referal karyawan + kandidat internal;
    job board eksternal dicatat sebagai metode/cost (bukan integrasi) sampai backlog dibuka.
 3. WhatsApp Business API tidak tersedia di lingkungan saat ini → notifikasi email otomatis
    + template teks WA yang bisa dikirim manual recruiter.
@@ -906,7 +955,7 @@ UU PDP No. 27/2022.
 5. E-sign ringkas (OTP email + typed signature) untuk keperluan internal; kekuatan hukum
    formal mengikuti kebijakan klien (opsi TTE eksternal).
 6. Pelamar tidak punya akun di sistem (F0–F9) — identitas via email + nomor lamaran;
-   portal pelamar = backlog.
+   portal kandidat = **aplikasi terpisah** (§2.0), akun pelamar = backlog di aplikasi portal.
 7. Sub-periode perencanaan mengikuti pola oranHR (`2026`, `2026-B`) — string bebas.
 8. Dalam sandbox, verifikasi kualitas = protokol §8 (E2E browser terdokumentasi + lint);
    suite tes otomatis = standar engineering produksi (backlog D8).

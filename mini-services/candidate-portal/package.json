@@ -1,0 +1,10 @@
+{
+  "name": "rekankerja-candidate-portal",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Portal Kandidat RekanKerja — aplikasi TERPISAH (karir publik). Aplikasi utama RekanKerja (admin ATS + ESS) tidak menyajikan UI publik kandidat; layanan ini satu-satunya wajah publik rekrutmen. Domain produksi: karir.<perusahaan> (berbeda dari aplikasi internal). Kontrak: hanya konsumen API publik aplikasi utama (/api/public/recruitment/*).",
+  "scripts": {
+    "dev": "bun --hot run index.ts",
+    "start": "bun run index.ts"
+  }
+}

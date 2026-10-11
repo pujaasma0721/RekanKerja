@@ -1,8 +1,17 @@
 "use client";
 // ============================================================================
 // RekanKerja — CAREER PORTAL (Recruitment F2 · D1): portal karier PUBLIK.
-// Pengunjung anonymous mendarat di sini dari AuthGate: daftar lowongan slot
-// Posted + form lamaran anonim (staging PublicApplication) TANPA login.
+// ⚠️ AMANDEMEN 1 (2026-10-11): komponen ini DIPINDAH dari aplikasi utama
+// (dulu di src/rekankerja/shared/components/auth/career-portal.tsx — salah
+// tempat) ke layanan TERPISAH mini-services/candidate-portal/. Portal
+// kandidat = aplikasi sendiri + domain sendiri saat produksi
+// (karir.<perusahaan> ≠ app.<perusahaan>). Komponen ini adalah REFERENSI
+// UI F2 — di-serve layanan ini setelah scaffolding Next.js penuh (resume
+// F2). Prop onLogin (dulu kembali ke AuthGate aplikasi utama) diganti
+// rute login domain internal saat integrasi final.
+//
+// Daftar lowongan slot Posted + form lamaran anonim (staging
+// PublicApplication) TANPA login — murni untuk pengunjung publik.
 //
 // • Data  : GET  /api/public/recruitment/openings?t=<slug>&limit=50
 //           (resolusi tenant: ?t= → host → default; multi-tenant → picker)
