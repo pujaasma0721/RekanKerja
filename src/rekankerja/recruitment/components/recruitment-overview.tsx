@@ -11,8 +11,8 @@ import { MASTER_DEFS } from "./recruitment-types";
 import type { MasterType } from "@/rekankerja/recruitment/services/recruitment-master-service";
 import {
   UserRoundSearch, Boxes, ListChecks, CheckCircle2, Circle, ArrowRight, Megaphone, BadgeCheck,
-  Handshake, Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList, UsersRound, Inbox, Layers3,
-  UserRoundCheck, FileText,
+  Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList, UsersRound, Inbox, Layers3,
+  UserRoundCheck, FileText, Handshake, UserRoundPlus, Clock,
 } from "lucide-react";
 
 const TYPE_ICON: Record<string, React.ElementType> = {
@@ -47,7 +47,7 @@ export function RecruitmentOverview() {
     { key: "F1", label: "Permintaan Karyawan (PR) + Approval", labelEn: "Personnel Requisition + Approval", done: true },
     { key: "F2", label: "Lowongan & Pelamar (talent pool)", labelEn: "Openings & Applicants (talent pool)", done: true },
     { key: "F3", label: "Kandidat & Proses Seleksi", labelEn: "Candidates & Selection Process", done: true },
-    { key: "F4", label: "Offer & Appointment + Onboarding", labelEn: "Offer & Appointment + Onboarding", done: false },
+    { key: "F4", label: "Offer & Appointment + Onboarding", labelEn: "Offer & Appointment + Onboarding", done: true },
     { key: "F5", label: "ESS, Rencana & Anggaran", labelEn: "ESS, Plan & Budget", done: false },
   ];
   const prApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/pr?limit=1");
@@ -75,14 +75,23 @@ export function RecruitmentOverview() {
   const paApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/public-applications?limit=1");
   const paSt = paApi.data?.stats;
 
+  // F4: statistik offer & pengangkatan
+  const offApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/offers?list=1");
+  const offSt = offApi.data?.stats;
+  const funnelApi = useApi<{ funnel: { stages: { key: string; label: string; labelEn: string; count: number }[]; offerAcceptanceRate: number | null } }>(
+    "/api/rekankerja/recruitment/offers?funnel=1",
+  );
+  const funnelStages = funnelApi.data?.funnel.stages ?? [];
+  const hiredCount = funnelStages.find((s) => s.key === "hired")?.count ?? null;
+
   return (
     <div>
       <PageHeader
         eyebrow={t("Recruitment · Ringkasan")}
         title={t("Rekrutmen", "Recruitment")}
         description={t(
-          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F3 (kandidat & proses seleksi terstruktur — board, scorecard, surat undangan).",
-          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F3 (candidates & structured selection — board, scorecards, invitation letters).",
+          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F4 (offer & pengangkatan — surat penawaran, expiry timer, penolakan batch, onboarding).",
+          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F4 (offers & appointment — offer letters, expiry timer, batch rejection, onboarding).",
         )}
       />
 
@@ -249,6 +258,59 @@ export function RecruitmentOverview() {
                   <span key={s.prId} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                     {s.prNo}: {s.candidates} {t("kandidat", "candidates")}
                     {s.overdue > 0 && <span className="ml-1 font-bold text-amber-600 dark:text-amber-400">· {s.overdue} {t("terlambat", "overdue")}</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ringkasan F4 — offer & pengangkatan */}
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Handshake className="h-4 w-4 ov-text-accent" aria-hidden />
+              {t("Offer & Pengangkatan (F4)", "Offers & Appointment (F4)")}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {t(
+                "Penawaran terkirim/menunggu respons, offer diterima, dan kandidat yang resmi menjadi karyawan via onboarding. Kelola di menu Offer & Pengangkatan.",
+                "Offers sent / awaiting response, accepted offers, and candidates who officially became employees via onboarding. Manage in the Offers & Appointment menu.",
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {([
+                { icon: Handshake, label: t("Offer Terkirim", "Offers Sent"), value: offApi.data ? (offSt?.Sent ?? 0) + (offSt?.Viewed ?? 0) + (offSt?.Accepted ?? 0) + (offSt?.Declined ?? 0) + (offSt?.Expired ?? 0) : null },
+                { icon: Clock, label: t("Menunggu Respons", "Awaiting Response"), value: offApi.data ? (offSt?.Sent ?? 0) + (offSt?.Viewed ?? 0) + (offSt?.PendingApproval ?? 0) : null },
+                { icon: BadgeCheck, label: t("Diterima", "Accepted"), value: offApi.data ? (offSt?.Accepted ?? 0) : null },
+                { icon: UserRoundPlus, label: t("Jadi Karyawan", "Hired"), value: offApi.data ? hiredCount : null },
+              ] as { icon: React.ElementType; label: string; value: number | null }[]).map((s, i) => {
+                const Icon = s.icon;
+                return (
+                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
+                    title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
+                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
+                      <p className="text-lg font-semibold tabular-nums">{s.value ?? "—"}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {funnelStages.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-500">{t("Funnel:", "Funnel:")}</span>
+                {funnelStages.map((s, i) => (
+                  <span key={s.key} className="flex items-center gap-1.5">
+                    {i > 0 && <ArrowRight className="h-3 w-3 text-slate-400" aria-hidden />}
+                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                      {t(s.label, s.labelEn)}: <span className="font-bold tabular-nums">{s.count}</span>
+                    </span>
                   </span>
                 ))}
               </div>

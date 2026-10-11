@@ -5720,3 +5720,97 @@ Stage Summary:
   · kandidat internal melihat tahapan sendiri di ESS (Yusuf — nav "Seleksi Saya" + timeline + ack).
 - Fondasi siap F4 (Offer & Appointment + Onboarding): JobCandidate.status terminal Passed menunggu Offer/appointment; RecruitmentLetter pattern siap utk surat hasil/offer; PR Fulfilled hook menyusul.
 - Menunggu "GO" user untuk lanjut F4.
+
+---
+Task ID: F4-UI
+Agent: subagent (fullstack-developer)
+Task: UI admin Fase F4 "Offer & Pengangkatan" — rewrite penuh offers.tsx (placeholder
+→ tabel offer + dialog buat/edit/kirim/approval/respons/surat/pengangkatan/
+onboarding + funnel) + tombol "Buat Offer" (Handshake) di kartu Passed board
+seleksi, sesuai kontrak API offers yang sudah jalan & teruji.
+
+Work Log:
+- Recon: pola GOLD STANDARD F3 (selection.tsx + selection-shared.tsx + selection-dialogs.tsx:
+  useApi/apiSend, PageHeader/EmptyState/LoadingRows, stat chips klik-filter, PR picker,
+  Dialog sm:max-w-*, PersonPicker Popover+Command, t(id,en)) + offer-service/appointment-service
+  (tipe serializer + guard) + kontrak curl live (login hrd@mii.co.id → MII): list 3 offer,
+  options 1 PR offerable (PR-2026-0003: Dewi/Gita/Budi Passed/Bambang), funnel 6 stage,
+  approvals kosong, context & detail Siti (appointment Onboarded MII00048), letterPdf 3210B %PDF.
+- File BARU src/rekankerja/recruitment/components/offer-dialogs.tsx (1121 baris): tipe lokal
+  mirror kontrak (OfferRow/OfferDetail/ChainLite/AppointmentLite/OfferablePr/Candidate/
+  AppointContext/AppointResult/OnboardResult/ApprovalInboxRow) + OFFER_STATUS pill dwibahasa
+  (tone slate/amber/cyan/violet/emerald/rose/zinc — pola STATUS_TONE placeholder F4) +
+  helper todayIso/isoPlusDays + ChainSteps (jenjang approval) + CandidatePicker (searchable,
+  disabled bila activeOfferNo) + OfferFormDialog (create/edit: PR + kandidat + gaji dgn hint
+  rentang iklan JO + warning inline non-blocking + tanggal mulai/expiry default +14 hr + note;
+  create → toast + toast.warning guidance; edit → POST update) + ApprovalChainDialog (fetch
+  detail) + DecisionDialog (reject-approval/accept/decline dgn note counter — satu shell
+  generik 3 varian) + OfferLetterDialog (PDF inline via iframe ?letterPdf + tombol unduh —
+  DEVIASI: body pre-wrap tak tersedia di API, PDF inline dipakai sebagai pratinjau) +
+  AppointFlowDialog 3 keadaan (fetch detail ?offerId= + context ?context= paralel): (1) form
+  penempatan prefill (tanggal default offer.startDate, posisi match-by-title, unit teks dari
+  PR, kantor/lokasi/atasan/grade/status kerja default pr.employmentStatus, shift, note;
+  checklist dokumen verified badge + info amber n belum diverifikasi non-blocking; info box
+  "PR otomatis Fulfilled + surat penolakan batch utk N kandidat lain (nama)" bila
+  appointedCount+1>=requiredNo) → POST appoint → toast surat+rejectedCount; (2) Appointed →
+  konfirmasi prefill + "Buat Karyawan & Onboarding" → POST to-onboarding; (3) Onboarded →
+  panel hasil besar (employeeNo MII000xx + onboardingId + surat/posisi/atasan + emailsSent
+  bila fresh).
+- REWRITE src/rekankerja/recruitment/components/offers.tsx (667 baris): PageHeader (eyebrow
+  Recruitment · F4) + tombol "Buat Offer" (gating create) + 7 stat chips klik-filter (Total/
+  Menunggu Approval/Terkirim/Diterima/Ditolak/Kedaluwarsa + chip amber Akan Berakhir ≤3 hari
+  — hanya Sent/Viewed) + kotak approval (hanya bila ?approvals=1 ada baris: offerNo/kandidat/
+  gaji/jenjang n/N + Setujui langsung / Tolak dialog / lihat chain) + PR picker (Semua PR
+  default + prs options: prNo — posisi · terangkat a/b; info line rentang iklan + budget +
+  officer + employmentStatus; filter tabel & funnel per PR) + tabel (offerNo mono + joRefNo,
+  kandidat + badge Internal/Eksternal + badge hijau "Karyawan MII000xx" via lazy-fetch detail
+  baris hasAppointment, note counter italic di baris redup, gaji Rp tabular-nums / "---" bila
+  masked, mulai, expiry + badge countdown (merah ≤3 / "lewat n hari"), status pill, aksi per
+  status: Draft Edit/Kirim(confirm)/Hapus(confirm), PendingApproval Jenjang/Setujui/Tolak,
+  Sent Catat Dilihat/Terima/Tolak/Surat, Viewed Terima/Tolak/Surat, Accepted Angkat Kandidat
+  ATAU Onboarding/Hasil + Surat; Declined/Expired baris redup + Surat) + seksi funnel (6 bar
+  horizontal div width% gradient amber + stage terakhir emerald, panel tahap seleksi dual mini
+  bar reached/passed + legend, chip Offer Acceptance Rate n%) + surat lazy-fetch letterId
+  detail → OfferLetterDialog + prefill kandidat dari navigate("recruitment","offers",{id})
+  (board seleksi) → dialog buka otomatis dgn kandidat terpilih. Gating: can create/update/
+  delete + canOp op:send/op:respond/op:appoint.
+- selection.tsx (676 baris, +14): import useNav + Handshake; kartu status Passed di board
+  dapat tombol kecil emerald ikon Handshake "Offer" (ml-auto, stopPropagation — drag-drop/
+  keyboard/checkbox tetap utuh) → nav.navigate("recruitment","offers",{id:candidateId}).
+- E2E agent-browser (hrd@mii.co.id/onevity123 → MII → Rekrutmen → Offer & Pengangkatan):
+  halaman termuat penuh — header + 7 chips (3/0/0/2/1/0/0) + tabel 3 offer (Siti Karyawan
+  MII00048 badge, Fajar Declined redup + note counter, Rina MII00049) + funnel 6 stage
+  (8/6/10/3/2/2, acceptance 67%, tahap seleksi 7/10 dsb). Dialog "Create Offer" terbuka: PR
+  default PR-2026-0003, kandidat picker 4 kandidat (Budi Passed + ekspektasi Rp 6.000.000),
+  tanggal default hari ini + +14 hari. CREATE nyata: OFF-2026-0004 Budi Draft (gaji 8.750.000)
+  → tombol Edit (prefill benar) → DELETE via confirm dialog → kembali 3 offer (state demo
+  dipulihkan). Dialog pengangkatan dari offer Accepted Siti: hasil Onboarded — MII00048 besar
+  + onboarding + surat 005/HR-RC/X/2026 + atasan Hartono. Surat preview: "Job Offer Letter —
+  004/HR-RC/X/2026" + iframe PDF + unduh. Chip filter Accepted → 2 baris. PR filter
+  PR-2026-0003 → empty state dgn hint. Toggle ID: semua label ikut (Buat Offer, Menunggu
+  Approval, Daftar Offer, "Karyawan MII00048", Rp 25.000.000 id-ID, Corong/Funnel Rekrutmen,
+  TAHAP SELEKSI MENCAPAI→LULUS). Board seleksi: kartu Budi di kolom Lulus menampilkan tombol
+  Handshake → klik → view Offer + dialog Buat Offer terbuka OTOMATIS prefill PR-2026-0003 +
+  Budi (URL ?id=). 0 page error; console hanya warning pre-existing (React key "Male" dari
+  komponen lama) + Radix DialogTitle pre-existing; dev.log 0 error. Screenshot
+  .tmp-research/f4-ui-{offers-en,offers-id,create-draft-row,appoint-result-siti,letter-preview,
+  chip-filter-accepted,pr-filter-empty,prefill-from-board,board-handshake-button}.png.
+- Gates: bun run lint 0 error / 6 warning baseline (sama F3); bunx tsc --noEmit 0 error.
+  Tidak ada commit (koordinator). Backend/service/API & file lain tidak disentuh.
+
+Stage Summary:
+- F4-UI SELESAI & terverifikasi E2E: view "Offer & Pengangkatan" penuh (stat chips klik-filter,
+  kotak approval, PR filter + guidance gaji, tabel offer dgn aksi per status + badge karyawan
+  hasil pengangkatan, dialog buat/edit/kirim/approve/tolak/respons/surat, alur pengangkatan
+  3-keadaan sampai hasil onboarding, funnel + acceptance rate) + tombol Handshake "Offer" di
+  kartu Passed board seleksi (navigasi + prefill kandidat otomatis).
+- File: BARU offer-dialogs.tsx (1121 baris); REWRITE offers.tsx (667); selection.tsx +14 baris
+  (tombol offer saja). Dwibahasa penuh, tanpa indigo/blue, Dialog sm:max-w-*, daftar panjang
+  max-h + overflow-y-auto.
+- Deviasi (kecil, dilaporkan): (1) pratinjau surat = PDF inline iframe (API tidak menyajikan
+  body teks surat — PDF stream dipakai langsung; tombol unduh tetap ada); (2) panel konfirmasi
+  onboarding menampilkan status kerja level PR (detail appointment API tidak mengembalikan
+  employmentStatus); (3) form pengangkatan belum bisa diperagakan visual di data demo (semua
+  offer Accepted sudah punya appointment) — teruji via type-check + konteks API curl; jalur
+  demo: buat offer utk Budi (Passed) → kirim → terima → Angkat Kandidat.
+- Data demo dipulihkan ke 3 offer (OFF-2026-0004 hasil uji create dihapus via UI).

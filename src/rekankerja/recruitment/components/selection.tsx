@@ -7,6 +7,7 @@
 // DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3). Dialog di selection-dialogs.tsx.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi } from "@/rekankerja/shared/lib/api";
+import { useNav } from "@/rekankerja/shared/lib/store";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,7 +32,7 @@ import {
 } from "./selection-dialogs";
 import {
   AlarmClock, AlertTriangle, ArrowUpRight, BadgeCheck, CalendarDays, ClipboardCheck,
-  KanbanSquare, Keyboard, MailCheck, Settings2, UserPlus, UserRoundCheck,
+  Handshake, KanbanSquare, Keyboard, MailCheck, Settings2, UserPlus, UserRoundCheck,
 } from "lucide-react";
 
 const SELECTION_MASTER = "/api/rekankerja/recruitment/masters?type=selection-process";
@@ -45,6 +46,7 @@ function monthNow(): string {
 export function SelectionPage() {
   const { t, locale } = useI18n();
   const perms = useMenuPerms();
+  const nav = useNav();
 
   // ---------- data ----------
   const summariesApi = useApi<{ summaries: SummaryRow[]; recommendations: string[] }>(`${SELECTION_API}?summaries=1`, []);
@@ -291,6 +293,19 @@ export function SelectionPage() {
             ? <Pill tone="brand">{t("Internal", "Internal")}</Pill>
             : <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">{t("Eksternal", "External")}</span>}
           <CandPill status={card.status} />
+          {/* F4 — kandidat lulus semua tahap → buat offer (navigasi ke view Offer) */}
+          {card.status === "Passed" && (
+            <span className="ml-auto" onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant="outline" size="sm"
+                className="h-7 gap-1 border-emerald-200 px-2 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/10"
+                title={t("Buat Offer — lanjut ke view Offer & Pengangkatan", "Create Offer — continue to the Offers & Appointment view")}
+                onClick={() => nav.navigate("recruitment", "offers", { id: card.id })}
+              >
+                <Handshake className="h-3.5 w-3.5" aria-hidden /> {t("Offer", "Offer")}
+              </Button>
+            </span>
+          )}
         </div>
         <div className="mt-2">
           <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">

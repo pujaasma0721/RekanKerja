@@ -40,7 +40,7 @@ import {
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
   MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
-  UsersRound, UserRoundCheck,
+  UsersRound, UserRoundCheck, Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -290,6 +290,7 @@ const RECRUITMENT_NAV: NavGroup[] = [
     { id: "applicants", label: "Talent Pool", icon: UsersRound },
     { id: "public-staging", label: "Lamaran Publik", icon: Inbox },
     { id: "selection", label: "Kandidat & Seleksi", icon: UserRoundCheck },
+    { id: "offers", label: "Offer & Pengangkatan", icon: Handshake },
   ] },
   { section: "recruitment", label: "Pengaturan Rekrutmen", children: [
     { id: "masters", label: "Master Rekrutmen", icon: Boxes },

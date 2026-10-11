@@ -425,6 +425,11 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
   // scorecard default). Template surat REC_INVITE ikut dari
   // LETTER_TEMPLATE_DEFAULTS di atas (kategori "Recruitment").
   await ensureRecruitmentF3Reference(db);
+
+  // F4-REC — referensi offer & pengangkatan (struktur approval offer default).
+  // Template surat REC_OFFER/REC_APPOINT/REC_REJECT ikut dari
+  // LETTER_TEMPLATE_DEFAULTS di atas (kategori "Recruitment").
+  await ensureRecruitmentF4Reference(db);
 }
 
 // ============ RECRUITMENT REFERENCE (F0 — DEVELOPMENT-PLAN-RECRUITMENT.md) ============
@@ -626,6 +631,22 @@ export async function ensureRecruitmentF3Reference(db: TenantDb): Promise<void> 
       });
     }
   }
+}
+
+/** Referensi F4: struktur approval offer default AS-OFF-STD (docType
+ *  RecruitmentOffer, 1 jenjang HR_ADMIN — approval by value; bisa diubah /
+ *  dimatikan di Pengaturan → Approval Berjenjang). Idempoten per code. */
+export async function ensureRecruitmentF4Reference(db: TenantDb): Promise<void> {
+  const before = await db.approvalStructure.findUnique({ where: { code: "AS-OFF-STD" }, select: { id: true } });
+  if (before) return;
+  await db.approvalStructure.create({
+    data: {
+      code: "AS-OFF-STD",
+      name: "Persetujuan Offer Kandidat (default)",
+      docType: "RecruitmentOffer",
+      levels: { create: [{ levelNo: 1, approverType: "HR_ADMIN" }] },
+    },
+  });
 }
 
 // ============ TIME ATTENDANCE REFERENCE (ref: ANALISA-ATTENDANCE.md) ============

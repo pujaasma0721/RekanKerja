@@ -819,6 +819,110 @@ Demikian undangan ini kami sampaikan. Atas perhatian dan kerja sama Bapak/Ibu, k
 {{signatory_name}}
 {{signatory_title}}`,
   },
+  // ---------------- REKRUTMEN (F4-REC) ----------------
+  {
+    key: "REC_OFFER",
+    category: "Recruitment",
+    name: "Surat Penawaran Kerja (Offer)",
+    description: "Penawaran kerja kepada kandidat — gaji final, tanggal mulai, dan batas waktu penerimaan (HRX E1/E3 — offer tracking).",
+    subject: "Surat Penawaran Kerja",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Penawaran Kerja — {{position_name}}
+
+Kepada Yth.
+Bapak/Ibu {{candidate_name}}
+
+Berdasarkan hasil proses seleksi yang telah Saudara/i ikuti untuk kebutuhan {{position_name}} ({{pr_no}}) di {{company_name}}, dengan ini kami berbesar hati menawarkan Saudara/i untuk bergabung bersama kami dengan ketentuan sebagai berikut:
+
+    Nomor Offer      : {{offer_no}}
+    Posisi           : {{position_name}}
+    Status Kerja     : {{employment_status}}
+    Gaji             : {{salary}} / {{salary_unit}}
+    Mulai Bekerja    : {{start_date}}
+    Referensi Lowongan: {{jo_ref}}
+
+Penawaran ini berlaku sampai dengan {{expiry_date}}. Apabila Saudara/i berkenan menerima penawaran ini, mohon konfirmasi kepada petugas rekrutmen kami sebelum batas waktu tersebut. Penawaran ini bersifat rahasia dan mengikat setelah ditandatangani kedua belah pihak dalam perjanjian kerja.
+
+Apabila terdapat hal yang ingin didiskusikan mengenai ketentuan di atas, silakan menghubungi kami pada hari kerja.
+
+Demikian penawaran ini kami sampaikan. Kami menantikan kabar baik dari Saudara/i.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
+  {
+    key: "REC_APPOINT",
+    category: "Recruitment",
+    name: "Surat Pengangkatan Karyawan",
+    description: "Pengangkatan kandidat yang menerima offer — penempatan posisi, atasan, dan tanggal mulai (padanan oranHR §2.7 Appointment).",
+    subject: "Surat Pengangkatan",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Surat Pengangkatan
+
+Kepada Yth.
+Bapak/Ibu {{candidate_name}}
+
+Dengan hormat,
+
+Berdasarkan hasil proses rekrutmen dan seleksi (permintaan {{pr_no}}, offer {{offer_no}}) yang Saudara/i ikuti, dengan ini {{company_name}} menetapkan Saudara/i sebagai karyawan dengan ketentuan sebagai berikut:
+
+    Posisi           : {{position_name}}
+    Status Kerja     : {{employment_status}}
+    Kantor           : {{office_name}}
+    Atasan Langsung  : {{supervisor_name}}
+    Penghasilan      : {{salary}}
+    Tanggal Pengangkatan: {{appointment_date}}
+
+Saudara/i akan menerima penjelasan mengenai tugas, tanggung jawab, ketentuan perjanjian kerja, serta program orientasi karyawan baru pada hari pertama kerja. Prosedur onboarding penyediaan perangkat kerja dan akses sistem akan disampaikan oleh tim terkait.
+
+Demikian surat pengangkatan ini kami sampaikan. Selamat bergabung — kami menyambut Saudara/i dengan hangat di {{company_name}}.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
+  {
+    key: "REC_REJECT",
+    category: "Recruitment",
+    name: "Surat Penolakan Lamaran",
+    description: "Penolakan kepada kandidat/pelamar lain pada PR yang sama setelah kebutuhan terpenuhi (batch — padanan oranHR §2.7 rejection).",
+    subject: "Surat Penolakan",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Penolakan Lamaran — {{position_name}}
+
+Kepada Yth.
+Bapak/Ibu {{candidate_name}}
+
+Dengan hormat,
+
+Kami mengucapkan terima kasih atas ketertarikan dan partisipasi Saudara/i dalam proses rekrutmen untuk posisi {{position_name}} ({{pr_no}}) di {{company_name}}.
+
+Setelah melalui pertimbangan yang matang, kami mohon maaf belum dapat melanjutkan kerja sama dengan Saudara/i untuk posisi ini karena kebutuhan posisi telah terpenuhi. Kami menghargai waktu dan usaha yang Saudara/i berikan selama proses seleksi.
+
+Data Saudara/i akan kami simpan dalam talent pool perusahaan dan kami akan menghubungi kembali apabila terdapat kesempatan yang sesuai di masa mendatang.
+
+Demikian kami sampaikan. Kami mengucapkan sukses bagi perjalanan karier Saudara/i.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
 ];
 
 // ---------------- KATALOG PLACEHOLDER (untuk editor + mesin render) ----------------
@@ -918,7 +1022,7 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholderGroup[] = [
     ],
   },
   {
-    group: "Rekrutmen (surat kandidat — REC_INVITE)",
+    group: "Rekrutmen (surat kandidat — REC_INVITE / REC_OFFER / REC_APPOINT / REC_REJECT)",
     tokens: [
       { token: "candidate_name", desc: "Nama kandidat (pelamar/karyawan internal)" },
       { token: "candidate_city", desc: "Kota domisili kandidat (bila tersedia)" },
@@ -932,6 +1036,16 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholderGroup[] = [
       { token: "plan_date", desc: "Jadwal pelaksanaan tahap" },
       { token: "due_date", desc: "Batas SLA tahap" },
       { token: "evaluator_name", desc: "Petugas/evaluator penanggung jawab tahap" },
+      { token: "offer_no", desc: "Nomor offer (OFF-YYYY-NNNN)" },
+      { token: "salary", desc: "Gaji final offer (format Rupiah)" },
+      { token: "salary_unit", desc: "Satuan gaji (Monthly dst.)" },
+      { token: "start_date", desc: "Tanggal mulai kerja ditawarkan" },
+      { token: "expiry_date", desc: "Batas akhir offer berlaku" },
+      { token: "employment_status", desc: "Status kerja yang ditawarkan" },
+      { token: "jo_ref", desc: "Referensi lowongan JO (bila terikat slot)" },
+      { token: "appointment_date", desc: "Tanggal pengangkatan (surat pengangkatan)" },
+      { token: "office_name", desc: "Kantor penempatan (surat pengangkatan)" },
+      { token: "supervisor_name", desc: "Atasan langsung penempatan (surat pengangkatan)" },
     ],
   },
 ];

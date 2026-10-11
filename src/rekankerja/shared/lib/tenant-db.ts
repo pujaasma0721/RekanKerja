@@ -63,13 +63,17 @@ export type { TenantPrismaClient };
 // CandidateScorecard, ScorecardItem, RecruitmentLetter) masuk client hasil
 // generate; instance lama (pra-F3REC, DMMF tanpa db.jobCandidate dst.)
 // tidak boleh dipakai ulang.
+// F4-REC: versi dinaikkan lagi (F4REC) — model offer & pengangkatan
+// (CandidateOffer, CandidateAppointment) masuk client hasil generate;
+// instance lama (pra-F4REC, DMMF tanpa db.candidateOffer dst.) tidak boleh
+// dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  rekankerjaTenantClientsF3REC: Map<string, TenantPrismaClient> | undefined;
+  rekankerjaTenantClientsF4REC: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.rekankerjaTenantClientsF3REC ?? new Map();
-globalForTenants.rekankerjaTenantClientsF3REC = tenantClients;
+  globalForTenants.rekankerjaTenantClientsF4REC ?? new Map();
+globalForTenants.rekankerjaTenantClientsF4REC = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

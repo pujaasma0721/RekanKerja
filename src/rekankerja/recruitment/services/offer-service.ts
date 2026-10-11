@@ -1,0 +1,978 @@
+// ============================================================================
+// RECRUITMENT F4 — Offer management (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F4 +
+// §3.5 HRX E1/E3): offer dari kandidat Passed/tahap Offering → nomor OFF-YYYY-
+// NNNN, gaji final TERENKRIPSI vault + guidance vs rentang gaji slot JO,
+// tanggal mulai, expiry timer + reminder scheduler (jobOfferExpiry), status
+// Draft→[PendingApproval]→Sent→Viewed→Accepted|Declined|Expired, counter
+// dicatat sebagai note (HRX E3 versi awal — tanpa entitas counter terpisah).
+//
+// Approval offer (scope "recruitment/offer" — HRX E1 "approval by value"):
+// OPSIONAL via config-over-code — hanya berlaku bila Admin membuat
+// ApprovalStructure docType RecruitmentOffer aktif (Pengaturan → Approval
+// Berjenjang); tanpa struktur → offer langsung terkirim (jalur cepat).
+// Saat berlaku: send → PendingApproval → surat+kirim terjadi OTOMATIS saat
+// jenjang terakhir approve; reject → kembali Draft + catatan.
+//
+// Surat penawaran via mesin surat (kategori Recruitment, key REC_OFFER) —
+// snapshot RecruitmentLetter kind "Offer" + PDF (letterPdfBuffer reuse
+// selection-service.letterPdf). Funnel report dasar (Applied → Candidate →
+// per tahap → Offer → Hired) untuk overview + view Offer.
+// ============================================================================
+import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
+import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
+import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
+import {
+  getEmployeeApprovalParams, resolveApprovalStructure, startApprovalChain,
+  decideApprovalChain, getApprovalChain, type ChainView, type DecideActor,
+} from "@/rekankerja/shared/services/approval-engine";
+
+// ============ konstanta domain ============
+
+export const OFFER_STATUSES = ["Draft", "PendingApproval", "Sent", "Viewed", "Accepted", "Declined", "Expired"] as const;
+export type OfferStatus = (typeof OFFER_STATUSES)[number];
+
+/** Status offer yang masih "hidup" — kandidat dengan offer aktif tak boleh dibuat offer baru. */
+const ACTIVE_OFFER: OfferStatus[] = ["Draft", "PendingApproval", "Sent", "Viewed", "Accepted"];
+
+/** docType engine approval untuk offer rekrutmen (ApprovalStructure opsional). */
+export const OFFER_DOC_TYPE = "RecruitmentOffer" as const;
+
+export const OFFER_TEMPLATE_KEY = "REC_OFFER";
+
+/** Status kandidat yang boleh dibuatkan offer (Passed semua tahap / masih hidup di tahap Offering). */
+const OFFERABLE_CANDIDATE = ["Passed", "InProcess"] as const;
+
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+const BULAN_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+function fmtDateId(d: Date | null | undefined): string {
+  if (!d) return "—";
+  return `${d.getDate()} ${BULAN_ID[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function iso(d: Date | null | undefined): string | null {
+  return d ? d.toISOString() : null;
+}
+
+function parseDate(v: string | null | undefined): Date | null {
+  if (!v) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(`${v}T00:00:00.000Z`);
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** Format uang Rupiah utk konteks surat (Rp 8.500.000). */
+export function fmtMoneyId(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+}
+
+// ============ tipe serializer (batas API) ============
+
+export interface OfferRow {
+  id: string;
+  offerNo: string;
+  status: OfferStatus;
+  prId: string;
+  prNo: string;
+  positionTitle: string | null;
+  candidateId: string;
+  candidateName: string;
+  candidateSource: string;
+  jobOpeningId: string | null;
+  joRefNo: string | null;
+  /** gaji final — null bila pemanggil tanpa hak lihat uang (masked di serializer). */
+  salary: number | null;
+  currency: string;
+  salaryUnit: string;
+  startDate: string | null;
+  expiryDate: string | null;
+  /** hari menuju expiry (negatif = lewat) — dihitung saat baca. */
+  expiresInDays: number | null;
+  letterNo: string | null;
+  letterId: string | null;
+  note: string | null;
+  sentAt: string | null;
+  respondedAt: string | null;
+  appointedAt: string | null;
+  hasAppointment: boolean;
+  createdAt: string;
+}
+
+export interface OfferDetail extends OfferRow {
+  approval: ChainView | null;
+  appointment: {
+    id: string;
+    appointmentDate: string;
+    status: string;
+    letterNo: string | null;
+    positionTitle: string | null;
+    officeName: string | null;
+    supervisorName: string | null;
+    employeeNo: string | null;
+    employeeId: string | null;
+    onboardingId: string | null;
+  } | null;
+}
+
+// ============ nomor dokumen ============
+
+/** Nomor offer berikutnya: OFF-YYYY-NNNN (max-suffix, delete-safe — pola nextPrNo). */
+export async function nextOfferNo(db: TenantDb): Promise<string> {
+  const year = new Date().getFullYear();
+  const start = `OFF-${year}-`;
+  let max = 0;
+  const rows = await db.candidateOffer.findMany({
+    where: { offerNo: { startsWith: start } },
+    select: { offerNo: true },
+    take: 500,
+  });
+  for (const r of rows) {
+    const n = parseInt(r.offerNo.slice(start.length), 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return `${start}${String(max + 1).padStart(4, "0")}`;
+}
+
+// ============ opsi (UI) ============
+
+export interface OfferableCandidate {
+  id: string;
+  fullName: string;
+  status: string;
+  source: string;
+  applicantNo: string | null;
+  /** ekspektasi gaji pelamar (decrypt — hanya utk display guidance). */
+  expectedSalary: number | null;
+  currentStage: string | null;
+  activeOfferNo: string | null;
+}
+
+export interface OfferablePr {
+  id: string;
+  prNo: string;
+  positionTitle: string | null;
+  requiredNo: number;
+  employmentStatus: string;
+  officerName: string | null;
+  appointedCount: number;
+  /** guidance rentang gaji IKLAN slot JO pertama PR (publik by design). */
+  salaryGuide: { min: number | null; max: number | null } | null;
+  /** budget gaji PR (decrypt — utk display guidance). */
+  salaryBudget: number | null;
+  candidates: OfferableCandidate[];
+}
+
+/** Opsi PR yang bisa dibuatkan offer + kandidat offerable + guidance gaji. */
+export async function offerOptions(db: TenantDb): Promise<{ prs: OfferablePr[] }> {
+  const tc = tenantCryptoForDb(db);
+  const prs = await db.personnelRequisition.findMany({
+    where: { status: { in: ["Approved", "OnHold"] } },
+    include: {
+      position: { select: { title: true } },
+      recruitmentOfficer: { select: { fullName: true } },
+      openings: { select: { salaryMin: true, salaryMax: true }, orderBy: { createdAt: "asc" }, take: 1 },
+      candidates: {
+        where: { status: { in: [...OFFERABLE_CANDIDATE, "Failed", "Withdrawn", "Hired"] } },
+        include: {
+          applicant: { select: { applicantNo: true, expectedSalary: true } },
+          offers: { select: { offerNo: true, status: true }, orderBy: { createdAt: "desc" } },
+          selectionSteps: {
+            where: { status: { in: ["Planned", "Acknowledged", "Performed"] } },
+            include: { selectionProcess: { select: { name: true } } },
+            orderBy: { seqNo: "asc" },
+            take: 1,
+          },
+        },
+        orderBy: { nominatedAt: "asc" },
+      },
+      appointments: { select: { id: true } },
+    },
+    orderBy: { prNo: "desc" },
+    take: 100,
+  });
+
+  const rows: OfferablePr[] = [];
+  for (const p of prs) {
+    const cands: OfferableCandidate[] = [];
+    for (const c of p.candidates) {
+      // hanya kandidat masih hidup (Passed/InProcess) yang TAMPIL offerable;
+      // lainnya dilewati (Hired/Failed/Withdrawn tidak bisa ditawari lagi)
+      if (!OFFERABLE_CANDIDATE.includes(c.status as (typeof OFFERABLE_CANDIDATE)[number])) continue;
+      const activeOffer = c.offers.find((o) => ACTIVE_OFFER.includes(o.status as OfferStatus));
+      cands.push({
+        id: c.id,
+        fullName: c.fullName,
+        status: c.status,
+        source: c.source,
+        applicantNo: c.applicant?.applicantNo ?? null,
+        expectedSalary: c.applicant ? tc.decryptMoney(c.applicant.expectedSalary) : null,
+        currentStage: c.selectionSteps[0]?.selectionProcess.name ?? null,
+        activeOfferNo: activeOffer?.offerNo ?? null,
+      });
+    }
+    // PR ditampilkan bila punya kandidat offerable ATAU sudah punya offer flow
+    if (cands.length === 0) continue;
+    const guide = p.openings[0]
+      ? { min: p.openings[0].salaryMin ?? null, max: p.openings[0].salaryMax ?? null }
+      : null;
+    rows.push({
+      id: p.id,
+      prNo: p.prNo,
+      positionTitle: p.position?.title ?? null,
+      requiredNo: p.requiredNo,
+      employmentStatus: p.employmentStatus,
+      officerName: p.recruitmentOfficer?.fullName ?? null,
+      appointedCount: p.appointments.length,
+      salaryGuide: guide,
+      salaryBudget: tc.decryptMoney(p.salaryBudget),
+      candidates: cands,
+    });
+  }
+  return { prs: rows };
+}
+
+// ============ daftar & detail ============
+
+function rowOf(
+  o: {
+    id: string; offerNo: string; status: string; prId: string; candidateId: string;
+    jobOpeningId: string | null; salary: string | null; currency: string; salaryUnit: string;
+    startDate: Date | null; expiryDate: Date | null; letterNo: string | null; note: string | null;
+    sentAt: Date | null; respondedAt: Date | null; appointedAt: Date | null; createdAt: Date;
+    candidate: { fullName: string; source: string; appointment?: { id: string } | null };
+    pr: { prNo: string; position: { title: string } | null };
+    jobOpening?: { jobOpportunity: { refNo: string } } | null;
+    appointment?: { id: string } | null;
+  },
+  salary: number | null,
+): OfferRow {
+  const now = Date.now();
+  const expiresInDays = o.expiryDate
+    ? Math.ceil((o.expiryDate.getTime() - now) / 86_400_000)
+    : null;
+  return {
+    id: o.id,
+    offerNo: o.offerNo,
+    status: o.status as OfferStatus,
+    prId: o.prId,
+    prNo: o.pr.prNo,
+    positionTitle: o.pr.position?.title ?? null,
+    candidateId: o.candidateId,
+    candidateName: o.candidate.fullName,
+    candidateSource: o.candidate.source,
+    jobOpeningId: o.jobOpeningId,
+    joRefNo: o.jobOpening?.jobOpportunity.refNo ?? null,
+    salary,
+    currency: o.currency,
+    salaryUnit: o.salaryUnit,
+    startDate: iso(o.startDate),
+    expiryDate: iso(o.expiryDate),
+    expiresInDays,
+    letterNo: o.letterNo,
+    letterId: null,
+    note: o.note,
+    sentAt: iso(o.sentAt),
+    respondedAt: iso(o.respondedAt),
+    appointedAt: iso(o.appointedAt),
+    hasAppointment: o.appointment != null,
+    createdAt: o.createdAt.toISOString(),
+  };
+}
+
+const OFFER_LIST_INCLUDE = {
+  candidate: { select: { fullName: true, source: true } },
+  pr: { select: { prNo: true, position: { select: { title: true } } } },
+  jobOpening: { select: { jobOpportunity: { select: { refNo: true } } } },
+  appointment: { select: { id: true } },
+} as const;
+
+export async function listOffers(
+  db: TenantDb,
+  opts: { prId?: string | null; status?: string | null },
+  moneyVisible: boolean,
+): Promise<{ rows: OfferRow[]; stats: Record<string, number> }> {
+  const tc = tenantCryptoForDb(db);
+  const offers = await db.candidateOffer.findMany({
+    where: {
+      ...(opts.prId ? { prId: opts.prId } : {}),
+      ...(opts.status ? { status: opts.status } : {}),
+    },
+    include: OFFER_LIST_INCLUDE,
+    orderBy: { createdAt: "desc" },
+    take: 300,
+  });
+  const rows = offers.map((o) => {
+    const r = rowOf(o, moneyVisible ? tc.decryptMoney(o.salary) : null);
+    r.letterId = null; // surat dicari terpisah (detail)
+    return r;
+  });
+  const stats: Record<string, number> = { total: rows.length };
+  for (const s of OFFER_STATUSES) stats[s] = 0;
+  for (const r of rows) stats[r.status] = (stats[r.status] ?? 0) + 1;
+  return { rows, stats };
+}
+
+export async function getOffer(db: TenantDb, id: string, moneyVisible: boolean): Promise<OfferDetail | null> {
+  const tc = tenantCryptoForDb(db);
+  const o = await db.candidateOffer.findUnique({
+    where: { id },
+    include: {
+      ...OFFER_LIST_INCLUDE,
+      appointment: {
+        select: {
+          id: true, appointmentDate: true, status: true, letterNo: true,
+          position: { select: { title: true } },
+          companyOffice: { select: { name: true } },
+          supervisor: { select: { fullName: true } },
+          employee: { select: { id: true, employeeNo: true } },
+          onboardingId: true,
+        },
+      },
+    },
+  });
+  if (!o) return null;
+
+  // letter terbit utk offer ini (kind Offer — terbaru)
+  const letter = await db.recruitmentLetter.findFirst({
+    where: { candidateId: o.candidateId, kind: "Offer", metaJson: { contains: o.offerNo } },
+    orderBy: { issuedAt: "desc" },
+    select: { id: true },
+  });
+
+  const approval = await getApprovalChain(db, OFFER_DOC_TYPE, o.id);
+  const row = rowOf(o, moneyVisible ? tc.decryptMoney(o.salary) : null);
+  return {
+    ...row,
+    letterId: letter?.id ?? null,
+    approval,
+    appointment: o.appointment
+      ? {
+          id: o.appointment.id,
+          appointmentDate: o.appointment.appointmentDate.toISOString(),
+          status: o.appointment.status,
+          letterNo: o.appointment.letterNo,
+          positionTitle: o.appointment.position?.title ?? null,
+          officeName: o.appointment.companyOffice?.name ?? null,
+          supervisorName: o.appointment.supervisor?.fullName ?? null,
+          employeeNo: o.appointment.employee?.employeeNo ?? null,
+          employeeId: o.appointment.employee?.id ?? null,
+          onboardingId: o.appointment.onboardingId,
+        }
+      : null,
+  };
+}
+
+// ============ input & validasi ============
+
+export interface OfferInput {
+  prId: string;
+  candidateId: string;
+  jobOpeningId?: string | null;
+  salary?: number | null;
+  currency?: string | null;
+  salaryUnit?: string | null;
+  startDate?: string | null;
+  expiryDate?: string | null;
+  note?: string | null;
+}
+
+export interface CreateOfferResult {
+  id: string;
+  offerNo: string;
+  /** peringatan guidance gaji (bukan blocking — HRX A5 backlog). */
+  warning: string | null;
+}
+
+async function offerCtx(db: TenantDb, id: string) {
+  const o = await db.candidateOffer.findUnique({
+    where: { id },
+    include: {
+      candidate: { select: { id: true, fullName: true, source: true, status: true, applicantId: true, employeeId: true } },
+      pr: { select: { id: true, prNo: true, status: true, requiredNo: true } },
+    },
+  });
+  if (!o) throw new Error("Offer tidak ditemukan");
+  return o;
+}
+
+/** Buat offer (Draft) utk kandidat. Guard: PR terbuka, kandidat hidup,
+ *  tanpa offer aktif lain, gaji positif. Guidance gaji = peringatan saja. */
+export async function createOffer(
+  db: TenantDb,
+  input: OfferInput,
+  actor?: { id?: string | null; name?: string | null },
+): Promise<CreateOfferResult> {
+  const pr = await db.personnelRequisition.findUnique({
+    where: { id: input.prId },
+    select: { id: true, prNo: true, status: true, requiredNo: true, position: { select: { title: true } } },
+  });
+  if (!pr) throw new Error("PR tidak ditemukan");
+  if (pr.status !== "Approved" && pr.status !== "OnHold") {
+    throw new Error(`PR ${pr.prNo} berstatus ${pr.status} — hanya PR Approved/OnHold yang bisa dibuatkan offer`);
+  }
+
+  const candidate = await db.jobCandidate.findUnique({
+    where: { id: input.candidateId },
+    select: { id: true, prId: true, fullName: true, status: true, source: true },
+  });
+  if (!candidate) throw new Error("Kandidat tidak ditemukan");
+  if (candidate.prId !== pr.id) throw new Error("Kandidat bukan bagian dari PR ini");
+  if (!OFFERABLE_CANDIDATE.includes(candidate.status as (typeof OFFERABLE_CANDIDATE)[number])) {
+    throw new Error(`Kandidat ${candidate.fullName} berstatus ${candidate.status} — hanya kandidat Passed/InProcess yang bisa ditawari`);
+  }
+
+  const dupe = await db.candidateOffer.findFirst({
+    where: { candidateId: candidate.id, status: { in: ACTIVE_OFFER } },
+    select: { offerNo: true },
+  });
+  if (dupe) throw new Error(`Kandidat ${candidate.fullName} masih punya offer aktif ${dupe.offerNo} — batalkan/tolak offer lama dulu`);
+
+  const salary = input.salary != null && String(input.salary) !== "" ? Number(input.salary) : null;
+  if (salary != null && (!Number.isFinite(salary) || salary < 0)) {
+    throw new Error("Gaji offer harus berupa angka tidak negatif");
+  }
+
+  let jobOpeningId: string | null = null;
+  let warning: string | null = null;
+  if (input.jobOpeningId) {
+    const jo = await db.jobOpening.findUnique({
+      where: { id: input.jobOpeningId },
+      select: { id: true, prId: true, salaryMin: true, salaryMax: true, jobOpportunity: { select: { refNo: true } } },
+    });
+    if (!jo) throw new Error("Slot lowongan tidak ditemukan");
+    if (jo.prId !== pr.id) throw new Error("Slot lowongan bukan milik PR ini");
+    jobOpeningId = jo.id;
+    if (salary != null && jo.salaryMax != null && salary > jo.salaryMax) {
+      warning = `Gaji ${fmtMoneyId(salary)} melebihi rentang iklan ${fmtMoneyId(jo.salaryMin)}–${fmtMoneyId(jo.salaryMax)} (${jo.jobOpportunity.refNo})`;
+    } else if (salary != null && jo.salaryMin != null && salary < jo.salaryMin) {
+      warning = `Gaji ${fmtMoneyId(salary)} di bawah rentang iklan ${fmtMoneyId(jo.salaryMin)}–${fmtMoneyId(jo.salaryMax)} (${jo.jobOpportunity.refNo})`;
+    }
+  }
+
+  const tc = tenantCryptoForDb(db);
+  const offerNo = await nextOfferNo(db);
+  const offer = await db.candidateOffer.create({
+    data: {
+      offerNo,
+      prId: pr.id,
+      candidateId: candidate.id,
+      jobOpeningId,
+      salary: salary != null ? tc.encryptMoney(salary) : null,
+      currency: input.currency?.trim() || "IDR",
+      salaryUnit: input.salaryUnit?.trim() || "Monthly",
+      startDate: parseDate(input.startDate),
+      expiryDate: parseDate(input.expiryDate),
+      status: "Draft",
+      note: input.note?.trim() || null,
+      createdById: actor?.id ?? null,
+    },
+  });
+
+  await db.activityLog.create({
+    data: {
+      action: "Created", entity: "CandidateOffer", entityId: offer.offerNo,
+      detail: `Offer ${offer.offerNo} dibuat utk kandidat ${candidate.fullName} (PR ${pr.prNo}${pr.position?.title ? ` — ${pr.position.title}` : ""})${salary != null ? ` — gaji ${fmtMoneyId(salary)}` : ""}${actor?.name ? ` oleh ${actor.name}` : ""}`,
+    },
+  });
+  return { id: offer.id, offerNo, warning };
+}
+
+/** Ubah offer Draft (sebelum dikirim). */
+export async function updateOffer(db: TenantDb, id: string, input: Partial<OfferInput>): Promise<{ offerNo: string }> {
+  const o = await offerCtx(db, id);
+  if (o.status !== "Draft") throw new Error(`Offer ${o.offerNo} berstatus ${o.status} — hanya Draft yang bisa diubah`);
+  const tc = tenantCryptoForDb(db);
+  const salary = input.salary != null && String(input.salary) !== "" ? Number(input.salary) : null;
+  if (salary != null && (!Number.isFinite(salary) || salary < 0)) {
+    throw new Error("Gaji offer harus berupa angka tidak negatif");
+  }
+  await db.candidateOffer.update({
+    where: { id },
+    data: {
+      ...(input.salary !== undefined ? { salary: salary != null ? tc.encryptMoney(salary) : null } : {}),
+      ...(input.currency !== undefined ? { currency: input.currency?.trim() || "IDR" } : {}),
+      ...(input.salaryUnit !== undefined ? { salaryUnit: input.salaryUnit?.trim() || "Monthly" } : {}),
+      ...(input.startDate !== undefined ? { startDate: parseDate(input.startDate) } : {}),
+      ...(input.expiryDate !== undefined ? { expiryDate: parseDate(input.expiryDate) } : {}),
+      ...(input.note !== undefined ? { note: input.note?.trim() || null } : {}),
+      ...(input.jobOpeningId !== undefined ? { jobOpeningId: input.jobOpeningId || null } : {}),
+    },
+  });
+  return { offerNo: o.offerNo };
+}
+
+/** Hapus offer Draft (salah buat). */
+export async function deleteOffer(db: TenantDb, id: string): Promise<{ offerNo: string }> {
+  const o = await offerCtx(db, id);
+  if (o.status !== "Draft") throw new Error(`Offer ${o.offerNo} berstatus ${o.status} — hanya Draft yang bisa dihapus`);
+  await db.candidateOffer.delete({ where: { id } });
+  await db.activityLog.create({
+    data: {
+      action: "Deleted", entity: "CandidateOffer", entityId: o.offerNo,
+      detail: `Offer ${o.offerNo} (kandidat ${o.candidate.fullName}, PR ${o.pr.prNo}) dihapus — belum pernah dikirim`,
+    },
+  });
+  return { offerNo: o.offerNo };
+}
+
+// ============ kirim offer (+ approval opsional) ============
+
+export interface SendOfferResult {
+  offerNo: string;
+  status: OfferStatus;
+  /** true bila offer langsung terkirim (tanpa approval / final approve). */
+  sent: boolean;
+  letterNo?: string | null;
+  approvalLevels?: number;
+  firstApprover?: string | null;
+}
+
+/** employeeId konteks approval: officer PR → fallback pembuat offer. */
+async function approvalEmployeeId(db: TenantDb, offerId: string, actorId?: string | null): Promise<string | null> {
+  const o = await db.candidateOffer.findUnique({
+    where: { id: offerId },
+    select: { pr: { select: { recruitmentOfficerId: true } } },
+  });
+  return o?.pr.recruitmentOfficerId ?? actorId ?? null;
+}
+
+/** Terbitkan surat penawaran REC_OFFER + kirim email kandidat + notif officer. */
+async function performSend(db: TenantDb, offerId: string, actorName?: string | null): Promise<{ offerNo: string; letterNo: string }> {
+  const o = await db.candidateOffer.findUnique({
+    where: { id: offerId },
+    include: {
+      candidate: {
+        select: {
+          id: true, fullName: true, source: true, applicantId: true,
+          pr: { select: { prNo: true, employmentStatus: true, position: { select: { title: true } }, orgUnit: { select: { name: true } }, recruitmentOfficer: { select: { id: true, fullName: true, email: true } } } },
+        },
+      },
+      jobOpening: { select: { jobOpportunity: { select: { refNo: true } } } },
+    },
+  });
+  if (!o) throw new Error("Offer tidak ditemukan");
+
+  const template = await db.letterTemplate.findFirst({ where: { key: OFFER_TEMPLATE_KEY, active: true } });
+  if (!template) {
+    const any = await db.letterTemplate.findUnique({ where: { key: OFFER_TEMPLATE_KEY } });
+    throw new Error(`Template surat penawaran (REC_OFFER) belum tersedia${any ? " — aktifkan di menu Template Surat" : " — hubungi admin untuk seeding"}`);
+  }
+
+  // nomor NNN/HR-RC/{romawi}/{tahun} (pola letter-service)
+  const now = new Date();
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
+  const countSame = await db.recruitmentLetter.count({ where: { issuedAt: { gte: yearStart, lt: yearEnd } } });
+  const letterNo = `${String(countSame + 1).padStart(3, "0")}/HR-RC/${ROMAN[now.getMonth()]}/${now.getFullYear()}`;
+
+  const tc = tenantCryptoForDb(db);
+  const company = await db.company.findFirst({ select: { name: true, city: true } });
+  const salary = tc.decryptMoney(o.salary);
+
+  // email kandidat eksternal (bila tersedia & terdekripsi)
+  let candidateEmail: string | null = null;
+  if (o.candidate.applicantId) {
+    const a = await db.applicant.findUnique({ where: { id: o.candidate.applicantId }, select: { email: true, city: true } });
+    if (a) candidateEmail = tc.decryptText(a.email) || null;
+  }
+
+  const ctx: Record<string, string> = {
+    letter_no: letterNo,
+    letter_date: fmtDateId(now),
+    city: company?.city ?? "Jakarta",
+    company_name: company?.name ?? "RekanKerja HRIS",
+    signatory_name: template.signatoryName?.trim() || "HR Manager",
+    signatory_title: template.signatoryTitle,
+    candidate_name: o.candidate.fullName,
+    pr_no: o.candidate.pr.prNo,
+    position_name: o.candidate.pr.position?.title ?? "posisi sesuai PR",
+    offer_no: o.offerNo,
+    salary: fmtMoneyId(salary),
+    salary_unit: o.salaryUnit,
+    start_date: fmtDateId(o.startDate),
+    expiry_date: fmtDateId(o.expiryDate),
+    employment_status: o.candidate.pr.employmentStatus,
+    jo_ref: o.jobOpening?.jobOpportunity.refNo ?? "—",
+  };
+  const body = template.body.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_m, token: string) => {
+    const v = ctx[token];
+    return v != null && v.trim() !== "" ? v : "—";
+  });
+
+  await db.recruitmentLetter.create({
+    data: {
+      letterNo, kind: "Offer", templateKey: OFFER_TEMPLATE_KEY,
+      candidateId: o.candidate.id, selectionStepId: null,
+      subject: template.subject, body,
+      metaJson: JSON.stringify({ templateName: template.name, offerNo: o.offerNo, salary: salary ?? null }),
+      createdById: null,
+    },
+  });
+
+  await db.candidateOffer.update({
+    where: { id: o.id },
+    data: { status: "Sent", letterNo, sentAt: new Date() },
+  });
+
+  // email ke kandidat (bila alamat tersedia) — event recruitment.offer.sent
+  if (candidateEmail) {
+    void notifyEmailEvent(db, {
+      event: "recruitment.offer.sent",
+      to: [{ email: candidateEmail, name: o.candidate.fullName }],
+      data: {
+        nama: o.candidate.fullName, docNo: o.offerNo,
+        posisi: o.candidate.pr.position?.title ?? "-",
+        perusahaan: company?.name ?? "RekanKerja HRIS",
+        gaji: fmtMoneyId(salary), mulaiKerja: fmtDateId(o.startDate), berlakuSampai: fmtDateId(o.expiryDate),
+      },
+    });
+  }
+
+  // notif in-app officer rekrutmen
+  const officer = o.candidate.pr.recruitmentOfficer;
+  if (officer) {
+    const res = await notifyEvent(db, {
+      to: "employee", employeeId: officer.id, docType: "CandidateOffer", docNo: o.offerNo,
+      title: `Offer ${o.offerNo} terkirim — ${o.candidate.fullName}`,
+      body: `Penawaran ${fmtMoneyId(salary)} (${o.candidate.pr.prNo}${o.candidate.pr.position?.title ? ` · ${o.candidate.pr.position.title}` : ""})${o.expiryDate ? ` — berlaku s.d. ${fmtDateId(o.expiryDate)}` : ""}`,
+      kind: "recruitment", link: "recruitment:offers",
+    }).catch(() => ({ recipients: [] }));
+    if (officer.email && res.recipients.length === 0) {
+      // fallback email officer bila notif in-app gagal
+      void notifyEmailEvent(db, {
+        event: "recruitment.offer.sent",
+        to: [{ email: officer.email, name: officer.fullName }],
+        data: { nama: officer.fullName, docNo: o.offerNo, posisi: o.candidate.pr.position?.title ?? "-", gaji: fmtMoneyId(salary), mulaiKerja: fmtDateId(o.startDate), berlakuSampai: fmtDateId(o.expiryDate), perusahaan: company?.name ?? "RekanKerja HRIS" },
+      });
+    }
+  }
+
+  await db.activityLog.create({
+    data: {
+      action: "Updated", entity: "CandidateOffer", entityId: o.offerNo,
+      detail: `Offer ${o.offerNo} DIKIRIM ke kandidat ${o.candidate.fullName} (PR ${o.candidate.pr.prNo}) — surat ${letterNo}${actorName ? `, oleh ${actorName}` : ""}`,
+    },
+  });
+  return { offerNo: o.offerNo, letterNo };
+}
+
+/** Kirim offer: bila ada ApprovalStructure RecruitmentOffer aktif → mulai
+ *  chain (PendingApproval); tanpa struktur → langsung performSend. */
+export async function sendOffer(
+  db: TenantDb,
+  input: { id: string; actorId?: string | null; actorName?: string | null },
+): Promise<SendOfferResult> {
+  const o = await offerCtx(db, input.id);
+  if (o.status !== "Draft") throw new Error(`Offer ${o.offerNo} berstatus ${o.status} — hanya Draft yang bisa dikirim`);
+
+  const empId = await approvalEmployeeId(db, input.id, input.actorId);
+  if (empId) {
+    const params = await getEmployeeApprovalParams(db, empId);
+    const structure = params ? await resolveApprovalStructure(db, params, OFFER_DOC_TYPE) : null;
+    if (structure && structure.levels.length > 0) {
+      const tc = tenantCryptoForDb(db);
+      const full = (await db.candidateOffer.findUnique({ where: { id: input.id }, select: { salary: true } }))!;
+      const amount = tc.decryptMoney(full.salary) ?? undefined;
+      const chain = await startApprovalChain(db, {
+        docType: OFFER_DOC_TYPE, docId: input.id, employeeId: empId, amount, createdBy: input.actorName ?? null,
+      });
+      await db.candidateOffer.update({ where: { id: input.id }, data: { status: "PendingApproval" } });
+      const first = chain.steps.find((s) => s.status === "Current") ?? null;
+      await db.activityLog.create({
+        data: {
+          action: "Submitted", entity: "CandidateOffer", entityId: o.offerNo,
+          detail: `Offer ${o.offerNo} diajukan ke approval (${chain.totalLevels} jenjang${input.actorName ? `, oleh ${input.actorName}` : ""}) — menunggu ${first?.approverLabel ?? "-"}`,
+        },
+      });
+      return {
+        offerNo: o.offerNo, status: "PendingApproval", sent: false,
+        approvalLevels: chain.totalLevels, firstApprover: first?.approverLabel ?? null,
+      };
+    }
+  }
+
+  // tanpa struktur approval aktif → langsung kirim
+  const r = await performSend(db, input.id, input.actorName);
+  return { offerNo: r.offerNo, status: "Sent", sent: true, letterNo: r.letterNo };
+}
+
+/** Keputusan approval offer (dari kotak approval view Offer).
+ *  Approve final → performSend otomatis; reject → kembali Draft + note. */
+export async function decideOfferApproval(
+  db: TenantDb,
+  input: { id: string; action: "approve" | "reject"; note?: string | null; actor: DecideActor },
+): Promise<SendOfferResult> {
+  const o = await offerCtx(db, input.id);
+  if (o.status !== "PendingApproval") throw new Error(`Offer ${o.offerNo} berstatus ${o.status} — tidak menunggu keputusan`);
+
+  const res = await decideApprovalChain(db, {
+    docType: OFFER_DOC_TYPE, docId: input.id, action: input.action, note: input.note ?? undefined, actor: input.actor,
+  });
+
+  if (res.final && input.action === "approve") {
+    const r = await performSend(db, input.id, input.actor.name);
+    return { offerNo: o.offerNo, status: "Sent", sent: true, letterNo: r.letterNo };
+  }
+
+  if (input.action === "reject") {
+    await db.candidateOffer.update({
+      where: { id: input.id },
+      data: { status: "Draft", note: [o.note, input.note?.trim() ? `Approval ditolak: ${input.note.trim()}` : null].filter(Boolean).join(" · ") || null },
+    });
+    await db.activityLog.create({
+      data: {
+        action: "Rejected", entity: "CandidateOffer", entityId: o.offerNo,
+        detail: `Pengajuan offer ${o.offerNo} DITOLAK approval (${input.actor.name})${input.note ? ` — ${input.note.trim()}` : ""} — kembali Draft`,
+      },
+    });
+    return { offerNo: o.offerNo, status: "Draft", sent: false };
+  }
+
+  // approve jenjang menengah — tetap menunggu
+  await db.activityLog.create({
+    data: {
+      action: "Approved", entity: "CandidateOffer", entityId: o.offerNo,
+      detail: `Offer ${o.offerNo} disetujui jenjang ${res.chain.currentLevel - 1}/${res.chain.totalLevels} (${input.actor.name}) — lanjut ke ${res.chain.steps.find((s) => s.status === "Current")?.approverLabel ?? "-"}`,
+    },
+  });
+  return { offerNo: o.offerNo, status: "PendingApproval", sent: false };
+}
+
+// ============ respons kandidat (viewed / accept / decline) ============
+
+/** Catat bahwa kandidat telah membaca offer (dilaporkan via email/telp —
+ *  pelamar tidak punya akun sistem, HR yang mencatat). */
+export async function markViewed(db: TenantDb, input: { id: string; actorName?: string | null }): Promise<{ offerNo: string; status: OfferStatus }> {
+  const o = await offerCtx(db, input.id);
+  if (o.status !== "Sent") throw new Error(`Offer ${o.offerNo} berstatus ${o.status} — hanya Sent yang bisa ditandai dilihat`);
+  await db.candidateOffer.update({ where: { id: input.id }, data: { status: "Viewed" } });
+  await db.activityLog.create({
+    data: {
+      action: "Updated", entity: "CandidateOffer", entityId: o.offerNo,
+      detail: `Offer ${o.offerNo} dilihat kandidat ${o.candidate.fullName}${input.actorName ? ` (dicatat oleh ${input.actorName})` : ""}`,
+    },
+  });
+  return { offerNo: o.offerNo, status: "Viewed" };
+}
+
+/** Respons kandidat: accept | decline. Counter → dicatat sebagai note
+ *  (HRX E3 versi awal — tanpa negosiasi terstruktur). */
+export async function respondOffer(
+  db: TenantDb,
+  input: { id: string; action: "accept" | "decline"; note?: string | null; actorName?: string | null },
+): Promise<{ offerNo: string; status: OfferStatus }> {
+  const o = await offerCtx(db, input.id);
+  if (o.status !== "Sent" && o.status !== "Viewed") {
+    throw new Error(`Offer ${o.offerNo} berstatus ${o.status} — tidak menunggu respons kandidat`);
+  }
+  const status: OfferStatus = input.action === "accept" ? "Accepted" : "Declined";
+  const note = [o.note, input.note?.trim() || null].filter(Boolean).join(" · ") || null;
+  await db.candidateOffer.update({
+    where: { id: input.id },
+    data: { status, respondedAt: new Date(), note },
+  });
+
+  // notif officer rekrutmen
+  const officer = await db.personnelRequisition.findUnique({
+    where: { id: o.prId },
+    select: { recruitmentOfficer: { select: { id: true, fullName: true, email: true } }, prNo: true, position: { select: { title: true } } },
+  });
+  if (officer?.recruitmentOfficer) {
+    const off = officer.recruitmentOfficer;
+    await notifyEvent(db, {
+      to: "employee", employeeId: off.id, docType: "CandidateOffer", docNo: o.offerNo,
+      title: `Offer ${o.offerNo} ${status === "Accepted" ? "DITERIMA" : "DITOLAK"} — ${o.candidate.fullName}`,
+      body: `${status === "Accepted" ? "Kandidat menerima" : "Kandidat menolak"} penawaran (${officer.prNo}${officer.position?.title ? ` · ${officer.position.title}` : ""})${input.note ? ` — ${input.note}` : ""}`,
+      kind: "recruitment", link: "recruitment:offers",
+    }).catch(() => /* notif tidak boleh gagalkan bisnis */ undefined);
+    if (off.email) {
+      void notifyEmailEvent(db, {
+        event: "recruitment.offer.responded",
+        to: [{ email: off.email, name: off.fullName }],
+        data: {
+          nama: off.fullName, docNo: o.offerNo, kandidat: o.candidate.fullName,
+          posisi: officer.position?.title ?? "-", statusOffer: status === "Accepted" ? "DITERIMA" : "DITOLAK",
+          catatan: input.note?.trim() || "-",
+        },
+      });
+    }
+  }
+
+  await db.activityLog.create({
+    data: {
+      action: status === "Accepted" ? "Approved" : "Rejected",
+      entity: "CandidateOffer", entityId: o.offerNo,
+      detail: `Offer ${o.offerNo} ${status === "Accepted" ? "DITERIMA" : "DITOLAK"} kandidat ${o.candidate.fullName}${input.note ? ` — ${input.note.trim()}` : ""}${input.actorName ? ` (dicatat oleh ${input.actorName})` : ""}`,
+    },
+  });
+  return { offerNo: o.offerNo, status };
+}
+
+// ============ scheduler: expiry + reminder (HRX E3) ============
+
+/** Job scheduler offer: (1) Sent/Viewed lewat expiryDate → Expired;
+ *  (2) pengingat offer berakhir ≤3 hari (dedupe ActivityLog per tanggal). */
+export async function jobOfferExpiry(db: TenantDb): Promise<{ expired: number; reminded: number; notified: number }> {
+  const now = new Date();
+
+  // 1) kedaluwarsa — idempoten by filter status
+  const stale = await db.candidateOffer.findMany({
+    where: { status: { in: ["Sent", "Viewed"] }, expiryDate: { not: null, lt: now } },
+    select: { id: true, offerNo: true, candidate: { select: { fullName: true } }, pr: { select: { prNo: true } } },
+    take: 200,
+  });
+  for (const o of stale) {
+    await db.candidateOffer.update({ where: { id: o.id }, data: { status: "Expired" } });
+    await db.activityLog.create({
+      data: {
+        actorType: "system", action: "Updated", entity: "CandidateOffer", entityId: o.offerNo,
+        detail: `Offer ${o.offerNo} kandidat ${o.candidate.fullName} (${o.pr.prNo}) otomatis KEDALUWARSA oleh scheduler — melewati batas waktu`,
+      },
+    });
+  }
+
+  // 2) pengingat — offer Sent/Viewed berakhir ≤3 hari (dedupe per tanggal)
+  const horizon = new Date(now.getTime() + 3 * 86_400_000);
+  const upcoming = await db.candidateOffer.findMany({
+    where: { status: { in: ["Sent", "Viewed"] }, expiryDate: { not: null, gte: now, lte: horizon } },
+    include: {
+      candidate: {
+        select: {
+          fullName: true,
+          pr: { select: { prNo: true, position: { select: { title: true } }, recruitmentOfficer: { select: { id: true, fullName: true, email: true } } } },
+        },
+      },
+      createdBy: { select: { id: true, fullName: true, email: true } },
+    },
+    take: 200,
+  });
+
+  let reminded = 0;
+  let notified = 0;
+  for (const o of upcoming) {
+    if (!o.expiryDate) continue;
+    const diffDays = Math.ceil((o.expiryDate.getTime() - now.getTime()) / 86_400_000);
+    const key = `offer-reminder:${o.id}:${o.expiryDate.toISOString().slice(0, 10)}`;
+    const claimed = await db.$queryRaw<{ n: number }[]>`
+      SELECT COUNT(*)::int AS n FROM "ActivityLog"
+      WHERE "action" = 'Reminder' AND "entity" = 'Scheduler' AND "entityId" = ${key}`.then((r) => r[0]?.n ?? 0);
+    if (claimed > 0) continue;
+
+    // target: officer PR → fallback pembuat offer (createdById)
+    const target = o.candidate.pr.recruitmentOfficer ?? o.createdBy;
+    if (target) {
+      const res = await notifyEvent(db, {
+        to: "employee", employeeId: target.id, docType: "CandidateOffer", docNo: o.offerNo,
+        title: `[Pengingat] Offer ${o.offerNo} berakhir ${diffDays} hari`,
+        body: `Kandidat ${o.candidate.fullName} belum merespons — batas ${fmtDateId(o.expiryDate)} (${o.candidate.pr.prNo})`,
+        kind: "recruitment", link: "recruitment:offers",
+      }).catch(() => ({ recipients: [] }));
+      notified += res.recipients.length;
+      if (target.email) {
+        void notifyEmailEvent(db, {
+          event: "recruitment.offer.reminder",
+          to: [{ email: target.email, name: target.fullName }],
+          data: {
+            nama: target.fullName, docNo: o.offerNo, kandidat: o.candidate.fullName,
+            posisi: o.candidate.pr.position?.title ?? "-", statusOffer: o.status,
+            berlakuSampai: fmtDateId(o.expiryDate), sisaHari: `${diffDays} hari lagi`,
+          },
+        });
+      }
+    }
+    await db.activityLog.create({
+      data: {
+        actorType: "system", action: "Reminder", entity: "Scheduler", entityId: key,
+        detail: `Pengingat offer ${o.offerNo} kandidat ${o.candidate.fullName} (${o.candidate.pr.prNo}) — berakhir ${diffDays} hari lagi`,
+      },
+    });
+    reminded++;
+  }
+  return { expired: stale.length, reminded, notified };
+}
+
+// ============ funnel report dasar (§7 F4 poin 4) ============
+
+export interface FunnelStage {
+  key: string;
+  label: string;
+  labelEn: string;
+  count: number;
+}
+
+export interface OfferFunnel {
+  prId: string | null;
+  stages: FunnelStage[];
+  /** konversi tahap seleksi: berapa kandidat pernah mencapai tahap (≥1 step non-cancelled). */
+  selectionStages: { name: string; processOrder: number | null; reached: number; passed: number }[];
+  offerAcceptanceRate: number | null;
+}
+
+/** Funnel Applied → Candidate → per tahap → Offer → Hired (global atau per PR). */
+export async function offerFunnel(db: TenantDb, prId?: string | null): Promise<OfferFunnel> {
+  const prFilter = prId ?? null;
+  const openingScope = prFilter
+    ? { jobOpening: { prId: prFilter } }
+    : {};
+
+  const [applicants, applications, candidates, offers, appointments, stages] = await Promise.all([
+    db.applicant.count({ where: { status: { not: "Outdated" } } }),
+    db.applicantApplication.count({ where: openingScope }),
+    db.jobCandidate.count({ where: prFilter ? { prId: prFilter } : {} }),
+    db.candidateOffer.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+      where: prFilter ? { prId: prFilter } : {},
+    }),
+    db.candidateAppointment.count({
+      where: {
+        ...(prFilter ? { prId: prFilter } : {}),
+        employeeId: { not: null },
+      },
+    }),
+    db.selectionProcess.findMany({
+      where: { active: true },
+      select: { id: true, name: true, processOrder: true },
+      orderBy: { processOrder: "asc" },
+    }),
+  ]);
+
+  const offerCount = (s: string) => offers.find((o) => o.status === s)?._count._all ?? 0;
+  const offersSent = offerCount("Sent") + offerCount("Viewed") + offerCount("Accepted") + offerCount("Declined") + offerCount("Expired");
+  const accepted = offerCount("Accepted");
+
+  // per tahap: kandidat yang step-nya pernah dibuat & tidak Cancelled
+  const selectionStages: OfferFunnel["selectionStages"] = [];
+  for (const st of stages) {
+    const steps = await db.candidateSelectionStep.findMany({
+      where: {
+        selectionProcessId: st.id,
+        status: { not: "Cancelled" },
+        ...(prFilter ? { candidate: { prId: prFilter } } : {}),
+      },
+      select: { status: true },
+    });
+    selectionStages.push({
+      name: st.name,
+      processOrder: st.processOrder,
+      reached: steps.length,
+      passed: steps.filter((s) => s.status === "Passed").length,
+    });
+  }
+
+  return {
+    prId: prFilter,
+    stages: [
+      { key: "applicants", label: "Talent Pool", labelEn: "Talent Pool", count: applicants },
+      { key: "applications", label: "Lamaran Masuk", labelEn: "Applications", count: applications },
+      { key: "candidates", label: "Kandidat", labelEn: "Candidates", count: candidates },
+      { key: "offers", label: "Offer Terkirim", labelEn: "Offers Sent", count: offersSent },
+      { key: "accepted", label: "Offer Diterima", labelEn: "Accepted", count: accepted },
+      { key: "hired", label: "Diangkat (Hired)", labelEn: "Hired", count: appointments },
+    ],
+    selectionStages,
+    offerAcceptanceRate: offersSent > 0 ? Math.round((accepted / offersSent) * 100) : null,
+  };
+}

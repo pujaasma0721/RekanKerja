@@ -298,6 +298,7 @@ const STEPS: Step[] = [
   // RecruitmentLetter) + referensi (REC_INVITE, minResultPass Psikotes,
   // template scorecard) + demo MII.
   { key: "recruitment-f3", label: "F3 Rekrutmen — 7 tabel kandidat & seleksi + scorecard + demo", run: (s) => import("../../../../scripts/migrate-recruitment-f3").then((m) => m.main(s)) },
+  { key: "recruitment-f4", label: "F4 Rekrutmen — tabel offer & pengangkatan + surat + struktur approval + demo", run: (s) => import("../../../../scripts/migrate-recruitment-f4").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -562,7 +563,16 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (recCandOk < schemas.length)
       reasons.push(`${schemas.length - recCandOk} tenant tanpa tabel JobCandidate (F3 — modul Recruitment)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk, recCandOk) };
+    // F4-REC — tabel CandidateOffer (offer kandidat) belum ada = gap
+    // (tenant existing dibuat sebelum F4 → step recruitment-f4 membuat 2
+    // tabel offer+pengangkatan + surat + struktur approval + demo).
+    const recOfferOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'CandidateOffer' AND table_schema = ANY($1::text[])`,
+    );
+    if (recOfferOk < schemas.length)
+      reasons.push(`${schemas.length - recOfferOk} tenant tanpa tabel CandidateOffer (F4 — modul Recruitment)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk, recCandOk, recOfferOk) };
   } finally {
     await c.end();
   }

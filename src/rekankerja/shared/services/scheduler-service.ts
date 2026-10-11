@@ -55,6 +55,7 @@ import { notifyEmailEvent, type EmailRecipient } from "@/rekankerja/shared/servi
 import { notifyEvent, pushNotification } from "@/rekankerja/shared/services/notification-service";
 import { retryFailedWebhookDeliveries } from "@/rekankerja/shared/services/webhook-service";
 import { jobSelectionReminders } from "@/rekankerja/recruitment/services/selection-service";
+import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service";
 
 // ---------- konstanta & env flag ----------
 
@@ -1373,6 +1374,13 @@ export interface SchedulerJobCounts {
   selectionReminded: number;
   /** F3-REC — penerima notifikasi in-app dari selection-reminder. */
   selectionNotified: number;
+  /** F4-REC — offer Sent/Viewed yang otomatis Expired oleh job offer-expiry
+   *  (expiryDate lewat; idempoten by filter status). */
+  offerExpiredRows: number;
+  /** F4-REC — offer berakhir ≤3 hari yang diingatkan (dedupe per tanggal). */
+  offerReminded: number;
+  /** F4-REC — penerima notifikasi in-app dari offer-reminder. */
+  offerNotified: number;
 }
 
 export interface SchedulerRunResult {
@@ -1420,6 +1428,9 @@ export async function runAllJobs(
     applicantOutdatedRows: 0,
     selectionReminded: 0,
     selectionNotified: 0,
+    offerExpiredRows: 0,
+    offerReminded: 0,
+    offerNotified: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1523,6 +1534,14 @@ export async function runAllJobs(
     jobs.selectionReminded = r.reminded;
     jobs.selectionNotified = r.notified;
   });
+  // F4-REC — offer: kedaluwarsa otomatis (Sent/Viewed lewat expiryDate) +
+  // pengingat offer berakhir ≤3 hari ke officer rekrutmen (dedupe per tanggal).
+  await guarded("offer-expiry", async () => {
+    const r = await jobOfferExpiry(db);
+    jobs.offerExpiredRows = r.expired;
+    jobs.offerReminded = r.reminded;
+    jobs.offerNotified = r.notified;
+  });
 
   const totalJobs =
     jobs.resignTerminated +
@@ -1545,6 +1564,8 @@ export async function runAllJobs(
     (jobs.attendanceTransferReminders > 0 ? `, ${jobs.attendanceTransferReminders} pengingat transfer TA terkirim` : "") +
     (jobs.applicantOutdatedRows > 0 ? `, ${jobs.applicantOutdatedRows} pelamar talent pool otomatis Outdated (keep-on-file habis)` : "") +
     (jobs.selectionReminded > 0 ? `, ${jobs.selectionReminded} tahap seleksi diingatkan (SLA)` : "") +
+    (jobs.offerExpiredRows > 0 ? `, ${jobs.offerExpiredRows} offer otomatis kedaluwarsa` : "") +
+    (jobs.offerReminded > 0 ? `, ${jobs.offerReminded} offer diingatkan (akan berakhir)` : "") +
     (mutexSkipped > 0 ? `, ${mutexSkipped} job dilewati (dipegang proses lain)` : "") +
     (errors.length > 0 ? ` — galat: ${errors.join("; ")}` : "");
   await writeActivity(db, { action: "Scheduled", entity: "Scheduler", detail: `${detail} (${tenant})` });

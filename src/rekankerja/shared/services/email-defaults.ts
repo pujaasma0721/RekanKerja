@@ -141,6 +141,27 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     subject: "[Pengingat] {{tahap}} {{kandidat}} — {{statusSla}}",
     body: "Halo {{nama}},\n\nPengingat tahap seleksi yang menjadi tanggung jawab Anda:\n- Kandidat: {{kandidat}}\n- Permintaan: {{docNo}} ({{posisi}})\n- Tahap: {{tahap}}\n- Jadwal: {{jadwal}}\n- Batas SLA: {{batasSla}} ({{statusSla}})\n\nMohon segera tindak lanjuti penilaian/hasil tahap ini melalui modul Rekrutmen > Kandidat & Seleksi.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
   },
+  // F4-REC — modul Rekrutmen: offer & pengangkatan (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F4)
+  {
+    event: "recruitment.offer.sent", label: "Rekrutmen — Offer Dikirim", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "Surat Penawaran Kerja {{docNo}} — {{posisi}}",
+    body: "Halo {{nama}},\n\nPenawaran kerja berikut telah diterbitkan:\n- Nomor offer: {{docNo}}\n- Posisi: {{posisi}}\n- Perusahaan: {{perusahaan}}\n- Penghasilan: {{gaji}}\n- Mulai bekerja: {{mulaiKerja}}\n- Berlaku sampai: {{berlakuSampai}}\n\nSurat penawaran resmi (PDF) dapat diperoleh dari petugas rekrutmen. Mohon konfirmasi penerimaan sebelum batas waktu.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "recruitment.offer.reminder", label: "Rekrutmen — Pengingat Offer", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "[Pengingat] Offer {{docNo}} kandidat {{kandidat}} berakhir {{berlakuSampai}}",
+    body: "Halo {{nama}},\n\nPengingat offer yang belum direspons kandidat:\n- Nomor offer: {{docNo}}\n- Kandidat: {{kandidat}}\n- Posisi: {{posisi}}\n- Status offer: {{statusOffer}}\n- Berlaku sampai: {{berlakuSampai}} ({{sisaHari}})\n\nMohon tindak lanjut respons kandidat melalui modul Rekrutmen > Offer & Pengangkatan.\n\n---\nEmail otomatis scheduler RekanKerja HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "recruitment.offer.responded", label: "Rekrutmen — Respons Offer Kandidat", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "Offer {{docNo}} {{statusOffer}} — {{kandidat}}",
+    body: "Halo {{nama}},\n\nKandidat telah merespons penawaran:\n- Nomor offer: {{docNo}}\n- Kandidat: {{kandidat}}\n- Posisi: {{posisi}}\n- Status: {{statusOffer}}\n- Catatan: {{catatan}}\n\nBila diterima, lanjutkan proses pengangkatan melalui modul Rekrutmen > Offer & Pengangkatan.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "recruitment.appointment.hired", label: "Rekrutmen — Kandidat Resmi Karyawan", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "[Onboarding] {{kandidat}} resmi karyawan {{employeeNo}}",
+    body: "Halo {{nama}},\n\nKandidat berikut telah melanjutkan ke onboarding dan resmi menjadi karyawan:\n- Kandidat: {{kandidat}}\n- Nomor karyawan: {{employeeNo}}\n- Posisi: {{posisi}}\n- Referensi offer: {{docNo}}\n\nProses onboarding (checklist per bagian) telah dibuat otomatis.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+  },
   {
     event: "user.created", label: "Pengguna Baru Dibuat", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
     subject: "Akun RekanKerja HRIS Anda telah dibuat",
@@ -248,6 +269,14 @@ const PH_TOTALTAHAP: PlaceholderDef = { key: "totalTahap", label: "Total tahap s
 const PH_JADWAL: PlaceholderDef = { key: "jadwal", label: "Jadwal pelaksanaan tahap", contoh: "2026-10-20 09:00" };
 const PH_BATASSLA: PlaceholderDef = { key: "batasSla", label: "Batas SLA tahap", contoh: "2026-11-19" };
 const PH_STATUSSLA: PlaceholderDef = { key: "statusSla", label: "Status SLA", contoh: "3 hari lagi / TERLAMBAT 5 hari" };
+// F4-REC — placeholder template offer & pengangkatan
+const PH_PERUSAHAAN: PlaceholderDef = { key: "perusahaan", label: "Nama perusahaan", contoh: "PT Mitra Industri Internasional" };
+const PH_GAJI: PlaceholderDef = { key: "gaji", label: "Gaji final offer (Rp)", contoh: "Rp 8.500.000" };
+const PH_MULAIKERJA: PlaceholderDef = { key: "mulaiKerja", label: "Tanggal mulai bekerja", contoh: "2026-11-01" };
+const PH_BERLAKUSAMPAI: PlaceholderDef = { key: "berlakuSampai", label: "Batas offer berlaku", contoh: "2026-10-24" };
+const PH_STATUSOFFER: PlaceholderDef = { key: "statusOffer", label: "Status offer", contoh: "DITERIMA / DITOLAK / Sent" };
+const PH_SISAHARI: PlaceholderDef = { key: "sisaHari", label: "Sisa waktu offer", contoh: "2 hari lagi" };
+const PH_EMPLOYEE_NO: PlaceholderDef = { key: "employeeNo", label: "Nomor karyawan hasil rekrutmen", contoh: "MII00041" };
 
 export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "leave.submitted": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_JUMLAHHARI, PH_ALASAN],
@@ -276,6 +305,10 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "recruitment.pr.rejected": [PH_NAMA, PH_DOC, PH_POSISI, PH_CATATAN],
   "recruitment.selection.scheduled": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_TAHAP, PH_URUTAN, PH_TOTALTAHAP, PH_JADWAL, PH_BATASSLA],
   "recruitment.selection.reminder": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_TAHAP, PH_JADWAL, PH_BATASSLA, PH_STATUSSLA],
+  "recruitment.offer.sent": [PH_NAMA, PH_DOC, PH_POSISI, PH_PERUSAHAAN, PH_GAJI, PH_MULAIKERJA, PH_BERLAKUSAMPAI],
+  "recruitment.offer.reminder": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_STATUSOFFER, PH_BERLAKUSAMPAI, PH_SISAHARI],
+  "recruitment.offer.responded": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_STATUSOFFER, PH_CATATAN],
+  "recruitment.appointment.hired": [PH_NAMA, PH_KANDIDAT, PH_EMPLOYEE_NO, PH_POSISI, PH_DOC],
   "user.created": [
     { key: "nama", label: "Nama pengguna baru", contoh: "Tri Handayani" },
     { key: "email", label: "Email login akun baru", contoh: "tri@mii.co.id" },

@@ -2877,6 +2877,57 @@ CREATE TABLE "RecruitmentLetter" (
     CONSTRAINT "RecruitmentLetter_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "CandidateOffer" (
+    "id" TEXT NOT NULL,
+    "offerNo" TEXT NOT NULL,
+    "prId" TEXT NOT NULL,
+    "candidateId" TEXT NOT NULL,
+    "jobOpeningId" TEXT,
+    "salary" TEXT,
+    "currency" TEXT NOT NULL DEFAULT 'IDR',
+    "salaryUnit" TEXT NOT NULL DEFAULT 'Monthly',
+    "startDate" TIMESTAMP(3),
+    "expiryDate" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'Draft',
+    "letterNo" TEXT,
+    "note" TEXT,
+    "sentAt" TIMESTAMP(3),
+    "respondedAt" TIMESTAMP(3),
+    "appointedAt" TIMESTAMP(3),
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CandidateOffer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CandidateAppointment" (
+    "id" TEXT NOT NULL,
+    "offerId" TEXT NOT NULL,
+    "candidateId" TEXT NOT NULL,
+    "prId" TEXT NOT NULL,
+    "appointmentDate" TIMESTAMP(3) NOT NULL,
+    "positionId" TEXT,
+    "orgUnitId" TEXT,
+    "companyOfficeId" TEXT,
+    "workLocationId" TEXT,
+    "supervisorId" TEXT,
+    "gradeId" TEXT,
+    "employmentStatus" TEXT NOT NULL DEFAULT 'Permanent',
+    "workShift" TEXT NOT NULL DEFAULT 'Regular',
+    "letterNo" TEXT,
+    "employeeId" TEXT,
+    "onboardingId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Appointed',
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CandidateAppointment_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -3573,6 +3624,27 @@ CREATE INDEX "RecruitmentLetter_candidateId_issuedAt_idx" ON "RecruitmentLetter"
 -- CreateIndex
 CREATE INDEX "RecruitmentLetter_kind_issuedAt_idx" ON "RecruitmentLetter"("kind", "issuedAt");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "CandidateOffer_offerNo_key" ON "CandidateOffer"("offerNo");
+
+-- CreateIndex
+CREATE INDEX "CandidateOffer_status_expiryDate_idx" ON "CandidateOffer"("status", "expiryDate");
+
+-- CreateIndex
+CREATE INDEX "CandidateOffer_prId_idx" ON "CandidateOffer"("prId");
+
+-- CreateIndex
+CREATE INDEX "CandidateOffer_candidateId_idx" ON "CandidateOffer"("candidateId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CandidateAppointment_offerId_key" ON "CandidateAppointment"("offerId");
+
+-- CreateIndex
+CREATE INDEX "CandidateAppointment_prId_idx" ON "CandidateAppointment"("prId");
+
+-- CreateIndex
+CREATE INDEX "CandidateAppointment_employeeId_idx" ON "CandidateAppointment"("employeeId");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -4154,4 +4226,43 @@ ALTER TABLE "RecruitmentLetter" ADD CONSTRAINT "RecruitmentLetter_candidateId_fk
 
 -- AddForeignKey
 ALTER TABLE "RecruitmentLetter" ADD CONSTRAINT "RecruitmentLetter_selectionStepId_fkey" FOREIGN KEY ("selectionStepId") REFERENCES "CandidateSelectionStep"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateOffer" ADD CONSTRAINT "CandidateOffer_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PersonnelRequisition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateOffer" ADD CONSTRAINT "CandidateOffer_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "JobCandidate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateOffer" ADD CONSTRAINT "CandidateOffer_jobOpeningId_fkey" FOREIGN KEY ("jobOpeningId") REFERENCES "JobOpening"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateOffer" ADD CONSTRAINT "CandidateOffer_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_offerId_fkey" FOREIGN KEY ("offerId") REFERENCES "CandidateOffer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "JobCandidate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PersonnelRequisition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_orgUnitId_fkey" FOREIGN KEY ("orgUnitId") REFERENCES "OrgUnit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_companyOfficeId_fkey" FOREIGN KEY ("companyOfficeId") REFERENCES "CompanyOffice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_workLocationId_fkey" FOREIGN KEY ("workLocationId") REFERENCES "WorkLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_supervisorId_fkey" FOREIGN KEY ("supervisorId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

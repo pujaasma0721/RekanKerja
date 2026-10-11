@@ -21,11 +21,11 @@ export type DbOrTx = TenantDb | Prisma.TransactionClient;
 
 // ============ konstanta domain ============
 
-export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR"] as const;
+export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer"] as const;
 export type ApprovalDocType = (typeof APPROVAL_DOC_TYPES)[number];
 
 /** docType yang jenjangnya bisa memakai syarat nominal (besaran). */
-export const AMOUNT_DOC_TYPES: ApprovalDocType[] = ["Travel", "Medical", "Loan", "TravelClaim", "RecruitmentPR"];
+export const AMOUNT_DOC_TYPES: ApprovalDocType[] = ["Travel", "Medical", "Loan", "TravelClaim", "RecruitmentPR", "RecruitmentOffer"];
 
 export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   Leave: "Cuti (Leave)",
@@ -36,6 +36,7 @@ export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   Overtime: "Lembur (Overtime)",
   TravelClaim: "Klaim Travel (Settlement)",
   RecruitmentPR: "Permintaan Karyawan (PR)",
+  RecruitmentOffer: "Penawaran Kandidat (Offer)",
 };
 
 export const APPROVER_TYPE_LABEL: Record<string, string> = {
@@ -522,6 +523,7 @@ const DELEGATION_DOC_ALIASES: Record<string, string[]> = {
   TravelClaim: ["TravelClaim", "TravelClaimSettlement"],
   PersonnelAction: ["PersonnelAction", "PA"],
   RecruitmentPR: ["RecruitmentPR", "PersonnelRequisition", "PR"],
+  RecruitmentOffer: ["RecruitmentOffer", "CandidateOffer", "Offer"],
 };
 
 /** nilai docType delegasi yang berlaku untuk semua jenis dokumen. */
