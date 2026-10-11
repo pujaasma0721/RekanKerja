@@ -27,7 +27,9 @@ export type EssView =
   // F1-REC — modul Rekrutmen: PR saya + kotak approval PR (oranHR
   // MyPersonnelRequisition / MyPersonnelRequisitionToApprove)
   | "my-pr"
-  | "pr-approval";
+  | "pr-approval"
+  // F3 — modul Rekrutmen: seleksi saya (oranHR MySelectionProcess §2.10)
+  | "my-selection";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;

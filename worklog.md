@@ -5660,3 +5660,63 @@ Stage Summary:
 - Login uji: admin hrd@mii.co.id/onevity123 (workspace MII); ESS yusuf@mii.co.id/EssDemo123! (ESS-only, karyawan MII00010).
 - selection.tsx SAAT INI PLACEHOLDER — subagent F3-UI harus tulis penuh (recruitment-module sudah meng-import SelectionPage dari ./selection).
 - Menunggu subagent F3-UI (admin) + F3-ESS (UI ESS) → verifikasi E2E koordinator → commit.
+
+---
+Task ID: F3-ESS
+Agent: subagent (fullstack-developer) — UI ESS "Seleksi Saya" (MySelectionProcess oranHR §2.10)
+
+Task: Buat view ESS tahapan seleksi milik karyawan sebagai kandidat internal (modul Rekrutmen F3) + wiring nav ESS, sesuai kontrak API F3-BACKEND yang sudah jalan & teruji (GET/POST /api/rekankerja/ess/my-selection).
+
+Work Log:
+- Recon: baca section F3-BACKEND worklog + pola ess-pr.tsx (useApi/apiSend + ESS_BASE + PageHeader/EmptyState/LoadingRows ui-kit + Card rounded-2xl amber-accent) + ess-shell.tsx (ESS_NAV topnav + "Lainnya" dropdown + render case view-state) + ess-types.ts (union EssView — pola F1-REC my-pr/pr-approval).
+- File BARU src/rekankerja/ess/components/ess-my-selection.tsx (~400 baris): tipe lokal mirror kontrak (SelProcess/SelCurrentStep/SelStep — pola F2: service bukan client-safe); fetch useApi<MySelectionResp>(`${ESS_BASE}/my-selection`) persis pola ess-pr; kartu per proses: header prNo mono + posisi + badge status kandidat (Nominated slate / InProcess amber / Passed emerald / Failed rose / Withdrawn abu) + tanggal nominasi + chip "Kandidat Internal" + note italic; blok "Tahap Aktif" amber: nama tahap besar + jadwal (Intl tanggal panjang + jam per locale, fallback "belum dijadwalkan") + batas SLA dueDate (AlarmClock; merah + pill "terlambat {n} hari" bila overdue) + evaluator + tipe hasil (Kuantitatif/Kualitatif + kelulusan min. bila minResultPass) + nomor undangan (MailCheck, title "surat undangan seleksi", font-mono) + tombol "Konfirmasi Jadwal (Ack)" (hanya needAck && status Planned && !acknowledgedAt → POST {stepId} → toast "Jadwal dikonfirmasi" + refresh; error → toast + refresh agar sinkron) ATAU badge hijau "Dikonfirmasi" bila sudah acknowledged; timeline vertikal semua tahap (ol + garis + nomor lingkaran berwarna status): nama (coret bila Cancelled) + pill status (Planned slate/Acknowledged amber/Performed violet/Passed emerald/Failed rose/Cancelled abu) + badge "Ack" hijau + tanggal dilaksanakan (fallback jadwal) + skor + hasil + evaluator + komentar evaluator (kutipan italic) + undangan; EmptyState "Belum ada proses seleksi — Anda belum dinominasikan sebagai kandidat internal."; dwibahasa penuh t(id,en) tanpa indigo/blue.
+- Wiring ess-shell.tsx: import ListChecks + EssMySelectionPage; ESS_NAV +item { id: "my-selection", label: "Seleksi Saya", en: "My Selection", short: "Seleksi", shortEn: "Selection", icon: ListChecks } diletakkan SETELAH "pr-approval" (kelompok rekrutmen); render case `{view === "my-selection" && <EssMySelectionPage />}` setelah pr-approval. ess-types.ts: EssView +"my-selection" (syarat typecheck nav, pola sama seperti F1-REC). Tidak ada file lain diubah; src/rekankerja/recruitment/** TIDAK disentuh (dikerjakan subagent paralel).
+- VERIFIKASI E2E agent-browser (login yusuf@mii.co.id/EssDemo123! → mendarat langsung Portal Karyawan ESS): nav "Seleksi Saya" tampil di dropdown "Lainnya" (desktop topnav) & sheet mobile (auto karena map ESS_NAV) → diklik → proses PR-2026-0003 "Chief Executive Officer" tampil: badge "Dinominasikan", 11 Okt 2026, chip Kandidat Internal, note mutasi HRX A4, blok TAHAP AKTIF "Interview HR" (Jadwal: belum dijadwalkan, Evaluator: belum ditentukan, Tipe hasil: Kualitatif) + badge hijau "Dikonfirmasi" — tombol ack otomatis terganti badge karena step sudah Acknowledged dari uji curl koordinator (tidak error, sesuai catatan task) + timeline 5 tahap (Interview HR Dikonfirmasi+Ack, Psikotes/Interview User/Offering Salary/Medical Check Up Direncanakan). Toggle EN→ID: semua label ikut (judul, deskripsi, badge, TAHAP AKTIF/TAHAPAN SELEKSI, "belum dijadwalkan", format tanggal "11 Okt 2026"). Screenshot .tmp-research/f3-ess-my-selection.png (EN) + f3-ess-my-selection-id.png (ID). Browser: 0 page error, 0 console error (hanya log React DevTools/HMR/PWA/Fast Refresh). dev.log: 0 error, GET /api/rekankerja/ess/my-selection 200. Dev server sempat mati (reaper) → restart setsid nohup.
+- bun run lint: 0 error / 6 warning pre-existing (unused-disable no-img-element — baseline sama dgn F2/F3-BACKEND). bunx tsc --noEmit: 0 error. Tidak ada commit/push (menunggu koordinator).
+
+Stage Summary:
+- F3-ESS SELESAI & terverifikasi E2E: view "Seleksi Saya" (MySelectionProcess oranHR §2.10) lengkap — kartu proses + blok tahap aktif (jadwal/SLA overdue/evaluator/tipe hasil/undangan/ack jadwal) + timeline semua tahap + empty state, dwibahasa, pola visual ess-pr konsisten.
+- File BARU: src/rekankerja/ess/components/ess-my-selection.tsx. File DIUBAH (wiring saja): ess-shell.tsx (nav + case + import), ess-types.ts (union EssView). Backend/API TIDAK disentuh; src/rekankerja/recruitment/** TIDAK disentuh (subagent F3-UI paralel).
+- Catatan utk koordinator: uji path tombol ack (step Planned + needAck + belum ack) belum bisa diperagakan pada data demo Yusuf karena step Interview HR sudah Acknowledged — jalur tombol terverifikasi type-check & guard server (POST hanya valid status Planned; UI menyembunyikan tombol & menampilkan badge hijau).
+
+---
+Task ID: F3-UI
+Agent: subagent fullstack (F3-UI) + koordinator (verifikasi lanjutan)
+Task: UI admin Fase F3 "Kandidat & Seleksi" — board kanban per PR (drag-drop + keyboard J/K), dialog detail multi-tab, scorecard terstruktur + divergensi, kalender seleksi bulanan, transfer kandidat, manager rubrik.
+
+Work Log:
+- Subagent menulis 3 file (sesi crash ketika menyusun laporan — file utuh & tsc/lint bersih saat ditemukan koordinator): selection-shared.tsx (346 baris: tipe lokal mirror kontrak service, SELECTION_API/CANDIDATES_API, label+tone pill kandidat/tahap/rekomendasi, helper daysLateOf/monthsLabel), selection.tsx (661 baris: SelectionPage — stat-chip klik-filter 6 status + Past SLA, PR picker [options.prs default PR pertama bersaldo], badge overdue per PR, tab Board|Kalender, board kolom 248px horizontal-scroll dgn header SLA/needAck/overdueCount, kartu [nama+checkbox bulk, badge source Internal/External, status, progress bar tahap x/y, overdue "n days" merah, skor, badge scorecard n + AlertTriangle divergence, MailCheck+letterNo], drag HTML5 [drop hanya kolom seq+1 → dialog Catat Hasil; terminal/kolom jauh → toast info], keyboard J/K/Enter + hint, empty "—"), selection-dialogs.tsx (1567 baris: ScheduleDialog, InvitePreviewDialog [body pre-wrap + unduh PDF window.open letterPdf], CancelStepDialog, WithdrawDialog, ResultAdvanceDialog [outcome Pass/Fail, auto-suggest kuantitatif, skor+hasil+komentar+evaluator+continueProcess], ScorecardFillDialog [template select "tahap ini" default, evaluator, skor 1-5 dgn opsi anchor "4 — Di atas ekspektasi"…, komentar per kompetensi, rekomendasi, feedback wajib, Save Draft|Submit], RubricManagerDialog [CRUD template + kompetensi dinamis + bobot + nonaktifkan], TransferDialog [PersonPicker searchable — pelamar Active via applicants API | karyawan via options], DayEventsDialog, CandidateDetailDialog [tab Tahapan: timeline + aksi per step aktif + tambah tahap; tab Scorecard: panelAvg/gap/submitted + Alert divergensi amber + daftar evaluator + Isi Scorecard; tab Profil: PII penuh + expectedSalary "—" + catatan edit + Tarik/Hapus]).
+- Screenshot subagent: .tmp-research/f3-ui-{board,board-id,detail,detail-id,scorecard,calendar}.png.
+- Koordinator (verifikasi lanjutan agent-browser, sesi hrd EN): board 7 kolom termuat benar (4 kartu Interview HR [Dewi+undangan 001/HR-RC/X/2026, Gita+2, Maria+9 days overdue, Yusuf Internal], Bambang @Psikotes, Budi @Lulus, Ahmad @Gagal/Ditarik; stat 3/2/1/1/0/1; badge "1 past SLA"). Detail Gita: tab Scorecard — panel avg 3.50, 2 submitted, feedback gate OK, gap 2.33 + alert amber divergensi; kedua evaluator + tabel kompetensi + komentar. Dialog Fill Scorecard lengkap (template stage-bound default, anchor rubric). DRAG & DROP terverifikasi (synthetic DragEvent terpisah utk komit state React): drop Dewi ke kolom Psikotes → dialog "Record Result & Advance — Dewi Lestari" (radio Pass/Fail).
+- ALUR ACCEPTANCE PENUH via UI (eval async dgn firePtr utk Radix): Dewi → Fill Scorecard (evaluator Hartono, skor 4/4/5 anchor, rekomendasi Hire, feedback) → Submit → panel {1 submitted, feedbackOk true} → Record Result (outcome Pass + evaluator + komentar) → Save Result → step 1 PASSED, kandidat InProcess, tahap aktif Psikotes. Submit parsial tertolak server dgn pesan "Skor belum lengkap: …" (validasi terbukti jalan via UI).
+- Temuan interaksi: ref agent-browser basi antar-re-render → klik salah alamat bisa menutup dialog Radix; solusi = satu eval async berurutan (firePtr pointerdown+mousedown+pointerup+click) — dicatat utk sesi E2E berikutnya. Radix Radio = role="radio" (bukan input[type=radio]); Radix Tabs perlu urutan pointer penuh; opsi skor memuat anchor label ("4 — Di atas ekspektasi").
+- Screenshot final: .tmp-research/f3-final-{board,calendar}.png (Dewi sudah di kolom Psikotes).
+
+Stage Summary:
+- F3-UI SELESAI & terverifikasi E2E penuh: seluruh acceptance §7 F3 terbukti lewat UI — scorecard 2 evaluator dgn divergensi flag amber; feedback wajib (advance ditolak tanpa scorecard ter-submit); naik tahap via drag/board; SLA overdue terlihat; surat undangan terbit + PDF; kalender bulanan.
+- File BARU: selection-shared.tsx, selection-dialogs.tsx; REWRITE: selection.tsx (placeholder → penuh). Wiring (module/NAV/labels/overview) sudah dari koordinator.
+
+---
+Task ID: F3-REC
+Agent: main (Z.ai Code) — koordinator
+Task: FASE F3 (Kandidat & Proses Seleksi Terstruktur — effort L) per DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3: koordinasi backend + 2 subagent UI paralel + verifikasi E2E + commit.
+
+Work Log:
+- Backend (lihat F3-BACKEND): 7 model, 3 service (selection/scorecard/candidate), 3 API admin + 1 ESS, surat undangan via mesin surat (REC_INVITE + kategori Recruitment + PDF reuse letterPdfBuffer), reminder SLA scheduler, migrasi idempoten + referensi + demo 7 kandidat, parity + provisioning, tenant-db F3REC.
+- Subagent F3-ESS (sukses): ess-my-selection.tsx (404 baris) + nav "Seleksi Saya" + EssView union — E2E yusuf@mii.co.id/EssDemo123!: proses PR-2026-0003 + timeline 5 tahap + badge "Dikonfirmasi" (ack dari uji curl); dwibahasa; 0 error.
+- Subagent F3-UI: crash ketika laporan, file utuh (2978 baris total dgn shared+dialogs) — koordinator audit + lanjutkan verifikasi E2E lengkap (drag-drop, gate scorecard, isi scorecard, record result → kandidat naik tahap, kalender, divergensi amber, undangan + PDF).
+- Mutasi data demo dari E2E: Dewi InProcess @Psikotes (scorecard Hartono 4/4/5 Hire ter-submit + hasil Pass via UI); Bambang InProcess @Psikotes (scorecard+advance via curl); Yusuf Interview HR Acknowledged (ack ESS).
+- Gates: bun run lint 0 error (6 warning baseline), tsc --noEmit 0 error, dev.log 0 error page (hanya warning Radix DialogTitle pre-existing di seluruh proyek).
+- Commit: F3 lengkap (backend 97aab66 + UI ini).
+
+Stage Summary:
+- F3 SELESAI & terverifikasi E2E penuh — seluruh acceptance §7 F3 terpenuhi:
+  · kandidat melewati tahapan — gagal tahap (Ahmad: Psikotes 60<70 auto-Fail) → proses berhenti & status Failed + sisa tahap Cancelled;
+  · lulus semua (Budi) → Passed (kolom Lulus);
+  · SLA overdue terlihat (Maria −10 hari; badge kolom + kartu + chip + summary + overview + reminder scheduler);
+  · scorecard 2 evaluator selisih >2 (Gita: 4.67 vs 2.33, gap 2.33) → flag kalibrasi amber di board/detail;
+  · feedback wajib sebelum naik tahap (gate: advance tanpa scorecard ter-submit DITOLAK — terverifikasi UI+cURL);
+  · surat undangan PDF terbit (REC_INVITE, 001/HR-RC/X/2026, stream PDF %PDF valid, pratinjau + unduh);
+  · kandidat internal melihat tahapan sendiri di ESS (Yusuf — nav "Seleksi Saya" + timeline + ack).
+- Fondasi siap F4 (Offer & Appointment + Onboarding): JobCandidate.status terminal Passed menunggu Offer/appointment; RecruitmentLetter pattern siap utk surat hasil/offer; PR Fulfilled hook menyusul.
+- Menunggu "GO" user untuk lanjut F4.
