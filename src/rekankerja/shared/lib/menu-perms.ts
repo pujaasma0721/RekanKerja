@@ -149,6 +149,11 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "appoint", label: "Mengangkat & melanjutkan onboarding", hint: "Buat pengangkatan (surat + penolakan batch) dan lanjutkan ke onboarding karyawan baru" },
   ],
 
+  // Recruitment F5 — rencana & anggaran rekrutmen (demografi view-only)
+  "recruitment:plan": [
+    { key: "apply", label: "Menerapkan rencana", hint: "Mengaplikasikan baris rencana rekrutmen (Draft → Applied) sebagai dasar justifikasi PR" },
+  ],
+
   // Travel
   "travel:travel-request": [{ key: "cancel", label: "Membatalkan permintaan travel", hint: "Membatalkan permintaan perjalanan dinas" }],
   "travel:travel-approval": [{ key: "approve", label: "Menyetujui / menolak travel", hint: "Aksi Setujui & Tolak pada persetujuan travel" }],

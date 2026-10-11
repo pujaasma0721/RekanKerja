@@ -131,6 +131,8 @@ export interface JoRow {
   content: string | null;
   preparedById: string | null;
   preparedByName: string | null;
+  internalOnly: boolean; // F5: khusus internal selamanya (tidak tayang publik)
+  internalFirstUntil: string | null; // F5: jendela internal-first (aktif bila > now)
   slots: OpeningSlotRow[];
   methods: MethodRow[];
 }
@@ -173,6 +175,10 @@ export interface JoInput {
   content?: string | null;
   preparedById?: string | null;
   postNow?: boolean;
+  /** F5: khusus internal (tidak pernah tayang di portal publik). */
+  internalOnly?: boolean;
+  /** F5: jendela internal-first — sebelum tanggal ini hanya ESS yang melihat. */
+  internalFirstUntil?: string | null;
   slots: SlotInput[];
 }
 
@@ -263,6 +269,8 @@ function joRow(jo: Prisma.JobOpportunityGetPayload<{ include: typeof JO_INCLUDE 
     content: jo.content,
     preparedById: jo.preparedById,
     preparedByName: jo.preparedBy?.fullName ?? null,
+    internalOnly: jo.internalOnly,
+    internalFirstUntil: iso(jo.internalFirstUntil),
     slots: jo.openings.map(slotRow).sort((a, b) => a.prNo.localeCompare(b.prNo)),
     methods: jo.methods.map((m) => methodRow(m, moneyVisible, tc)).sort((a, b) => a.methodName.localeCompare(b.methodName)),
   };
@@ -383,6 +391,8 @@ export async function createJo(
       datePrepared: now,
       status: postNow ? "Posted" : "Draft",
       datePosted: postNow ? now : null,
+      internalOnly: input.internalOnly === true,
+      internalFirstUntil: input.internalFirstUntil ? new Date(input.internalFirstUntil) : null,
       openings: {
         create: input.slots.map((s) => {
           const pr = prs.find((p) => p.id === s.prId)!;
@@ -429,6 +439,8 @@ export async function updateJo(
   if (input.contactPerson !== undefined) data.contactPerson = input.contactPerson?.trim() || null;
   if (input.lastAcceptDate !== undefined) data.lastAcceptDate = input.lastAcceptDate ? new Date(input.lastAcceptDate) : null;
   if (input.content !== undefined) data.content = input.content?.trim() || null;
+  if (input.internalOnly !== undefined) data.internalOnly = input.internalOnly === true;
+  if (input.internalFirstUntil !== undefined) data.internalFirstUntil = input.internalFirstUntil ? new Date(input.internalFirstUntil) : null;
   if (Object.keys(data).length > 0) {
     await db.jobOpportunity.update({ where: { id }, data });
     await db.activityLog.create({

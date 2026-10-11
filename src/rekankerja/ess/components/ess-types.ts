@@ -29,7 +29,11 @@ export type EssView =
   | "my-pr"
   | "pr-approval"
   // F3 — modul Rekrutmen: seleksi saya (oranHR MySelectionProcess §2.10)
-  | "my-selection";
+  | "my-selection"
+  // F5-REC — lowongan internal (MyJobOpportunity) + rencana rekrutmen
+  // (MysRecruitmentPlanning) oranHR §2.10
+  | "my-jobs"
+  | "my-plan";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;

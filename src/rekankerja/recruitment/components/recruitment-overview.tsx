@@ -1,7 +1,7 @@
 "use client";
 // RekanKerja Recruitment — Ringkasan modul (F0): status fondasi + jumlah
 // master + rantai tahap seleksi default + peta fase pengembangan.
-import { useApi } from "@/rekankerja/shared/lib/api";
+import { useApi, fmtIDRShort } from "@/rekankerja/shared/lib/api";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import type { MasterType } from "@/rekankerja/recruitment/services/recruitment-m
 import {
   UserRoundSearch, Boxes, ListChecks, CheckCircle2, Circle, ArrowRight, Megaphone, BadgeCheck,
   Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList, UsersRound, Inbox, Layers3,
-  UserRoundCheck, FileText, Handshake, UserRoundPlus, Clock,
+  UserRoundCheck, FileText, Handshake, UserRoundPlus, Clock, Calculator, Target, Coins, Award,
 } from "lucide-react";
 
 const TYPE_ICON: Record<string, React.ElementType> = {
@@ -48,7 +48,7 @@ export function RecruitmentOverview() {
     { key: "F2", label: "Lowongan & Pelamar (talent pool)", labelEn: "Openings & Applicants (talent pool)", done: true },
     { key: "F3", label: "Kandidat & Proses Seleksi", labelEn: "Candidates & Selection Process", done: true },
     { key: "F4", label: "Offer & Appointment + Onboarding", labelEn: "Offer & Appointment + Onboarding", done: true },
-    { key: "F5", label: "ESS, Rencana & Anggaran", labelEn: "ESS, Plan & Budget", done: false },
+    { key: "F5", label: "ESS, Rencana & Anggaran", labelEn: "ESS, Plan & Budget", done: true },
   ];
   const prApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/pr?limit=1");
   const ps = prApi.data?.stats;
@@ -84,14 +84,26 @@ export function RecruitmentOverview() {
   const funnelStages = funnelApi.data?.funnel.stages ?? [];
   const hiredCount = funnelStages.find((s) => s.key === "hired")?.count ?? null;
 
+  // F5: rencana & anggaran rekrutmen + demografi (silver medalist) — 403 →
+  // null "—" (pola kartu F3/F4)
+  const planApi = useApi<{ stats: { applied: number }; rows: { toRecruitH: number }[] }>(
+    "/api/rekankerja/recruitment/plan?list=1",
+  );
+  const planStats = planApi.data?.stats;
+  const planRows = planApi.data?.rows ?? [];
+  const budgetApi = useApi<{ row: { used: number } | null }>("/api/rekankerja/recruitment/budget");
+  const budgetUsed = budgetApi.data?.row?.used ?? null;
+  const demogApi = useApi<{ silver: { count: number } }>("/api/rekankerja/recruitment/demographics?stats=1");
+  const silverCount = demogApi.data?.silver.count ?? null;
+
   return (
     <div>
       <PageHeader
         eyebrow={t("Recruitment · Ringkasan")}
         title={t("Rekrutmen", "Recruitment")}
         description={t(
-          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F4 (offer & pengangkatan — surat penawaran, expiry timer, penolakan batch, onboarding).",
-          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F4 (offers & appointment — offer letters, expiry timer, batch rejection, onboarding).",
+          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F5 (ESS lowongan internal, rencana & anggaran, demografi).",
+          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F5 (internal job openings ESS, plan & budget, demographics).",
         )}
       />
 
@@ -315,6 +327,48 @@ export function RecruitmentOverview() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* ringkasan F5 — rencana & anggaran + demografi */}
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Calculator className="h-4 w-4 ov-text-accent" aria-hidden />
+              {t("Rencana & Anggaran (F5)", "Plan & Budget (F5)")}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {t(
+                "Rencana rekrutmen formula a–h yang diterapkan, total kebutuhan rekrut (h), realisasi anggaran vs kanal lowongan, dan kandidat silver medalist. Kelola di menu Rencana & Anggaran serta Demografi & Segmen.",
+                "Applied a–h formula recruitment plans, total to-recruit need (h), budget actuals vs opening channels, and silver medalist candidates. Manage in the Plan & Budget and Demographics & Segments menus.",
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {([
+                { icon: Calculator, label: t("Rencana Applied", "Applied Plans"), value: planApi.data ? (planStats?.applied ?? 0) : null },
+                { icon: Target, label: t("Kebutuhan Rekrut (h)", "To Recruit (h)"), value: planApi.data ? planRows.reduce((a, r) => a + (r.toRecruitH ?? 0), 0) : null },
+                { icon: Coins, label: t("Realisasi Anggaran", "Budget Actuals"), value: budgetApi.data ? budgetUsed : null, money: true },
+                { icon: Award, label: t("Silver Medalist", "Silver Medalists"), value: demogApi.data ? silverCount : null },
+              ] as { icon: React.ElementType; label: string; value: number | null; money?: boolean }[]).map((s, i) => {
+                const Icon = s.icon;
+                return (
+                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
+                    title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
+                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
+                      <p className="text-lg font-semibold tabular-nums">
+                        {s.value == null ? "—" : s.money ? fmtIDRShort(s.value) : String(s.value)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
 

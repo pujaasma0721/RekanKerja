@@ -299,6 +299,12 @@ const STEPS: Step[] = [
   // template scorecard) + demo MII.
   { key: "recruitment-f3", label: "F3 Rekrutmen — 7 tabel kandidat & seleksi + scorecard + demo", run: (s) => import("../../../../scripts/migrate-recruitment-f3").then((m) => m.main(s)) },
   { key: "recruitment-f4", label: "F4 Rekrutmen — tabel offer & pengangkatan + surat + struktur approval + demo", run: (s) => import("../../../../scripts/migrate-recruitment-f4").then((m) => m.main(s)) },
+  // F5-REC (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F5) — tabel rencana & anggaran
+  // + lamaran internal ESS (RecruitmentPlan, RecruitmentBudget,
+  // EmpJobApplication) + kolom JobOpportunity.internalOnly/internalFirstUntil
+  // + demo MII (plan 2026, budget + realisasi method, posting internal-first +
+  // lamaran internal karyawan).
+  { key: "recruitment-f5", label: "F5 Rekrutmen — tabel rencana/anggaran/lamaran-internal + kolom JO internal + demo", run: (s) => import("../../../../scripts/migrate-recruitment-f5").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -572,7 +578,16 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (recOfferOk < schemas.length)
       reasons.push(`${schemas.length - recOfferOk} tenant tanpa tabel CandidateOffer (F4 — modul Recruitment)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk, recCandOk, recOfferOk) };
+    // F5-REC — tabel RecruitmentPlan (rencana rekrutmen) belum ada = gap
+    // (tenant existing dibuat sebelum F5 → step recruitment-f5 membuat 3 tabel
+    // rencana/anggaran/lamaran-internal + kolom JO internal-first + demo).
+    const recPlanOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'RecruitmentPlan' AND table_schema = ANY($1::text[])`,
+    );
+    if (recPlanOk < schemas.length)
+      reasons.push(`${schemas.length - recPlanOk} tenant tanpa tabel RecruitmentPlan (F5 — modul Recruitment)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk, recCandOk, recOfferOk, recPlanOk) };
   } finally {
     await c.end();
   }

@@ -16,6 +16,8 @@ import { ApplicantsPage } from "@/rekankerja/recruitment/components/applicants";
 import { PublicStagingPage } from "@/rekankerja/recruitment/components/public-staging";
 import { SelectionPage } from "@/rekankerja/recruitment/components/selection";
 import { OffersPage } from "@/rekankerja/recruitment/components/offers";
+import { PlanBudgetPage } from "@/rekankerja/recruitment/components/plan-budget";
+import { DemographicsPage } from "@/rekankerja/recruitment/components/demographics";
 
 export function RecruitmentModule({ view }: { view: string }) {
   switch (view) {
@@ -27,6 +29,8 @@ export function RecruitmentModule({ view }: { view: string }) {
     case "public-staging": return <PublicStagingPage />;
     case "selection": return <SelectionPage />;
     case "offers": return <OffersPage />;
+    case "plan": return <PlanBudgetPage />;
+    case "demographics": return <DemographicsPage />;
     default: return <RecruitmentOverview />;
   }
 }

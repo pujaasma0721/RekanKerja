@@ -67,13 +67,18 @@ export type { TenantPrismaClient };
 // (CandidateOffer, CandidateAppointment) masuk client hasil generate;
 // instance lama (pra-F4REC, DMMF tanpa db.candidateOffer dst.) tidak boleh
 // dipakai ulang.
+// F5-REC: versi dinaikkan lagi (F5REC) — model rencana & anggaran rekrutmen
+// + lamaran internal ESS (RecruitmentPlan, RecruitmentBudget,
+// EmpJobApplication) + kolom JobOpportunity.internalOnly/internalFirstUntil
+// masuk client hasil generate; instance lama (pra-F5REC, DMMF tanpa
+// db.recruitmentPlan dst.) tidak boleh dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  rekankerjaTenantClientsF4REC: Map<string, TenantPrismaClient> | undefined;
+  rekankerjaTenantClientsF5REC: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.rekankerjaTenantClientsF4REC ?? new Map();
-globalForTenants.rekankerjaTenantClientsF4REC = tenantClients;
+  globalForTenants.rekankerjaTenantClientsF5REC ?? new Map();
+globalForTenants.rekankerjaTenantClientsF5REC = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

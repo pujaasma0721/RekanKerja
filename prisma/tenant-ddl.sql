@@ -2560,6 +2560,8 @@ CREATE TABLE "JobOpportunity" (
     "content" TEXT,
     "contactPerson" TEXT,
     "lastAcceptDate" TIMESTAMP(3),
+    "internalOnly" BOOLEAN NOT NULL DEFAULT false,
+    "internalFirstUntil" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -2926,6 +2928,59 @@ CREATE TABLE "CandidateAppointment" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "CandidateAppointment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RecruitmentPlan" (
+    "id" TEXT NOT NULL,
+    "period" TEXT NOT NULL,
+    "seqNo" INTEGER NOT NULL DEFAULT 1,
+    "positionId" TEXT,
+    "positionTitle" TEXT NOT NULL,
+    "companyOfficeId" TEXT,
+    "targetA" INTEGER NOT NULL DEFAULT 0,
+    "adjustB" INTEGER NOT NULL DEFAULT 0,
+    "empD" INTEGER NOT NULL DEFAULT 0,
+    "inE" INTEGER NOT NULL DEFAULT 0,
+    "outF" INTEGER NOT NULL DEFAULT 0,
+    "salaryBudget" TEXT,
+    "basePeriod" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Draft',
+    "note" TEXT,
+    "appliedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RecruitmentPlan_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RecruitmentBudget" (
+    "id" TEXT NOT NULL,
+    "period" TEXT NOT NULL,
+    "totalBudget" TEXT NOT NULL,
+    "adjust" TEXT,
+    "currency" TEXT NOT NULL DEFAULT 'IDR',
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RecruitmentBudget_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EmpJobApplication" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "jobOpeningId" TEXT NOT NULL,
+    "candidateId" TEXT,
+    "appliedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "withdrawnAt" TIMESTAMP(3),
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmpJobApplication_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -3645,6 +3700,24 @@ CREATE INDEX "CandidateAppointment_prId_idx" ON "CandidateAppointment"("prId");
 -- CreateIndex
 CREATE INDEX "CandidateAppointment_employeeId_idx" ON "CandidateAppointment"("employeeId");
 
+-- CreateIndex
+CREATE INDEX "RecruitmentPlan_period_idx" ON "RecruitmentPlan"("period");
+
+-- CreateIndex
+CREATE INDEX "RecruitmentPlan_status_idx" ON "RecruitmentPlan"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RecruitmentBudget_period_key" ON "RecruitmentBudget"("period");
+
+-- CreateIndex
+CREATE INDEX "EmpJobApplication_employeeId_idx" ON "EmpJobApplication"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "EmpJobApplication_jobOpeningId_idx" ON "EmpJobApplication"("jobOpeningId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EmpJobApplication_employeeId_jobOpeningId_key" ON "EmpJobApplication"("employeeId", "jobOpeningId");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -4265,4 +4338,19 @@ ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_supervis
 
 -- AddForeignKey
 ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RecruitmentPlan" ADD CONSTRAINT "RecruitmentPlan_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RecruitmentPlan" ADD CONSTRAINT "RecruitmentPlan_companyOfficeId_fkey" FOREIGN KEY ("companyOfficeId") REFERENCES "CompanyOffice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmpJobApplication" ADD CONSTRAINT "EmpJobApplication_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmpJobApplication" ADD CONSTRAINT "EmpJobApplication_jobOpeningId_fkey" FOREIGN KEY ("jobOpeningId") REFERENCES "JobOpening"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmpJobApplication" ADD CONSTRAINT "EmpJobApplication_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "JobCandidate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

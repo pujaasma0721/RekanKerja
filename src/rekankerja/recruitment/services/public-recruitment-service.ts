@@ -100,10 +100,19 @@ export interface PublicOpeningItem {
 }
 
 /** Slot Posted+Open untuk portal publik — TANPA PII/data internal.
- *  Urut: terbaru diposting dulu. */
+ *  Urut: terbaru diposting dulu.
+ *  F5: JO internalOnly / dalam jendela internalFirstUntil TIDAK tayang
+ *  di portal publik (hanya ESS Lowongan Internal). */
 export async function listPublicOpenings(db: TenantDb, limit = 50): Promise<PublicOpeningItem[]> {
   const slots = await db.jobOpening.findMany({
-    where: { status: "Open", jobOpportunity: { status: "Posted" } },
+    where: {
+      status: "Open",
+      jobOpportunity: {
+        status: "Posted",
+        internalOnly: false,
+        OR: [{ internalFirstUntil: null }, { internalFirstUntil: { lte: new Date() } }],
+      },
+    },
     include: {
       workLocation: { select: { name: true, city: true } },
       jobOpportunity: { select: { refNo: true, lastAcceptDate: true } },

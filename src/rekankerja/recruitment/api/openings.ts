@@ -70,6 +70,8 @@ export async function POST(req: NextRequest) {
       content: b.content || null,
       preparedById: b.preparedById || m.actor.employeeId || null,
       postNow: b.postNow === true,
+      internalOnly: b.internalOnly === true,
+      internalFirstUntil: b.internalFirstUntil || null,
       slots: Array.isArray(b.slots) ? b.slots.map((s: Record<string, unknown>) => ({
         prId: String(s.prId ?? ""),
         titleToShow: s.titleToShow ? String(s.titleToShow) : undefined,
@@ -117,6 +119,8 @@ export async function PATCH(req: NextRequest) {
         contactPerson: b.contactPerson !== undefined ? (b.contactPerson || null) : undefined,
         lastAcceptDate: b.lastAcceptDate !== undefined ? (b.lastAcceptDate || null) : undefined,
         content: b.content !== undefined ? (b.content || null) : undefined,
+        internalOnly: b.internalOnly !== undefined ? b.internalOnly === true : undefined,
+        internalFirstUntil: b.internalFirstUntil !== undefined ? (b.internalFirstUntil || null) : undefined,
       }, m.actor.name);
       return NextResponse.json({ row });
     }

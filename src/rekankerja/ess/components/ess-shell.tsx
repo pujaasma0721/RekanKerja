@@ -14,7 +14,7 @@ import {
   LayoutDashboard, UserRound, Palmtree, Fingerprint, ReceiptText, HeartPulse, ClipboardList, ClipboardCheck, FileText,
   Bell, Moon, Sun, LogOut, KeyRound, X, CheckCheck, MoreHorizontal, ArrowRight, Check,
   Waypoints, ChevronDown, Building2, Clock as ClockIcon, UserRoundSearch, ListChecks,
-  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package, CalendarPlus,
+  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package, CalendarPlus, Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, initials, fmtDateTime } from "@/rekankerja/shared/lib/api";
@@ -52,6 +52,9 @@ import { EssPrPage } from "./ess-pr";
 import { EssPrApprovalPage } from "./ess-pr-approval";
 // F3 — modul Rekrutmen ESS: seleksi saya (kandidat internal)
 import { EssMySelectionPage } from "./ess-my-selection";
+// F5 — modul Rekrutmen ESS: lowongan internal + rencana rekrutmen
+import { EssMyJobsPage } from "./ess-my-jobs";
+import { EssMyPlanPage } from "./ess-my-plan";
 // Task 52-f — kanal whistleblowing TPKS (anonim) utk semua pekerja.
 import { WhistleblowForm, WB_CATEGORIES } from "@/rekankerja/whistleblow/components/whistleblow-form";
 import { Siren, Ticket } from "lucide-react";
@@ -73,6 +76,10 @@ const ESS_NAV: EssNavItem[] = [
   // F3 — Seleksi Saya (MySelectionProcess oranHR §2.10): tahapan seleksi
   // karyawan sebagai kandidat internal (ack jadwal + timeline).
   { id: "my-selection", label: "Seleksi Saya", en: "My Selection", short: "Seleksi", shortEn: "Selection", icon: ListChecks },
+  // F5 — Lowongan Internal (MyJobOpportunity oranHR §2.10) + Rencana
+  // Rekrutmen (MysRecruitmentPlanning oranHR §2.10).
+  { id: "my-jobs", label: "Lowongan Internal", en: "Internal Jobs", short: "Lowongan", shortEn: "Jobs", icon: Megaphone },
+  { id: "my-plan", label: "Rencana Rekrutmen", en: "Recruitment Plan", short: "Rencana", shortEn: "Plan", icon: Target },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)
   { id: "letters", label: "Surat", en: "Letters", short: "Surat", shortEn: "Letters", icon: FileText },
   // Task 27-f/g/b — pengumuman / tukar shift / aset saya
@@ -636,6 +643,9 @@ export function EssShell() {
             {view === "pr-approval" && <EssPrApprovalPage />}
             {/* F3 — Seleksi Saya (kandidat internal) */}
             {view === "my-selection" && <EssMySelectionPage />}
+            {/* F5 — Rekrutmen ESS: lowongan internal + rencana rekrutmen */}
+            {view === "my-jobs" && <EssMyJobsPage />}
+            {view === "my-plan" && <EssMyPlanPage />}
             {view === "assets" && <EssAssets />}
             {view === "whistleblow" && (
               <div className="mx-auto max-w-2xl">

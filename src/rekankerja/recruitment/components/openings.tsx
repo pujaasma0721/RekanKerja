@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -131,6 +132,10 @@ interface HeaderForm {
   contactPerson: string;
   lastAcceptDate: string;
   content: string;
+  // F5 — matri internal: khusus internal (tidak pernah tayang publik) +
+  // jendela internal-first (sebelum tanggal ini hanya terlihat karyawan ESS).
+  internalOnly: boolean;
+  internalFirstUntil: string;
 }
 
 interface MethodForm {
@@ -169,7 +174,7 @@ export function OpeningsPage() {
   // dialog create JO (header + slots dinamis) / edit header
   const [dialog, setDialog] = useState<null | "new" | "edit-header">(null);
   const [editRow, setEditRow] = useState<JoRow | null>(null);
-  const [header, setHeader] = useState<HeaderForm>({ title: "", contactPerson: "", lastAcceptDate: "", content: "" });
+  const [header, setHeader] = useState<HeaderForm>({ title: "", contactPerson: "", lastAcceptDate: "", content: "", internalOnly: false, internalFirstUntil: "" });
   const [slotDrafts, setSlotDrafts] = useState<SlotForm[]>([emptySlot()]);
   const [postNow, setPostNow] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -253,7 +258,7 @@ export function OpeningsPage() {
 
   const openNew = () => {
     setEditRow(null);
-    setHeader({ title: "", contactPerson: "", lastAcceptDate: "", content: "" });
+    setHeader({ title: "", contactPerson: "", lastAcceptDate: "", content: "", internalOnly: false, internalFirstUntil: "" });
     setSlotDrafts([emptySlot()]);
     setPostNow(false);
     setDialog("new");
@@ -266,6 +271,8 @@ export function OpeningsPage() {
       contactPerson: r.contactPerson ?? "",
       lastAcceptDate: r.lastAcceptDate ? r.lastAcceptDate.slice(0, 10) : "",
       content: r.content ?? "",
+      internalOnly: r.internalOnly === true,
+      internalFirstUntil: r.internalFirstUntil ? r.internalFirstUntil.slice(0, 10) : "",
     });
     setDialog("edit-header");
   };
@@ -293,15 +300,26 @@ export function OpeningsPage() {
           action: "update", id: editRow.id,
           title: header.title, contactPerson: header.contactPerson || null,
           lastAcceptDate: header.lastAcceptDate || null, content: header.content || null,
+          internalOnly: header.internalOnly,
+          internalFirstUntil: !header.internalOnly && header.internalFirstUntil ? header.internalFirstUntil : null,
         });
         toast.success(t(`Lowongan ${editRow.refNo} diperbarui`, `Opening ${editRow.refNo} updated`));
-        setViewRow((v) => (v && v.id === editRow.id ? { ...v, ...header, contactPerson: header.contactPerson || null, lastAcceptDate: header.lastAcceptDate || null, content: header.content || null } : v));
+        setViewRow((v) => (v && v.id === editRow.id ? {
+          ...v, ...header,
+          contactPerson: header.contactPerson || null,
+          lastAcceptDate: header.lastAcceptDate || null,
+          content: header.content || null,
+          internalOnly: header.internalOnly,
+          internalFirstUntil: !header.internalOnly && header.internalFirstUntil ? header.internalFirstUntil : null,
+        } : v));
       } else {
         const res = await apiSend<{ row: JoRow }>("/api/rekankerja/recruitment/openings", "POST", {
           title: header.title,
           contactPerson: header.contactPerson || null,
           lastAcceptDate: header.lastAcceptDate || null,
           content: header.content || null,
+          internalOnly: header.internalOnly,
+          internalFirstUntil: !header.internalOnly && header.internalFirstUntil ? header.internalFirstUntil : null,
           postNow,
           slots: slotDrafts.filter((s) => s.prId).map((s) => ({
             prId: s.prId,
@@ -764,6 +782,35 @@ export function OpeningsPage() {
                   <Label>{t("Batas Terakhir Menerima Lamaran", "Last Accept Date")}</Label>
                   <Input type="date" value={header.lastAcceptDate} onChange={(e) => setHeader({ ...header, lastAcceptDate: e.target.value })} />
                 </div>
+                {/* F5 — matri internal: khusus internal + jendela internal-first */}
+                <div className="space-y-1.5">
+                  <Label>{t("Khusus Internal", "Internal Only")}</Label>
+                  <label className="flex min-h-[36px] items-center gap-2.5 rounded-lg border border-slate-200 px-3 py-1.5 dark:border-slate-700">
+                    <Switch
+                      checked={header.internalOnly}
+                      onCheckedChange={(c) => setHeader({ ...header, internalOnly: c === true })}
+                      aria-label={t("Khusus Internal", "Internal Only")}
+                    />
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {t("Tidak pernah tayang di portal publik", "Never shown on the public portal")}
+                    </span>
+                  </label>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("Jendela Internal Dulu s.d.", "Internal-First Window Until")}</Label>
+                  <Input
+                    type="date"
+                    value={header.internalFirstUntil}
+                    disabled={header.internalOnly}
+                    onChange={(e) => setHeader({ ...header, internalFirstUntil: e.target.value })}
+                  />
+                  <p className="text-[10px] text-slate-400">
+                    {t(
+                      "Sebelum tanggal ini hanya terlihat karyawan (ESS), belum publik",
+                      "Before this date only visible to employees (ESS), not public yet",
+                    )}
+                  </p>
+                </div>
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label>{t("Konten Iklan", "Ad Content")}</Label>
                   <Textarea rows={3} value={header.content} onChange={(e) => setHeader({ ...header, content: e.target.value })}
@@ -819,6 +866,16 @@ export function OpeningsPage() {
                 <DialogTitle className="flex flex-wrap items-center gap-2">
                   <span className="font-mono">{viewRow.refNo}</span>
                   <JoPill status={viewRow.status} kind="jo" />
+                  {viewRow.internalOnly && (
+                    <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-400">
+                      {t("Khusus Internal", "Internal Only")}
+                    </span>
+                  )}
+                  {viewRow.internalFirstUntil && (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                      {t("Internal dulu s.d. {d}", "Internal-first until {d}", { d: fmtDay(viewRow.internalFirstUntil, locale) })}
+                    </span>
+                  )}
                   <span className="min-w-0 flex-1 truncate text-sm font-normal text-slate-500 dark:text-slate-400">{viewRow.title}</span>
                 </DialogTitle>
               </DialogHeader>
