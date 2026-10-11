@@ -59,6 +59,7 @@ import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service"
 import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webhook-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
+import { runRetention } from "@/rekankerja/recruitment/services/compliance-service";
 
 // ---------- konstanta & env flag ----------
 
@@ -1587,6 +1588,33 @@ async function jobRecruitmentReportDigest(db: TenantDb): Promise<ReportDigestSum
   return summary;
 }
 
+// ---------- F9-REC: job kepatuhan UU PDP ----------
+
+/**
+ * F9 — siklus retensi data pelamar (job recruitment-retention, harian):
+ * pelamar Rejected|Outdated melewati jendela retensi → anonimisasi
+ * (kecuali consent talent-pool aktif — ditahan). Dedupe klaim per HARI
+ * (siklus 6-jam tak mengulang); ringkasan "RetentionRun" 1×/hari di dalam
+ * runRetention. NEVER-THROW per tenant (guard Employed di dalam service).
+ */
+async function jobRecruitmentRetention(db: TenantDb): Promise<{ scanned: number; anonymized: number; skippedConsent: number }> {
+  const empty = { scanned: 0, anonymized: 0, skippedConsent: 0 };
+  try {
+    const key = `retention-run:${dayKey()}`;
+    const claimed = await claimReminder(
+      db,
+      key,
+      `Siklus retensi UU PDP dijalankan (${dayKey()})`,
+    );
+    if (!claimed) return empty; // sudah dijalankan hari ini
+    const r = await runRetention(db);
+    return { scanned: r.scanned, anonymized: r.anonymized, skippedConsent: r.skippedConsent };
+  } catch (e) {
+    console.warn(`[scheduler] recruitment-retention skip: ${e instanceof Error ? e.message : e}`);
+    return empty;
+  }
+}
+
 // ---------- orkestrasi per tenant ----------
 
 export interface SchedulerJobCounts {
@@ -1645,6 +1673,12 @@ export interface SchedulerJobCounts {
   metricsSnapshotRows: number;
   /** F8-REC — email ringkasan metrik mingguan terkirim (saved views weekly). */
   reportDigestsSent: number;
+  /** F9-REC — pelamar melewati jendela retensi yang dipindai job retention. */
+  retentionScanned: number;
+  /** F9-REC — pelamar dianonimkan oleh job retention (harian, consent-aware). */
+  retentionAnonymized: number;
+  /** F9-REC — pelamar ditahan job retention karena consent talent-pool aktif. */
+  retentionSkippedConsent: number;
 }
 
 export interface SchedulerRunResult {
@@ -1703,6 +1737,9 @@ export async function runAllJobs(
     digestEmails: 0,
     metricsSnapshotRows: 0,
     reportDigestsSent: 0,
+    retentionScanned: 0,
+    retentionAnonymized: 0,
+    retentionSkippedConsent: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1846,6 +1883,14 @@ export async function runAllJobs(
     const r = await jobRecruitmentReportDigest(db);
     jobs.reportDigestsSent = r.sent;
   });
+  // F9-REC — retensi UU PDP: anonimisasi pelamar Rejected/Outdated melewati
+  // jendela retensi (harian, klaim dedupe; consent talent-pool aktif menahan).
+  await guarded("recruitment-retention", async () => {
+    const r = await jobRecruitmentRetention(db);
+    jobs.retentionScanned = r.scanned;
+    jobs.retentionAnonymized = r.anonymized;
+    jobs.retentionSkippedConsent = r.skippedConsent;
+  });
 
   const totalJobs =
     jobs.resignTerminated +
@@ -1877,6 +1922,8 @@ export async function runAllJobs(
     (jobs.digestEmails > 0 ? `, ${jobs.digestEmails} ringkasan notifikasi harian terkirim` : "") +
     (jobs.metricsSnapshotRows > 0 ? `, ${jobs.metricsSnapshotRows} metrik disnapshot (F8)` : "") +
     (jobs.reportDigestsSent > 0 ? `, ${jobs.reportDigestsSent} ringkasan laporan mingguan terkirim` : "") +
+    (jobs.retentionAnonymized > 0 ? `, ${jobs.retentionAnonymized} pelamar dianonimkan (retensi UU PDP)` : "") +
+    (jobs.retentionScanned > 0 && jobs.retentionAnonymized === 0 ? `, retensi UU PDP: ${jobs.retentionScanned} dipindai, ${jobs.retentionSkippedConsent} ditahan consent` : "") +
     (mutexSkipped > 0 ? `, ${mutexSkipped} job dilewati (dipegang proses lain)` : "") +
     (errors.length > 0 ? ` — galat: ${errors.join("; ")}` : "");
   await writeActivity(db, { action: "Scheduled", entity: "Scheduler", detail: `${detail} (${tenant})` });

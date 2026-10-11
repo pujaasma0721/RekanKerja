@@ -297,6 +297,9 @@ const RECRUITMENT_NAV: NavGroup[] = [
     { id: "demographics", label: "Demografi & Segmen", icon: PieChart },
     // F8 — analitik & prediktif rekrutmen (recruitment:reports)
     { id: "reports", label: "Laporan", icon: BarChart3 },
+    // F9 — kepatuhan UU PDP: DSR, consent, retensi, audit PII
+    // (recruitment:compliance)
+    { id: "compliance", label: "Kepatuhan", icon: ShieldCheck },
   ] },
   { section: "recruitment", label: "Pengaturan Rekrutmen", children: [
     { id: "masters", label: "Master Rekrutmen", icon: Boxes },

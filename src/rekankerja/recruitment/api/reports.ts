@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
-import { toCsv, csvResponse, exportFilename, type ExportCell, type ExportColumn } from "@/rekankerja/shared/lib/export";
+import { toCsv, csvResponse, xlsxResponse, exportFilename, toXlsx, type ExportCell, type ExportColumn } from "@/rekankerja/shared/lib/export";
+import { PDFDocument, StandardFonts, rgb } from "@cantoo/pdf-lib";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import {
   getRecruitmentDashboard, getMetricsCatalog, getAdverseImpact, getProjections,
@@ -13,6 +14,8 @@ import {
 //   GET  ?section=dashboard|metrics|adverse-impact|projections|history[&metric=]
 //   GET  ?views=1                       → tampilan tersimpan MILIK AKTOR
 //   GET  ?export=dashboard|metrics|adverse-impact (op:export) → CSV
+//        &format=xlsx|pdf → Excel (exceljs, shared util) / PDF tabel (pdf-lib)
+//        — default csv (kompatibel mundur)
 //   POST { action: view-save|view-delete|view-schedule (op:views) }
 // SavedReportView selalu milik aktor (ownerId = actor.employeeId) — orang
 // lain tidak bisa mengubah/menghapus tampilan milik orang lain.
@@ -127,6 +130,130 @@ function adverseCsv(a: Awaited<ReturnType<typeof getAdverseImpact>>): { columns:
   return { columns, rows };
 }
 
+// ============ PDF tabel sederhana (pdf-lib — F8 amandemen: format CSV/XLSX/PDF) ============
+// A4 landscape, Helvetica, grid garis tipis, header bold abu — cukup untuk
+// laporan tabular internal (bukan surat resmi — itu jalur letter-service).
+// Sanitasi WinAnsi pola letter-service (karakter eksotis → "?").
+
+const PDF_CHAR_MAP: Record<string, string> = {
+  "\u2013": "-", "\u2014": "-", "\u2018": "'", "\u2019": "'", "\u201C": '"', "\u201D": '"',
+  "\u2026": "...", "\u00B7": "\u00B7", "\u2022": "-", "\u00A0": " ", "\u2212": "-",
+  "\u2264": "<=", "\u2265": ">=", "\u00D7": "x", "\u2011": "-",
+};
+
+function pdfSafe(text: string): string {
+  let out = "";
+  for (const ch of text) {
+    if (PDF_CHAR_MAP[ch] !== undefined) out += PDF_CHAR_MAP[ch];
+    else {
+      const code = ch.codePointAt(0) ?? 63;
+      out += code >= 0x20 && code <= 0xff ? ch : "?";
+    }
+  }
+  return out;
+}
+
+async function tablePdf(
+  title: string,
+  columns: ExportColumn[],
+  rows: ExportCell[][],
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.setTitle(pdfSafe(title));
+  doc.setCreator("RekanKerja HRIS");
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const A4L = { w: 841.89, h: 595.28 };
+  const margin = 32;
+  const fontSize = 7.5;
+  const headFontSize = 7.5;
+  const rowH = 16;
+  const headH = 20;
+  const INK = rgb(0.15, 0.18, 0.23);
+  const MUTED = rgb(0.45, 0.5, 0.56);
+
+  const cellText = (v: ExportCell): string =>
+    v === null || v === undefined ? "" : v instanceof Date ? v.toISOString().slice(0, 10) : String(v);
+
+  // lebar kolom proporsional width (fallback 16) dinormalisasi ke area cetak
+  const widths = columns.map((c) => c.width ?? 16);
+  const totalW = widths.reduce((a, b) => a + b, 0);
+  const printable = A4L.w - margin * 2;
+  const colW = widths.map((w) => (w / totalW) * printable);
+
+  const clip = (s: string, max: number, f: typeof font): string => {
+    if (f.widthOfTextAtSize(s, fontSize) <= max) return s;
+    let out = s;
+    while (out.length > 1 && f.widthOfTextAtSize(out + "...", fontSize) > max) {
+      out = out.slice(0, -1);
+    }
+    return out + "...";
+  };
+
+  let page = doc.addPage([A4L.w, A4L.h]);
+  let y = A4L.h - margin;
+  // judul laporan (sekali di halaman pertama)
+  page.drawText(pdfSafe(title), { x: margin, y: y - 10, size: 13, font: bold, color: INK });
+  y -= 30;
+
+  const drawHeader = () => {
+    let x = margin;
+    page.drawRectangle({
+      x: margin, y: y - headH + 5, width: printable, height: headH - 2,
+      color: rgb(0.93, 0.94, 0.96),
+    });
+    columns.forEach((c, i) => {
+      page.drawText(pdfSafe(clip(c.header, colW[i] - 6, bold)), {
+        x: x + 3, y: y - headH + 11, size: headFontSize, font: bold, color: INK,
+      });
+      x += colW[i];
+    });
+    y -= headH;
+  };
+  drawHeader();
+
+  for (const r of rows) {
+    if (y < margin + rowH + 12) { // halaman baru: ulangi header tabel
+      page = doc.addPage([A4L.w, A4L.h]);
+      y = A4L.h - margin;
+      drawHeader();
+    }
+    let x = margin;
+    r.forEach((cell, i) => {
+      page.drawText(pdfSafe(clip(cellText(cell), colW[i] - 6, font)), {
+        x: x + 3, y: y - rowH + 4, size: fontSize, font, color: MUTED,
+      });
+      x += colW[i];
+    });
+    y -= rowH;
+    // garis pemisah tipis antar baris
+    page.drawLine({
+      start: { x: margin, y: y + rowH - 2 }, end: { x: A4L.w - margin, y: y + rowH - 2 },
+      thickness: 0.4, color: rgb(0.87, 0.89, 0.91),
+    });
+  }
+
+  // footer kecil: stamp cetak
+  const pages = doc.getPages();
+  pages.forEach((p, i) => {
+    p.drawText(pdfSafe(`${title} — ${new Date().toLocaleDateString("id-ID")} · ${i + 1}/${pages.length}`), {
+      x: margin, y: 18, size: 6.5, font, color: MUTED,
+    });
+  });
+
+  return doc.save();
+}
+
+function pdfResponse(bytes: Uint8Array, filename: string): NextResponse {
+  return new NextResponse(new Uint8Array(bytes), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
 // ============ GET ============
 
 export async function GET(req: NextRequest) {
@@ -134,18 +261,34 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams;
     const exportSection = sp.get("export");
 
-    // ---- export CSV (guard op:export) ----
+    // ---- export CSV/XLSX/PDF (guard op:export; default csv — kompatibel mundur) ----
     if (exportSection) {
       const m = await requireMenuAction(req, "recruitment:reports", "op:export");
       if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
       const db = m.db;
+      const format = (sp.get("format") ?? "csv").toLowerCase();
+      if (format !== "csv" && format !== "xlsx" && format !== "pdf") {
+        return NextResponse.json({ error: `Format ekspor tidak dikenal: ${format} (csv|xlsx|pdf)` }, { status: 400 });
+      }
       let built: { columns: ExportColumn[]; rows: ExportCell[][] } | null = null;
       let name = "";
-      if (exportSection === "dashboard") { built = dashboardCsv(await getRecruitmentDashboard(db)); name = "rekankerja-reports-dashboard"; }
-      else if (exportSection === "metrics") { built = metricsCsv(await getMetricsCatalog(db)); name = "rekankerja-reports-metrics"; }
-      else if (exportSection === "adverse-impact") { built = adverseCsv(await getAdverseImpact(db)); name = "rekankerja-reports-adverse-impact"; }
+      let titleId = "";
+      if (exportSection === "dashboard") { built = dashboardCsv(await getRecruitmentDashboard(db)); name = "rekankerja-reports-dashboard"; titleId = "Dashboard Rekrutmen"; }
+      else if (exportSection === "metrics") { built = metricsCsv(await getMetricsCatalog(db)); name = "rekankerja-reports-metrics"; titleId = "Katalog Metrik Rekrutmen"; }
+      else if (exportSection === "adverse-impact") { built = adverseCsv(await getAdverseImpact(db)); name = "rekankerja-reports-adverse-impact"; titleId = "Adverse Impact 4/5ths"; }
       else return NextResponse.json({ error: `Bagian ekspor tidak dikenal: ${exportSection}` }, { status: 400 });
-      return csvResponse(toCsv(built.columns, built.rows, "id"), exportFilename(name, "csv"));
+      const lang = sp.get("lang") === "en" ? "en" : "id";
+      if (format === "xlsx") {
+        // nama sheet Excel tak boleh mengandung * ? : \ / [ ] — sanitasi ringan
+        const sheetName = titleId.replace(/[*?:\\/\[\]]/g, "-").slice(0, 31);
+        const buf = await toXlsx(sheetName, built.columns, built.rows, { title: titleId, lang });
+        return xlsxResponse(buf, exportFilename(name, "xlsx"));
+      }
+      if (format === "pdf") {
+        const bytes = await tablePdf(titleId, built.columns, built.rows);
+        return pdfResponse(bytes, exportFilename(name, "pdf"));
+      }
+      return csvResponse(toCsv(built.columns, built.rows, lang), exportFilename(name, "csv"));
     }
 
     // ---- section JSON (guard view) ----

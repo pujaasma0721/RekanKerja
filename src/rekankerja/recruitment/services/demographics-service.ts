@@ -151,10 +151,21 @@ export async function applicantDemographics(db: TenantDb): Promise<DemographicsD
     ).length,
   };
 
-  // silver medalist: Passed tanpa pengangkatan (auto-saran talent pool)
+  // silver medalist: Passed tanpa pengangkatan (auto-saran talent pool).
+  // F9 (UU PDP): pelamar yang menarik consent "talent-pool" (ada & sudah
+  // ditarik) TIDAK lagi disarankan; pelamar Anonymized juga dikeluarkan.
   const silverWhere: Prisma.JobCandidateWhereInput = {
     status: "Passed",
     appointments: { none: {} },
+    OR: [
+      { applicantId: null }, // kandidat internal — tidak ada data pelamar
+      {
+        applicant: {
+          status: { not: "Anonymized" },
+          consents: { none: { purpose: "talent-pool", withdrawnAt: { not: null } } },
+        },
+      },
+    ],
   };
   const silverRows = await db.jobCandidate.findMany({
     where: silverWhere,

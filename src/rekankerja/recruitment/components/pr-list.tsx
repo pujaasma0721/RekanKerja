@@ -32,9 +32,25 @@ import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
   UserPlus, Search, Send, Ban, PauseCircle, PlayCircle, XCircle, Copy, MoreHorizontal,
   Pencil, Trash2, Eye, ChevronLeft, ChevronRight, FileSpreadsheet, Wallet, Clock3, CalendarRange,
+  AlertTriangle, Info,
 } from "lucide-react";
 
 const PAGE_SIZE = 10;
+
+// F8 — bentuk ringkas payload ?section=projections (hanya field yang dipakai).
+interface ProjectionsLite {
+  positions: { position: string; avgFillDays: number | null; sampleSize: number }[];
+  atRisk: AtRiskLite[];
+  globalAvgDays: number | null;
+  method: string;
+}
+interface AtRiskLite {
+  prNo: string;
+  positionTitle: string | null;
+  ageDays: number;
+  projection: number;
+  overdueFactor: number;
+}
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -158,6 +174,21 @@ export function PrListPage() {
   const api = useApi<ListResp>(url, [url]);
   const optionsApi = useApi<PrOptions>("/api/rekankerja/recruitment/pr-options");
   const opts = optionsApi.data;
+
+  // F8 — proyeksi time-to-fill per posisi (endpoint reports; bila aktor tanpa
+  // menu Laporan → 403 → kolom turun menjadi "—" — degradasi angun, tak error).
+  const projApi = useApi<{ projections: ProjectionsLite }>("/api/rekankerja/recruitment/reports?section=projections");
+  const proj = projApi.data?.projections ?? null;
+  const avgByPos = useMemo(() => {
+    const m = new Map<string, number>();
+    (proj?.positions ?? []).forEach((p) => { if (p.avgFillDays != null) m.set(p.position, p.avgFillDays); });
+    return m;
+  }, [proj]);
+  const atRiskByPr = useMemo(() => {
+    const m = new Map<string, AtRiskLite>();
+    (proj?.atRisk ?? []).forEach((a) => m.set(a.prNo, a));
+    return m;
+  }, [proj]);
 
   const rows = api.data?.rows ?? [];
   const total = api.data?.total ?? 0;
@@ -373,6 +404,12 @@ export function PrListPage() {
                     <TableHead>{t("Status", "Status")}</TableHead>
                     <TableHead className="hidden lg:table-cell">{t("Approval", "Approval")}</TableHead>
                     <TableHead className="hidden xl:table-cell">{t("Anggaran", "Budget")}</TableHead>
+                    <TableHead className="hidden xl:table-cell">
+                      {t("Proyeksi TTF", "Projected TTF")}
+                      <span className="ml-1 font-normal text-slate-400" title={t("Rata-rata historis posisi ini (bukan ML)", "Historical average for this position (not ML)")}>
+                        <Info className="inline h-3 w-3" aria-hidden />
+                      </span>
+                    </TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -415,6 +452,38 @@ export function PrListPage() {
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
                         )}
+                      </TableCell>
+                      <TableCell className="hidden xl:table-cell">
+                        {(() => {
+                          // hanya PR yang masih terbuka relevan utk proyeksi
+                          const open = ["Draft", "Submitted", "Approved", "OnHold"].includes(r.status);
+                          if (!open) return <span className="text-xs text-slate-400">—</span>;
+                          const risk = atRiskByPr.get(r.prNo);
+                          const avg = (r.positionTitle != null ? avgByPos.get(r.positionTitle) : undefined) ?? proj?.globalAvgDays ?? null;
+                          if (risk) {
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1.5"
+                                title={t(
+                                  `Umur ${risk.ageDays} hari vs proyeksi ${risk.projection} hari (>${(risk.overdueFactor).toFixed(1)}×)`,
+                                  `Age ${risk.ageDays}d vs projection ${risk.projection}d (>${(risk.overdueFactor).toFixed(1)}×)`,
+                                )}
+                              >
+                                <Badge className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                                  <AlertTriangle className="mr-1 h-3 w-3" aria-hidden />
+                                  {(risk.overdueFactor).toFixed(1)}×
+                                </Badge>
+                                <span className="text-xs text-slate-500 dark:text-slate-400">{t("berisiko", "at risk")}</span>
+                              </span>
+                            );
+                          }
+                          if (avg == null) return <span className="text-xs text-slate-400">{t("baru", "new")}</span>;
+                          return (
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-500 tabular-nums dark:text-slate-400" title={t("Estimasi hari hingga terisi (rata-rata historis)", "Estimated days to fill (historical average)")}>
+                              <CalendarRange className="h-3.5 w-3.5 text-slate-400" aria-hidden /> ~{avg} {t("hari", "days")}
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>

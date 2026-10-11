@@ -318,7 +318,10 @@ export async function listApplicants(
   const tc = tenantCryptoForDb(db);
 
   const where: Prisma.ApplicantWhereInput = {};
-  if (opts.status && APPLICANT_STATUSES.includes(opts.status as ApplicantStatus)) where.status = opts.status;
+  // F9 — "Anonymized" sah sbg FILTER list (bukan input create — di luar
+  // APPLICANT_STATUSES supaya HR tidak bisa membuat pelamar Anonymized manual)
+  const listStatuses = [...APPLICANT_STATUSES, "Anonymized"] as const;
+  if (opts.status && (listStatuses as readonly string[]).includes(opts.status)) where.status = opts.status;
   const q = opts.q?.trim();
   if (q) {
     where.OR = [

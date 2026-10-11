@@ -356,6 +356,9 @@ model Employee {
   // F8-REC — analitik: tampilan laporan tersimpan milik karyawan ini
   savedReportViews   SavedReportView[]         @relation("SavedReportViewOwner")
 
+  // F9-REC — compliance: penangan DSR pelamar
+  dsrHandled       DataSubjectRequest[]      @relation("DsrHandler")
+
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
   @@index([status])
@@ -3595,6 +3598,8 @@ model Applicant {
   candidates       JobCandidate[]     @relation("ApplicantCandidates")
   // F6-REC — hasil parsing CV (AI/manual/simulated) milik pelamar ini
   cvParses         CvParseResult[]    @relation("ApplicantCvParses")
+  // F9-REC — permintaan subjek data (UU PDP) milik pelamar ini
+  dsrRequests      DataSubjectRequest[] @relation("ApplicantDsr")
 
   @@index([status])
   @@index([keepOnFileUntil])
@@ -4351,4 +4356,35 @@ model SavedReportView {
   owner Employee @relation("SavedReportViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId])
+}
+
+// ============================================================================
+// RECRUITMENT — F9: COMPLIANCE HARDENING UU PDP (DEVELOPMENT-PLAN-RECRUITMENT.md
+// §7 F9 — HRX I; No. 27/2022)
+//
+// • DataSubjectRequest (DSR): permintaan subjek data pelamar — akses /
+//   ekspor / hapus — dengan SLA (dueAt 7 hari), penanganan ter-audit, dan
+//   resultNote berisi jejak paket/tindakan.
+// • Consent ledger & retensi memakai model yang sudah ada: ApplicantConsent
+//   (withdrawal = withdrawnAt — F2) + RecruitmentSetting (retention.*) — F7.
+// ============================================================================
+
+model DataSubjectRequest {
+  id          String    @id @default(cuid())
+  applicantId String
+  type        String // Access | Export | Erase
+  status      String    @default("New") // New | InProgress | Completed | Rejected
+  note        String? // permintaan/klarifikasi dari pelamar (via HR)
+  dueAt       DateTime // SLA (default +7 hari)
+  handledById String? // Employee penangan
+  handledAt   DateTime?
+  resultNote  String? // ringkasan tindakan (paket diunduh / data dianonimkan / alasan tolak)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  applicant Applicant @relation("ApplicantDsr", fields: [applicantId], references: [id], onDelete: Cascade)
+  handledBy Employee? @relation("DsrHandler", fields: [handledById], references: [id])
+
+  @@index([status, dueAt])
+  @@index([applicantId])
 }

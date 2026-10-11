@@ -23,11 +23,12 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
-  AlertTriangle, BarChart3, CalendarClock, CheckCircle2, Clock, Coins, Download, Filter, Gauge,
+  AlertTriangle, BarChart3, CalendarClock, CheckCircle2, ChevronDown, Clock, Coins, Download, FileSpreadsheet, FileText, Filter, Gauge,
   Info, Save, Scale, Target, Trash2, TrendingUp, UsersRound,
 } from "lucide-react";
 
@@ -176,18 +177,42 @@ function RateBar({ rate }: { rate: number | null }) {
   );
 }
 
-// ============ tombol unduh CSV (anchor biasa — cookie sesi ikut) ============
+// ============ tombol unduh (anchor biasa — cookie sesi ikut) ============
 
-function CsvAnchor({ href, label, title }: { href: string; label: string; title: string }) {
+/** Menu unduh multi-format (F8 spec: CSV/XLSX/PDF) — dropdown ringkas. */
+function ExportMenu({ section, lang, title }: { section: "dashboard" | "metrics" | "adverse-impact"; lang: string; title: string }) {
+  const { t } = useI18n();
   return (
-    <a
-      href={href}
-      aria-label={title}
-      title={title}
-      className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-slate-900 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
-    >
-      <Download className="h-4 w-4" aria-hidden /> {label}
-    </a>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={title}
+          title={title}
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-slate-900 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
+        >
+          <Download className="h-4 w-4" aria-hidden /> {t("Unduh", "Download")}
+          <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem asChild>
+          <a href={`${REPORTS_API}?export=${section}&format=csv&lang=${lang}`} className="cursor-pointer">
+            <FileSpreadsheet className="h-4 w-4" aria-hidden /> {t("CSV (Excel ID \";\")", "CSV")}
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href={`${REPORTS_API}?export=${section}&format=xlsx&lang=${lang}`} className="cursor-pointer">
+            <FileSpreadsheet className="h-4 w-4" aria-hidden /> {t("Excel (.xlsx)", "Excel (.xlsx)")}
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href={`${REPORTS_API}?export=${section}&format=pdf&lang=${lang}`} className="cursor-pointer">
+            <FileText className="h-4 w-4" aria-hidden /> {t("PDF", "PDF")}
+          </a>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -210,7 +235,6 @@ export function ReportsPage() {
   // ---------- gating (mirror guard server: op export/views) ----------
   const canExport = perms.canOp("recruitment", "reports", "export");
   const canViews = perms.canOp("recruitment", "reports", "views");
-
   // ---------- data (semua seksi dimuat sekali — data demo kecil) ----------
   const dashApi = useApi<{ dashboard: DashboardUI }>(`${REPORTS_API}?section=dashboard`);
   const metricsApi = useApi<{ metrics: MetricItemUI[] }>(`${REPORTS_API}?section=metrics`);
@@ -223,9 +247,6 @@ export function ReportsPage() {
   const adverse = adverseApi.data?.adverseImpact ?? null;
   const proj = projApi.data?.projections ?? null;
   const views = viewsApi.data?.views ?? null;
-
-  const exportHref = (section: "dashboard" | "metrics" | "adverse-impact") =>
-    `${REPORTS_API}?export=${section}&lang=${lang}`;
 
   // ---------- form simpan tampilan ----------
   const [viewName, setViewName] = useState("");
@@ -550,10 +571,10 @@ export function ReportsPage() {
                     {t("Funnel Rekrutmen", "Recruitment Funnel")}
                     {canExport && (
                       <div className="ml-auto">
-                        <CsvAnchor
-                          href={exportHref("dashboard")}
-                          label={t("Unduh CSV", "Download CSV")}
-                          title={t("Unduh dashboard rekrutmen sebagai CSV", "Download the recruitment dashboard as CSV")}
+                        <ExportMenu
+                          section="dashboard"
+                          lang={lang}
+                          title={t("Unduh dashboard rekrutmen (CSV/Excel/PDF)", "Download the recruitment dashboard (CSV/Excel/PDF)")}
                         />
                       </div>
                     )}
@@ -621,10 +642,10 @@ export function ReportsPage() {
                   )}
                 </p>
                 {canExport && (
-                  <CsvAnchor
-                    href={exportHref("metrics")}
-                    label={t("Unduh CSV", "Download CSV")}
-                    title={t("Unduh katalog metrik sebagai CSV", "Download the metrics catalog as CSV")}
+                  <ExportMenu
+                    section="metrics"
+                    lang={lang}
+                    title={t("Unduh katalog metrik (CSV/Excel/PDF)", "Download the metrics catalog (CSV/Excel/PDF)")}
                   />
                 )}
               </div>
@@ -701,10 +722,10 @@ export function ReportsPage() {
                     {t("Aturan 4/5ths (EEOC)", "4/5ths Rule (EEOC)")}
                     {canExport && (
                       <div className="ml-auto">
-                        <CsvAnchor
-                          href={exportHref("adverse-impact")}
-                          label={t("Unduh CSV", "Download CSV")}
-                          title={t("Unduh adverse impact sebagai CSV", "Download adverse impact as CSV")}
+                        <ExportMenu
+                          section="adverse-impact"
+                          lang={lang}
+                          title={t("Unduh adverse impact (CSV/Excel/PDF)", "Download adverse impact (CSV/Excel/PDF)")}
                         />
                       </div>
                     )}

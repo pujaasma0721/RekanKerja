@@ -9,6 +9,7 @@ import {
   applyToOpening, deleteApplicant,
   type ApplicantInput, type EduInput, type ExpInput, type SkillInput,
 } from "@/rekankerja/recruitment/services/applicant-service";
+import { logPiiAccess } from "@/rekankerja/recruitment/services/compliance-service";
 
 // ============================================================================
 // RECRUITMENT F2 — API Applicant (talent pool + query builder)
@@ -36,6 +37,11 @@ export async function GET(req: NextRequest) {
     if (id) {
       const row = await getApplicant(db, id, mv.canSee);
       if (!row) return NextResponse.json({ error: "Pelamar tidak ditemukan" }, { status: 404 });
+      // F9 (UU PDP) — audit akses PII: GET detail membuka data pribadi penuh
+      // (email/telepon/alamat) → dicatat siapa mengakses kapan. Fire-and-forget
+      // (kegagalan log tidak memblokir baca). LIST tidak dicatat — hanya
+      // menampilkan versi topeng (minimisasi).
+      void logPiiAccess(db, { employeeId: m.actor.employeeId, applicantId: id, what: "detail-view" }).catch(() => {});
       return NextResponse.json({ row });
     }
 

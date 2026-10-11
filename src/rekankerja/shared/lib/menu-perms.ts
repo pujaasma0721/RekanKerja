@@ -173,6 +173,13 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "views", label: "Mengelola tampilan tersimpan", hint: "Menyimpan/menghapus/jadwal tampilan laporan pribadi (ringkasan email mingguan)" },
   ],
 
+  // Recruitment F9 — kepatuhan UU PDP (DSR, consent, retensi, audit PII)
+  "recruitment:compliance": [
+    { key: "handle", label: "Menangani DSR & consent", hint: "Membuat/memproses permintaan subjek data (akses/ekspor/hapus) dan menarik consent pelamar" },
+    { key: "retention", label: "Menjalankan retensi data", hint: "Menjalankan siklus anonimisasi retensi dan mengubah pengaturan retensi (bulan per status, dry-run)" },
+    { key: "export", label: "Mengunduh paket data & audit PII", hint: "Mengunduh paket data pelamar (DSR ekspor) dan log akses data pribadi (CSV)" },
+  ],
+
   // Travel
   "travel:travel-request": [{ key: "cancel", label: "Membatalkan permintaan travel", hint: "Membatalkan permintaan perjalanan dinas" }],
   "travel:travel-approval": [{ key: "approve", label: "Menyetujui / menolak travel", hint: "Aksi Setujui & Tolak pada persetujuan travel" }],

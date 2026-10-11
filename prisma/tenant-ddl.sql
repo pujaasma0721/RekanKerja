@@ -3145,6 +3145,23 @@ CREATE TABLE "SavedReportView" (
     CONSTRAINT "SavedReportView_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "DataSubjectRequest" (
+    "id" TEXT NOT NULL,
+    "applicantId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'New',
+    "note" TEXT,
+    "dueAt" TIMESTAMP(3) NOT NULL,
+    "handledById" TEXT,
+    "handledAt" TIMESTAMP(3),
+    "resultNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "DataSubjectRequest_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -3919,6 +3936,12 @@ CREATE UNIQUE INDEX "MetricSnapshot_metric_period_dimsJson_key" ON "MetricSnapsh
 -- CreateIndex
 CREATE INDEX "SavedReportView_ownerId_idx" ON "SavedReportView"("ownerId");
 
+-- CreateIndex
+CREATE INDEX "DataSubjectRequest_status_dueAt_idx" ON "DataSubjectRequest"("status", "dueAt");
+
+-- CreateIndex
+CREATE INDEX "DataSubjectRequest_applicantId_idx" ON "DataSubjectRequest"("applicantId");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -4593,4 +4616,10 @@ ALTER TABLE "EsignRequest" ADD CONSTRAINT "EsignRequest_requestedById_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "SavedReportView" ADD CONSTRAINT "SavedReportView_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataSubjectRequest" ADD CONSTRAINT "DataSubjectRequest_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataSubjectRequest" ADD CONSTRAINT "DataSubjectRequest_handledById_fkey" FOREIGN KEY ("handledById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
