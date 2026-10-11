@@ -30,6 +30,7 @@ import {
 import {
   createApplicant, applyToOpening, submitPublicApplication, verifyPublicApplication,
 } from "@/rekankerja/recruitment/services/applicant-service";
+import { createPr, applyPr, decidePr } from "@/rekankerja/recruitment/services/pr-service";
 
 const DEFAULT_SCHEMAS = async () => {
   const tenants = await platform.tenant.findMany({ select: { schemaName: true } });
@@ -319,19 +320,96 @@ async function seedDemoF2(schema: string): Promise<string> {
   const locations = await db.workLocation.findMany({ select: { id: true, name: true } });
   const skillId = (code: string) => skills.find((s) => s.code === code)?.id ?? null;
 
-  // PR Approved yang belum punya slot (urut nomor)
+  const days = (n: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+
+  // ---- 0) PR pendukung (fresh restore): PR-0004..0008 via jalur produksi ----
+  // Saat F2 dikembangkan, PR-0004..0008 berasal dari pengujian UI era F1 —
+  // fresh restore f0→f5 tidak memilikinya (penomoran docNo sekuensial).
+  // Dibuat di sini supaya slot JO#2 (PR-0004) & JO#3 (PR-0008) TERSEDIA,
+  // dan lookup demo F4 (prNo eksak PR-2026-0004/0008 + slot JO#2) terpenuhi.
+  // Idempoten: hanya dibuat bila PR tahun berjalan belum mencapai urutan ke-8.
+  const year = new Date().getFullYear();
+  const prSeq = await db.personnelRequisition.count();
+  if (prSeq < 8) {
+    const emps0 = await db.employee.findMany({ where: { status: "Active" }, select: { id: true }, orderBy: { employeeNo: "asc" }, take: 2 });
+    const hrd0 = await db.appUser.findFirst({ where: { email: "hrd@mii.co.id" }, select: { employeeId: true } });
+    const positionsAll = await db.position.findMany({ where: { active: true }, select: { id: true, title: true, orgUnitId: true }, orderBy: { code: "asc" } });
+    const byTitle = (frag: string) => positionsAll.find((p) => p.title.toLowerCase().includes(frag));
+    const accPos = byTitle("accountant") ?? positionsAll[0]!;
+    const ceoPos = byTitle("chief executive") ?? positionsAll[0]!;
+    const otherPos = positionsAll[3] ?? accPos;
+    const requester = hrd0?.employeeId ?? emps0[0]?.id ?? null;
+    const hrActor = { role: "HR" as const, employeeId: hrd0?.employeeId ?? emps0[0]?.id ?? null, name: "Demo HR (seed)" };
+    if (requester) {
+      const mkPr = (o: {
+        positionId: string | null; orgUnitId?: string | null; requiredNo?: number; employmentStatus?: string;
+        preferredSource?: string; reason: string; miscSpec?: string | null; additionalQualification?: string | null;
+        salaryBudget?: number | null; slaTargetDays?: number | null;
+      }) => createPr(db, {
+        requestDate: new Date().toISOString().slice(0, 10),
+        requestedById: requester,
+        positionId: o.positionId, orgUnitId: o.orgUnitId ?? null,
+        requiredNo: o.requiredNo ?? 1, employmentStatus: o.employmentStatus ?? "Permanent",
+        preferredSource: o.preferredSource ?? "Any",
+        earliestDate: days(7), latestDate: days(60),
+        reason: o.reason, miscSpec: o.miscSpec ?? null, additionalQualification: o.additionalQualification ?? null,
+        salaryBudget: o.salaryBudget ?? null, autoPostOpening: false, slaTargetDays: o.slaTargetDays ?? 35,
+      }, { submit: false, actorName: "Demo Seed F2" });
+
+      // PR#4 — Accountant Approved (slot JO#2 Posted; offer Rina di demo F4)
+      const p4 = await mkPr({
+        positionId: accPos.id, orgUnitId: accPos.orgUnitId, preferredSource: "External",
+        reason: "Ekspansi tim keuangan — penutupan buku kuartal baru & compliance reporting.",
+        additionalQualification: "D3/S1 Akuntansi; Familiar SAP/Jurnalid.",
+        salaryBudget: 8_000_000,
+      });
+      await applyPr(db, p4.id, "Demo Seed F2");
+      await decidePr(db, { id: p4.id, action: "approve", note: "Disetujui — buka slot lowongan.", actor: hrActor });
+      // PR#5 — ditolak (alasan budget — variasi status demo)
+      const p5 = await mkPr({
+        positionId: otherPos.id, orgUnitId: otherPos.orgUnitId,
+        reason: "Permintaan tambahan operator line 2 — efisiensi belum terbukti.",
+        salaryBudget: 4_000_000,
+      });
+      await applyPr(db, p5.id, "Demo Seed F2");
+      await decidePr(db, { id: p5.id, action: "reject", note: "Budget tahun berjalan tidak mencukupi — ajukan ulang Q1.", actor: hrActor });
+      // PR#6 — Submitted (chain approval hidup menunggu approver)
+      const p6 = await mkPr({
+        positionId: otherPos.id, orgUnitId: otherPos.orgUnitId,
+        reason: "Rotasi pengampu gudang bahan baku kawasan timur.",
+        miscSpec: "Siap lembur akhir bulan.", slaTargetDays: 30,
+      });
+      await applyPr(db, p6.id, "Demo Seed F2");
+      // PR#7 — Draft (belum diajukan)
+      await mkPr({
+        positionId: accPos.id, orgUnitId: accPos.orgUnitId,
+        reason: "Cadangan analis pajak — menunggu hasil reorg divisi finance.",
+      });
+      // PR#8 — CEO Approved (slot JO#3 Draft; siklus penuh Siti di demo F4)
+      const p8 = await mkPr({
+        positionId: ceoPos.id, orgUnitId: ceoPos.orgUnitId, preferredSource: "External",
+        reason: "Penambahan co-CEO lini operasional — persiapan ekspansi kawasan timur.",
+        miscSpec: "Executive search — discretional, via agency.",
+        additionalQualification: "Min. 15 tahun manufaktur; pengalaman regional.",
+        salaryBudget: 25_000_000, slaTargetDays: 60,
+      });
+      await applyPr(db, p8.id, "Demo Seed F2");
+      await decidePr(db, { id: p8.id, action: "approve", note: "Disetujui direksi — executive search dimulai.", actor: hrActor });
+    }
+  }
+
+  // PR Approved yang belum punya slot (urut nomor) — di-query SETELAH seksi-0
+  // supaya PR-0004/PR-0008 yang baru dibuat ikut terpilih sbg slot JO#2/JO#3.
   const prs = await db.personnelRequisition.findMany({
     where: { status: "Approved" },
     select: { id: true, prNo: true, autoPostOpening: true, position: { select: { title: true } } },
     orderBy: { prNo: "asc" },
   });
   if (prs.length < 1) return "";
-
-  const days = (n: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + n);
-    return d.toISOString().slice(0, 10);
-  };
 
   // ---- 1) JO#1 — AUTO-POST dari PR Approved + autoPostOpening (jalur produksi) ----
   const autoPr = prs.find((p) => p.autoPostOpening) ?? prs[0]!;
@@ -475,6 +553,21 @@ async function seedDemoF2(schema: string): Promise<string> {
     skills: [],
   }, "Demo Seed F2");
 
+  // Siti — kandidat executive (dibutuhkan demo F4: siklus penuh offer→accept→
+  // pengangkatan→onboarding di PR-2026-0008; plan F5 mencatatnya sbg inE).
+  await createApplicant(db, {
+    firstName: "Siti", lastName: "Rahmawati",
+    dateApplied: days(-10), expectedSalary: 20_000_000, source: "Agency",
+    email: "siti.rahmawati@example.com", phone: "081234500010", city: "Jakarta",
+    birthDate: "1989-12-01", gender: "P",
+    notes: "Kandidat executive — direkomendasikan search agency; portofolio transformasi operasional.",
+    educations: [{ level: "S2", fieldOfStudy: "Manajemen", institution: "Universitas Indonesia", graduationYear: 2015, gpa: 3.7 }],
+    experiences: [
+      { company: "PT Nusantara Holdings", position: "Chief of Staff", field: "Manajemen", startYear: 2016, endYear: null, months: 108 },
+    ],
+    skills: [{ skillId: skillId("INGGRIS_LISAN")!, level: "Expert" }],
+  }, "Demo Seed F2");
+
   // ---- 5) lamaran slot (multi-lamar) ----
   if (slot2Id) {
     await applyToOpening(db, { applicantId: dewi.id, jobOpeningId: slot2Id, sourceNote: "Diteruskan dari seleksi berkas" }, "Demo Seed F2");
@@ -503,8 +596,9 @@ async function seedDemoF2(schema: string): Promise<string> {
   });
   await verifyPublicApplication(db, tenantSlug, { id: fajar.id, action: "verify", actor });
 
-  // 6b. Gita — pending (menunggu verifikasi HR) + CV
-  await submitPublicApplication(db, tenantSlug, {
+  // 6b. Gita — pending → DIVERIFIKASI (jadi pelamar — dibutuhkan demo F3:
+  // cerita divergensi 2 evaluator; staging tetap punyaRejected+Spam sbg variasi)
+  const gita2 = await submitPublicApplication(db, tenantSlug, {
     jobOpeningId: slot2Id,
     payload: {
       firstName: "Gita", lastName: "Savitri",
@@ -517,6 +611,7 @@ async function seedDemoF2(schema: string): Promise<string> {
     },
     cv: { buffer: demoCvPdf("Gita Savitri"), fileName: "CV Gita Savitri.pdf", mimeType: "application/pdf" },
   });
+  await verifyPublicApplication(db, tenantSlug, { id: gita2.id, action: "verify", actor });
 
   // 6c. Rudi — pending → DITOLAK dengan alasan
   const rudi = await submitPublicApplication(db, tenantSlug, {
@@ -541,7 +636,7 @@ async function seedDemoF2(schema: string): Promise<string> {
     spam: true,
   });
 
-  return `${prs.length} PR → 3 JO (2 Posted + 1 Draft), 6 pelamar + 4 lamaran slot, staging: 1 Pending+CV / 1 Verified / 1 Rejected / 1 Spam`;
+  return `${prs.length} PR Approved → 3 JO (2 Posted + 1 Draft), 7 pelamar + 4 lamaran slot, staging: 2 Verified (Fajar+Gita) / 1 Rejected / 1 Spam`;
 }
 
 export async function main(schemas?: string[]): Promise<void> {

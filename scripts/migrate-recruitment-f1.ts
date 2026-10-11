@@ -187,7 +187,11 @@ async function seedDemoPrs(schema: string): Promise<number> {
     miscSpec: "Menggunakan mobil dinas perusahaan.",
     additionalQualification: "Minimal 2 tahun pengalaman B2B sales industri manufaktur.",
     salaryBudget: 8_500_000,
-    autoPostOpening: true, slaTargetDays: 40,
+    // auto-post SENGAJA false: JO utk PR ini dibuat oleh demo F2 lewat jalur
+    // produksi autoPostForApprovedPr (agar kanal WEBPORTAL+ADVERT ikut ter-seed
+    // dan guard demo F2 [jobOpportunity kosong] tidak tercuri oleh side-effect
+    // approve di sini — pelajaran fresh-restore 2026-10-11).
+    autoPostOpening: false, slaTargetDays: 40,
   }, { submit: false, actorName: "Demo Seed F1" });
   await applyPr(db, approved.id, "Demo Seed F1");
   await decidePr(db, {
