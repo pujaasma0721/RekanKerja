@@ -957,6 +957,44 @@ Demikian surat ini kami sampaikan. Atas perhatian dan kerja sama Anda sepanjang 
 {{signatory_name}}
 {{signatory_title}}`,
   },
+  // ---------------- PIP (P6-PERF — §33 alur 9) ----------------
+  {
+    key: "SK_PIP",
+    category: "Performance",
+    name: "SK Program Perbaikan Kinerja",
+    description: "Surat keputusan pembukaan Program Perbaikan Kinerja 1–3 bulan — diterbitkan otomatis saat PIP disetujui penuh (menu Performance · PIP).",
+    subject: "Surat Keputusan Program Perbaikan Kinerja",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Surat Keputusan — Program Perbaikan Kinerja (PIP)
+
+Kepada Yth.
+Bapak/Ibu {{employee_name}}
+NIK {{employee_no}}
+{{employee_position}} — {{employee_org_unit}}
+
+Berdasarkan hasil penilaian kinerja periode berjalan, dengan ini perusahaan menetapkan Saudara/i mengikuti Program Perbaikan Kinerja (Performance Improvement Plan) dengan ketentuan sebagai berikut:
+
+    Dokumen PIP     : {{pip_doc_no}}
+    Periode program : {{pip_start_date}} s.d. {{pip_end_date}}
+    Pembina         : {{pip_reviewer_name}}
+
+Sasaran perbaikan yang harus dicapai selama program berlangsung:
+
+{{pip_targets_summary}}
+
+Saudara/i wajib mengikuti seluruh tahapan program, termasuk evaluasi berkala (checkpoint) pada setiap tahap sesuai jadwal yang ditetapkan. Hasil akhir program akan dievaluasi berdasarkan pencapaian sasaran di atas. Apabila terdapat hal yang ingin didiskusikan, silakan menghubungi pembina atau bagian HRD.
+
+Demikian surat keputusan ini kami sampaikan untuk dilaksanakan sebagaimana mestinya.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
 ];
 
 // ---------------- KATALOG PLACEHOLDER (untuk editor + mesin render) ----------------
@@ -1006,6 +1044,11 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholderGroup[] = [
       { token: "final_rating", desc: "Rating akhir (1–5)" },
       { token: "final_rating_label", desc: "Label rating (mis. Baik)" },
       { token: "period_label", desc: "Label periode penilaian (mis. 2026)" },
+      { token: "pip_doc_no", desc: "Nomor dokumen PIP (PIP-…)" },
+      { token: "pip_start_date", desc: "Tanggal mulai program PIP" },
+      { token: "pip_end_date", desc: "Tanggal berakhir program PIP" },
+      { token: "pip_targets_summary", desc: "Ringkasan sasaran PIP (poin per baris)" },
+      { token: "pip_reviewer_name", desc: "Nama pembina PIP (atasan)" },
     ],
   },
   {

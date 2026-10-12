@@ -139,9 +139,14 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "merit", label: "Usulan merit & penerapan", hint: "MeritRecommendation → approval nominal → payroll/PA + surat hasil + usul PIP (Alur 8)" },
   ],
   "performance:pip": [
-    { key: "activate", label: "Mengaktifkan PIP", hint: "Aktivasi program perbaikan kinerja 30/60/90" },
+    { key: "new", label: "Menyusun draf PIP", hint: "Membuat/menyunting rencana PIP — target mini-KPI 3–5 item, pembina, durasi 1–3 bulan (D7)" },
+    { key: "submit", label: "Mengajukan PIP", hint: "Meneruskan draf PIP ke jalur persetujuan AS-PIP-STD (atasan → HR)" },
+    { key: "decide", label: "Menyetujui / menolak PIP", hint: "Keputusan jenjang persetujuan PipPlan" },
+    { key: "activate", label: "Mengaktifkan PIP", hint: "Aktivasi program perbaikan kinerja 30/60/90 (persetujuan akhir — SK terbit)" },
     { key: "checkpoint", label: "Review checkpoint", hint: "Menilai capaian checkpoint PIP" },
+    { key: "extend", label: "Memperpanjang PIP", hint: "Perpanjangan 1× saja — total tetap ≤3 bulan (D7)" },
     { key: "outcome", label: "Menutup outcome PIP", hint: "Recovered/NotRecovered/Cancelled" },
+    { key: "cancel", label: "Membatalkan PIP", hint: "Membatalkan program (mis. resign) — alasan ter-audit" },
   ],
   "performance:probation": [
     { key: "decide", label: "Keputusan masa percobaan", hint: "Confirm/Extend/Terminate + PA + surat" },

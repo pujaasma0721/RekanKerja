@@ -13,12 +13,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
-import { NotebookPen, Sparkles, Send, Zap } from "lucide-react";
+import { NotebookPen, Sparkles, Send, Zap, Waypoints } from "lucide-react";
 
 const API = "/api/rekankerja/ess/my-appraisal";
 
 interface CompRow { competencyId: string; name: string; kind: string; levels: { level: number; label: string; descriptor: string }[]; selfScore: number | null; selfComment: string | null }
+interface PipCp { seq: number; dueDate: string; achievementPct: number | null; status: string; notes: string | null }
+interface ActivePip {
+  docNo: string; startDate: string; endDate: string; status: string; reviewerName: string | null;
+  targets: { title: string; metric: string; target: string; weight: number }[];
+  checkpoints: PipCp[];
+}
 interface Data {
+  activePip: ActivePip | null;
   active: {
     appraisalId: string; docNo: string; status: string;
     cycle: { code: string; selfStart: string | null; selfEnd: string | null };
@@ -29,7 +36,7 @@ interface Data {
 }
 
 export function EssMyAppraisalPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const api = useApi<Data>(API);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
@@ -41,6 +48,7 @@ export function EssMyAppraisalPage() {
   const [aiBusy, setAiBusy] = useState(false);
 
   const a = api.data?.active;
+  const pip = api.data?.activePip;
   const canSubmit = a && a.status !== "SelfDone" && !["ManagerDone", "Calibrating", "Finalized", "Published", "Closed"].includes(a.status);
 
   useEffect(() => {
@@ -84,12 +92,65 @@ export function EssMyAppraisalPage() {
     } finally { setBusy(false); }
   };
 
+  const fmtD = (iso: string) => new Date(iso).toLocaleDateString(lang === "en" ? "en-GB" : "id-ID");
+  const cpReviewed = (pip?.checkpoints ?? []).filter((c) => c.status === "Reviewed").length;
+
   return (
     <div className="space-y-4">
       <div>
         <h1 className="flex items-center gap-2 text-xl font-bold"><NotebookPen className="h-6 w-6 text-fuchsia-600 dark:text-fuchsia-400" aria-hidden /> {t("Penilaian Saya", "My Appraisal")}</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">{t("Self-assessment kompetensi + hasil terpublikasi (satu sumber kebenaran — §31).", "Competency self-assessment + published results (single source of truth — §31).")}</p>
       </div>
+
+      {/* P6-PERF — Program Perbaikan Kinerja Anda (§33-3: read-only progress) */}
+      {pip && (
+        <Card className="border-amber-200 dark:border-amber-900"><CardContent className="p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold"><Waypoints className="h-4 w-4 text-amber-500" aria-hidden /> {t("Program Perbaikan Kinerja Anda", "Your Performance Improvement Plan")}</h3>
+            <StatusPill status={pip.status} />
+          </div>
+          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+            {t(
+              "{doc} · {start} → {end} · pembina: {rev} · {r}/{n} checkpoint ter-review",
+              "{doc} · {start} → {end} · coach: {rev} · {r}/{n} checkpoints reviewed",
+              { doc: pip.docNo, start: fmtD(pip.startDate), end: fmtD(pip.endDate), rev: pip.reviewerName ?? "—", r: String(cpReviewed), n: String(pip.checkpoints.length) },
+            )}
+          </p>
+          <div className="grid gap-1.5">
+            {pip.targets.map((tg, i) => (
+              <div key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-800">
+                <span className="font-medium">{tg.title}</span>
+                <span className="text-xs text-slate-500">{t("Target", "Target")}: {tg.target} ({tg.metric}) · {t("bobot", "weight")} {Number(tg.weight)}%</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 space-y-2">
+            {pip.checkpoints.map((c) => (
+              <div key={c.seq} className="rounded-lg border border-slate-200 p-2 dark:border-slate-800">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-semibold">{t("Checkpoint {n}", "Checkpoint {n}", { n: String(c.seq) })} · {fmtD(c.dueDate)}</span>
+                  <StatusPill status={c.status === "Pending" ? "Pending" : "Reviewed"} />
+                </div>
+                {c.achievementPct != null ? (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                      <div
+                        className={cn("h-full rounded-full", c.achievementPct >= 100 ? "bg-emerald-500" : c.achievementPct >= 75 ? "bg-amber-400" : "bg-rose-400")}
+                        style={{ width: `${Math.min(100, c.achievementPct)}%` }}
+                      />
+                    </div>
+                    <span className="w-12 text-right text-xs font-bold tabular-nums">{c.achievementPct}%</span>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-slate-500">{t("menunggu review pembina", "awaiting coach review")}</p>
+                )}
+                {c.notes && <p className="mt-1 text-xs italic text-slate-500">“{c.notes}”</p>}
+              </div>
+            ))}
+          </div>
+        </CardContent></Card>
+      )}
+
       {api.loading && !api.data ? <LoadingRows /> : !a ? (
         <Card><CardContent className="p-6"><EmptyState icon={NotebookPen} title={t("Belum terdaftar di siklus aktif", "Not enrolled in an active cycle")} description="" /></CardContent></Card>
       ) : (

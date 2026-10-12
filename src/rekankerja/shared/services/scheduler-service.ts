@@ -58,6 +58,7 @@ import { jobSelectionReminders } from "@/rekankerja/recruitment/services/selecti
 import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service";
 // P2-PERF — reminder check-in terlewat (§27-1)
 import { jobPerfCheckInReminders } from "@/rekankerja/performance/services/checkin-service";
+import { jobPerfPipReminders } from "@/rekankerja/performance/services/pip-service";
 import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webhook-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
@@ -1646,6 +1647,9 @@ export interface SchedulerJobCounts {
   attendanceTransferReminders: number;
   /** P2-PERF — check-in terlewat yang diingatkan job perf-checkin-reminder. */
   perfCheckInReminded: number;
+  /** P6-PERF — checkpoint PIP menjelang jatuh tempo + PIP lewat tenggat +7 hari
+   *  tanpa outcome yang diingatkan job perf-pip-reminder (dedupe per key). */
+  perfPipReminded: number;
   /** F2-REC — pelamar talent pool yang otomatis jadi Outdated oleh job
    *  applicant-outdated (keepOnFileUntil lewat; idempoten by filter Active). */
   applicantOutdatedRows: number;
@@ -1745,6 +1749,7 @@ export async function runAllJobs(
     retentionAnonymized: 0,
     retentionSkippedConsent: 0,
     perfCheckInReminded: 0,
+    perfPipReminded: 0,
 };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1843,6 +1848,13 @@ export async function runAllJobs(
   await guarded("perf-checkin-reminder", async () => {
     const r = await jobPerfCheckInReminders(db);
     jobs.perfCheckInReminded = r.reminded;
+    notificationsSent += r.notified;
+  });
+  // P6-PERF — PIP: checkpoint jatuh tempo ≤3 hari → ingatkan pembina;
+  // PIP lewat endDate+7 hari tanpa outcome → ingatkan HR (dedupe per key).
+  await guarded("perf-pip-reminder", async () => {
+    const r = await jobPerfPipReminders(db);
+    jobs.perfPipReminded = r.reminded;
     notificationsSent += r.notified;
   });
 

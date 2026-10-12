@@ -1,6 +1,8 @@
 // P3-PERF — ESS Penilaian Saya (§14.3; §29-2): status fase + self-assessment
 // (AI assist §18.11) + hasil terpublikasi. Estimator dampak TIDAK ada di ESS
 // (karyawan tidak melihat — D21; guard §35-31 menolak via menu guard admin).
+// P6-PERF — aktif PIP karyawan (§33-3: karyawan melihat progres programnya
+// sendiri — read-only: sasaran + capaian checkpoint + status).
 import { NextResponse } from "next/server";
 import { requireEss } from "@/rekankerja/ess/api/ess-auth";
 import { submitSelf, getAssessmentView } from "@/rekankerja/performance/services/appraisal-service";
@@ -22,15 +24,43 @@ async function appealWindowEnd(db: TenantDb, cycleId: string): Promise<Date | nu
   return new Date(c.publishAt.getTime() + APPEAL_WINDOW_DAYS * 24 * 3600 * 1000);
 }
 
+/** PIP karyawan yang sedang berjalan (Active/Extended — SK sudah terbit; draf
+ * yang belum disetujui tidak terlihat karyawan). Read-only di ESS (§33-3). */
+async function myOpenPip(db: TenantDb, employeeId: string) {
+  const pip = await db.pipPlan.findFirst({
+    where: { employeeId, status: { in: ["Active", "Extended"] } },
+    orderBy: { createdAt: "desc" },
+    include: { checkpoints: { orderBy: { seq: "asc" } } },
+  });
+  if (!pip) return null;
+  const reviewer = await db.employee.findUnique({ where: { id: pip.reviewerId }, select: { fullName: true } });
+  let targets: { title: string; metric: string; target: string; weight: number }[] = [];
+  try { targets = JSON.parse(pip.targetsJson) as typeof targets; } catch { targets = []; }
+  return {
+    docNo: pip.docNo,
+    startDate: pip.startDate.toISOString(),
+    endDate: pip.endDate.toISOString(),
+    status: pip.status,
+    reviewerName: reviewer?.fullName ?? null,
+    targets,
+    checkpoints: pip.checkpoints.map((c) => ({
+      seq: c.seq, dueDate: c.dueDate.toISOString(), achievementPct: c.achievementPct,
+      status: c.status, notes: c.notes,
+    })),
+  };
+}
+
 export async function GET(req: Request) {
   const m = await requireEss(req);
   if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
   const { db, employeeId } = m.actor;
   try {
     const me = await myAppraisal(db, employeeId);
-    if (!me) return NextResponse.json({ active: null });
+    const activePip = await myOpenPip(db, employeeId);
+    if (!me) return NextResponse.json({ active: null, activePip });
     const view = await getAssessmentView(db, me.id);
     return NextResponse.json({
+      activePip,
       active: {
         appraisalId: view.appraisal.id,
         docNo: view.appraisal.docNo,

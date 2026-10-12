@@ -21,7 +21,7 @@ export type DbOrTx = TenantDb | Prisma.TransactionClient;
 
 // ============ konstanta domain ============
 
-export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal", "MeritRecommendation"] as const;
+export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal", "MeritRecommendation", "PipPlan"] as const;
 export type ApprovalDocType = (typeof APPROVAL_DOC_TYPES)[number];
 
 /** docType yang jenjangnya bisa memakai syarat nominal (besaran). */
@@ -44,6 +44,7 @@ export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   RecruitmentOffer: "Penawaran Kandidat (Offer)",
   PerformanceAppraisal: "Finalisasi Hasil Penilaian (Performance)",
   MeritRecommendation: "Usulan Merit — Bonus & Kenaikan (Performance)",
+  PipPlan: "Rencana PIP — Program Perbaikan Kinerja (Performance)",
 };
 
 export const APPROVER_TYPE_LABEL: Record<string, string> = {
