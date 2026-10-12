@@ -3334,6 +3334,7 @@ CREATE TABLE "AppraisalKpi" (
     "weight" DOUBLE PRECISION NOT NULL,
     "isCritical" BOOLEAN NOT NULL DEFAULT false,
     "dataSource" TEXT NOT NULL DEFAULT 'Manual',
+    "sourceKey" TEXT,
     "autoValueJson" TEXT,
     "midActual" DOUBLE PRECISION,
     "finalActual" DOUBLE PRECISION,
@@ -3341,6 +3342,7 @@ CREATE TABLE "AppraisalKpi" (
     "proposedBy" TEXT NOT NULL DEFAULT 'Manager',
     "origin" TEXT NOT NULL DEFAULT 'Fresh',
     "copiedFromId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AppraisalKpi_pkey" PRIMARY KEY ("id")
 );
@@ -5106,6 +5108,18 @@ ALTER TABLE "AppraisalRecord" ADD CONSTRAINT "AppraisalRecord_employeeId_fkey" F
 ALTER TABLE "AppraisalRecord" ADD CONSTRAINT "AppraisalRecord_managerId_fkey" FOREIGN KEY ("managerId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "AppraisalKpi" ADD CONSTRAINT "AppraisalKpi_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppraisalCompetencyScore" ADD CONSTRAINT "AppraisalCompetencyScore_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CheckIn" ADD CONSTRAINT "CheckIn_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Feedback360" ADD CONSTRAINT "Feedback360_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Feedback360" ADD CONSTRAINT "Feedback360_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -5113,6 +5127,9 @@ ALTER TABLE "Feedback360Answer" ADD CONSTRAINT "Feedback360Answer_feedbackId_fke
 
 -- AddForeignKey
 ALTER TABLE "CalibrationSession" ADD CONSTRAINT "CalibrationSession_cycleId_fkey" FOREIGN KEY ("cycleId") REFERENCES "PerformanceCycle"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CalibrationDecision" ADD CONSTRAINT "CalibrationDecision_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CalibrationDecision" ADD CONSTRAINT "CalibrationDecision_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "CalibrationSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

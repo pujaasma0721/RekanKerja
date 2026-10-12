@@ -49,6 +49,7 @@ import { EssAssets } from "./ess-assets";
 import { EssOpenShift } from "./ess-open-shift";
 // F1-REC — modul Rekrutmen ESS: PR saya + kotak approval PR
 import { EssPrPage } from "./ess-pr";
+import { EssMyGoalsPage } from "./ess-my-goals";
 import { EssPrApprovalPage } from "./ess-pr-approval";
 // F3 — modul Rekrutmen ESS: seleksi saya (kandidat internal)
 import { EssMySelectionPage } from "./ess-my-selection";
@@ -80,6 +81,8 @@ const ESS_NAV: EssNavItem[] = [
   // Rekrutmen (MysRecruitmentPlanning §2.10).
   { id: "my-jobs", label: "Lowongan Internal", en: "Internal Jobs", short: "Lowongan", shortEn: "Jobs", icon: Megaphone },
   { id: "my-plan", label: "Rencana Rekrutmen", en: "Recruitment Plan", short: "Rencana", shortEn: "Plan", icon: Target },
+  // P1-PERF — Target Saya: KPI periode aktif + usulan MBO + periode lalu
+  { id: "my-goals", label: "Target Saya", en: "My Goals", short: "Target", shortEn: "Goals", icon: Target },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)
   { id: "letters", label: "Surat", en: "Letters", short: "Surat", shortEn: "Letters", icon: FileText },
   // Task 27-f/g/b — pengumuman / tukar shift / aset saya
@@ -640,6 +643,7 @@ export function EssShell() {
             {view === "open-shift" && <EssOpenShift />}
             {/* F1-REC — Rekrutmen: PR saya + kotak approval PR */}
             {view === "my-pr" && <EssPrPage />}
+            {view === "my-goals" && <EssMyGoalsPage />}
             {view === "pr-approval" && <EssPrApprovalPage />}
             {/* F3 — Seleksi Saya (kandidat internal) */}
             {view === "my-selection" && <EssMySelectionPage />}

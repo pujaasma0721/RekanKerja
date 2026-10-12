@@ -33,7 +33,10 @@ export type EssView =
   // F5-REC — lowongan internal (MyJobOpportunity) + rencana rekrutmen
   // (MysRecruitmentPlanning) §2.10
   | "my-jobs"
-  | "my-plan";
+  | "my-plan"
+  // P1-PERF — modul Performance: target KPI saya (ESS §14.3; MBO §26-4;
+  // periode lalu §18.3). Penilaian Saya & 360 Saya menyusul di P3.
+  | "my-goals";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;

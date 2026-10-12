@@ -4584,6 +4584,11 @@ model AppraisalRecord {
   employee        Employee             @relation("PerfEmployee", fields: [employeeId], references: [id])
   manager         Employee?            @relation("PerfManager", fields: [managerId], references: [id])
   merit           MeritRecommendation?
+  kpis            AppraisalKpi[]
+  comps           AppraisalCompetencyScore[]
+  checkins        CheckIn[]
+  f360            Feedback360[]
+  calibrations    CalibrationDecision[]
 
   @@unique([cycleId, employeeId])
   @@index([employeeId])
@@ -4595,6 +4600,7 @@ model AppraisalKpi {
   // KPI yang dinilai utk satu appraisal — SNAPSHOT definisi (§18.9 lapis 1).
   id            String  @id @default(cuid())
   appraisalId   String
+  appraisal     AppraisalRecord @relation(fields: [appraisalId], references: [id])
   kpiDefId      String? // dari pustaka ATAU free-text (usulan karyawan)
   title         String
   polarity      String
@@ -4605,6 +4611,7 @@ model AppraisalKpi {
   weight        Float // Σ per appraisal = 100
   isCritical    Boolean @default(false) // gagal Boolean kritis = rating ≤2 (§4.5)
   dataSource    String  @default("Manual")
+  sourceKey     String? // binding auto-source §16 (ikut disalin — §18.2)
   autoValueJson String? // hasil tarikan otomatis (sumber+periode+nilai) — bukti
   midActual     Float? // checkpoint tengah tahun (progress)
   finalActual   Float?
@@ -4613,6 +4620,7 @@ model AppraisalKpi {
   // AMANDEMEN 1 — provenance baris (§18.2): jejak salin antar-periode
   origin        String  @default("Fresh") // Fresh|Template|CopiedFromCycle|EmployeeProposal
   copiedFromId  String? // id AppraisalKpi sumber (bila origin=CopiedFromCycle)
+  createdAt      DateTime @default(now()) // urutan baris (builder)
 
   @@index([appraisalId])
   @@index([kpiDefId])
@@ -4622,6 +4630,7 @@ model AppraisalCompetencyScore {
   // nilai kompetensi oleh penilai (bukan 360).
   id             String  @id @default(cuid())
   appraisalId    String
+  appraisal     AppraisalRecord @relation(fields: [appraisalId], references: [id])
   competencyId   String
   score          Int // 1..5 (dinilai saat fase manager; self saat fase self)
   selfScore      Int?
@@ -4639,6 +4648,7 @@ model CheckIn {
   // 1-on-1 terdokumentasi (fase Do §2).
   id             String    @id @default(cuid())
   appraisalId    String
+  appraisal      AppraisalRecord @relation(fields: [appraisalId], references: [id])
   heldAt         DateTime
   agenda         String?
   notesJson      String // {wins:[], blockers:[], next:[]} — ringkas & terstruktur
@@ -4655,6 +4665,7 @@ model Feedback360 {
   // undangan reviewer 360 (opsional per siklus — D3).
   id           String              @id @default(cuid())
   appraisalId  String
+  appraisal    AppraisalRecord @relation(fields: [appraisalId], references: [id])
   reviewerId   String // Employee id
   reviewerType String // Peer|Subordinate|CrossTeam|Upward
   status       String              @default("Invited") // Invited|Submitted|Declined|Expired
@@ -4700,6 +4711,7 @@ model CalibrationDecision {
   id            String             @id @default(cuid())
   sessionId     String
   appraisalId   String
+  appraisal            AppraisalRecord     @relation(fields: [appraisalId], references: [id])
   oldScore      Float?
   newScore      Float?
   oldRating     Int?

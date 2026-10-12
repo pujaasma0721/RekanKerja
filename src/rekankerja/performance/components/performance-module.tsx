@@ -5,15 +5,17 @@ import { PerformanceOverviewPage } from "./performance-overview";
 import { PerformanceMastersPage } from "./performance-masters";
 import { PerformanceSettingsPage } from "./performance-settings";
 import { PerfComingSoon } from "./perf-coming-soon";
+import { PerformanceCyclesPage } from "./performance-cycles";
+import { PerformanceGoalsPage } from "./performance-goals";
 
 export function PerformanceModule({ view }: { view: string }) {
   switch (view) {
     case "overview":
       return <PerformanceOverviewPage />;
     case "cycles":
-      return <PerfComingSoon view="cycles" phase="P1" />;
+      return <PerformanceCyclesPage />;
     case "goals":
-      return <PerfComingSoon view="goals" phase="P1" />;
+      return <PerformanceGoalsPage />;
     case "checkins":
       return <PerfComingSoon view="checkins" phase="P2" />;
     case "appraisals":

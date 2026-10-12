@@ -381,7 +381,23 @@ const AFTER_TABLE: string[] = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "ProbationEvaluation_docNo_key" ON "ProbationEvaluation"("docNo")`,
   `CREATE INDEX IF NOT EXISTS "ProbationEvaluation_employeeId_status_idx" ON "ProbationEvaluation"("employeeId", "status")`,
   `CREATE INDEX IF NOT EXISTS "ProbationEvaluation_dueDate_idx" ON "ProbationEvaluation"("dueDate")`,
+  // P1 hotfix — kolom binding auto-source pada baris penilaian (§18.2 salin
+  // dataSource+sourceKey); ADD COLUMN IF NOT EXISTS aman utk tenant lama.
+  `ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "sourceKey" TEXT`,
+  `ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
   // --- FK (drop-if-exists + add — pola F1 rekrutmen, race-safe) ---
+  // P1 hotfix — FK relasi eksplisit anak→AppraisalRecord (include kpis/comps/
+  // checkins/f360/calibrations di client; idempoten utk tenant lama).
+  `ALTER TABLE "AppraisalKpi" DROP CONSTRAINT IF EXISTS "AppraisalKpi_appraisalId_fkey"`,
+  `ALTER TABLE "AppraisalKpi" ADD CONSTRAINT "AppraisalKpi_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "AppraisalCompetencyScore" DROP CONSTRAINT IF EXISTS "AppraisalCompetencyScore_appraisalId_fkey"`,
+  `ALTER TABLE "AppraisalCompetencyScore" ADD CONSTRAINT "AppraisalCompetencyScore_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CheckIn" DROP CONSTRAINT IF EXISTS "CheckIn_appraisalId_fkey"`,
+  `ALTER TABLE "CheckIn" ADD CONSTRAINT "CheckIn_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "Feedback360" DROP CONSTRAINT IF EXISTS "Feedback360_appraisalId_fkey"`,
+  `ALTER TABLE "Feedback360" ADD CONSTRAINT "Feedback360_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CalibrationDecision" DROP CONSTRAINT IF EXISTS "CalibrationDecision_appraisalId_fkey"`,
+  `ALTER TABLE "CalibrationDecision" ADD CONSTRAINT "CalibrationDecision_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   `ALTER TABLE "PerformanceTemplateItem" DROP CONSTRAINT IF EXISTS "PerformanceTemplateItem_templateId_fkey"`,
   `ALTER TABLE "PerformanceTemplateItem" ADD CONSTRAINT "PerformanceTemplateItem_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "PerformanceTemplate"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   `ALTER TABLE "AppraisalRecord" DROP CONSTRAINT IF EXISTS "AppraisalRecord_cycleId_fkey"`,

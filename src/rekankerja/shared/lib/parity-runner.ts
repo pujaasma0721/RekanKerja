@@ -396,6 +396,9 @@ const STEPS: Step[] = [
   // Performance + master default (KPI starter-pack 40, kompetensi 12,
   // skala rating, template bobot, merit matrix, setting).
   { key: "performance-p0", label: "P0 Performance — 20 tabel + master default (KPI lib, kompetensi, skala, template, merit)", run: (s) => import("../../../../scripts/migrate-performance-p0").then((m) => m.main(s)) },
+  // P1-PERF — demo data MII: PER-{tahun-1} (Closed, sumber salinan §18.2) +
+  // PER-{tahun} (GoalSetting, peserta kosong) — kanon E2E alur 1–2.
+  { key: "performance-p1", label: "P1 Performance — demo data MII (PER lama Closed + PER aktif GoalSetting)", run: (s) => import("../../../../scripts/migrate-performance-p1").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
