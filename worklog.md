@@ -6526,3 +6526,33 @@ Stage Summary:
 - Kunci arsitektur dijaga: reuse approval engine (4 docType baru, MeritRecommendation satu-satunya nominal-tier), snapshot atasan penilai saat enroll, tarikan KPI otomatis dari Attendance/Payroll/Recruitment (nilai jual vs kompetitor — data sudah dimiliki), ProbationEvaluation otomatis dari hire rekrutmen (dueDate ≤3bln UU Ps.60), PHK TIDAK pernah otomatis (PIP→SP→PA tetap keputusan manusia).
 - Tidak ada perubahan aplikasi — sesuai mandat "buat dokuman dulu". Eksekusi berikutnya menunggu instruksi user (mis. "eksekusi P0").
 
+---
+Task ID: PLAN-PERF-AM1
+Agent: main (Z.ai Code)
+Task: Arahan user atas dokumen DEVELOPMENT-PLAN-PERFORMANCE.md: "Pastikan UIX user friendly dan memudahkan user untuk mengisi KPI, jangan lupa tambahakan fasilitas copy dari periode sebelumnya" — AMANDEMEN 1 (tetap murni dokumen, NOL perubahan kode aplikasi).
+
+Work Log:
+- Baca ulang dokumen 1.566 baris (seksi kunci §1, §12–§20, §23, §25–§26, §35–§36, Lampiran D/F) memastikan amandemen konsisten konvensi (pola Amandemen 1 rekrutmen, guard matrix, register keputusan, wireframe ASCII).
+- Tulis AMANDEMEN 1 (17 rujukan silang dalam dokumen) — perubahan per seksi:
+  · Header: blok Amandemen 1 + koreksi tanggal basis "21 Jan 2026" → "12 Okt 2026" (konsisten timeline rekrutmen & tanggal sistem).
+  · §12: prinsip desain baru #8 "Kemudahan mengisi KPI itu fitur" — target terukur "1 peserta < 5 menit bila melanjutkan dari tahun lalu".
+  · §15 Data model: AppraisalKpi + origin (Fresh|Template|CopiedFromCycle|EmployeeProposal) + copiedFromId; AppraisalRecord + goalsCopiedFrom — 3 kolom provenance untuk audit trail & chip UI.
+  · §17 API: endpoint goals + query ?copySources=1 + 3 action verbs baru (copyPreview|copyFromCycle|copyTeam) — 0 endpoint baru.
+  · §18: poin 10–11 baru + SUBBAB BARU §18.1 KPI Builder (10 prinsip UX: wizard 4 langkah, 4 titik awal, meter Σbobot live, validasi ramah inline, autosave draf server-side, picker pustaka dengan badge AUTO + filter BSC, panduan kontekstual, mobile kartu, keyboard-friendly, bimbingan 3–8 item) · §18.2 Salin dari Periode Sebelumnya (4 titik masuk a–d: empty state / toolbar / bulk tim / prefill wizard siklus; resolusi sumber default D15 + fallback template; dialog pratinjau dengan target editable inline + flag amber KPI non-aktif + info jabatan berubah; tabel Yang Disalin vs Yang TIDAK PERNAH disalin — aktual/bukti/skor selalu reset; pasca-salin status tetap Enrolled; hemat arsitektur) · §18.3 ESS tab "Periode lalu" read-only + tombol MBO "Usulkan KPI yang sama dengan periode lalu" · §18.4 Anti-stale (banner review, flag KPI berubah, laporan rot-stagnasi P8, copy ≠ submit).
+  · §20: fase P1 diperluas KPI Builder & salin (deliverable E2E "salin PER-2025→PER-2026 + bulk tim").
+  · §22: risiko baru "salinan dipakai mentah (target basi)" + mitigasi 4 lapis.
+  · §23: register D13 (isi salinan — capaian selalu reset) · D14 (4 titik masuk) · D15 (resolusi sumber otomatis + fallback template).
+  · §25: langkah 5 baru — Prefill dari periode lalu opsional HR saat openGoal.
+  · §26 Alur 2 ditulis ulang: jalur salin jadi langkah 2 eksplisit + jalur manual + catatan draf/autosave + guard salin.
+  · §35: guard baru baris 24 (copyPreview/copyFromCycle) & 25 (copyTeam/prefill).
+  · §36: aktor Atasan + endpoint copyFromCycle/copyTeam.
+  · Lampiran G BARU: 4 wireframe ASCII (G.1 titik awal builder · G.2 dialog pratinjau salinan dengan meter bobot & flag · G.3 builder pasca-salin banner review · G.4 bulk tim & prefill siklus).
+  · TOC + footer diperbarui (§18.1–18.4, Lampiran A–G, register D1–D15).
+- Verifikasi integritas dokumen: 1.789 baris (+223) · 38 fence seimbang (19 blok) · 6 mermaid utuh · urutan seksi §0–§37 + Lampiran A–G benar · 17 penanda AMANDEMEN 1.
+- NOL perubahan kode aplikasi: git status hanya DEVELOPMENT-PLAN-PERFORMANCE.md (sebelum commit worklog) — gates tsc/lint/audit tidak terpengaruh, dev server tidak disentuh.
+
+Stage Summary:
+- AMANDEMEN 1 selesai: persyaratan user (UX KPI user-friendly + fasilitas copy dari periode sebelumnya) kini tertanam penuh dalam blueprint — KPI Builder §18.1 (anti form-kosong-15-field) + fitur salin 4 titik masuk §18.2 + ESS §18.3 + anti-stale §18.4, didukung 3 kolom provenance, 3 action verbs API, guard §35-24/25, register D13–D15, wireframe Lampiran G.
+- Keputusan desain kunci: salin ≠ submit (human-in-the-loop selalu); capaian/bukti/skor TIDAK PERNAH ikut disalin (periode baru mulai bersih); hemat arsitektur (0 tabel/endpoint/halaman baru); provenance origin+copiedFromId untuk audit & chip UI; laporan rot-stagnasi untuk HR mendeteksi target basi.
+- Tetap DOKUMEN MURNI — menunggu persetujuan/eksekusi user (Register Keputusan kini D1–D15).
+

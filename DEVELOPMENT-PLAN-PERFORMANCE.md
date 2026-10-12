@@ -16,10 +16,16 @@
 > - **Bagian D** — **POIN 1: Blueprint lengkap** (arsitektur, data model, formula, API, UI, fase P0–P9).
 > - **Bagian E** — **POIN 2: Alur lengkap bisnis proses** (9 alur + diagram + matriks guard).
 >
-> Basis teknis: kondisi RekanKerja per 21 Jan 2026 — 8 modul hidup (HR Base, Payroll,
+> Basis teknis: kondisi RekanKerja per 12 Okt 2026 — 8 modul hidup (HR Base, Payroll,
 > Attendance, Leave, Travel, Medical, Whistleblowing, Recruitment) + ESS + Portal
 > Kandidat; approval engine 9 docType parametrik 6-dimensi; dwibahasa ID/EN; multi-tenant
 > PostgreSQL 3 schema; enkripsi vault; eSign; Letters; ActivityLog; MetricSnapshot.
+> **AMANDEMEN 1 (12 Okt 2026)** — arahan user: (1) UX pengisian KPI harus **user-friendly
+> & memudahkan user** → KPI Builder §18.1; (2) fasilitas **"Salin dari periode
+> sebelumnya"** (copy-from-previous-cycle) → §18.2 (4 titik masuk) + §18.3 (ESS) +
+> §18.4 (anti-stale) + API §17 + 3 kolom provenance §15 + alur §25–§26 + guard §35
+> baris 24–25 + register D13–D15 + wireframe Lampiran G. Tetap DOKUMEN MURNI — belum
+> ada perubahan kode aplikasi.
 
 ---
 
@@ -47,7 +53,8 @@
   - §15 Data model final (17 model)
   - §16 Formula perhitungan final
   - §17 API blueprint
-  - §18 Standar UI/UX
+  - §18 Standar UI/UX (+ 18.1 KPI Builder · 18.2 Salin dari periode sebelumnya ·
+    18.3 ESS periode lalu · 18.4 Anti-stale — AMANDEMEN 1)
   - §19 Integrasi lintas modul
   - §20 Rencana eksekusi fase P0–P9 + backlog
   - §21 Quality gates & Definition of Done
@@ -68,8 +75,8 @@
   - §35 Matriks guard / aturan transisi
   - §36 Matriks aktor × menu × endpoint
   - §37 Kepatuhan UU PDP sepanjang siklus
-- Lampiran A–F (matriks metodologi, KPI library contoh, skala rating, formulir contoh,
-  glossary, asumsi)
+- Lampiran A–G (matriks metodologi, KPI library contoh, skala rating, formulir contoh,
+  glossary, asumsi, wireframe KPI Builder & salin periode lalu — AMANDEMEN 1)
 
 ---
 ---
@@ -107,7 +114,10 @@ Rekrutmen melahirkan karyawan → Performance menilai → hasilnya mengalir ke P
    KPI / 20% kompetensi / 10% core values — dapat diatur per siklus).
 3. Atasan menetapkan **KPI terukur** dari pustaka KPI (ada sumber data otomatis dari
    Attendance/Payroll/Rekrutmen) + kompetensi perilaku; karyawan boleh mengusulkan;
-   target dikunci setelah disetujui.
+   target dikunci setelah disetujui. Pengisian lewat **KPI Builder** ramah (wizard 4
+   langkah, meter bobot, autosave — §18.1) dengan tombol **"Salin dari periode
+   sebelumnya"** (§18.2): 1 klik membawa struktur + target + bobot tahun lalu sebagai
+   titik awal — capaian direset, atasan menyesuaikan lalu submit (AMANDEMEN 1).
 4. Sepanjang periode: **check-in 1-on-1** terdokumentasi + progress aktual KPI
    (checkpoint tengah & akhir tahun).
 5. Akhir periode: **self-assessment → penilaian atasan → 360 feedback (opsional per
@@ -129,6 +139,8 @@ bukan **lowongan**.
 **Skala**: 17 tabel baru di schema tenant, ±14 endpoint API admin + 4 ESS, 12 halaman
 admin + 4 layar ESS, 10 fase eksekusi (P0–P9), 3 di antaranya tergolong L/L–XL
 (lihat §20). Estimasi total ± 60–75 hari kerja efektif bila dieksekusi penuh.
+(AMANDEMEN 1 hemat arsitektur: 0 tabel/endpoint/halaman baru — hanya 3 kolom
+provenance + 3 action verbs + 1 query param pada endpoint `goals` yang sudah ada.)
 
 ---
 ---
@@ -506,6 +518,10 @@ Prinsip desain yang mengikat semua fase (pewaris prinsip modul Rekrutmen):
    mencatat perubahan hasil; uang di vault terenkripsi.
 7. **Tidak mengubah modul lain kecuali lewat kontrak yang diumumkan** (§19) —
    perubahan minimal & backward-compatible.
+8. **Kemudahan mengisi KPI itu fitur, bukan kosmetik** (AMANDEMEN 1) — momen paling
+   menentukan adopsi modul adalah 15 menit pertama atasan membuka form target;
+   KPI Builder (§18.1) + salin dari periode sebelumnya (§18.2) menargetkan
+   "1 peserta selesai < 5 menit bila melanjutkan dari tahun lalu".
 
 ## 13. Keputusan Arsitektur
 
@@ -536,7 +552,9 @@ MODULE: performance (admin)
 ├─ Ringkasan (overview) .................... performance:overview
 ├─ SIKLUS
 │  ├─ Siklus Penilaian ................... performance:cycles     (CRUD siklus + fase + enroll peserta)
-│  ├─ Target & KPI ....................... performance:goals        (penetapan/approval KPI per peserta + template bobot)
+│  ├─ Target & KPI ....................... performance:goals        (KPI Builder §18.1: penetapan/approval
+│                                                                     per peserta + template bobot + SALIN
+│                                                                     DARI PERIODE SEBELUMNYA §18.2)
 │  └─ Check-in ........................... performance:checkins     (jadwal & catatan 1-on-1 semua tim + progress)
 ├─ PENILAIAN
 │  ├─ Penilaian .......................... performance:appraisals  (self/atasan/360 + finalisasi per peserta)
@@ -554,7 +572,7 @@ MODULE: performance (admin)
 ### 14.3 ESS (tambahan nav + layar)
 ```
 ESS (menu karyawan):
-├─ Target Saya (my-goals) ................ KPI & target periode aktif + progress + usulan revisi
+├─ Target Saya (my-goals) ................ KPI & target periode aktif + progress + usulan revisi + tab "Periode lalu" (§18.3)
 ├─ Penilaian Saya (my-appraisal) ......... self-assessment, hasil terpublikasi, acknowledge, banding
 ├─ 360 Saya (my-360) .................... undangan 360 yang harus saya isi (jika aktif)
 └─ (manager ESS) Penilaian Tim ........... reuse my-appraisal dgn scope atasan — daftar bawahan + status
@@ -670,6 +688,7 @@ model AppraisalRecord {              // 1 baris per karyawan per siklus (peserta
   employeeId    String
   managerId     String?              // snapshot atasan penilai saat enroll (§8-10)
   templateId    String?
+  goalsCopiedFrom String?            // AMANDEMEN 1 — kode siklus sumber salinan KPI (§18.2; chip UI "disalin dari PER-2025")
   // skor — semua null sampai fase terkait; dihitung server (§16)
   kpiTotalWeight Float?
   selfScore     Float?
@@ -716,6 +735,9 @@ model AppraisalKpi {                 // KPI yang dinilai utk satu appraisal
   finalActual  Float?
   evidenceJson  String?              // [{type:"attachment",id}|{type:"note",text}] — bukti per KPI
   proposedBy   String  @default("Manager") // Manager|Employee (mode MBO §3.2)
+  // AMANDEMEN 1 — provenance baris (§18.2): jejak salin antar-periode (audit & chip UI)
+  origin       String  @default("Fresh") // Fresh|Template|CopiedFromCycle|EmployeeProposal
+  copiedFromId String?               // id AppraisalKpi sumber (bila origin=CopiedFromCycle)
   @@index([appraisalId])
 }
 
@@ -926,8 +948,11 @@ Konvensi proyek (kebab-case, action via POST body, `?q=` pencarian, offset/limit
                                          enroll|openGoal|startOngoing|startAssessment|
                                          startCalibration|publish|close}
                                          PATCH {id, patch} (hanya status Draft)
-/api/rekankerja/performance/goals       GET ?cycleId&employeeId&q · POST {action:assignBatch|
-                                         propose|approveProposal|reviseTarget|lockGoals}
+/api/rekankerja/performance/goals       GET ?cycleId&employeeId&q · GET ?cycleId&employeeId&
+                                         copySources=1 (daftar siklus sumber utk salin §18.2) ·
+                                         POST {action:assignBatch|propose|approveProposal|
+                                         reviseTarget|lockGoals|copyPreview|copyFromCycle|
+                                         copyTeam} — 3 action salin AMANDEMEN 1 §18.2 ·
                                          PATCH {id, patch} (bobot/target — fase GoalSetting)
 
 # P2 — check-in
@@ -994,6 +1019,122 @@ menempel ke halaman "Pengajuan" (pola PR Approval ESS).
    (audit-bilingual TOTAL_GAP tidak boleh naik — gate §21).
 9. **Empty state bermakna**: "Belum ada siklus — buat siklus pertama Anda"
    + tombol aksi; bukan tabel kosong buta.
+10. **KPI Builder** (AMANDEMEN 1): pengisian target KPI adalah momen UX paling
+    menentukan adopsi modul — spesifikasi penuh §18.1 (wizard 4 langkah, meter bobot,
+    autosave, picker pustaka).
+11. **Salin dari periode sebelumnya** (AMANDEMEN 1): fasilitas kenyamanan inti —
+    §18.2 (4 titik masuk sisi admin/atasan) · §18.3 (ESS) · §18.4 (anti-stale).
+    Pola UX-nya meniru "duplicate PR" rekrutmen: bawa struktur + nilai lama →
+    user menyesuaikan → submit tetap tindakan eksplisit.
+
+### 18.1 KPI Builder — "mudah mengisi KPI" sebagai fitur kelas satu (AMANDEMEN 1)
+
+Prinsip: atasan/karyawan **tidak boleh menghadapi form kosong 15-field**. Builder
+memecah pengisian menjadi keputusan kecil berurutan:
+
+1. **Wizard 4 langkah** (bisa dilompati oleh power-user): ① Pilih titik awal →
+   ② Susun daftar KPI → ③ Atur target & bobot → ④ Review → submit. Satu layar per
+   langkah; indikator langkah + tombol Simpan Draft di semua layar.
+2. **4 titik awal** (radio besar + deskripsi 1 baris + jumlah KPI yang akan dibawa):
+   **Salin dari periode sebelumnya** (opsi pertama & disarankan bila ada — §18.2) ·
+   Dari template jabatan · Pilih dari pustaka · Mulai kosong.
+3. **Meter Σbobot live** (progress bar): hijau = tepat 100 · amber = mendekati ·
+   merah = lebih. Tombol bantuan "bagi rata sisa bobot" per baris terpilih.
+4. **Validasi ramah, inline, tidak menghakimi**: pesan per baris (bukan dialog) yang
+   menawarkan solusi — "Bobot masih 85% — sisakan 15% atau bagi rata?". Error keras
+   hanya muncul saat submit (guard §35-3); selama berstatus draf semuanya warning.
+5. **Autosave draf**: baris KPI adalah draf tersimpan server-side selama appraisal
+   belum disubmit (status Enrolled/GoalProposed) — PATCH perubahan ter-debounce;
+   banner "Lanjutkan draf terakhir (disimpan 12:04)". Tidak ada pekerjaan hilang;
+   prinsip §12-1 tetap: dokumen sah hanya pasca submit; draf hanya terlihat
+   atasan+HR (karyawan melihat target setelah GoalApproved — §26-6).
+6. **Picker pustaka KPI**: search + filter perspektif BSC + filter sumber (AUTO/
+   manual) + urutan "terakhir dipakai di unit saya" (dihitung query — tanpa kolom
+   baru); tiap opsi menampilkan unit, polaritas, badge **AUTO** (nilai ditarik
+   otomatis saat penilaian — atasan tak perlu mencatat manual), dan contoh nilai
+   target.
+7. **Panduan kontekstual**: tooltip ambang/target/stretch dengan mini-diagram skala
+   0–100–120; contoh nyata per KPI (dari Lampiran B); tombol "lihat contoh terisi"
+   (Lampiran D).
+8. **Mobile-first**: baris KPI = kartu expand-collapse (bukan tabel horizontal);
+   input numerik `inputMode=decimal`; swipe-hapus + undo toast; 0 h-scroll 375×812.
+9. **Keyboard & kecepatan**: Enter = tambah baris dari picker terakhir; Tab urut
+   logis (target → stretch → bobot); Esc = tutup dialog.
+10. **Jumlah item dibimbing**: chip "5–8 KPI ideal" + saran gabung/pecah bila <3
+    atau >8; KPI ber-sumber otomatis diurutkan paling atas (termudah dikerjakan).
+
+Pola yang sama berlaku untuk pengisian aktual (mid-year §27 & final §29): input per
+baris + tombol "tarik data otomatis" + lampirkan bukti inline — bukan form monolitik.
+
+### 18.2 Salin dari Periode Sebelumnya (copy-from-previous-cycle)
+
+**Janji UX**: "target tahun lalu jadi titik awal, bukan mulai dari nol" — 1 klik
+membawa struktur; capaian & bukti selalu direset; submit tetap keputusan manusia.
+
+**Empat titik masuk** (semuanya menghasilkan draf baris KPI, bukan submit):
+
+| # | Titik masuk | Bentuk UI |
+|---|---|---|
+| a | **Empty state form target** | kartu "Salin dari PER-2025 (6 KPI tahun lalu)" — tombol pertama & disarankan |
+| b | **Toolbar form** | dropdown "Salin dari…"; bila sudah ada baris → dialog konfirmasi gabung/ganti |
+| c | **Bulk tim** (daftar peserta fase GoalSetting) | "Salin tim dari PER-2025" → match otomatis per peserta → laporan hasil (N terisi · M dilewati sudah isi · K tanpa sumber → tawarkan template) + ActivityLog |
+| d | **Wizard pembukaan siklus** (opsional HR — §25-5) | checkbox "Prefill dari periode lalu" saat openGoal |
+
+**Resolusi sumber** (default — register D15): siklus terdahulu terdekat milik peserta
+yang sama (periodEnd < periodStart siklus aktif) yang punya ≥1 baris KPI terkunci
+(appraisal ≥ GoalApproved); bila tidak ada → tawarkan template jabatan. Manager bisa
+mengganti pilihan sumber bila ada beberapa siklus kandidat (dropdown). Pratinjau
+menampilkan info bila **penempatan peserta berubah** sejak periode sumber
+("jabatan berubah: GA Staff → GA Supervisor — pertimbangkan template jabatan baru").
+
+**Dialog pratinjau** (sebelum menyalin — benda yang sama dengan pratinjau duplicate
+PR rekrutmen):
+- tabel baris KPI periode lalu: judul · polaritas · target lama · **kolom target baru
+  (editable inline)** · bobot · kritis · badge AUTO;
+- checkbox per baris (default semua tercentang) + counter "5 dari 6 dipilih";
+- meter Σbobot baris terpilih + tombol "bagi rata ke baris terpilih";
+- **flag amber** untuk baris yang definisi pustakanya non-aktif / berubah sejak
+  periode lalu ("periksa penggantinya");
+- pengingat tetap terlihat: "Capaian & bukti TIDAK ikut disalin — direset kosong".
+
+**Yang disalin** (per baris): title, polarity, unit, thresholdMin, target (sebagai
+nilai awal — bebas diedit), stretchValue, weight, isCritical, dataSource+sourceKey,
+kpiDefId; plus provenance `origin=CopiedFromCycle`, `copiedFromId`, dan
+`goalsCopiedFrom` (kode siklus sumber) di AppraisalRecord → chip UI
+"⟨disalin dari PER-2025⟩" + filter laporan.
+
+**Yang TIDAK PERNAH disalin**: midActual, finalActual, autoValueJson, evidenceJson,
+skor kompetensi, 360, check-in, kalibrasi, merit — periode baru selalu mulai bersih.
+
+**Pasca-salin**: status peserta TIDAK berubah (tetap Enrolled — belum submit);
+banner kuning di builder "6 KPI disalin dari PER-2025 — periksa target sebelum
+submit"; guard Σbobot & 3–8 item tetap berlaku saat submit (§35-3).
+
+**Hemat arsitektur**: 0 tabel/endpoint/halaman baru — hanya 3 kolom provenance (§15)
++ 3 action verbs + 1 query param di endpoint `goals` yang sudah ada (§17).
+
+### 18.3 ESS — "Periode lalu" & usulan berbasis salinan
+
+- Tab/accordion **"Periode lalu (PER-2025)"** di layar Target Saya: read-only
+  (judul · target · bobot · hasil akhir ringkas) — karyawan tahu apa yang
+  dikerjakan tahun sebelumnya tanpa perlu minta file ke HR.
+- Mode MBO (§26-4): tombol **"Usulkan KPI yang sama dengan periode lalu"** — mengisi
+  form usulan (GoalProposed) dengan definisi+target periode lalu sebagai nilai
+  awal; atasan tetap menyetujui/mengubah/menolak.
+- Saat atasan menyalin/mengubah target lalu submit: ringkasan target baru dikirim ke
+  ESS (langkah §26-6 — tanpa notifikasi tambahan).
+
+### 18.4 Anti-stale — "salin" bukan "setor"
+
+Salin mempercepat pengetikan, bukan menggantikan penilaian kewajaran target:
+- **Banner review** di builder selama ada baris disalin yang belum direview (sampai
+  submit).
+- **Flag KPI berubah**: definisi pustaka non-aktif → amber; satuan berubah sejak
+  periode lalu → chip info "satuan berubah: % → hari".
+- **Laporan HR (P8)**: "KPI disalin tanpa perubahan target N siklus berturut-turut"
+  (rot-stagnation) — bahan pembahasan kalibrasi & kompetensi atasan.
+- **Copy ≠ submit** (guard §35-24): tidak ada jalur otomatis dari salin ke kunci
+  target; submit selalu eksplisit oleh atasan.
 
 ## 19. Integrasi Lintas Modul (kontrak yang diumumkan)
 
@@ -1022,7 +1163,7 @@ Ukuran: M ≈ 2–4 hari, L ≈ 5–8 hari, XL ≈ 9–14 hari (agent-assisted, 
 | Fase | Isi | Ukuran | Keluaran terverifikasi per fase |
 |---|---|---|---|
 | **P0 Fondasi & Master** | 17 model schema + DDL + parity step; masters (KPI library starter-pack ±40 KPI 4 perspektif BSC, 12 kompetensi ber-level, skala rating, template, merit matrix default); menu & rail grup; settings; penomoran | **M** | migrasi idempoten 3 tenant; halaman Master CRUD; tsc/lint/audit gate |
-| **P1 Siklus & Target** | cycle CRUD + gerbang fase + enroll peserta (auto: karyawan Active, snapshot manager); penetapan KPI (assign batch + self-propose MBO + approval) + lock; validasi Σbobot | **L** | alur 1–2 E2E; guard matriks §35 baris 1–7 |
+| **P1 Siklus & Target** | cycle CRUD + gerbang fase + enroll peserta (auto: karyawan Active, snapshot manager); **KPI Builder §18.1 + salin dari periode sebelumnya §18.2** (copyPreview/copyFromCycle/copyTeam + prefill siklus); penetapan KPI (assign batch + self-propose MBO + approval) + lock; validasi Σbobot | **L** | alur 1–2 E2E termasuk salin PER-2025→PER-2026 + bulk tim; guard §35 baris 1–7 + 24–25 |
 | **P2 Check-in & Monitoring** | CheckIn CRUD + scheduler reminder + progress midActual + revisi target mid-year (approval ringan atasan-atas) | **M** | alur 3 E2E |
 | **P3 Penilaian & 360** | fase self + manager (form §18-4) + pullAutoSources (6 binding) + feedback360 (undang/isian/anonim ≥3) | **L** | alur 5 E2E + bukti tarikan otomatis |
 | **P4 Kalibrasi & Finalisasi** | dashboard distribusi + CalibrationSession/Decision (audit) + docType PerformanceAppraisal di engine + struktur AS-PERF-STD + finalisasi & publikasi + acknowledgement + banding ESS | **L–XL** | alur 6–7 E2E; audit trail lengkap |
@@ -1057,6 +1198,7 @@ seluruhnya ter-ActivityLog, dwibahasa, mobile, dan 3 tenant ter-isolasi.
 | Risiko | Dampak | Mitigasi desain |
 |---|---|---|
 | Adopsi rendah (formulir dianggap beban) | tinggi | ESS-first + auto-source KPI + check-in ringan; atasan tidak mengetik ulang data yang sistem punya |
+| Salinan periode lalu dipakai mentah (target basi dari tahun sebelumnya) | sedang | salin ≠ submit (wajib review + submit manual) + banner "periksa" + flag KPI non-aktif + laporan rot-stagnasi P8 (§18.4) |
 | Sengketa ketenagakerjaan atas hasil | tinggi | audit trail (CalibrationDecision + ActivityLog) + jendela banding + bukti KPI ter-lampir + ekspor riwayat (PP 35/2021) |
 | Penilaian bias atasan | sedang | distribusi + panduan + kalibrasi wajib + komentar wajib skor ekstrem |
 | Overlap dengan payroll cycle (bonus telat) | sedang | `apply` mengecek jendela PayrollRun terbuka; fallback draft PA SalaryAdjustment bila run tertutup |
@@ -1081,6 +1223,9 @@ seluruhnya ter-ActivityLog, dwibahasa, mobile, dan 3 tenant ter-isolasi.
 | D10 | 360 memengaruhi skor kompetensi | tidak (masukan saja) | bobot minor (≤10%) |
 | D11 | Ekspor hasil untuk bukti konversi PKWT | YA (pf21 + riwayat karyawan) | — |
 | D12 | Nominal tier merit (jenjang Direktur) | > Rp 10.000.000 | bebas per tenant |
+| D13 | Isi yang disalin antar-periode | definisi+target+bobot+ambang+stretch+kritis; **capaian & bukti selalu reset** (§18.2) | ikut menyalin capaian (tidak disarankan) |
+| D14 | Titik masuk salin | 4 titik: empty state · toolbar · bulk tim · prefill siklus (§18.2 a–d) | hanya toolbar form |
+| D15 | Resolusi sumber salin otomatis | siklus terdahulu peserta sama (periodEnd < awal siklus baru, KPI terkunci ≥ GoalApproved); fallback template jabatan | selalu pilih manual |
 
 ---
 ---
@@ -1132,6 +1277,10 @@ Setup master ──► Buka siklus ──► Target KPI ──► Berjalan+Check
    menilai siapa terkunci & tercatat.
 4. HR menekan **openGoal** → status `GoalSetting` → notifikasi ke semua atasan & karyawan:
    "Fase penetapan target dibuka s.d. {goalEnd}".
+5. **(Opsional — AMANDEMEN 1)** HR menjalankan **"Prefill dari periode lalu"** (§18.2-d):
+   tiap peserta yang punya siklus sumber di-prefill baris KPI periode lalu
+   (origin=CopiedFromCycle, capaian reset); peserta tanpa sumber diberi baris template
+   jabatan; semuanya tetap menunggu penyesuaian + submit atasan per peserta.
 **Titik keputusan**: enroll menolak duplikat (unique cycleId+employeeId); karyawan tanpa
 atasan → ditandai "butuh penunjukan atasan" (HR bisa override manual).
 
@@ -1139,16 +1288,30 @@ atasan → ditandai "butuh penunjukan atasan" (HR bisa override manual).
 
 **Pemicu**: siklus masuk fase GoalSetting.
 
-1. **Atasan** membuka Target & KPI → pilih peserta → load template jabatan → sesuaikan:
-   pilih KPI dari pustaka / tambah custom, isi ambang/target/stretch/bobot/satuan;
-   sistem memvalidasi Σbobot KPI = 100 & 3–8 item (register D5 catatan).
-2. **(Mode MBO)** karyawan boleh **mengusulkan** KPI dari ESS (status GoalProposed);
-   atasan menerima/mengubah/menolak — diterima masuk daftar resmi.
-3. Atasan **submit** → target terkunci (status GoalApproved). Perubahan setelahnya hanya
-   lewat Alur 3 revisi mid-year.
-4. Sistem mengirim ringkasan target ke karyawan (ESS "Target Saya" terisi).
+1. **Atasan** membuka Target & KPI → pilih peserta → **KPI Builder** (§18.1) menawarkan
+   4 titik awal: mulai kosong / template jabatan / pustaka KPI / **"Salin dari periode
+   sebelumnya"** — opsi pertama & disarankan bila peserta punya siklus sumber (§18.2).
+2. **Jalur salin (AMANDEMEN 1)**: dialog pratinjau menampilkan KPI periode lalu (judul,
+   polaritas, target lama, kolom target baru editable, bobot, kritis, badge AUTO,
+   flag KPI non-aktif / jabatan berubah) → atasan mencentang baris (default semua)
+   dan menyesuaikan nilai → konfirmasi → baris KPI dibuat dengan `origin=CopiedFromCycle`
+   + `copiedFromId`; **capaian & bukti selalu direset kosong**; status peserta tetap
+   Enrolled (belum submit). Bila peserta sudah punya baris: dialog gabung/ganti.
+3. **Jalur manual**: load template jabatan / pilih dari pustaka / tambah custom, isi
+   ambang/target/stretch/bobot/satuan; sistem memvalidasi Σbobot KPI = 100 & 3–8 item
+   (register D5 catatan). (Kedua jalur menghasilkan baris draf yang sama — autosave,
+   hanya terlihat atasan+HR hingga submit.)
+4. **(Mode MBO)** karyawan boleh **mengusulkan** KPI dari ESS (status GoalProposed) —
+   termasuk tombol "usulkan KPI yang sama dengan periode lalu" (§18.3); atasan
+   menerima/mengubah/menolak — diterima masuk daftar resmi.
+5. Atasan **submit** → target terkunci (status GoalApproved). Perubahan setelahnya
+   hanya lewat Alur 3 revisi mid-year. (Bulk: atasan/HR boleh "salin tim dari
+   PER-2025" — §18.2-c — tiap peserta tetap menunggu submit per orang; laporan
+   hasil N/M/K ditampilkan.)
+6. Sistem mengirim ringkasan target ke karyawan (ESS "Target Saya" terisi).
 **Guard**: submit ditolak bila Σbobot ≠ 100 atau KPI Boolean tanpa definisi gagal/sukses;
-kunci setelah lockGoals / lewatnya goalEnd.
+kunci setelah lockGoals / lewatnya goalEnd; salin hanya sah saat fase GoalSetting &
+appraisal belum GoalApproved (§35 baris 24–25).
 
 ## 27. Alur 3 — Check-in Berjalan & Revisi Tengah Tahun (fase Ongoing)
 
@@ -1440,13 +1603,15 @@ flowchart LR
 | 21 | PIP extend | HR | 1× saja; total durasi ≤3 bln | sudah pernah extend |
 | 22 | PIP outcome | HR+atasan | checkpoint akhir sudah direview / lewat tenggat | masih checkpoint Pending belum due |
 | 23 | prob decide | atasan+HR+approval | sebelum/saat dueDate | dueDate > 3 bln dari join (input sudah diblokir) |
+| 24 | copyPreview / copyFromCycle (salin KPI periode lalu, per peserta) | atasan peserta/HR | fase GoalSetting & appraisal belum GoalApproved; sumber valid (periodEnd < awal siklus aktif, peserta sama, ≥1 KPI terkunci) | target sudah dikunci / fase GoalSetting sudah tutup |
+| 25 | copyTeam (salin massal tim / prefill siklus) | atasan/HR | fase GoalSetting; hanya peserta tanpa baris KPI (sisanya dilaporkan "dilewati", bukan error) | — |
 
 ## 36. Matriks Aktor × Menu × Endpoint (utama)
 
 | Aktor | Menu admin | Endpoint inti yang dipakai |
 |---|---|---|
 | HR Admin | semua `performance:*` | masters, cycles(action), goals, checkins, appraisals, feedback360, calibration, results, merit, pip, probation, reports |
-| Atasan | Target & KPI · Check-in · Penilaian · (Hasil tim) | goals(assign/submit), checkins, appraisals(submitManager), calibration(ikut), results(read tim) |
+| Atasan | Target & KPI · Check-in · Penilaian · (Hasil tim) | goals(assign/submit/copyFromCycle/copyTeam), checkins, appraisals(submitManager), calibration(ikut), results(read tim) |
 | Atasan L2 | read-only + approval revisi | goals(reviseTarget approval), approval inbox (PerformanceAppraisal/PipPlan) |
 | Direksi | Hasil & 9-Box (agregat) | results(9box), approval inbox (jenjang 3) |
 | Karyawan ESS | Target Saya · Penilaian Saya · 360 Saya | ess/my-goals, ess/my-appraisal, ess/my-360, ess/my-checkins |
@@ -1558,9 +1723,67 @@ Atasan penilai: Sri Wahyuni — HR Director · Bobot: KPI 70 / Kompetensi 20 / N
    Eka Putri (MII00046) untuk alur probation.
 6. Bahasa dokumen: Indonesia; UI aplikasi dwibahasa penuh ID/EN.
 
+## Lampiran G — Wireframe KPI Builder & "Salin dari Periode Sebelumnya" (AMANDEMEN 1)
+
+### G.1 Titik awal builder (peserta tanpa KPI — §18.1-2)
+
+```
+TARGET KPI · PER-2026 · Budi Santoso (GA Staff) · fase GoalSetting s.d. 31 Mar
+┌─ Mulai dari mana? ────────────────────────────────────────┐
+│ ➜ SALIN DARI PERIODE SEBELUMNYA    PER-2025 · 6 KPI  ★saran │
+│   Dari template jabatan            GA Staff · 5 KPI       │
+│   Pilih dari pustaka KPI          42 KPI · 4 perspektif   │
+│   Mulai kosong                                             │
+│ ⓘ Salin membawa judul+target+bobot tahun lalu; capaian    │
+│   & bukti direset kosong — Anda tetap meninjau & submit.   │
+└────────────────────────────────────────────────────────────┘
+```
+
+### G.2 Dialog pratinjau salinan (§18.2)
+
+```
+SALIN DARI PER-2025 · pratinjau 6 KPI (semua terpilih — hapus centang utk mengecualikan)
+☑  KPI                        Polaritas  Target lama  Target baru  Bobot  Kritis  Sumber
+☑ 1 Ketepatan closing        Higher     100%         [ 100% ]     30%    —       AUTO
+☑ 2 Akurasi data karyawan ⚠ Higher     99%          [ 99,5%]     25%    —       AUTO
+☑ 3 Waktu proses surat ≤2hr Higher     ≥90%         [ ≥90% ]     20%    —       manual
+☑ 4 Keluhan internal         Lower      0            [ 0     ]    15%    ya      manual
+☐ 5 Inisiatif perbaikan      Higher     ≥2           —             10%    —       manual
+☑ 6 Laporan bulanan tepat    Higher     12           [ 12    ]    10%    —       manual
+⚠ "Akurasi data karyawan" — definisi pustaka non-aktif sejak Jul 2026; periksa penggantinya
+Meter Σbobot terpilih: ▓▓▓▓▓▓▓▓▓░ 90% → [bagi rata ke baris terpilih]
+                                    [ Batal ]  [ Salin 5 baris → kembali ke builder ]
+```
+
+### G.3 Builder pasca-salin — banner review (§18.4)
+
+```
+⚠ 5 KPI disalin dari PER-2025 — periksa target sebelum submit (capaian periode baru kosong)
+┌ KPI (5) ──────────────────────────────────── Σbobot 100% ✓ ─┐
+│ 1 Ketepatan closing (AUTO)  ambang 80 · target 100 · stretch 110 · 30% │
+│   ⟨disalin dari PER-2025 #1⟩  [edit] [lihat deskriptor] [hapus]       │
+│ 2 Akurasi data karyawan ⚠ pustaka non-aktif · …                     │
+│ …                                                                    │
+│ [+ Tambah KPI]  [draf tersimpan otomatis 12:04]  [SUBMIT TARGET →]     │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### G.4 Bulk tim & prefill siklus (§18.2 c–d)
+
+```
+TARGET & KPI · PER-2026 · peserta 44 · sudah submit 9 · tanpa KPI 35
+[Salin tim dari PER-2025 ▾] → dialog pilih peserta (default: 31 dari 35 yang punya
+siklus sumber) → hasil: 31 terisi ⟨disalin⟩ · 4 tanpa sumber → tawar template jabatan ·
+0 gagal · ActivityLog "salin massal tim oleh {user}".
+(Di wizard siklus, HR melihat opsi serupa saat menekan openGoal: "Prefill dari
+periode lalu — opsional; tiap peserta tetap menunggu review & submit atasan".)
+```
+
 ---
 
-*Dokumen berstatus **menunggu keputusan user** atas Register Keputusan §23 sebelum
-fase P0 dieksekusi. Belum ada baris kode aplikasi yang berubah.*
+*Dokumen berstatus **menunggu keputusan user** atas Register Keputusan §23 (D1–D15,
+termasuk 3 keputusan baru AMANDEMEN 1) sebelum fase P0 dieksekusi. Belum ada baris
+kode aplikasi yang berubah — termasuk seluruh isi AMANDEMEN 1 (KPI Builder UX +
+salin dari periode sebelumnya).*
 
 
