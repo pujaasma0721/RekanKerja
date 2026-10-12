@@ -1,0 +1,1566 @@
+# REKANKERJA PERFORMANCE — DOKUMEN PERENCANAAN & BLUEPRINT (PRA-IMPLEMENTASI)
+
+> **Status: DOKUMEN MURNI — BELUM ADA PERUBAHAN KODE APLIKASI** (sesuai mandat user:
+> "buat dokuman dulu jangan ada perubahan dulu di applikasi").
+>
+> Asal-usul: permintaan user — "jika saya ingin mengimplementasikan module baru
+> performance/penilaian kerja, coba analisa dari pengetahuan kamu untuk module
+> performance ini, dan analisa tier app untuk module performance ini, dan penerapan
+> pada applikasi rekan kerja kita: (1) buatkan blueprint lengkap apa yang akan kamu
+> buat, (2) buatkan alur lengkap bisnis proses".
+>
+> Dokumen ini menggabungkan TIGA hal dalam satu file (mengikuti konvensi
+> `DEVELOPMENT-PLAN-RECRUITMENT.md`):
+> - **Bagian B** — Analisa domain dari pengetahuan manajemen kinerja (knowledge base).
+> - **Bagian C** — Analisa tier aplikasi (benchmark pasar + tier internal mesin RekanKerja).
+> - **Bagian D** — **POIN 1: Blueprint lengkap** (arsitektur, data model, formula, API, UI, fase P0–P9).
+> - **Bagian E** — **POIN 2: Alur lengkap bisnis proses** (9 alur + diagram + matriks guard).
+>
+> Basis teknis: kondisi RekanKerja per 21 Jan 2026 — 8 modul hidup (HR Base, Payroll,
+> Attendance, Leave, Travel, Medical, Whistleblowing, Recruitment) + ESS + Portal
+> Kandidat; approval engine 9 docType parametrik 6-dimensi; dwibahasa ID/EN; multi-tenant
+> PostgreSQL 3 schema; enkripsi vault; eSign; Letters; ActivityLog; MetricSnapshot.
+
+---
+
+## Daftar Isi
+
+- Bagian A — Pendahuluan
+  - §0 Asal-usul & cara membaca
+  - §1 Ringkasan eksekutif
+- Bagian B — Analisa Domain Manajemen Kinerja (pengetahuan)
+  - §2 Definisi & siklus (PDCA)
+  - §3 Metodologi penilaian (KPI, MBO, OKR, BSC, kompetensi, 360, continuous)
+  - §4 Anatomi formula penilaian
+  - §5 Rating, distribusi & kalibrasi
+  - §6 Konsekuensi & tindak lanjut (merit, PIP, promosi)
+  - §7 Konteks regulasi Indonesia
+  - §8 Bias & antipola yang harus didesain keluar
+- Bagian C — Analisa Tier Aplikasi
+  - §9 Tier pasar aplikasi HRIS (benchmark fitur performance)
+  - §10 Posisi & keputusan tier RekanKerja
+  - §11 Tier internal mesin RekanKerja (approval, laporan, akses)
+- Bagian D — Blueprint Implementasi (POIN 1)
+  - §12 Misi & prinsip desain
+  - §13 Keputusan arsitektur
+  - §14 Struktur menu & halaman (admin + ESS)
+  - §15 Data model final (17 model)
+  - §16 Formula perhitungan final
+  - §17 API blueprint
+  - §18 Standar UI/UX
+  - §19 Integrasi lintas modul
+  - §20 Rencana eksekusi fase P0–P9 + backlog
+  - §21 Quality gates & Definition of Done
+  - §22 Risiko & mitigasi
+  - §23 Register keputusan (bisa diubah user)
+- Bagian E — Alur Bisnis Proses Lengkap (POIN 2)
+  - §24 Peta proses tingkat tinggi & aktor
+  - §25 Alur 1 — Setup master & pembukaan siklus
+  - §26 Alur 2 — Penetapan KPI / target
+  - §27 Alur 3 — Check-in berjalan & revisi tengah tahun
+  - §28 Alur 4 — Evaluasi masa percobaan (integrasi rekrutmen)
+  - §29 Alur 5 — Penilaian akhir periode (self → atasan → 360)
+  - §30 Alur 6 — Kalibrasi & finalisasi berjenjang
+  - §31 Alur 7 — Publikasi, acknowledgement & banding
+  - §32 Alur 8 — Konsekuensi (merit matrix, PA, surat, PIP entry)
+  - §33 Alur 9 — PIP end-to-end
+  - §34 Diagram aliran lengkap (Mermaid ×6)
+  - §35 Matriks guard / aturan transisi
+  - §36 Matriks aktor × menu × endpoint
+  - §37 Kepatuhan UU PDP sepanjang siklus
+- Lampiran A–F (matriks metodologi, KPI library contoh, skala rating, formulir contoh,
+  glossary, asumsi)
+
+---
+---
+
+# BAGIAN A — PENDAHULUAN
+
+## 0. Asal-usul & Cara Membaca
+
+Dokumen ini adalah dokumen perencanaan TAHAP NOL untuk modul **Performance
+(Penilaian Kerja / Performance Management)**. Semua di bawah ini adalah DESAIN —
+belum satu baris pun kode aplikasi berubah. Tujuannya: user bisa membaca end-to-end
+apa yang akan dibangun, menyetujui/mengubah keputusan (lihat §23 Register Keputusan),
+baru eksekusi per fase §20.
+
+Urutan membaca yang disarankan:
+1. **§1 Ringkasan eksekutif** — 5 menit memahami bentuk akhir.
+2. **Bagian B** — kenapa desainnya begini (dasar pengetahuan).
+3. **Bagian C** — di posisi tier mana modul ini bermain & kenapa.
+4. **Bagian D** — blueprint teknis (untuk review detail / persetujuan).
+5. **Bagian E** — alur bisnis (untuk HR user memvalidasi prosesnya benar secara bisnis).
+
+## 1. Ringkasan Eksekutif
+
+**Visi modul**: mengelola siklus hidup kinerja karyawan dari ** penetapan target →
+monitoring berjalan → penilaian → kalibrasi → hasil → konsekuensi** (bonus/kenaikan/
+promosi/perbaikan), menjadi modul yang **MENUTUP lingkaran** modul-modul yang sudah ada:
+Rekrutmen melahirkan karyawan → Performance menilai → hasilnya mengalir ke Payroll
+(bonus/kenaikan), Personnel Action (promosi/perpanjangan prob/mutasi), Disciplinary
+(SP/PIP), dan Letters (surat hasil penilaian).
+
+**Bentuk akhir (7 kalimat)**:
+1. HR membuat **siklus penilaian** (default: tahunan) dengan jendela fase yang digerbangkan
+   otomatis (isi target → berjalan → isi penilaian → kalibrasi → publikasi).
+2. Tiap karyawan aktif terdaftar sebagai peserta dengan **template bobot** (default 70%
+   KPI / 20% kompetensi / 10% core values — dapat diatur per siklus).
+3. Atasan menetapkan **KPI terukur** dari pustaka KPI (ada sumber data otomatis dari
+   Attendance/Payroll/Rekrutmen) + kompetensi perilaku; karyawan boleh mengusulkan;
+   target dikunci setelah disetujui.
+4. Sepanjang periode: **check-in 1-on-1** terdokumentasi + progress aktual KPI
+   (checkpoint tengah & akhir tahun).
+5. Akhir periode: **self-assessment → penilaian atasan → 360 feedback (opsional per
+   siklus, anonim)** → **kalibrasi antar-atasan** (ter-audit) → finalisasi lewat
+   **approval berjenjang parametrik** (engine yang sama dengan modul lain).
+6. Hasil dipublikasi ke ESS karyawan (acknowledgement + jendela banding), lalu
+   menghasilkan **rekomendasi merit matrix** (bonus % & kenaikan % per rating) yang bisa
+   diteruskan jadi input Payroll / draft Personnel Action / surat resmi.
+7. Kinerja rendah masuk **PIP** terstruktur (checkpoint 30/60/90 hari) dengan ujung:
+   pulih / perpanjang / SP / pengakhiran — dan karyawan baru masuk **evaluasi masa
+   percobaan** otomatis dari onboarding rekrutmen (3 bulan, keputusan
+   konfirmasi/perpanjangan/pengakhiran sesuai UU 13/2003 Pasal 60).
+
+**Analogy di ekosistem yang sudah ada**: modul ini = "Recruitment untuk karyawan
+existing" — sama-sama punya dokumen bernomor, state machine, approval berjenjang,
+notifikasi, surat, laporan dokumen bilingual; bedanya objeknya **penilaian orang**
+bukan **lowongan**.
+
+**Skala**: 17 tabel baru di schema tenant, ±14 endpoint API admin + 4 ESS, 12 halaman
+admin + 4 layar ESS, 10 fase eksekusi (P0–P9), 3 di antaranya tergolong L/L–XL
+(lihat §20). Estimasi total ± 60–75 hari kerja efektif bila dieksekusi penuh.
+
+---
+---
+
+# BAGIAN B — ANALISA DOMAIN: PENGETAHUAN MANAJEMEN KINERJA
+
+## 2. Definisi & Siklus Manajemen Kinerja
+
+Manajemen kinerja = proses berkelanjutan untuk **menyelaraskan kontribusi individu
+dengan tujuan organisasi**, bukan sekadar formulir tahunan. Kerangka industrinya
+adalah siklus **PDCA**:
+
+```
+   ┌───────────────────────────────────────────────────────────────┐
+   │                                                               │
+   ▼                                                               │
+PLAN ──► DO ──────► CHECK ──────► ACT ──► (umpan balik ke PLAN tahun berikut)
+(target/      (bekerja +       (penilaian:       (hasil → reward/
+ KPI/set        check-in +        self, atasan,    pengembangan/
+ kesepakatan)   umpan balik       360, kalibrasi)  PIP/promosi)
+   │            berjalan)              │
+   │                                      │
+   └── goal cascading: perusahaan → unit → individu ──┘
+```
+
+Empat fase itu memetakan langsung ke fitur:
+| Fase PDCA | Fitur RekanKerja | Fase eksekusi |
+|---|---|---|
+| **Plan** | Siklus penilaian + template bobot + penetapan KPI/target + approval target | P1 |
+| **Do** | Check-in 1-on-1 terdokumentasi + progress aktual (checkpoint tengah tahun) + revisi target | P2 |
+| **Check** | Self-assessment + penilaian atasan + aktualisasi KPI final + 360 feedback | P3 |
+| **Check+** | Kalibrasi antar-atasan (konsistensi & keadilan lintas tim) + finalisasi berjenjang | P4 |
+| **Act** | Publikasi hasil + acknowledgement + banding + merit matrix + PA + PIP | P4–P6 |
+
+**Prinsip kunci yang dipegang modul ini**: penilaian yang hanya setahun sekali adalah
+antipola (lihat §8); karena itu **check-in adalah warga kelas satu** (bukan fitur tempelan)
+— progres KPI tengah tahun dan catatan check-in menjadi bukti yang meminimalkan
+*recency bias* saat penilaian akhir.
+
+## 3. Metodologi Penilaian (Perbandingan & Pilihan)
+
+Tidak ada satu metodologi yang "benar"; perusahaan memilih campuran. Berikut enam
+metodologi inti dan posisi RekanKerja terhadapnya (matriks lengkap di Lampiran A):
+
+### 3.1 KPI (Key Performance Indicator) — BASIS UTAMA (diadopsi)
+- **Apa**: metrik terukur per individu/posisi dengan target eksplisit (mis. "tagih
+  piutang > Rp X", "customer satisfaction ≥ 4,5", "waktu tutup PR ≤ 30 hari").
+- **Kekuatan**: objektif, bisa diaudit, mudah dikomunikasikan, cocok budaya data.
+- **Kelemahan**: yang tak terukur jadi tak dihargai; kualitas bisa dikorbankan demi
+  angka bila KPI salah dirancang.
+- **Posisi**: komponen utama (default bobot 70%). Pustaka KPI per-fungsi + sumber data
+  otomatis dari modul yang sudah ada = nilai tambah nyata vs aplikasi kompetitor.
+
+### 3.2 MBO (Management by Objectives) — GAYA PENETAPAN TARGET (diadopsi implisit)
+- **Apa**: atasan-bawahan menyepakati target (dua arah), dievaluasi capaian.
+- **Posisi**: mekanisme "self-propose target + approval atasan" adalah MBO modern;
+  kami mengadopsinya sebagai **mode pengisian target** (bukan metodologi terpisah).
+
+### 3.3 OKR (Objectives & Key Results) — TIDAK DIADOPSI PENUH (backlog)
+- **Apa**: kuartalan, ambisius (0,7 = baik), transparan lintas tim, dipisah dari
+  penilaian formal (best practice agar orang berani menarget ambisius).
+- **Kenapa tidak sekarang**: OKR menuntut ritme kuartalan, board transparansi lintas
+  unit, dan budaya yang matang; untuk target pasar RekanKerja (menengah, siklus
+  tahunan) menambah beban adopsi. **Backlog §20**: mode `cycleType=Quarterly` +
+  board OKR, dipicu permintaan user.
+
+### 3.4 BSC (Balanced Scorecard) — DIADOPSI SEBAGAI KATEGORI KPI
+- **Apa**: menyeimbangkan 4 perspektif — finansial, pelanggan, proses internal,
+  pertumbuhan & pembelajaran.
+- **Posisi**: tidak dibangun sebagai fitur terpisah; **kategori KPI** diberi label
+  4 perspektif BSC sebagai panduan penyusunan pustaka KPI (mencegah KPI semua-keuangan).
+
+### 3.5 Penilaian Kompetensi (behavioral) — DIADOPSI (komponen kedua)
+- **Apa**: menilai PERILAKU terhadap definisi kompetensi berjenjang (mis. "komunikasi
+  level 3: menyampaikan argumen terstruktur…") — biasanya 5–10 kompetensi per
+  template: teknis + manajerial + nilai inti.
+- **Kekuatan**: menilai "bagaimana", bukan hanya "berapa"; menopang promosi &
+  pengembangan.
+- **Kelemahan**: subjektif → wajib deskriptor level yang eksplisit + contoh perilaku
+  (anchor) agar bisa dipakai konsisten; 360 membantu.
+- **Posisi**: komponen kedua (default 20% + 10% core values). Model `Competency`
+  menyimpan deskriptor 5 level — pola `ScorecardCompetency` modul Rekrutmen dibesarkan.
+
+### 3.6 360-Degree Feedback — DIADOPSI OPSIONAL PER SIKLUS
+- **Apa**: masukan dari banyak sudut (rekan sejawat, bawahan, lintas unit) — biasanya
+  untuk pengembangan & validasi perilaku, idealnya anonim & ter-agregasi.
+- **Posisi**: undangan reviewer oleh atasan/HR; **anonimitas**: skor & komentar hanya
+  ditampilkan ter-agregasi ke penilai bila ≥3 responder per kategori; karyawan
+  melihat ringkasan 360-nya di hasil. Default **OFF** per siklus (register §23).
+
+### 3.7 Continuous Performance Management (check-in) — DIADOPSI (fase Do)
+- **Apa**: ritme 1-on-1 ringan (bulanan/dua-mingguan) — progres, hambatan, umpan
+  balik dua arah — menggantikan "kejutan penilaian akhir tahun".
+- **Posisi**: `CheckIn` terdokumentasi (agenda/catatan/tindak lanjut), progress KPI
+  tengah tahun, dan **umpan balik apresiasi/dukungan** (praise/coaching note ringkas
+  tercatat di timeline penilaian).
+
+## 4. Anatomi Formula Penilaian
+
+Skor akhir karyawan = fungsi tiga komponen berbobot. Desain formula harus:
+**(a) deterministik & bisa direplay** (audit), **(b) tahan salah-input** (validasi bobot),
+**(c) transparan bagi karyawan** (rincian bisa dilihat di ESS).
+
+### 4.1 Struktur komponen
+```
+Skor Akhir (0–100) = wKPI    × SkorKPI        (default 70%)
+                  + wKomp    × SkorKompetensi (default 20%)
+                  + wCore    × SkorCoreValues (default 10%)
+                    (wKPI + wKomp + wCore = 100 — divalidasi sistem)
+```
+
+### 4.2 Skor KPI individual (per indikator, 0–100)
+Setiap KPI punya atribut: **polaritas** (Higher-Better / Lower-Better / Boolean),
+**ambang** (batas gagal, target, stretch opsional), **satuan**, **sumber data**
+(Manual / Attendance / Payroll / Recruitment / Leave), dan **bobot**.
+
+| Polaritas | Formula (aktual = A, batas gagal = F, target = T) | Catatan |
+|---|---|---|
+| Higher-Better | `skor = clamp((A − F) / (T − F) × 100, 0, 100)` | di bawah F → 0; mencapai T → 100; bila `stretch` diisi & A > T → maksimum 120 (butuh `stretchValue`) |
+| Lower-Better | `skor = clamp((F − A) / (F − T) × 100, 0, 100)` | contoh: tingkat error — F=10%, T=2%; A di atas F → 0 |
+| Boolean | `skor = 100 bila tercapai; 0 bila tidak` | untuk syarat mutlak (mis. "tidak ada pelanggaran SHE") — dapat ditandai `isCritical` |
+
+`SkorKPI = Σ(skor_i × bobot_i) / Σ(bobot_i)` — jumlah bobot KPI **wajib 100**
+(validasi UI + server).
+
+### 4.3 Skor kompetensi & core values
+Tiap kompetensi dinilai skala 1–5 oleh penilai (atasan; 360 memperkaya sebagai masukan
+TIDAK langsung mengubah skor kecuali diaktifkan — register §23):
+`SkorKompetensi = Σ(nilai_i / 5 × 100 × bobot_i) / Σ(bobot_i)`.
+
+### 4.4 Konversi ke rating (5 skala — default, bisa diubah §23)
+| Rentang skor akhir | Rating | Label ID | Label EN | Warna UI |
+|---|---|---|---|---|
+| 90–120 | 5 | Sangat Baik | Outstanding | emerald |
+| 80–89 | 4 | Baik | Exceeds Expectations | hijau tua |
+| 70–79 | 3 | Cukup | Meets Expectations | netral/abu |
+| 60–69 | 2 | Kurang | Below Expectations | amber |
+| < 60 | 1 | Sangat Kurang | Needs Improvement | merah |
+
+> Catatan penting tentang **120 vs skala 100**: skor stretch di atas 100 hanya mungkin
+> bila KPI punya target stretch; rating 5 dipatok di ≥90 agar tetap dapat dicapai tanpa
+> stretch (keadilan lintas KPI yang tidak punya stretch).
+
+### 4.5 Keputusan kelulusan prob & ambang PIP (default, register §23)
+- **Lulus percobaan**: skor ≥ 70 DAN tidak ada KPI `isCritical` yang gagal (skor 0).
+- **Masuk PIP**: rating ≤ 2, ATAU rekomendasi eksplisit atasan atas pola perilaku
+  meski rating 3 (dengan justifikasi tertulis).
+
+## 5. Rating, Distribusi & Kalibrasi
+
+### 5.1 Kenapa kalibrasi wajib
+Tanpa kalibrasi, rating mencerminkan **kebiasaan atasan**, bukan kinerja: ada atasan
+"murah hati" (semua dapat 5) dan "ketat" (semua dapat 3) → bonus/promosi tidak
+adil lintas tim dan rawan sengketa. Kalibrasi = forum antar-atasan (dipandu HR) yang
+menyetarakan standar sebelum finalisasi.
+
+### 5.2 Mekanisme yang didesain
+1. **Dashboard distribusi** per atasan/unit sebelum finalisasi (bar chart rating,
+   rata-rata skor, % rating 5) → anomali terlihat (leniency/strictness/central
+   tendency — §8).
+2. **Sesi kalibrasi** per lingkup unit (peserta: atasan-atasan + HR; ketua: kepala unit).
+3. **Keputusan kalibrasi ter-audit**: setiap perubahan rating/skor final = baris
+   `CalibrationDecision` (dari → ke, alasan wajib, aktor, waktu). Tidak ada
+   perubahan senyap — jejak penuh (kepatuhan & sengketa ketenagakerjaan).
+4. **Panduan distribusi** (guideline, BUKAN paksaan): mis. referensi umum rating 5
+   ±10%, rating 1–2 ±10% per unit — ditampilkan sebagai garis bantu, force-distribution
+   **default OFF** (register §23; forced ranking bersejarah kontroversial & tidak cocok
+   perusahaan < 200 orang).
+
+### 5.3 9-Box (performance × potential)
+Matriks 9 kotak sebagai **lensa talenta** (siapa dipromosikan/dikembangkan/diperbaiki)
+- sumbu performance = rating final; sumbu potential = penilaian potensi 1–3 oleh
+  atasan berjenjang pada sesi calibrasi (fitur ringan: kolom `potentialBand` di
+  AppraisalRecord yang diisi saat kalibrasi). Tampilan Hasil & 9-Box = **akses
+  terbatas HR + direksi** (matriks akses §11.3).
+
+## 6. Konsekuensi & Tindak Lanjut
+
+Hasil penilaian harus BERBUAH, kalau tidak karyawan belajar cepat bahwa formulir ini
+teater. Empat saluran konsekuensi yang didesain (detail alur §32):
+
+1. **Merit matrix → bonus & kenaikan gaji** (discretionary; THR TIDAK terikat kinerja —
+   wajib menurut UU, lihat §7): matriks rating × band kenaikan (mis. rating 5 →
+   bonus 2× bulan & kenaikan 8–12%; rating 3 → 0,5–1× & 3–5%; rating 1–2 → 0 & 0).
+   Nominal kenaikan/bonus diusulkan sebagai `MeritRecommendation` → **approval
+   berjenjang berbasis NOMINAL** (tier uang — §11.1) → jadi input PayrollRun
+   (komponen bonus/adjustment) dan/atau draft PersonnelAction SalaryAdjustment.
+2. **Promosi / mutasi**: rating ≥ 4 + potentialBand tinggi → draft PA Promotion
+   (tetap diproses lewat modul Personnel Action existing — bukan bypass).
+3. **PIP**: rating ≤ 2 → alur terstruktur 30/60/90 hari (§33). Kegagalan PIP
+   bermuara ke **SP bertingkat / pengakhiran** melalui DisciplinaryRecord +
+   PersonnelAction — SEMUA ter-jejak, karena PHK alasan kinerja wajib punya
+   pembuktian proses (§7.3).
+4. **Pengembangan**: kompetensi skor rendah → rencana pelatihan (catatan
+   pengembangan di AppraisalRecord; modul Training adalah backlog terpisah di luar
+   cakupan dokumen ini).
+
+## 7. Konteks Regulasi Indonesia (tidak diubah, hanya dipatuhi)
+
+### 7.1 UU 13/2003 Ketenagakerjaan
+- **Pasal 60** — perjanjian percobaan: maksimal **3 bulan**, **harus tertulis**;
+  upah tidak boleh di bawah upah minimum. → Evaluasi prob menolak durasi > 3 bulan;
+  "perpanjangan masa percobaan" tidak dikenal UU — yang benar adalah **perpanjangan
+  PKWT** atau keputusan konfirmasi; sistem menyediakan `ExtendProbation` PA sebagai
+  *perjanjian tertulis* pengganti (praktik pasar umum: perjanjian kerja baru),
+  dengan peringatan di UI bahwa penilaian percobaan ke-2 harus berdiri di atas
+  perjanjian yang sah.
+- **Pasal 157** — THR adalah kewajiban tahunan yang TIDAK bergantung kinerja
+  → modul TIDAK menyentuh THR; bonus kinerja = remunerasi tambahan terpisah
+  (Pasal 156: upah termasuk pembayaran atas prestasi kerja — dasar hukum sahnya
+  bonus berbasis kinerja).
+- **Pasal 52 & 153** — PHK: alasan pelanggaran/peraturan perusahaan butuh prosedur
+  bertingkat (SP; UU menuntut kesempatan perbaikan — sebelum UU Cipta Kerja 4×SP,
+  kini bisa 1×SP bila diatur di PK/PP) → modul memastikan jejak PIP + SP tersambung
+  sebagai bukti proses yang layak bila berujung pengakhiran.
+
+### 7.2 PP 35/2021 (perubahan PP 36/2021)
+- **Pasal 8–9** — konversi PKWT → PKWTT setelah 3 tahun (atau 5 tahun menurut
+  asas preferensi bagi yang memenuhi syarat): penilaian kinerja adalah dasar
+  perusahaan untuk tidak konversi/ memperpanjang → riwayat penilaian harus
+  **eksporabel & ter-audit** (fitur register riwayat per karyawan + ekspor dokumen
+  laporan §20-P8). Inilah alasan kuat `CalibrationDecision` dan `ActivityLog`
+  wajib di modul ini.
+
+### 7.3 UU PDP (No. 27/2022)
+- Data kinerja, feedback 360, hasil PIP = **data pribadi** (bahkan cenderung
+  sensitif karena memengaruhi hak kepegawaian) → akses granular per peran
+  (§11.3), retensi terdefinisi, DSR (permintaan subjek data) untuk karyawan
+  (perluasan `DataSubjectRequest` yang sudah ada untuk pelamar), dan log aktivitas.
+  Detail §37.
+
+### 7.4 SKP ASN (PP 30/2019) — REFERENSI GAYA, BUKAN KEWAJIBAN
+Untuk swasta tidak mengikat; namun gayanya (rencana kerja terukur + penilaian
+perilaku: orientasi pelayanan, integritas, komitmen, disiplin, kerjasama, kolaborasi,
+kepemimpinan) adalah kerangka yang baik — pustaka `Competency` default kami
+meniru kategori perilaku ini (berlabel nilai inti perusahaan, bebas dikustomisasi).
+
+## 8. Bias & Antipola yang Harus Didesain Keluar
+
+| # | Bias / antipola | Gejala | Sarana desain penangkalnya |
+|---|---|---|---|
+| 1 | **Recency bias** | kinerja 3 bulan terakhir menutupi 9 bulan pertama | checkpoint aktual tengah tahun + timeline check-in + bukti (bukti lampiran per KPI) |
+| 2 | **Halo/horns effect** | satu kejayaan/kecelakaan menentukan semua skor | skor per-KPI terpisah + komentar wajib bila skor ekstrem (≤2 / =5) + 360 sebagai pembanding |
+| 3 | **Central tendency** | semua dinilai "cukup" (aman) | dashboard distribusi per atasan + panduan distribusi + kalibrasi |
+| 4 | **Leniency / strictness** | standar beda antar atasan | kalibrasi wajib sebelum finalisasi + metrik bias di laporan P8 |
+| 5 | **KPI kabur / tak terukur** | target "meningkatkan layanan" | validasi: KPI wajib punya satuan + ambang + target numerik (atau Boolean eksplisit) |
+| 6 | **Bobot menyimpang** | semua bobot di satu KPI | Σbobot = 100 divalidasi UI+server; bobot per item dibatasi 5–50% |
+| 7 | **Kejutan akhir tahun** | karyawan tahu hasilnya saat rapat akhir | fase check-in + progress tengah tahun + acknowledgment ESS + jendela banding |
+| 8 | **Formulir teater** | hasil tidak berpengaruh apa-apa | §6: merit/PA/PIP ter-otomasi dari hasil |
+| 9 | **Sarkasme tertulis di 360** | umpan balik merusak, bukan membangun | panduan bahasa + moderasi HR sebelum tampil + anonimitas ter-agregasi ≥3 |
+| 10 | **Penilaian atasan dirinya** | siapa menilai siapa tidak jelas | snapshot manager saat peserta didaftarkan (atasan menilai; atasan atasannya mengkalibrasi) |
+
+---
+---
+
+# BAGIAN C — ANALISA TIER APLIKASI
+
+## 9. Tier Pasar Aplikasi HRIS & Fitur Performance Modulenya
+
+Pasar HRIS lazim dibagi tiga tier. Analisa ini penting untuk memutuskan **fitur mana
+yang kita bangun sekarang, mana yang kita tiru polanya, mana yang sengaja tidak** —
+agar modul tidak over-engineered (mahal & lambat) atau under-built (tak laku dipakai).
+
+| Aspek | Tier 1 — Enterprise global (contoh kelas: SAP SuccessFactors, Workday, Oracle HCM) | Tier 2 — Mid-market cloud (contoh kelas: Darwinbox, Mekari Talenta/People, Zoho People) | Tier 3 — UKM & lokal/spreadsheet |
+|---|---|---|---|
+| Siklus penilaian | apa pun: kuartalan/OKR, terus-menerus, project-based | tahunan + mid-year review | tahunan (Excel) |
+| Metodologi | OKR + KPI + BSC + kompetensi + goal cascading penuh | KPI + kompetensi + 360 (sering add-on) | KPI sederhana / naratif |
+| 360 | penuh, psikometrik, integrasi assessment center | opsional, skala | tidak |
+| Kalibrasi | formal (calibration grid, 9-box, talent review, succession) | distribusi + 9-box ringan | tidak |
+| Merit/bonus | integrasi compensation planning penuh (salary benchmarking) | rekomendasi → payroll | manual di Excel payroll |
+| AI | drafting penilaian, analitik prediktif attrition, sentiment | ringan/absen | tidak |
+| Multi-entity & governance | penuh | sebagian | tidak |
+| Harga & kompleksitas | sangat mahal, implementasi 6–18 bln | menengah, SaaS bulanan | murah/manual |
+
+## 10. Posisi & Keputusan Tier RekanKerja
+
+**Posisi RekanKerja hari ini**: self-hosted, multi-tenant, menyasar **menengah
+(10–500 karyawan)** — secara fitur bermain di **Tier 2 yang solid**, tetapi memegang
+beberapa pola arsitektur kelas Tier 1 yang sudah terbukti: approval engine parametrik
+6-dimensi berbasis nominal, enkripsi vault, eSign, DSR UU PDP, ActivityLog penuh,
+dwibahasa per pengguna, dan laporan dokumen bernomor.
+
+**Keputusan tier untuk modul Performance** (per fitur):
+
+| Fitur performance | Keputusan | Alasan |
+|---|---|---|
+| Siklus tahunan + fase digerbangkan | **Bangun (inti Tier 2)** | kebutuhan nyata pasar sasaran |
+| KPI + sumber data OTOMATIS dari modul internal (Attendance/Payroll/Recruitment/Leave) | **Bangun — nilai jual unik** | kompetitor Tier 2 butuh integrasi eksternal; kita punya datanya sendiri (zero integration) |
+| Check-in 1-on-1 + checkpoint tengah tahun | **Bangun** | pembeda kematangan proses; biaya build kecil |
+| Kompetensi + core values berbobot | **Bangun** | standar pasar |
+| 360 anonim ter-agregasi | **Bangun (opsional per siklus)** | diminta pasar menengah; anonimitas ≥3 wajib (UU PDP + kualitas) |
+| Kalibrasi ter-audit + panduan distribusi (tanpa forced ranking) | **Bangun** | keadilan + bukti hukum (PP 35/2021) |
+| 9-box + potential band | **Bangun ringan** | lensa HR/direksi; succession penuh = backlog |
+| Merit matrix → rekomendasi → approval nominal → Payroll/PA | **Bangun** | menutup lingkaran bisnis (ini "Act") |
+| PIP 30/60/90 + sambungan SP/PA | **Bangun** | kepatuhan PHK (§7) |
+| Evaluasi masa percobaan dari onboarding | **Bangun** | penutup alur rekrutmen yang sudah hidup |
+| Laporan dokumen bertingkat bilingual (pf11–pf44) | **Bangun** | konsistensi modul lain (medical/travel/leave reports) |
+| OKR board transparan, ritme kuartalan | **Backlog (Tier 1)** | beban adopsi budaya; menunggu permintaan |
+| AI draft penilaian / sentiment check-in | **Backlog (Tier 1)** | infra AI provider sudah ada; nilai belum terbukti bagi target pasar |
+| Compensation planning + salary benchmarking | **Backlog (Tier 1)** | cukup merit matrix dulu |
+| Assessment center / psikometrik | **Tidak** | ranah vendor khusus |
+
+## 11. Tier INTERNAL Mesin RekanKerja (penerapan konkret)
+
+Ini bagian "analisa tier app" pada level mesin aplikasi kita sendiri — modul
+performance harus masuk ke TIGA mekanisme tier yang sudah hidup:
+
+### 11.1 Tier #1 — Approval berjenjang (docType & tier nominal)
+Engine approval memakai `ApprovalStructure` (6-dimensi penempatan pemohon:
+office/location/unit/position/grade/level) dengan level ber-`minAmount/maxAmount`
+untuk docType berbasis uang. Analisa untuk performance:
+
+| docType baru | Sifat tier | Struktur default yang diusulkan |
+|---|---|---|
+| `PerformanceAppraisal` (finalisasi hasil penilaian) | **NON-nominal** — tier dari dimensi penempatan karyawan YANG DINILAI (bukan pemohon) + berat keputusan | AS-PERF-STD: L1 atasan penilai (submit) → L2 HR_ADMIN (verifikasi proses) → L3 POSISI Direktur (hanya bila: grade/level tertentu ATAU rating ekstrem 1 & 5 ATAU hasil memicu PIP/pengakhiran). Pencocokan 6-dimensi tetap dipakai → per-unit/grade bisa punya jalur berbeda |
+| `ProbationDecision` | NON-nominal | AS-PROB-STD: L1 atasan (rekomendasi) → L2 HR_ADMIN → bila rekomendasi = Terminate → +L3 Direktur |
+| `PipPlan` | NON-nominal | AS-PIP-STD: L1 atasan → L2 HR_ADMIN |
+| `MeritRecommendation` | **NOMINAL** (masuk `AMOUNT_DOC_TYPES`) — tier uang untuk bonus/kenaikan | AS-MERIT-STD: L1 HR_ADMIN → L2 POSISI Direktur bila `nominal > maxAmount` L1 (mis. > Rp 10.000.000) — level nominal aktif hanya bila masuk rentang (mekanisme sama dengan Loan/Medical/Travel/RecruitmentPR) |
+
+**Catatan desain penting**: untuk dokumen penilaian, "pemohon" dalam pencocokan struktur
+= **karyawan yang dinilai** (bukan atasan yang men-submit) — agar tier mengikuti
+grade/unit orang yang dinilai. Ini keputusan implementasi yang harus dijaga di fase P4
+(register §23-D4).
+
+### 11.2 Tier #2 — Laporan dokumen (pola tier laporan modul lain)
+Mengikuti pola katalog laporan medical (mr) / travel (tr) — 4 grup × 3–4 laporan,
+bilingual ID/EN, ekspor XLSX/PDF, kop & nomor dokumen:
+
+| Grup | Kode | Isi |
+|---|---|---|
+| G1 Siklus & Partisipasi | pf11 | register siklus & fase; pf12 completion per fase (siapa belum isi target/penilaian); pf13 register penetapan KPI (bobot, target) |
+| G2 Penilaian & Hasil | pf21 | register hasil per periode (skor/rating/status); pf22 distribusi rating per unit/atasan; pf23 detail skor KPI & kompetensi per karyawan; pf24 ringkasan 360 ter-agregasi (anonim ≥3) |
+| G3 Kualitas & Kepatuhan | pf31 | jejak kalibrasi (audit trail lengkap); pf32 indikator bias atasan (distribusi, rata-rata, sebaran); pf33 register banding & keputusannya |
+| G4 Konsekuensi & Analitik | pf41 | register merit (usulan→approval→realisasi payroll); pf42 register PIP & outcome; pf43 snapshot 9-box; pf44 tren kinerja multi-tahun per unit |
+
+### 11.3 Tier #3 — Akses data (visibility matrix)
+| Peran | KPI & target | Check-in | Draft penilaian | Hasil final | 9-box & merit | Kalibrasi audit |
+|---|---|---|---|---|---|---|
+| Karyawan (tentang dirinya) | lihat (fase terbuka) | miliknya (dua arah) | tidak | lihat + acknowledge + banding | tidak | tidak |
+| Atasan langsung | tim: CRUD sesuai fase | tim: CRUD | tim: isi | tim: lihat (pasca-publikasi) | usulan saja (§5.3) | sesi yang diikuti |
+| Atasan berjenjang (L2+) | read-only tim besar | tidak | tidak | agregat unit | lihat 9-box unit | tidak |
+| HR admin | semua | semua | semua | semua | semua | semua |
+| Direksi/owner | agregat | tidak | tidak | agregat | 9-box + distribusi | ringkasan |
+
+Enforcement: menu-perms per menu key (`performance:*`) + pemeriksaan relasi
+atasan-bawahan di service layer ( EmployeeAssignment aktif ) — sama seperti
+pola `pr-to-approve` ESS yang memfilter per approver.
+
+---
+---
+---
+---
+
+# BAGIAN D — BLUEPRINT IMPLEMENTASI (POIN 1)
+
+## 12. Misi & Prinsip Desain
+
+**Misi**: modul kinerja yang **menutup lingkaran** (rekutmen → kinerja → reward/
+perbaikan), **ter-audit penuh** (setiap angka bisa dijelaskan asalnya), dan
+**ringan dipakai** (ESS-first; atasan bisa menyelesaikan penilaian tim 10 orang
+< 1 jam berkat data terisi otomatis).
+
+Prinsip desain yang mengikat semua fase (pewaris prinsip modul Rekrutmen):
+1. **Server otoritatif** — skor, rating, bobot divalidasi & dihitung server; input
+   klien hanya proposal. Progress dibuang, dokumen tidak pernah setengah jadi.
+2. **State machine eksplisit** — semua dokumen bernomor dengan status tervalidasi;
+   transisi hanya lewat aksi bernama (bukan PATCH status bebas).
+3. **Approval engine tunggal** — tidak ada jalur persetujuan paralel baru; daftarkan
+   docType baru + ApprovalStructure parametrik (§11.1).
+4. **Dwibahasa ID/EN menyeluruh** — t() di semua string UI baru; kamus server-error
+   diperluas; laporan mengikuti pola ekspor tier-2 bilingual.
+5. **Isolasi tenant ketat** — semua tabel di schema tenant; satu query pun tidak
+   boleh lintas schema kecuali registry platform.
+6. **Bukti meninggalkan jejak** — ActivityLog di setiap aksi penting; CalibrationDecision
+   mencatat perubahan hasil; uang di vault terenkripsi.
+7. **Tidak mengubah modul lain kecuali lewat kontrak yang diumumkan** (§19) —
+   perubahan minimal & backward-compatible.
+
+## 13. Keputusan Arsitektur
+
+| Aspek | Keputusan | Rujukan pola |
+|---|---|---|
+| Bounded context | `src/rekankerja/performance/` dengan subfolder `api/`, `services/`, `components/` | `src/rekankerja/recruitment/` |
+| DB | schema tenant PostgreSQL (Prisma multi-schema), migrasi via `scripts/migrate-performance-p*.ts` idempoten + `parity-runner` step `performance-pN` (pola F0–F9 rekrutmen) | `parity-runner.ts` |
+| API | route handler di `src/app/api/rekankerja/performance/*` + ESS di `.../ess/*`; kebab-case path, aksi lewat POST body `action` | rekrutmen `pr.ts`, `selection.ts` |
+| Approval | docType baru 4 (§11.1) di `approval-engine.ts` (`APPROVAL_DOC_TYPES`, `AMOUNT_DOC_TYPES`, `DOC_TYPE_LABEL`) + MENU_OPS | `RecruitmentPR` |
+| Notifikasi | `notification-service` (in-app) + `email-defaults` (template ID `performance.*`) + webhook events `performance.*` | `recruitment.pr.*` |
+| Penomoran dokumen | layanan nomor generik `PER-2026-0001` (penilaian), `PRB-2026-0001` (prob), `PIP-2026-0001`, `MER-2026-0001` — prefix per tenant di `PerformanceSetting` | journal-no / recruitment identity |
+| Surat | jenis surat baru di `LetterTemplate`: SURAT HASIL PENILAIAN (PER), SK PERPANJANGAN MASA COBA (PRB-E), SK PROGRAM PERBAIKAN KINERJA (PIP) | `letter-defaults.ts` |
+| Uang | nominal merit/bonus disimpan **terenkripsi vault** (pola field-crypto `enc:v1:t:…`) | RecruitmentOffer salary |
+| Jadwal/reminder | scheduler existing untuk: jatuh tempo fase, check-in terlewat, PIP checkpoint, prob jatuh tempo H-14/H-3 | `scheduler-service.ts` |
+| Ekspor | `export.ts` localizeSheet + kamus BASE_EN per tambahan; katalog laporan dokumen `pf11..pf44` (§11.2) | medical/travel reports |
+| AI | **Tidak di fase P0–P9** (backlog; infra `AiProviderConfig` siap) | — |
+
+## 14. Struktur Menu & Halaman
+
+### 14.1 Grup modul admin (rail) — `performance`
+| Grup rail | label | short | ikon | hex |
+|---|---|---|---|---|
+| Performance | "Performance / Penilaian Kinerja" | Kinerja | `Target` (lucide) | `#d946ef` (fuchsia — belum terpakai 8 modul lain) |
+
+### 14.2 Halaman admin (12 menu key)
+```
+MODULE: performance (admin)
+├─ Ringkasan (overview) .................... performance:overview
+├─ SIKLUS
+│  ├─ Siklus Penilaian ................... performance:cycles     (CRUD siklus + fase + enroll peserta)
+│  ├─ Target & KPI ....................... performance:goals        (penetapan/approval KPI per peserta + template bobot)
+│  └─ Check-in ........................... performance:checkins     (jadwal & catatan 1-on-1 semua tim + progress)
+├─ PENILAIAN
+│  ├─ Penilaian .......................... performance:appraisals  (self/atasan/360 + finalisasi per peserta)
+│  ├─ Kalibrasi .......................... performance:calibration  (sesi, distribusi, keputusan ter-audit)
+│  └─ Hasil & 9-Box ...................... performance:results      (publikasi, acknowledgement, 9-box, merit)
+├─ TINDAK LANJUT
+│  ├─ PIP ................................ performance:pip          (register & checkpoint)
+│  └─ Evaluasi Masa Percobaan ............ performance:probation   (jatuh tempo, keputusan, PA)
+├─ Master Kinerja ........................ performance:masters      (KPI library, kompetensi+level, skala rating,
+│                                                                     template bobot, merit matrix)
+├─ Laporan ............................... performance:reports       (dashboard + tab Dokumen Laporan pf11–pf44)
+└─ Pengaturan ........................... performance:settings      (penomoran, default bobot, jendela banding, retensi)
+```
+
+### 14.3 ESS (tambahan nav + layar)
+```
+ESS (menu karyawan):
+├─ Target Saya (my-goals) ................ KPI & target periode aktif + progress + usulan revisi
+├─ Penilaian Saya (my-appraisal) ......... self-assessment, hasil terpublikasi, acknowledge, banding
+├─ 360 Saya (my-360) .................... undangan 360 yang harus saya isi (jika aktif)
+└─ (manager ESS) Penilaian Tim ........... reuse my-appraisal dgn scope atasan — daftar bawahan + status
+```
+
+## 15. Data Model Final (17 model — schema tenant)
+
+Konvensi mengikuti §4.1 DEVELOPMENT-PLAN-RECRUITMENT: id `cuid()`, enum sebagai
+`String` + komentar daftar nilai, `createdAt/updatedAt`, relasi eksplisit, `@@index`
+pada semua kolom foreign-key + filter utama. Uang nominal → vault terenkripsi.
+
+```prisma
+// ===== MASTER (P0) =====
+model PerformanceSetting {
+  id           String   @id @default(cuid())
+  docPrefixes  String   @default("PER|PRB|PIP|MER")   // penomoran per jenis dokumen
+  defWeights   String   @default("70|20|10")           // wKPI|wKomp|wCore default
+  appealDays   Int      @default(7)                    // jendela banding setelah publikasi
+  retentionYears Int    @default(5)                    // retensi arsip hasil
+  updatedAt    DateTime @updatedAt
+}
+
+model KpiDefinition {                 // pustaka KPI (per tenant, bisa dari starter pack)
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  category    String  // Financial|Customer|InternalProcess|LearningGrowth (BSC §3.4)
+  polarity    String  // Higher|Lower|Boolean
+  unit        String  // "%|Rp|hari|unit|…"
+  dataSource  String  @default("Manual") // Manual|Attendance|Payroll|Recruitment|Leave
+  sourceKey   String? // binding data otomatis, mis. "attendance_presence_pct"
+  description String?
+  active      Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Competency {                   // kompetensi + deskriptor 5 level (anchor anti-halo §8)
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  kind        String   // CoreValue|Managerial|Technical
+  levelsJson  String   // [{level:1..5, label, descriptor}] — deskriptor perilaku per level
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RatingScale {                  // skala konversi skor→rating (dapat dikustom)
+  id       String  @id @default(cuid())
+  value    Int     @unique           // 1..5
+  labelId  String  // "Sangat Baik"
+  labelEn  String  // "Outstanding"
+  minScore Float   @unique           // 90|80|70|60|0
+  color    String  // emerald|… (token warna UI)
+  guideline String? // panduan deskriptor kapan diberikan
+}
+
+model PerformanceTemplate {          // template bobot & komponen per kelompok jabatan
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  weightsJson String // {kpi:70, competency:20, core:10}
+  active    Boolean  @default(true)
+  items     PerformanceTemplateItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model PerformanceTemplateItem {
+  id         String  @id @default(cuid())
+  templateId String
+  kind       String  // Kpi|Competency
+  refId      String  // KpiDefinition.id | Competency.id
+  weight     Float   // bobot dalam komponennya; Σ per kind = 100
+  template   PerformanceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+// ===== SIKLUS & PENILAIAN (P1–P4) =====
+model PerformanceCycle {
+  id           String   @id @default(cuid())
+  code         String   @unique   // PER-2026 (tahunan) / PER-2026-H1
+  name         String
+  cycleType    String   @default("Annual") // Annual|MidYearOnly|OffCycle
+  periodStart  DateTime
+  periodEnd    DateTime
+  // jendela fase (digerbangkan; null = fase dilewati)
+  goalStart    DateTime?
+  goalEnd      DateTime?
+  midStart     DateTime?
+  midEnd       DateTime?
+  selfStart    DateTime?
+  selfEnd      DateTime?
+  mgrStart     DateTime?
+  mgrEnd       DateTime?
+  calibStart   DateTime?
+  calibEnd     DateTime?
+  publishAt    DateTime?
+  weightsJson  String   // override bobot default untuk siklus ini
+  feedback360  Boolean  @default(false) // aktifkan 360 pada siklus ini
+  status       String   @default("Draft") // Draft|GoalSetting|Ongoing|Assessment|Calibration|Published|Closed
+  createdBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  appraisals   AppraisalRecord[]
+  sessions     CalibrationSession[]
+  @@index([status, periodEnd])
+}
+
+model AppraisalRecord {              // 1 baris per karyawan per siklus (peserta)
+  id            String   @id @default(cuid())
+  docNo         String   @unique     // PER-2026-0001
+  cycleId       String
+  employeeId    String
+  managerId     String?              // snapshot atasan penilai saat enroll (§8-10)
+  templateId    String?
+  // skor — semua null sampai fase terkait; dihitung server (§16)
+  kpiTotalWeight Float?
+  selfScore     Float?
+  managerScore  Float?
+  finalScore    Float?               // pasca kalibrasi
+  finalRating   Int?                 // 1..5
+  potentialBand Int?                 // 1..3 (isi saat kalibrasi — bahan 9-box)
+  status        String   @default("Enrolled")
+  // Enrolled|GoalProposed|GoalApproved|Ongoing|SelfDone|ManagerDone|Calibrating|Finalized|Published|Appealed|Closed
+  acknowledgedAt DateTime?
+  appealNote    String?
+  appealStatus  String?              // Submitted|Rejected|Adjusted|Withdrawn
+  appealDecidedBy String?
+  appealDecidedAt DateTime?
+  cycle     PerformanceCycle @relation(fields: [cycleId], references: [id])
+  employee  Employee        @relation("PerfEmployee", fields: [employeeId], references: [id])
+  manager   Employee?        @relation("PerfManager", fields: [managerId], references: [id])
+  kpis      AppraisalKpi[]
+  comps     AppraisalCompetencyScore[]
+  checkins  CheckIn[]
+  f360      Feedback360[]
+  calibrations CalibrationDecision[]
+  merit     MeritRecommendation?
+  @@unique([cycleId, employeeId])
+  @@index([employeeId])
+  @@index([cycleId, status])
+}
+
+model AppraisalKpi {                 // KPI yang dinilai utk satu appraisal
+  id           String  @id @default(cuid())
+  appraisalId  String
+  kpiDefId     String?               // dari pustaka ATAU free-text (usulan karyawan)
+  title        String
+  polarity    String
+  unit         String
+  thresholdMin Float?                // ambang gagal (F)
+  target       Float                 // target (T)
+  stretchValue Float?                // opsional — skor bisa sampai 120
+  weight       Float                 // Σ per appraisal = 100
+  isCritical   Boolean @default(false) // gagal Boolean kritis = otomatis rating ≤2 (§4.5)
+  dataSource   String  @default("Manual")
+  autoValueJson String?              // hasil tarikan otomatis (sumber+periode+nilai) — bukti
+  midActual    Float?                // checkpoint tengah tahun (progress)
+  finalActual  Float?
+  evidenceJson  String?              // [{type:"attachment",id}|{type:"note",text}] — bukti per KPI
+  proposedBy   String  @default("Manager") // Manager|Employee (mode MBO §3.2)
+  @@index([appraisalId])
+}
+
+model AppraisalCompetencyScore {    // nilai kompetensi oleh penilai (bukan 360)
+  id            String  @id @default(cuid())
+  appraisalId   String
+  competencyId String
+  score         Int     // 1..5 (dinilai saat fase manager; self saat fase self)
+  selfScore     Int?
+  comment       String?
+  @@unique([appraisalId, competencyId])
+}
+
+model CheckIn {                      // 1-on-1 terdokumentasi (fase Do §2)
+  id            String   @id @default(cuid())
+  appraisalId   String
+  heldAt        DateTime
+  agenda        String?
+  notesJson     String   // {wins:[], blockers:[], next:[]} — ringkas & terstruktur
+  managerComment String?
+  nextCheckInAt DateTime?
+  status        String   @default("Planned") // Planned|Held|Missed
+  createdById   String?
+  createdAt     DateTime @default(now())
+  @@index([appraisalId, heldAt])
+}
+
+model Feedback360 {                 // undangan reviewer 360 (opsional per siklus)
+  id            String  @id @default(cuid())
+  appraisalId   String
+  reviewerId    String   // Employee id
+  reviewerType  String   // Peer|Subordinate|CrossTeam|Upward
+  status        String   @default("Invited") // Invited|Submitted|Declined|Expired
+  dueAt         DateTime?
+  submittedAt   DateTime?
+  answers       Feedback360Answer[]
+  @@unique([appraisalId, reviewerId, reviewerType])
+}
+model Feedback360Answer {
+  id            String  @id @default(cuid())
+  feedbackId    String
+  competencyId  String
+  score         Int     // 1..5
+  comment       String? // ditampilkan HANYA ter-agregasi ≥3 reviewer (§37)
+  feedback      Feedback360 @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  @@index([feedbackId, competencyId])
+}
+
+model CalibrationSession {           // forum penyetaraan standar antar atasan
+  id             String   @id @default(cuid())
+  cycleId        String
+  orgUnitId      String?             // lingkup diskusi
+  heldAt         DateTime
+  participantsJson String             // [employeeId…] hadir
+  chairId        String?             // ketua (kepala unit)
+  notes          String?
+  decisions      CalibrationDecision[]
+  @@index([cycleId])
+}
+model CalibrationDecision {          // SETIAP perubahan hasil ter-audit (§7.2)
+  id          String   @id @default(cuid())
+  sessionId   String
+  appraisalId String
+  oldScore    Float?
+  newScore    Float?
+  oldRating   Int?
+  newRating   Int?
+  potentialBand Int?                 // isi/ubah 9-box band di sini
+  reason      String                 // WAJIB — alasan kalibrasi
+  decidedBy   String
+  decidedAt   DateTime  @default(now())
+  @@index([appraisalId])
+}
+
+// ===== KONSEKUENSI (P5–P7) =====
+model MeritMatrix {                  // matriks rating → % bonus & % kenaikan
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  gridJson  String   // {5:{bonusMonths:2,raisePct:[8,12]},3:{…},…} + catatan kebijakan
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+model MeritRecommendation {          // usulan per karyawan pasca-publikasi
+  id            String   @id @default(cuid())
+  docNo         String   @unique     // MER-2026-0001
+  appraisalId   String   @unique
+  matrixId      String?
+  bonusMonths   Float?
+  bonusAmount   String?              // VAULT terenkripsi (enc:v1:t:…)
+  raisePct      Float?
+  raiseAmount   String?              // VAULT
+  note          String?
+  status        String   @default("Draft") // Draft|Submitted|Approved|Rejected|Applied|Cancelled
+  personnelActionId String?          // PA SalaryAdjustment/Promotion yang digulirkan
+  appliedRunNo  String?              // PayrollRun yang menyerap (bukti penerapan)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  appraisal     AppraisalRecord @relation(fields: [appraisalId], references: [id])
+}
+
+model PipPlan {                      // Program Perbaikan Kinerja 30/60/90
+  id           String   @id @default(cuid())
+  docNo        String   @unique      // PIP-2026-0001
+  employeeId   String
+  appraisalId  String?               // asal (rating ≤2) — bisa null (kasus khusus)
+  startDate    DateTime
+  endDate      DateTime              // 1–3 bulan (register §23)
+  targetsJson  String                // [{title, metric, target, weight}] — mini-KPI PIP
+  reviewerId   String                // atasan pembina
+  hrAdvisorId  String?
+  status       String   @default("Draft") // Draft|Active|Extended|Recovered|NotRecovered|Cancelled
+  outcomeNotes String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  checkpoints  PipCheckpoint[]
+  employee     Employee @relation("PipEmployee", fields: [employeeId], references: [id])
+  @@index([employeeId, status])
+}
+model PipCheckpoint {                // evaluasi berkala PIP
+  id          String  @id @default(cuid())
+  pipId       String
+  seq         Int     // 1..3 (≈30/60/90 hari)
+  dueDate     DateTime
+  achievementPct Float?
+  notes       String?
+  status      String  @default("Pending") // Pending|Reviewed
+  reviewedById String?
+  reviewedAt  DateTime?
+  pip         PipPlan @relation(fields: [pipId], references: [id], onDelete: Cascade)
+  @@unique([pipId, seq])
+}
+
+model ProbationEvaluation {          // evaluasi masa percobaan (dari onboarding)
+  id          String   @id @default(cuid())
+  docNo       String   @unique       // PRB-2026-0001
+  employeeId  String
+  onboardingId String?               // otomatis saat hire dari rekrutmen
+  cycleId      String?               // siklus penilaian tempat dia terdaftar
+  dueDate     DateTime              // H+3bln joinDate (maks! §7.1)
+  criteriaJson String   // kriteria ringkas [{title, weight}] + kompetensi terpilih
+  managerScore Float?
+  hrNote      String?
+  recommendation String?             // Confirm|Extend|Terminate
+  decisionDate DateTime?
+  personnelActionId String?          // PA yang digulirkan (ChangeStatus/ExtendProbation/Termination)
+  status      String  @default("Open") // Open|Assessed|Recommended|Decided|Cancelled
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employee     Employee @relation("ProbEmployee", fields: [employeeId], references: [id])
+  @@index([employeeId, status])
+  @@index([dueDate])
+}
+```
+
+**Catatan model**:
+- **Tidak ada** tabel "goal kuartalan/OKR board" (backlog §20).
+- `AppraisalKpi.autoValueJson` menyimpan bukti tarikan data otomatis (nilai + periode +
+  waktu tarik) sehingga penilaian bisa direplay & diaudit.
+- Relasi balik ditambahkan ke `Employee` (5 relasi baru) — pola sama seperti rekrutmen
+  menambah relasi di Employee.
+- Estimasi total: 17 tabel + 5 kolom enum status — kecil dibanding 63 model eksisting.
+
+## 16. Formula Perhitungan Final (otoritatif server)
+
+Lengkap di §4 (domain) — di sini spesifikasi teknisnya:
+
+```
+skorKpiItem(a: AppraisalKpi):
+  A = finalActual; guard: A != null → 0 bila null di fase final
+  Higher : s = (A − F) / (T − F) × 100 ; stretch: s' = min(120, 100 + (A − T)/(S − T) × 20)
+  Lower  : s = (F − A) / (F − T) × 100
+  Boolean: s = A ≥ 1 ? 100 : 0        // A ∈ {0,1}
+  return clamp(s, 0, 120)            // 120 hanya bila stretch terdefinisi
+
+skorKomponenKpi  = Σ skorKpiItem × weight / Σ weight            (Σweight wajib 100)
+skorKomponenKomp = Σ (score/5×100 × weight) / Σ weight            (dinilai atasan)
+skorKomponenCore = idem, subset Competency.kind = CoreValue
+managerScore     = wKPI×skorKomponenKpi + wKomp×skorKomponenKomp + wCore×skorKomponenCore
+finalScore       = managerScore (bisa DIOVERRIDE kalibrasi → CalibrationDecision audit)
+finalRating      = RatingScale lookup(finalScore)  // 90/80/70/60 — bisa dikustom tenant
+penaltasKritis   : ∃ kritis Boolean gagal → finalRating = min(finalRating, 2)  (§4.5)
+```
+
+Auto-source binding (tarikan saat fase penilaian dimulai; disimpan sebagai bukti):
+
+| sourceKey | Sumber | Formula |
+|---|---|---|
+| `attendance_presence_pct` | AttendanceDaily | hari Hadir ÷ hari kerja terjadwal × 100 |
+| `attendance_late_minutes` | AttendanceDaily | Σ menit telat (polaritas Lower) |
+| `overtime_verified_hours` | OvertimeOrder | Σ jam lembur status Paid/verified |
+| `leave_unplanned_days` | LeaveRequest | Σ hari cuti non-rencana (Lower) |
+| `recruitment_time_to_fill` | MetricSnapshot | time_to_fill milik PR officer (Lower) |
+| `recruitment_fulfilled_h` | RecruitmentPlan recon | Σ fulfilled ÷ Σ h × 100 (HR/rekruter) |
+
+## 17. API Blueprint
+
+Konvensi proyek (kebab-case, action via POST body, `?q=` pencarian, offset/limit):
+
+```
+# P0 — master & setting
+/api/rekankerja/performance/masters      GET (list by kind) · POST create · PATCH update
+                                         kind=kpi|competency|scale|template|meritMatrix
+/api/rekankerja/performance/settings    GET · PATCH
+
+# P1 — siklus, peserta, KPI
+/api/rekankerja/performance/cycles      GET list (status, tahun) · POST {action:create|
+                                         enroll|openGoal|startOngoing|startAssessment|
+                                         startCalibration|publish|close}
+                                         PATCH {id, patch} (hanya status Draft)
+/api/rekankerja/performance/goals       GET ?cycleId&employeeId&q · POST {action:assignBatch|
+                                         propose|approveProposal|reviseTarget|lockGoals}
+                                         PATCH {id, patch} (bobot/target — fase GoalSetting)
+
+# P2 — check-in
+/api/rekankerja/performance/checkins     GET ?appraisalId&from&to · POST {action:schedule|
+                                         log|markMissed} · PATCH {id, patch}
+
+# P3 — penilaian & 360
+/api/rekankerja/performance/appraisals  GET ?cycleId&q&status&mine (detail ?id=)
+                                         POST {action:submitSelf|saveManagerScore|submitManager|
+                                         pullAutoSources|finalize}  (finalize → approval chain)
+/api/rekankerja/performance/feedback360 GET ?cycleId|mine · POST {action:invite|remind|decline|
+                                         submit} (submit anonim; agregasi di service)
+
+# P4 — kalibrasi & hasil
+/api/rekankerja/performance/calibration  GET ?cycleId&unitId (distribusi) · POST {action:openSession|
+                                         decide|closeSession}  (decide = CalibrationDecision audit)
+/api/rekankerja/performance/results      GET ?cycleId (hasil + 9box + acknowledgement status)
+                                         POST {action:acknowledge|appeal|decideAppeal}
+
+# P5 — merit & PIP
+/api/rekankerja/performance/merit       GET ?cycleId&status · POST {action:recommend|submit|apply|
+                                         toPayroll|toPersonnelAction}
+/api/rekankerja/performance/pip         GET ?status&employeeId · POST {action:create|activate|
+                                         extend|reviewCheckpoint|close|outcome} · PATCH {id, patch}
+
+# P6 — probation
+/api/rekankerja/performance/probation   GET ?status&dueSoon · POST {action:assess|recommend|
+                                         decide|toPersonnelAction|toLetter}
+
+# P8 — laporan
+/api/rekankerja/performance/reports     GET dashboard (KPI modul + distribusi) · GET
+                                         documents?code=pf11..pf44&params (pola medical/travel)
+
+# ESS (portal karyawan)
+/api/rekankerja/ess/my-goals             GET (KPI+progress) · POST {action:propose|addEvidence}
+/api/rekankerja/ess/my-appraisal         GET (status fase + hasil published) · POST {action:
+                                         submitSelf|acknowledge|appeal|withdrawAppeal}
+/api/rekankerja/ess/my-360               GET (undangan saya) · POST {action:submit|decline}
+/api/rekankerja/ess/my-checkins         GET (riwayat 1-on-1 saya)
+```
+
+Semua mutasi: `requireMutator` + menu-op guard + ActivityLog; approval submit
+mengikuti kontrak engine (docType baru) — sisi ESS approval baru: `ess/perf-approval`
+menempel ke halaman "Pengajuan" (pola PR Approval ESS).
+
+## 18. Standar UI/UX
+
+1. **Pola halaman** konsisten modul lain: Rail grup → header (judul + status chip +
+   aksi kontekstual per fase) → tab. Overview = kartu KPI (4–6 tile) + grafik + tabel.
+2. **Warna semantik** skor/rating sudah didefinisikan RatingScale.color (§4.4) —
+   tidak ada warna baru di luar token yang ada.
+3. **Indikator fase siklus** ala recon v2 rekrutmen: chip fase aktif + baris capaian
+   partisipasi ("Target 34/44 · Self 21/44 · Manager 12/44") — hijau/amber/merah.
+4. **Form penilaian atasan**: tabel KPI (input aktual + tombol "tarik data otomatis"
+   per baris + indikator sumber) → grid kompetensi (radio 1–5 + deskriptor level saat
+   hover — anchor anti-halo) → komentar wajib bila skor ekstrem.
+5. **Dialog keputusan approval** selalu menampilkan KONTEKS (pola chip rencana MPP):
+   "Penilaian PER-2026-0007 · Budi — GA Staff · skor 84 → rating 4" + perubahan
+   kalibrasi bila ada (dari → ke, alasan).
+6. **9-box** = scatter 3×3 interaktif (klik sel → daftar karyawan) — akses HR/direksi.
+7. **Mobile-first**: semua tabel ESS collapse ke kartu ≤ 640px; form penilaian atasan
+   tetap desktop-first (keputusan berat) tapi bisa di-scroll di mobile.
+8. **Dwibahasa**: seluruh label `t("…","…")`; mode EN penuh tanpa teks ID tersisa
+   (audit-bilingual TOTAL_GAP tidak boleh naik — gate §21).
+9. **Empty state bermakna**: "Belum ada siklus — buat siklus pertama Anda"
+   + tombol aksi; bukan tabel kosong buta.
+
+## 19. Integrasi Lintas Modul (kontrak yang diumumkan)
+
+| Modul | Titik sambung | Arah | Mekanisme |
+|---|---|---|---|
+| **Recruitment** | hire → evaluasi prob | rekrutmen → performance | `to-onboarding` (sudah ada) memicu create `ProbationEvaluation` (dueDate = joinDate + 3 bln, dikunci ≤3 bln §7.1) |
+| **Recruitment** | auto-source KPI rekruter | performance ← rekrutmen | `MetricSnapshot` time_to_fill/fulfilled_h (§16) |
+| **Attendance / Leave** | auto-source KPI kehadiran/telat/cuti | performance ← TA | query service AttendanceDaily/LeaveRequest per periode (read-only) |
+| **Payroll** | merit → payroll | performance → payroll | `MeritRecommendation.apply` menyerap sebagai komponen adjustment/bonus pada PayrollRun periode terbuka berikutnya (pola bonus massal existing); `appliedRunNo` bukti |
+| **Personnel Action** | promosi/kenaikan/percobaan/PHK | performance → PA | `toPersonnelAction` membuat DRAFT PA (type Promotion/SalaryAdjustment/ExtendProbation/Termination) + backlink id — PA tetap diproses modul HR Base |
+| **Disciplinary** | PIP gagal → SP | performance → disciplinary | outcome NotRecovered menyarankan `DisciplinaryRecord` (warningLevel sesuai riwayat) — keputusan tetap manual HR |
+| **Letters** | surat hasil/PIP/prob | performance → letters | 3 jenis template surat baru di LetterTemplate; terbit saat keputusan (pola surat offer/appointment) |
+| **Approval engine** | 4 docType baru | performance ↔ engine | `PerformanceAppraisal`, `ProbationDecision`, `PipPlan`, `MeritRecommendation` (§11.1) |
+| **Notifikasi/Email/WA** | semua milestone | performance → notif | `performance.*` events (goal approved, fase buka/tutup, hasil terpublikasi, PIP jatuh tempo, prob jatuh tempo H-14/H-3) |
+| **eSign** | surat keputusan | performance → esign | request e-sign surat PIP/percobaan bila perusahaan mau (opsional) |
+| **MetricSnapshot** | analitik modul | performance → snapshot | metric baru: perf_completion, rating_distribution, pip_recovery_rate |
+
+**Aturan pengamanan kontrak**: modul lain TIDAK diubah kecuali: (a) relasi balik di
+`Employee` (+5), (b) daftar docType engine, (c) seed `letter-defaults`/`email-defaults`,
+(d) MENU_OPS + provision registry — semuanya additive & backward-compatible.
+
+## 20. Rencana Eksekusi Fase P0–P9
+
+Ukuran: M ≈ 2–4 hari, L ≈ 5–8 hari, XL ≈ 9–14 hari (agent-assisted, seperti rekrutmen).
+
+| Fase | Isi | Ukuran | Keluaran terverifikasi per fase |
+|---|---|---|---|
+| **P0 Fondasi & Master** | 17 model schema + DDL + parity step; masters (KPI library starter-pack ±40 KPI 4 perspektif BSC, 12 kompetensi ber-level, skala rating, template, merit matrix default); menu & rail grup; settings; penomoran | **M** | migrasi idempoten 3 tenant; halaman Master CRUD; tsc/lint/audit gate |
+| **P1 Siklus & Target** | cycle CRUD + gerbang fase + enroll peserta (auto: karyawan Active, snapshot manager); penetapan KPI (assign batch + self-propose MBO + approval) + lock; validasi Σbobot | **L** | alur 1–2 E2E; guard matriks §35 baris 1–7 |
+| **P2 Check-in & Monitoring** | CheckIn CRUD + scheduler reminder + progress midActual + revisi target mid-year (approval ringan atasan-atas) | **M** | alur 3 E2E |
+| **P3 Penilaian & 360** | fase self + manager (form §18-4) + pullAutoSources (6 binding) + feedback360 (undang/isian/anonim ≥3) | **L** | alur 5 E2E + bukti tarikan otomatis |
+| **P4 Kalibrasi & Finalisasi** | dashboard distribusi + CalibrationSession/Decision (audit) + docType PerformanceAppraisal di engine + struktur AS-PERF-STD + finalisasi & publikasi + acknowledgement + banding ESS | **L–XL** | alur 6–7 E2E; audit trail lengkap |
+| **P5 Merit, PA & Surat** | MeritMatrix → MeritRecommendation (docType nominal + vault) → toPayroll/toPersonnelAction; surat PER/PIP/PRB; notifikasi milestone | **L–XL** | alur 8 E2E + jurnal payroll menyerap |
+| **P6 PIP End-to-End** | create/activate/checkpoint/extend/outcome + sambungan disciplinary + scheduler jatuh tempo | **L** | alur 9 E2E |
+| **P7 Evaluasi Masa Percobaan** | trigger dari onboarding + form + keputusan 3 arah + PA + surat + scheduler H-14/H-3 | **M** | alur 4 E2E dari hire rekrutmen |
+| **P8 Laporan & Analitik** | overview KPI; katalog pf11–pf44 (4 grup, bilingual, XLSX/PDF, kop+nomor); MetricSnapshot; ekspor riwayat per karyawan (PP 35/2021 §7.2) | **M–L** | 16 laporan render + ekspor EN/ID |
+| **P9 Kepatuhan & Hardening** | visibility matrix §11.3 enforcement; DSR karyawan (extend DataSubjectRequest); retensi arsip; rate-limit submit 360; uji beban enroll massal | **M** | matriks akses teruji negatif (403); DSR selesai |
+
+**Backlog (belum dijadwalkan — XL / butuh keputusan user)**: mode OKR kuartalan + board
+transparan; AI ringkasan check-in & deteksi bias bahasa; modul Training/pengembangan
+terhubung skor kompetensi; succession planning penuh di atas 9-box; benchmark gaji.
+
+## 21. Quality Gates & Definition of Done
+
+Sama dengan standar proyek (per fase, tanpa kecuali):
+1. `bunx tsc --noEmit` = 0 error; `bun run lint` = 0 error (warning baseline 6).
+2. `bun scripts/audit-bilingual.ts` TOTAL_GAP tidak bertambah dari baseline 149.
+3. `dev.log` bersih dari error runtime; parity 3 tenant hijau.
+4. E2E agent-browser per fase: ID **dan** EN; mobile 375×812 tanpa h-scroll; 0 page error.
+5. Data demo MII: 1 siklus penuh (≥8 karyawan lintas unit, termasuk 1 under-performer
+   → PIP, 1 probation dari hire E2E-MPP-HIRE) — dipakai ulang rantai bukti hidup.
+6. Dokumen bisnis proses (Bagian E) diperbarui bila test menemukan miskonsepsi
+   (pola rekruitment: test → pahami ulang → koreksi dokumen).
+
+**Definition of Done modul (keseluruhan)**: siklus penuh dapat dijalankan di data MII
+dari pembuatan siklus hingga merit diterapkan payroll + surat terbit + PIP selesai,
+seluruhnya ter-ActivityLog, dwibahasa, mobile, dan 3 tenant ter-isolasi.
+
+## 22. Risiko & Mitigasi
+
+| Risiko | Dampak | Mitigasi desain |
+|---|---|---|
+| Adopsi rendah (formulir dianggap beban) | tinggi | ESS-first + auto-source KPI + check-in ringan; atasan tidak mengetik ulang data yang sistem punya |
+| Sengketa ketenagakerjaan atas hasil | tinggi | audit trail (CalibrationDecision + ActivityLog) + jendela banding + bukti KPI ter-lampir + ekspor riwayat (PP 35/2021) |
+| Penilaian bias atasan | sedang | distribusi + panduan + kalibrasi wajib + komentar wajib skor ekstrem |
+| Overlap dengan payroll cycle (bonus telat) | sedang | `apply` mengecek jendela PayrollRun terbuka; fallback draft PA SalaryAdjustment bila run tertutup |
+| 360 disalahgunakan (balas dendam) | sedang | anonimitas ≥3 + moderasi HR + panduan bahasa + opsional per siklus |
+| Data master KPI kacau (semua free-text) | sedang | pustaka KPI starter-pack + free-text hanya via usulan karyawan yang di-approval |
+| Beban enroll massal (500 karyawan) | rendah | enroll batch + pagination + uji beban di P9 |
+| Kompleksitas gerbang fase terlalu kaku | sedang | fase boleh null (dilewati) + aksi admin force-advance ter-ActivityLog |
+
+## 23. Register Keputusan (default — user dapat mengubah sebelum/di antara fase)
+
+| # | Keputusan | Default dipilih | Alternatif |
+|---|---|---|---|
+| D1 | Skala rating | 5 tingkat (§4.4) | 4 tingkat / custom |
+| D2 | Forced distribution | OFF — hanya panduan garis bantu | paksa per unit |
+| D3 | 360 default per siklus | OFF | ON untuk semua siklus |
+| D4 | "Pemohon" struktur approval penilaian | karyawan yang dinilai | atasan penilai |
+| D5 | Bobot default | 70/20/10 | bebas per template |
+| D6 | Jendela banding | 7 hari kalender | 3/14 hari |
+| D7 | Durasi PIP | 1–3 bulan (default 2) | tetap 90 hari semua |
+| D8 | Rating 5 tanpa stretch | dipatok ≥90 (bukan 100) | skala murni |
+| D9 | Probation auto-create dari onboarding | YA | manual HR |
+| D10 | 360 memengaruhi skor kompetensi | tidak (masukan saja) | bobot minor (≤10%) |
+| D11 | Ekspor hasil untuk bukti konversi PKWT | YA (pf21 + riwayat karyawan) | — |
+| D12 | Nominal tier merit (jenjang Direktur) | > Rp 10.000.000 | bebas per tenant |
+
+---
+---
+---
+---
+
+# BAGIAN E — ALUR BISNIS PROSES LENGKAP (POIN 2)
+
+> Alur ditulis level "siapa melakukan apa, sistem memeriksa apa, apa hasilnya".
+> Setiap alur menyebut: **Pemicu · Aktor · Langkah · Titik keputusan · Hasil ·
+> Notifikasi**. Diagram lengkap §34; aturan transisi tegas §35.
+
+## 24. Peta Proses Tingkat Tinggi & Aktor
+
+```
+[SATU KALI]                        [PER TAHUN — SIKLUS]                      [HASIL]
+Setup master ──► Buka siklus ──► Target KPI ──► Berjalan+Check-in ──► Penilaian ──► Kalibrasi ──► Publikasi ──► Konsekuensi
+(KPI/komp/skala/   (HR)            (atasan+         (atasan+karyawan;            (self→mgr→      (antar          (HR+atasan)   (merit/PA/PIP/
+ template/merit)                    karyawan,         revisi mid-year             360)            atasan+HR)                    surat)
+                                   approval)
+                                                          ▲
+[REKRUTMEN] hire ──► Evaluasi masa percobaan (3 bln) ──────┘ (masuk siklus berjalan / keputusan sendiri)
+```
+
+| Aktor | Peran dalam modul |
+|---|---|
+| **Super Admin / Owner** | konfigurasi global, seluruh akses |
+| **HR Admin** | pembuat siklus & master, moderator kalibrasi, pengelola banding, eksekutor merit/PA/PIP/prob |
+| **Direksi (posisi tertentu)** | jenjang approval hasil ekstrem, PIP-terminate, merit nominal besar; melihat 9-box |
+| **Atasan langsung** | penetap target, pembina check-in, penilai utama, peserta kalibrasi, usul merit/9-box |
+| **Atasan berjenjang (L2+)** | approval revisi target mid-year, kalibrasi lintas tim, agregat |
+| **Karyawan (ESS)** | usulan target (MBO), bukti, self-assessment, isian 360, acknowledgement, banding |
+| **Sistem (scheduler)** | gerbang fase, reminder check-in/PIP/prob, expiry 360 |
+
+## 25. Alur 1 — Setup Master & Pembukaan Siklus
+
+**Pemicu**: awal adopsi modul (master) & awal tahun / sesuai kebijakan (siklus).
+
+1. HR membuka **Master Kinerja**: (a) memverifikasi KPI library starter-pack ±40 KPI
+   (4 perspektif BSC) + menambah KPI perusahaan; (b) kompetensi 12 default ber-deskriptor
+   5 level (nilai inti 4–6, manajerial 4–6, teknis per fungsi); (c) skala rating default;
+   (d) template bobot per kelompok jabatan (staff umum 70/20/10; manajer 60/30/10);
+   (e) merit matrix (rating → bulan bonus & % kenaikan).
+2. HR membuat **Siklus Penilaian** (status Draft): kode PER-2026, periode, jendela fase
+   (goal/mid/self/mgr/calibration/publish — boleh null untuk melewati), bobot override,
+   360 ON/OFF.
+3. HR **enroll peserta**: otomatis semua karyawan Active (atau pilih unit/kantor),
+   sistem snapshot `managerId` per peserta (dari EmployeeAssignment aktif) — siapa
+   menilai siapa terkunci & tercatat.
+4. HR menekan **openGoal** → status `GoalSetting` → notifikasi ke semua atasan & karyawan:
+   "Fase penetapan target dibuka s.d. {goalEnd}".
+**Titik keputusan**: enroll menolak duplikat (unique cycleId+employeeId); karyawan tanpa
+atasan → ditandai "butuh penunjukan atasan" (HR bisa override manual).
+
+## 26. Alur 2 — Penetapan KPI / Target (fase GoalSetting)
+
+**Pemicu**: siklus masuk fase GoalSetting.
+
+1. **Atasan** membuka Target & KPI → pilih peserta → load template jabatan → sesuaikan:
+   pilih KPI dari pustaka / tambah custom, isi ambang/target/stretch/bobot/satuan;
+   sistem memvalidasi Σbobot KPI = 100 & 3–8 item (register D5 catatan).
+2. **(Mode MBO)** karyawan boleh **mengusulkan** KPI dari ESS (status GoalProposed);
+   atasan menerima/mengubah/menolak — diterima masuk daftar resmi.
+3. Atasan **submit** → target terkunci (status GoalApproved). Perubahan setelahnya hanya
+   lewat Alur 3 revisi mid-year.
+4. Sistem mengirim ringkasan target ke karyawan (ESS "Target Saya" terisi).
+**Guard**: submit ditolak bila Σbobot ≠ 100 atau KPI Boolean tanpa definisi gagal/sukses;
+kunci setelah lockGoals / lewatnya goalEnd.
+
+## 27. Alur 3 — Check-in Berjalan & Revisi Tengah Tahun (fase Ongoing)
+
+1. Atasan & karyawan menjadwalkan **check-in** (default tiap bulan; reminder scheduler).
+2. Check-in dicatat ringkas: capaian sejauh ini / hambatan / rencana lanjut — dua arah
+   (karyawan mengisi bagiannya, atasan menambah catatan).
+3. **Checkpoint tengah tahun** (jendela midStart–midEnd): atasan mengisi `midActual`
+   per KPI (+ tombol tarik data otomatis untuk KPI ber-sumber); karyawan bisa melampirkan
+   bukti di ESS. Progress % tampil di kedua sisi.
+4. **Revisi target** (bila realita berubah — reorganisasi, krisis): atasan mengajukan,
+   **atasan berjenjang (L2)** menyetujui → AppraisalKpi diperbarui + jejak ActivityLog.
+**Hasil**: saat fase penilaian dibuka, tidak ada kejutan — progress sudah dua arah terlihat.
+
+## 28. Alur 4 — Evaluasi Masa Percobaan (integrasi rekrutmen)
+
+**Pemicu**: karyawan baru lahir dari rekrutmen (`to-onboarding`) → otomatis dibuat
+`ProbationEvaluation` dueDate = joinDate + 3 bulan (D9). Atau HR membuat manual untuk
+karyawan baru non-rekrutmen.
+
+1. Scheduler mengingatkan atasan & HR **H-14** dan **H-3** sebelum jatuh tempo.
+2. Atasan menilai kriteria ringkas (target 3–6 item + kompetensi terpilih) → `managerScore`.
+3. HR mereviu → **rekomendasi** salah satu: **Confirm** (lulus) / **Extend** (perpanjang
+   dengan perjanjian tertulis baru — §7.1) / **Terminate** (tidak lulus).
+4. Keputusan → approval `ProbationDecision` (L1 atasan sudah submit → L2 HR; bila
+   Terminate → +L3 Direktur).
+5. Eksekusi: Confirm → PA ChangeStatus (PKWTT) + surat konfirmasi; Extend → PA
+   ExtendProbation + surat perjanjian baru (e-sign opsional); Terminate → PA Termination
+   + offboarding module.
+**Guard**: dueDate tak boleh > 3 bulan (UI + server); keputusan wajib sebelum/saat jatuh
+tempo — lewat jatuh tempo tanpa keputusan → eskalasi direksi + tanda merah di overview.
+
+## 29. Alur 5 — Penilaian Akhir Periode (self → atasan → 360)
+
+**Pemicu**: siklus masuk fase Assessment (selfStart).
+
+1. **Tarik data otomatis** (sistem, saat fase dibuka): semua KPI ber-sumber diisi
+   `finalActual` otomatis + bukti `autoValueJson`; KPI manual kosong menunggu input.
+2. **Karyawan (ESS)** mengisi: aktual KPI manual + bukti + self-assessment kompetensi
+   (selfScore per kompetensi) → `submitSelf` (status SelfDone).
+3. **360 (bila aktif)**: atasan/HR mengundang reviewer (peer/subordinate/cross);
+   reviewer anonim mengisi di ESS sebelum dueAt; sistem menandai Expired setelah lewat.
+4. **Atasan** menilai: verifikasi aktual KPI manual, skor kompetensi per deskriptor
+   (komentar WAJIB bila skor ekstrem ≤2/=5), melihat ringkasan 360 ter-agregasi
+   (≥3 reviewer per kategori) → `submitManager` → `managerScore` dihitung server (§16)
+   → status ManagerDone.
+**Guard**: submitManager ditolak bila masih ada KPI aktual null atau Σbobot menyimpang;
+fase self wajib lewat (atau dilewati resmi via null window) sebelum manager aktif.
+
+## 30. Alur 6 — Kalibrasi & Finalisasi Berjenjang
+
+**Pemicu**: jendela managerEnd lewat / HR memaksa mulai (ter-ActivityLog).
+
+1. HR membuka **dashboard distribusi**: bar rating per unit/atasan, rata-rata skor,
+   flag anomali (leniency/strictness/central tendency §8).
+2. HR menjadwalkan **CalibrationSession** per unit (peserta atasan-atasan + ketua);
+   forum membahas karyawan pada ekor distribusi (rating 5 & 1–2 terutama).
+3. Setiap penyesuaian = `CalibrationDecision` (dari → ke; alasan WAJIB; aktor;
+   `potentialBand` 9-box diisi di sini). Sistem menolak perubahan tanpa alasan.
+4. Setelah sesi ditutup, HR (atau atasan) men-**submit finalisasi** per karyawan /
+   batch → dokumen PER-2026-XXXX masuk approval `PerformanceAppraisal`
+   (§11.1: L1 atasan penilai → L2 HR → L3 Direktur bila rating ekstrem/grade tinggi/PIP).
+5. Approved → status Finalized, `finalScore/finalRating` resmi.
+
+## 31. Alur 7 — Publikasi, Acknowledgement & Banding
+
+1. HR menekan **publish** (setelah semua peserta Finalized atau lewat tenggat) →
+   status Published; ESS karyawan menampilkan hasil lengkap: skor per KPI, kompetensi,
+   ringkasan 360, rating, komentar atasan.
+2. Karyawan menekan **acknowledge** (catat `acknowledgedAt`) — bukan persetujuan isi,
+   melainkan bukti telah dikomunikasikan.
+3. **Banding** (jendela D6 = 7 hari): karyawan mengajukan `appeal` (alasan + bukti
+   tambahan) → status Appealed; HR memutuskan: Rejected / Adjusted (ubah hasil =
+   CalibrationDecision baru, alasan wajib) / Withdrawn (ditarik pengaju).
+4. Setelah jendela tutup tanpa banding (atau semua banding selesai) → HR menutup
+   hasil → status Closed (read-only permanen, arsip sesuai retensi D).
+
+## 32. Alur 8 — Konsekuensi: Merit, PA & Surat (fase pasca-publikasi)
+
+1. Sistem membuat **draf MeritRecommendation** otomatis untuk peserta Closed
+   (matrix aktif × finalRating → bulan bonus & % kenaikan; nominal dihitung dari
+   payroll profile, disimpan vault).
+2. HR review/adjust → **submit** → approval `MeritRecommendation` (nominal-tier D12:
+   L2 Direktur bila > Rp 10 jt) → Approved.
+3. **Penerapan** (pilih sesuai situasi): (a) `toPayroll` — menyerap bonus/adjustment
+   ke PayrollRun periode terbuka berikutnya (bukti `appliedRunNo`); (b)
+   `toPersonnelAction` — PA SalaryAdjustment/Promotion (promosi hanya bila rating ≥4
+   & potentialBand tinggi); (c) keduanya.
+4. **Surat**: SURAT HASIL PENILAIAN terbit per karyawan (opsional massal, pola surat
+   rekrutmen); SK PIP bila masuk Alur 9.
+5. **Rekomendasi PIP**: karyawan rating ≤2 otomatis muncul di daftar "usul PIP" —
+   HR memutuskan menjalankan Alur 9 (atau mencatat alasan tidak).
+**Guard**: tidak boleh apply dua kali (status Applied + appliedRunNo); promosi
+ditolak bila rating < 4 (kecuali override direksi ter-ActivityLog).
+
+## 33. Alur 9 — PIP End-to-End (30/60/90 hari)
+
+1. **Dibuat** dari rekomendasi Alur 8 (atau manual) → approval `PipPlan` (L1 atasan,
+   L2 HR) → status Active; SK PROGRAM PERBAIKAN KINERJA terbit (e-sign opsional).
+2. Target mini-KPI PIP (3–5 item) + jadwal checkpoint (seq 1..3 ≈ 30/60/90 hari)
+   + pembina (reviewerId) + HR advisor.
+3. Tiap checkpoint: pembina mereview (`achievementPct` + catatan) — scheduler
+   mengingatkan H-3; karyawan ESS melihat progresnya sendiri.
+4. **Ujung keputusan** (paling lambat endDate + 7 hari):
+   - **Recovered** (≥ target pada checkpoint akhir) → selesai positif; catat pada
+     penilaian berikutnya (bukan hapus riwayat).
+   - **Extend** (progres positif tapi belum pulih; maks 1× perpanjangan, total tetap
+     ≤ 3 bulan) → status Extended + checkpoint baru.
+   - **NotRecovered** → saran sistem: DisciplinaryRecord (SP sesuai jenjang riwayat)
+     dan/atau PA Termination — HR mengeksekusi manual lewat modul HR Base (modul
+     TIDAK otomatis PHK; bukti PIP + SP + PA menjadi rantai pertahanan §7).
+5. Semua transisi ter-ActivityLog; register PIP (pf42) menghitung tingkat pemulihan.
+
+## 34. Diagram Aliran Lengkap
+
+### 34.1 Flowchart utama siklus tahunan
+```mermaid
+flowchart TD
+  A[HR buka siklus PER-2026] --> B[Enroll peserta + snapshot atasan]
+  B --> C{Fase GoalSetting}
+  C -->|atasan tetapkan + karyawan usulkan| D[KPI & target disetujui - terkunci]
+  C -->|lewat goalEnd tanpa target| E[Flag merah + eskalasi HR]
+  D --> F{Fase Ongoing}
+  F -->|bulanan| G[Check-in 1-on-1 + bukti]
+  F -->|jendela mid| H[Checkpoint tengah tahun midActual]
+  H --> I{Perlu revisi target?}
+  I -->|ya - approval atasan L2| J[Target direvisi ter-audit]
+  I -->|tidak| K[Lanjut]
+  J --> K
+  G --> K
+  K --> L{Fase Assessment}
+  L --> M[Tarik data otomatis]
+  M --> N[Karyawan: self-assessment ESS]
+  N --> O{360 aktif?}
+  O -->|ya| P[Reviewer anonim mengisi ≥3 untuk agregasi]
+  O -->|tidak| Q[Atasan menilai]
+  P --> Q
+  Q --> R{Valid: aktual lengkap + Σbobot 100?}
+  R -->|tidak| S[Tolak + perbaiki]
+  S --> Q
+  R -->|ya| T[managerScore dihitung server]
+  T --> U{Fase Calibration}
+  U --> V[Sesi antar-atasan + CalibrationDecision beralasan]
+  V --> W[Submit finalisasi → approval berjenjang]
+  W --> X{Approved?}
+  X -->|ditolak| Y[Kembali ke kalibrasi dengan catatan]
+  Y --> V
+  X -->|ya| Z[Publikasi hasil ke ESS]
+  Z --> AA[Acknowledgement + jendela banding 7 hari]
+  AA --> AB{Ada banding?}
+  AB -->|Adjusted| AC[Hasil diubah + audit baru]
+  AB -->|tidak / selesai| AD[Tutup hasil - read-only]
+  AC --> AD
+  AD --> AE[Merit matrix → rekomendasi bonus & kenaikan]
+  AE --> AF{Rating ≤ 2?}
+  AF -->|ya| AG[PIP 30/60/90 → pulih / extend / SP-PHK]
+  AF -->|tidak| AH[PA Promosi/SalaryAdjustment + surat + payroll]
+  AG --> AI[Arsip & laporan]
+  AH --> AI
+```
+
+### 34.2 State machine PerformanceCycle
+```mermaid
+stateDiagram-v2
+  [*] --> Draft: create (HR)
+  Draft --> GoalSetting: openGoal
+  GoalSetting --> Ongoing: startOngoing (semua target terkunci / force)
+  Ongoing --> Assessment: startAssessment (mgrEnd lewat / force)
+  Assessment --> Calibration: startCalibration (submitManager selesai / force)
+  Calibration --> Published: publish (semua Finalized / force ter-ActivityLog)
+  Published --> Closed: close (banding selesai + retensi mulai)
+  Draft --> [*]: delete
+```
+
+### 34.3 State machine AppraisalRecord (per karyawan)
+```mermaid
+stateDiagram-v2
+  [*] --> Enrolled: enroll
+  Enrolled --> GoalProposed: karyawan usulkan KPI (MBO)
+  GoalProposed --> Enrolled: ditolak atasan
+  Enrolled --> GoalApproved: atasan submit target
+  GoalProposed --> GoalApproved: usulan diterima + submit
+  GoalApproved --> Ongoing: siklus startOngoing
+  Ongoing --> SelfDone: submitSelf (ESS)
+  SelfDone --> ManagerDone: submitManager (server hitung skor)
+  Ongoing --> ManagerDone: fase self dilewati (null)
+  ManagerDone --> Calibrating: mulai kalibrasi
+  Calibrating --> Finalized: approval PerformanceAppraisal selesai
+  Finalized --> Published: publish siklus
+  Published --> Appealed: appeal (≤7 hari)
+  Appealed --> Published: ditolak / ditarik
+  Appealed --> Published: adjusted (audit baru)
+  Published --> Closed: close
+```
+
+### 34.4 State machine PipPlan
+```mermaid
+stateDiagram-v2
+  [*] --> Draft: create (dari rekomendasi rating ≤2)
+  Draft --> Active: approval PipPlan selesai + SK terbit
+  Active --> Extended: extend (maks 1×, total ≤3 bln)
+  Extended --> Recovered: checkpoint akhir ≥ target
+  Extended --> NotRecovered: keputusan akhir
+  Active --> Recovered: checkpoint akhir ≥ target
+  Active --> NotRecovered: gagal / lewat tenggat
+  Active --> Cancelled: pembatalan (mis. resign)
+  Draft --> Cancelled
+  Recovered --> [*]
+  NotRecovered --> [*]: saran SP / PA Termination (manual HR)
+```
+
+### 34.5 State machine ProbationEvaluation
+```mermaid
+stateDiagram-v2
+  [*] --> Open: hire dari rekrutmen / manual (dueDate ≤ 3 bln)
+  Open --> Assessed: atasan isi skor
+  Assessed --> Recommended: rekomendasi Confirm/Extend/Terminate
+  Recommended --> Decided: approval ProbationDecision selesai
+  Decided --> [*]: PA ChangeStatus / ExtendProbation / Termination + surat
+```
+
+### 34.6 Swimlane aktor — penilaian sampai konsekuensi (happy path + cabang banding/PIP)
+```mermaid
+flowchart LR
+  subgraph Karyawan[ESS Karyawan]
+    a1[Self-assessment + bukti]
+    a2[Acknowledge hasil]
+    a3{Setuju?}
+    a4[Banding + alasan]
+  end
+  subgraph Atasan[Atasan Langsung]
+    b1[Verifikasi aktual + skor kompetensi]
+    b2[Submit penilaian]
+    b3[Peserta kalibrasi]
+    b4[Usul merit / potential band]
+  end
+  subgraph HR[HR Admin]
+    c1[Dashboard distribusi]
+    c2[Moderasi sesi kalibrasi]
+    c3[Publikasi]
+    d4[Putuskan banding]
+    c5[Eksekusi merit / PIP / surat]
+  end
+  subgraph Direksi[Direksi]
+    e1[Approval ekstrem & nominal besar]
+    e2[9-box talenta]
+  end
+  subgraph Sistem[Sistem]
+    s1[Tarik data otomatis]
+    s2[Hitung skor server]
+    s3[Approval berjenjang]
+    s4[Scheduler & notifikasi]
+  end
+  s1 --> b1 --> a1
+  a1 --> b1
+  b1 --> s2 --> b2 --> s3 --> c1
+  b3 --> c2
+  c2 --> c3 --> a2 --> a3
+  a3 -->|tidak| a4 --> d4
+  a3 -->|ya| c5
+  d4 --> c5 --> e1 --> e2
+  s4 -.-> a1
+  s4 -.-> c3
+```
+
+## 35. Matriks Guard / Aturan Transisi (ringkasan tegas)
+
+| # | Transisi | Aktor sah | Syarat WAJIB | Ditolak bila |
+|---|---|---|---|---|
+| 1 | Draft → GoalSetting | HR | siklus punya periode & goalEnd | peserta 0 / jendela fase tidak kronologis |
+| 2 | enroll peserta | HR | karyawan Active & belum terdaftar | duplikat cycleId+employeeId |
+| 3 | submit target | atasan peserta | Σbobot KPI = 100, 3–8 item, KPI punya satuan+ambang | fase bukan GoalSetting / Bobot menyimpang |
+| 4 | usulan KPI karyawan | karyawan peserta | fase GoalSetting | sudah GoalApproved |
+| 5 | revisi target mid-year | atasan + approval L2 | fase Ongoing + jendela mid terbuka | sudah masuk Assessment |
+| 6 | log check-in | atasan/karyawan peserta | siklus Ongoing | siklus sudah Published |
+| 7 | submitSelf | karyawan peserta | fase self terbuka & target terkunci | ada kompetensi belum dinilai |
+| 8 | submitManager | atasan snapshot | semua finalActual terisi + Σbobot 100 + komentar ekstrem ada | KPI aktual null / 360 belum expired-selesai |
+| 9 | CalibrationDecision | HR/ketua sesi | alasan non-kosong + peserta status ManagerDone | mengubah peserta Published tanpa jalur banding |
+| 10 | finalisasi (submit) | HR/atasan | pasca kalibrasi; hasil siap | masih ada peserta ManagerDone yang belum dibahas (opsional ketat) |
+| 11 | approval hasil | approver jenjang/delegasi | chain PerformanceAppraisal aktif | di luar struktur |
+| 12 | publish | HR | semua peserta Finalized / force ter-log | ada yang ManagerDone |
+| 13 | acknowledge | karyawan peserta | hasil Published | belum publikasi |
+| 14 | appeal | karyawan peserta | ≤ appealDays sejak publikasi | jendela tutup |
+| 15 | decideAppeal | HR | appeal Submitted | tanpa catatan keputusan |
+| 16 | close siklus | HR | banding selesai semua | masih ada Appealed |
+| 17 | merit recommend | sistem/HR | peserta Closed & matrix aktif | sudah ada (unique appraisalId) |
+| 18 | merit apply | HR | status Approved + PayrollRun terbuka | sudah Applied |
+| 19 | toPersonnelAction | HR | merit Approved / rating ≥4 utk promosi | PA duplikat aktif |
+| 20 | PIP create | HR | appraisal Closed rating ≤2 atau manual ber-alasan | PIP aktif lain utk karyawan sama |
+| 21 | PIP extend | HR | 1× saja; total durasi ≤3 bln | sudah pernah extend |
+| 22 | PIP outcome | HR+atasan | checkpoint akhir sudah direview / lewat tenggat | masih checkpoint Pending belum due |
+| 23 | prob decide | atasan+HR+approval | sebelum/saat dueDate | dueDate > 3 bln dari join (input sudah diblokir) |
+
+## 36. Matriks Aktor × Menu × Endpoint (utama)
+
+| Aktor | Menu admin | Endpoint inti yang dipakai |
+|---|---|---|
+| HR Admin | semua `performance:*` | masters, cycles(action), goals, checkins, appraisals, feedback360, calibration, results, merit, pip, probation, reports |
+| Atasan | Target & KPI · Check-in · Penilaian · (Hasil tim) | goals(assign/submit), checkins, appraisals(submitManager), calibration(ikut), results(read tim) |
+| Atasan L2 | read-only + approval revisi | goals(reviseTarget approval), approval inbox (PerformanceAppraisal/PipPlan) |
+| Direksi | Hasil & 9-Box (agregat) | results(9box), approval inbox (jenjang 3) |
+| Karyawan ESS | Target Saya · Penilaian Saya · 360 Saya | ess/my-goals, ess/my-appraisal, ess/my-360, ess/my-checkins |
+| Reviewer 360 (bukan peserta pun boleh) | 360 Saya | ess/my-360 |
+
+## 37. Kepatuhan UU PDP Sepanjang Siklus
+
+| Tahap | Data pribadi terlibat | Perlindungan desain |
+|---|---|---|
+| Enroll & target | penempatan, atasan | visibilitas terbatas peserta+atasan (§11.3) |
+| Check-in & bukti | catatan perilaku | karyawan melihat miliknya; atasan hanya tim; retensi sesuai setting |
+| 360 | opini pihak ketiga | **anonimitas ≥3 reviewer** per kategori sebelum agregasi tampil; komentar dimoderasi HR; reviewer hanya melihat form miliknya |
+| Hasil & 9-box | penilaian, potensi | 9-box/merit = HR+direksi saja; hasil pribadi = peserta; laporan publik = agregat ter-anonimkan |
+| Banding | alasan sengketa | ter-audit; akses HR + peserta |
+| Merit | nominal uang | vault terenkripsi (enc:v1) + MoneyViewGrant bila perlu |
+| Retensi & DSR | seluruh data kinerja | retensi default 5 tahun (D); DSR Access/Export per karyawan (perluasan DataSubjectRequest); ActivityLog semua akses baca sensitif |
+
+---
+---
+
+# LAMPIRAN
+
+## Lampiran A — Matriks Perbandingan Metodologi (ringkas)
+
+| Metodologi | Objek dinilai | Ritme | Cocok bila | Posisi RekanKerja |
+|---|---|---|---|---|
+| KPI | hasil terukur | per periode | operasional & fungsi pendukung | BASIS (bobot 70%) |
+| MBO | kesepakatan target | per periode | budaya dialog target | MODE pengisian target |
+| OKR | ambisi + hasil kunci | kuartalan | organisasi adaptif matang | backlog |
+| BSC | keseimbangan perspektif | strategis | penyusunan KPI agar tak timpang | kategori pustaka KPI |
+| Kompetensi | perilaku | per periode | semua (promosi/pengembangan) | komponen 20% + core 10% |
+| 360 | persepsi multi-pihak | per siklus (opsional) | validasi perilaku pemimpin | opsional per siklus |
+| Continuous | progres & hambatan | mingguan/bulanan | semua | CheckIn + checkpoint |
+
+## Lampiran B — KPI Library Starter-Pack (contoh ±40, per perspektif BSC)
+
+| Perspektif | Contoh KPI (polaritas, satuan) |
+|---|---|
+| Financial | nilai piutang tertagih (Higher, Rp) · biaya operasional vs anggaran (Lower, %) · selisih stok fisik-sistem (Lower, %) · penghematan pengadaan (Higher, Rp) |
+| Customer | kepuasan pelanggan internal/eksternal (Higher, skala) · SLA penyelesaian tiket (Higher, %) · keluhan berulang (Lower, kasus) · ketepatan pengiriman dokumen (Higher, %) |
+| Internal Process | ketepatan closing payroll (Higher, %) · data karyawan akurat (Higher, %) · waktu proses PR → hire (Lower, hari — auto) · kehadiran & ketepatan waktu (Higher/Lower — auto §16) · tingkat error input (Lower, kasus) |
+| Learning & Growth | penyelesaian pelatihan wajib (Higher, %) · inisiatif perbaikan diadopsi (Higher, usulan) · cross-training penguasaan proses (Higher, proses) · absen tak terencana (Lower, hari — auto) |
+
+> Catatan: daftar final di-seed di P0 & dapat dikustom per tenant; KPI auto ditandai
+> sumber datanya.
+
+## Lampiran C — Skala Rating Default & Panduan Distribusi
+
+| Nilai | Label ID/EN | Skor | Panduan deskriptor |
+|---|---|---|---|
+| 5 | Sangat Baik / Outstanding | 90–120 | melebihi hampir seluruh target; perilaku menjadi rujukan lintas tim |
+| 4 | Baik / Exceeds | 80–89 | melebihi sebagian target; perilaku di atas ekspektasi |
+| 3 | Cukup / Meets | 70–79 | memenuhi target inti; perilaku sesuai deskriptor level jabatan |
+| 2 | Kurang / Below | 60–69 | sebagian target tak tercapai; perlu rencana perbaikan |
+| 1 | Sangat Kurang / Needs Improvement | <60 | mayoritas target gagal atau kritis gagal — pertimbangkan PIP |
+
+Garis bantu distribusi (bukan paksaan): rating 5 ±10% · 4 ±25% · 3 mayoritas ·
+1–2 ±10% per unit.
+
+## Lampiran D — Contoh Formulir Penilaian (struktur tampilan)
+
+```
+PENILAIAN PER-2026-0007 · PER-2026 · Budi Santoso — GA Staff (Finance & Accounting)
+Atasan penilai: Sri Wahyuni — HR Director · Bobot: KPI 70 / Kompetensi 20 / Nilai inti 10
+┌─ KPI (aktual diisi otomatis bila ber-sumber) ────────────────────────────────┐
+│ # KPI (kategori BSC)          Target  Aktual  Skor  Bobot  Kontribusi       │
+│ 1 Ketepatan closing (auto)   100%    98%     98    30%    29,4             │
+│ 2 Akurasi data karyawan       99%     99,5%   100   25%    25,0             │
+│ 3 Waktu proses surat ≤2 hari  ≥90%    88%     88    20%    17,6            │
+│ 4 Keluhan internal = 0 (Lower) 0       1       0*    15%    0,0   *kritis? no│
+│ 5 Inisiatif perbaikan         ≥2      3       100+  10%    10,0 (stretch)   │
+│ Σ bobot 100 · Skor komponen KPI = 82,0                                       │
+├─ Kompetensi (deskriptor level muncul saat hover) ──────────────────────────┤
+│ Komunikasi 4 · Teliti & akurat 5 · Kolaborasi 4 · Inisiatif 4 → skor 85,0   │
+├─ Nilai inti ─ Integritas 5 · Disiplin 4 · Peduli 4 → skor 86,7               │
+├─ SKOR AKHIR: 70×82,0 + 20×85,0 + 10×86,7 = 83,2 → RATING 4 (Baik)           │
+├─ Ringkasan 360 (5 reviewer, anonim): kolaborasi 4,2 · komunikasi 3,8 …      │
+└─ Komentar atasan (wajib): … · Check-in tahun ini: 9/12 terlaksana ──────────┘
+```
+
+## Lampiran E — Glossary
+
+| Istilah | Arti |
+|---|---|
+| Siklus (cycle) | satu periode penilaian (default tahunan) beserta jendela fasenya |
+| Peserta (appraisal record) | 1 karyawan dalam 1 siklus (dokumen PER-) |
+| KPI | indikator terukur dengan polaritas, ambang, target, bobot |
+| Ambang gagal (F) / target (T) / stretch (S) | batas skor 0 / 100 / 120 |
+| Kompetensi | perilaku ber-deskriptor 5 level (teknis/manajerial/nilai inti) |
+| Check-in | pertemuan 1-on-1 terdokumentasi |
+| 360 | umpan balik multi-pihak anonim (agregasi ≥3) |
+| Kalibrasi | penyetaraan standar antar-atasan; setiap perubahan ter-audit |
+| Merit matrix | matriks rating → bonus & kenaikan |
+| PIP | program perbaikan kinerja 30/60/90 hari |
+| 9-box | matriks performance × potential untuk lensa talenta |
+| Banding (appeal) | keberatan karyawan atas hasil dalam jendela waktu |
+| Probation evaluation | evaluasi masa percobaan (≤ 3 bulan, UU 13/2003 Ps.60) |
+
+## Lampiran F — Asumsi (dicatat; dapat direvisi user)
+
+1. Evaluasi kinerja dipakai sebagai ALAT bisnis (reward & perbaikan), bukan formalitas
+   kepatuhan semata — semua keputusan konsekuensi tetap ada manusia di putaran akhir.
+2. Satu karyawan satu atasan penilai per siklus (snapshot); matrix-management penuh
+   (banyak penilai berkontribusi) tidak dibangun di P0–P9.
+3. THR dikecualikan total dari merit (kewajiban hukum terpisah — §7.1).
+4. Modul Training/pengembangan belum ada; hasil penilaian menyimpan catatan kebutuhan
+   pengembangan sebagai teks terstruktur (siap diintegrasikan bila modul itu dibangun).
+5. Data demo MII dipakai sebagai kanon E2E (pola rekrutmen) termasuk hire
+   Eka Putri (MII00046) untuk alur probation.
+6. Bahasa dokumen: Indonesia; UI aplikasi dwibahasa penuh ID/EN.
+
+---
+
+*Dokumen berstatus **menunggu keputusan user** atas Register Keputusan §23 sebelum
+fase P0 dieksekusi. Belum ada baris kode aplikasi yang berubah.*
+
+
