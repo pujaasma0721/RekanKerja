@@ -6586,3 +6586,38 @@ Stage Summary:
 - Prinsip desain dijaga: impor≠submit & salin≠submit (human-in-the-loop); kurva=lensa bukan kuota (D2 OFF); hard-delete pustaka dirujuk DILARANG; server=sumber kebenaran draf; hemat arsitektur (0 tabel/endpoint/halaman baru).
 - Tetap DOKUMEN MURNI — Register Keputusan kini D1–D19; menunggu persetujuan/eksekusi user.
 
+
+---
+Task ID: PLAN-PERF-AM3
+Agent: main (Z.ai Code)
+Task: Arahan user lanjutan atas DEVELOPMENT-PLAN-PERFORMANCE.md — tambahan 2 fitur kecerdasan & transparansi: ① integrasi AI pada kolom ulasan (karyawan/atasan menulis poin pendek, AI menyusun kalimat feedback profesional & konstruktif), ② estimasi persentase bonus/kenaikan gaji real-time di layar atasan saat memasukkan nilai KPI/OKR — AMANDEMEN 3, tetap murni dokumen, NOL perubahan kode aplikasi. (Pesan user diakhiri "3." tanpa isi — dicatat di dokumen sebagai slot cadangan amandemen berikutnya.)
+
+Work Log:
+- Anomali serialisasi terulang (sama seperti AM2): blok model AppraisalCompetencyScore §15 ternyata memuat whitespace berbeda dari render Read (String 2 spasi sebelum @id; competencyId 1 spasi sebelum String) → Edit tool gagal match → seluruh 26 operasi AM3 dieksekusi via skrip python line-editor /home/z/.tmp-scripts/am3_edit.py (atomic: baca → assert count==1 → replace/insert-by-prefix → tulis hanya jika semua assertion lolos; kegagalan mid-run tidak menulis apa pun ke file).
+- Tulis AMANDEMEN 3 (30 penanda dalam dokumen; 2.112 → 2.327 baris, +215) — pemetaan ke seksi:
+  · Header: blok Amandemen 3 (fitur ⑧-⑨ + peta rujukan + catatan slot "3." kosong); TOC + baris Lampiran G diperbarui.
+  · §12 prinsip desain +2: #9 "AI itu asisten menulis, bukan pengganti menilai" (compose-only, tidak pernah angka, hasil draf editable, manusia pemilik teks & penekan tombol kirim) & #10 "Konsekuensi transparan saat menilai, bukan di belakang punggung atasan" (estimasi real-time = kesadaran konsekuensi, bukan janji — final tetap kalibrasi + approval §30-§32).
+  · §13 arsitektur: baris AI lama ("Tidak di fase P0-P9") DIGANTI AI Assist compose-only via gateway AI internal server-side z-ai-web-dev-sdk (kunci tak pernah ke klien; rate-limit; flag audit; AI lain tetap backlog) + baris baru estimasi dampak (compute stateless, 0 tabel baru).
+  · §14: menu Penilaian admin dianotasi (AI ASSIST §18.11 + panel ESTIMASI DAMPAK §18.12); ESS my-appraisal dianotasi AI Assist (estimator sengaja TIDAK ada di ESS).
+  · §15 data model: AppraisalCompetencyScore + selfComment/selfAiAssisted/aiAssisted (3 kolom), Feedback360Answer + aiAssisted (1 kolom) — 0 tabel baru (tetap 17 model); Catatan model mencatat hitungan kolom.
+  · §16: blok formula estimasiDampak(drafInput) — pScore dari nilai terisi (null=0 + label "belum lengkap") → pRating RatingScale (≤2 bila kritis gagal) → MeritMatrix aktif gridJson → return % & bulan TANPA nominal Rp; matriks sama dengan Alur 8 (konsistensi estimator vs eksekusi merit).
+  · §17 API: appraisals +previewImpact +aiCompose; feedback360 +aiCompose (identitas reviewer tak pernah dikirim); ESS my-appraisal +aiCompose (+catatan estimator tidak ada di ESS); my-360 +aiCompose.
+  · §18: daftar standar +poin 19-20; SUBBAB BARU §18.11 (5 butir: tombol "✨ Susun dengan AI" di semua kolom ulasan; dialog poin 1-6 + nada 3 pilihan + panjang; hasil = DRAF + chip "poin saya" transparansi; batas keras D20 — compose-only/server-side only/payload minimal tanpa data pribadi lain/nada SARA-safe/rate-limit 20 susunan/jam/user/audit flag aiAssisted internal/anonimitas 360 utuh; kegagalan tenang zero-blocking) · §18.12 (panel sticky "Estimasi dampak (draf)" debounce ±1s → previewImpact server otoritatif; skor+rating provisional+bonus bulan+kenaikan %+breakdown+peringatan kritis; tanpa nominal Rp; label tegas; akses atasan/HR/Direksi — karyawan & reviewer 360 TIDAK melihat; konsekuensi sadar didampingi bell curve §18.10; OKR-proof membaca skor komponen).
+  · §19: baris AI Gateway internal (performance → AI, compose-only, payload minimal, D20).
+  · §20: fase P3 +AI Assist +estimasi dampak (L → L-XL; deliverable E2E diperluas); backlog diklarifikasi "(AI di luar compose-only §18.11)".
+  · §21 gates +poin 8: fitur AM3 teruji eksplisit di P3 (aiCompose dwibahasa + rate-limit + payload skor ditolak; estimasi konsisten formula + karyawan ESS 403 + tanpa nominal; flag aiAssisted tercatat).
+  · §22 +4 risiko + mitigasi: AI halusinasi/nada; estimator dianggap janji; atasan menghaluskan nilai (penyeimbang bell curve + kalibrasi); biaya/latensi gateway.
+  · §23 register +D20 (batas AI Assist) + D21 (estimasi dampak: siapa & sejauh apa).
+  · Alur: §29-2 +AI Assist ulasan self; §29-4 +AI komentar atasan + panel estimasi real-time; §32-1 +catatan konsistensi matriks estimator vs merit.
+  · §35 guard +baris 30-32 (aiCompose; previewImpact; apply hasil AI wajib konfirmasi — auto-apply DILARANG).
+  · §36 matriks aktor: HR/Atasan +previewImpact+aiCompose; Karyawan ESS +aiCompose (my-appraisal/my-360).
+  · §37 PDP +2 baris (AI Assist; Estimasi dampak).
+  · Lampiran G: judul baru + G.9 (wireframe dialog AI: poin → nada → draf editable + chip "disusun dari 3 poin Anda" + tombol Pakai/Susun ulang/Tulis sendiri) + G.10 (wireframe panel estimasi: skor 83,2 (4/8 KPI), rating 4, bonus ±1,5 bulan, kenaikan 6-8%, disclaimer).
+  · Footer: D1-D21 + ringkasan isi Amandemen 1+2+3.
+- Verifikasi integritas: 2.327 baris (+215) · fence state-machine balanced 23 → 26 blok (state akhir outside) · 6 mermaid utuh · §18.1-§18.12 berurutan · G.1-G.10 berurutan · 30 penanda AMANDEMEN 3 · git status hanya dokumen ini yang berubah.
+- NOL perubahan kode aplikasi: tsc/lint/audit-bilingual tidak terpengaruh (tidak ada file selain dokumen yang tersentuh); dev server tidak disentuh.
+
+Stage Summary:
+- AMANDEMEN 3 selesai: 2 permintaan user terpetakan penuh — ⑧ AI Assist kolom ulasan (§18.11, D20: compose-only dari poin penilai, server-side z-ai-web-dev-sdk, draf editable + flag aiAssisted, rate-limit 20/jam/user, payload minimal PDP-safe) ⑨ estimasi dampak real-time bonus/kenaikan di layar atasan (§18.12 + formula §16, D21: MeritMatrix aktif, % & bulan tanpa nominal Rp, karyawan tidak melihat, stateless + ActivityLog).
+- Prinsip desain dijaga: AI asisten menulis bukan pengganti menilai (§12-9); konsekuensi transparan tapi estimasi bukan janji (§12-10); human-in-the-loop semua jalur (auto-apply AI DILARANG — guard 32); hemat arsitektur (0 tabel/endpoint/halaman baru — hanya 4 kolom + 2 action verbs); anonimitas 360 utuh; estimator konsisten dengan Alur 8 (satu sumber kebenaran matriks merit).
+- Tetap DOKUMEN MURNI — Register Keputusan kini D1-D21; menunggu persetujuan/eksekusi user. Catatan: pesan user memuat "3." kosong — slot cadangan dicatat di header dokumen.

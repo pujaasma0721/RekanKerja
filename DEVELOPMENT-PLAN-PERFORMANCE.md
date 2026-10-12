@@ -37,6 +37,16 @@
 > ⑦ kurva Bell (bell curve) di menu Kalibrasi untuk HR/Direksi mendeteksi atasan
 > "terlalu pelis/royal" → §18.10; pengingat multi-kanal WA/Slack dengan tautan
 > langsung ke formulir → §18.8 + §19. Semua tetap DOKUMEN MURNI.
+> **AMANDEMEN 3 (12 Okt 2026)** — arahan user, 2 fitur kecerdasan & transparansi
+> penilaian: ⑧ **AI Assist kolom ulasan** — karyawan/atasan menulis poin pendek,
+> AI menyusun kalimat feedback profesional & konstruktif (compose-only, bukan
+> penilai) → §18.11 (+ §12-9, §15 kolom selfComment/aiAssisted, §17 aiCompose di
+> 4 endpoint, register D20, guard 30+32, wireframe G.9); ⑨ **estimasi dampak
+> real-time** — saat atasan menginput nilai KPI, panel menampilkan estimasi bonus/
+> kenaikan gaji dari MeritMatrix aktif (tanpa nominal Rp) → §18.12 (+ §16 formula
+> provisional, §17 previewImpact, register D21, guard 31, wireframe G.10). Tetap
+> DOKUMEN MURNI — belum ada perubahan kode aplikasi. (Arahan user memuat poin "3."
+> tanpa isi — dicatat sebagai slot cadangan amandemen berikutnya.)
 
 ---
 
@@ -68,7 +78,8 @@
     18.3 ESS periode lalu · 18.4 Anti-stale — AMANDEMEN 1 · 18.5 Impor Excel massal ·
     18.6 Tarikan otomatis antar-modul · 18.7 Autosave & progress tracker ·
     18.8 HR Command Center & nudge · 18.9 Versioning pustaka · 18.10 Bell curve —
-    AMANDEMEN 2)
+    AMANDEMEN 2 · 18.11 AI Assist kolom ulasan · 18.12 Estimasi dampak real-time —
+    AMANDEMEN 3)
   - §19 Integrasi lintas modul
   - §20 Rencana eksekusi fase P0–P9 + backlog
   - §21 Quality gates & Definition of Done
@@ -91,7 +102,8 @@
   - §37 Kepatuhan UU PDP sepanjang siklus
 - Lampiran A–G (matriks metodologi, KPI library contoh, skala rating, formulir contoh,
   glossary, asumsi, wireframe KPI Builder · salin periode lalu · impor Excel ·
-  command center · bell curve · progress bar — AMANDEMEN 1+2)
+  command center · bell curve · progress bar · AI assist ulasan · estimasi dampak —
+  AMANDEMEN 1+2+3)
 
 ---
 ---
@@ -541,6 +553,15 @@ Prinsip desain yang mengikat semua fase (pewaris prinsip modul Rekrutmen):
    menentukan adopsi modul adalah 15 menit pertama atasan membuka form target;
    KPI Builder (§18.1) + salin dari periode sebelumnya (§18.2) menargetkan
    "1 peserta selesai < 5 menit bila melanjutkan dari tahun lalu".
+9. **AI itu asisten menulis, bukan pengganti menilai** (AMANDEMEN 3) — AI Assist
+   hanya merangkai kalimat dari poin yang ditulis penilai sendiri (§18.11); tidak
+   pernah menghasilkan/mengubah angka; hasil selalu draf yang dapat diedit; manusia
+   tetap pemilik teks dan penekan tombol kirim.
+10. **Konsekuensi transparan saat menilai, bukan di belakang punggung atasan**
+    (AMANDEMEN 3) — estimasi dampak (bonus/kenaikan) tampil real-time di layar
+    atasan selama menilai (§18.12) agar penilaian sadar konsekuensi; angka itu
+    estimasi bermatriks resmi, bukan janji — keputusan final tetap kalibrasi +
+    approval (§30–§32).
 
 ## 13. Keputusan Arsitektur
 
@@ -559,7 +580,8 @@ Prinsip desain yang mengikat semua fase (pewaris prinsip modul Rekrutmen):
 | **Impor Excel** (AMANDEMEN 2) | target KPI & realisasi akhir massal: template .xlsx dwibahasa → unggah → pratinjau validasi per sel → commit hanya baris valid; parse server-side, MIME whitelist + magic number (pola attachment), hasil = laporan baris + ActivityLog | attachment security + export.ts |
 | **Versioning pustaka** (AMANDEMEN 2) | KpiDefinition & Competency ber-versi (versionNo/effectiveYear/status) — edit minor inline, perubahan definisi = versi baru; data historis TETAP aman karena baris penilaian sudah snapshot (defense in depth §18.9) | snapshot AppraisalKpi |
 | Ekspor | `export.ts` localizeSheet + kamus BASE_EN per tambahan; katalog laporan dokumen `pf11..pf44` (§11.2) | medical/travel reports |
-| AI | **Tidak di fase P0–P9** (backlog; infra `AiProviderConfig` siap) | — |
+| AI | **AI Assist kolom ulasan (AMANDEMEN 3 §18.11)** — compose-only via gateway AI internal server-side (z-ai-web-dev-sdk; kunci tidak pernah ke klien): poin penilai → draf kalimat; tone terkunci; rate-limit + flag audit `aiAssisted`. Fitur AI lain (ringkasan check-in, deteksi bias) tetap backlog | skill LLM proyek |
+| **Estimasi dampak real-time** (AMANDEMEN 3) | compute stateless `previewImpact` (formula §16): draf nilai → skor provisional → RatingScale → MeritMatrix aktif → % & bulan bonus; TANPA nominal Rp; 0 tabel baru | §16 + kebijakan vault |
 
 ## 14. Struktur Menu & Halaman
 
@@ -581,7 +603,9 @@ MODULE: performance (admin)
 │                                                                     DARI PERIODE SEBELUMNYA §18.2)
 │  └─ Check-in ........................... performance:checkins     (jadwal & catatan 1-on-1 semua tim + progress)
 ├─ PENILAIAN
-│  ├─ Penilaian .......................... performance:appraisals  (self/atasan/360 + finalisasi per peserta)
+│  ├─ Penilaian .......................... performance:appraisals  (self/atasan/360 + finalisasi per peserta
+│                                                                     + AI ASSIST ulasan §18.11 + panel ESTIMASI
+│                                                                     DAMPAK real-time §18.12 — AMANDEMEN 3)
 │  ├─ Kalibrasi .......................... performance:calibration  (sesi, distribusi, keputusan ter-audit,
 │                                                                     BELL CURVE ±deteksi atasan pelis/royal §18.10)
 │  └─ Hasil & 9-Box ...................... performance:results      (publikasi, acknowledgement, 9-box, merit)
@@ -599,7 +623,7 @@ MODULE: performance (admin)
 ```
 ESS (menu karyawan):
 ├─ Target Saya (my-goals) ................ KPI & target periode aktif + progress + usulan revisi + tab "Periode lalu" (§18.3)
-├─ Penilaian Saya (my-appraisal) ......... self-assessment, hasil terpublikasi, acknowledge, banding
+├─ Penilaian Saya (my-appraisal) ......... self-assessment (AI Assist ulasan §18.11), hasil terpublikasi, acknowledge, banding
 ├─ 360 Saya (my-360) .................... undangan 360 yang harus saya isi (jika aktif)
 └─ (manager ESS) Penilaian Tim ........... reuse my-appraisal dgn scope atasan — daftar bawahan + status
 ```
@@ -789,6 +813,10 @@ model AppraisalCompetencyScore {    // nilai kompetensi oleh penilai (bukan 360)
   score         Int     // 1..5 (dinilai saat fase manager; self saat fase self)
   selfScore     Int?
   comment       String?
+  // AMANDEMEN 3 §18.11 — ulasan & flag AI assist (audit internal; bukan tampilan karyawan)
+  selfComment     String?               // ulasan self-assessment per kompetensi (bisa disusun AI dari poin)
+  aiAssisted      Boolean @default(false) // komentar atasan (comment) disusun dgn bantuan AI lalu diedit
+  selfAiAssisted  Boolean @default(false) // flag utk selfComment
   @@unique([appraisalId, competencyId])
 }
 
@@ -823,6 +851,7 @@ model Feedback360Answer {
   competencyId  String
   score         Int     // 1..5
   comment       String? // ditampilkan HANYA ter-agregasi ≥3 reviewer (§37)
+  aiAssisted    Boolean @default(false) // AMANDEMEN 3 §18.11 — komentar disusun dgn bantuan AI; anonimitas 360 tetap utuh (identitas tak pernah dikirim ke model)
   feedback      Feedback360 @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
   @@index([feedbackId, competencyId])
 }
@@ -940,6 +969,10 @@ model ProbationEvaluation {          // evaluasi masa percobaan (dari onboarding
   waktu tarik) sehingga penilaian bisa direplay & diaudit.
 - Relasi balik ditambahkan ke `Employee` (5 relasi baru) — pola sama seperti rekrutmen
   menambah relasi di Employee.
+- **AMANDEMEN 3** tidak menambah tabel: AI Assist = 4 kolom (selfComment + 2 flag
+  aiAssisted di AppraisalCompetencyScore, 1 flag di Feedback360Answer) + rate-limit
+  via ActivityLog; estimasi dampak = compute stateless dari model yang ada
+  (MeritMatrix × RatingScale × draf nilai).
 - Estimasi total: 17 tabel + 5 kolom enum status — kecil dibanding 63 model eksisting.
 
 ## 16. Formula Perhitungan Final (otoritatif server)
@@ -973,6 +1006,22 @@ Auto-source binding (tarikan saat fase penilaian dimulai; disimpan sebagai bukti
 | `leave_unplanned_days` | LeaveRequest | Σ hari cuti non-rencana (Lower) |
 | `recruitment_time_to_fill` | MetricSnapshot | time_to_fill milik PR officer (Lower) |
 | `recruitment_fulfilled_h` | RecruitmentPlan recon | Σ fulfilled ÷ Σ h × 100 (HR/rekruter) |
+
+**Estimasi dampak real-time (AMANDEMEN 3 §18.12)** — compute STATELESS server, dipakai
+panel "Estimasi dampak (draf)" di layar atasan selama mengisi nilai (bukan angka final):
+
+```
+estimasiDampak(drafInput):
+  pScore  = managerScore dari nilai yang TERISI saat ini   // §16 utama; field null
+           // dihitung 0 → ditandai jelas "belum lengkap (4/8 KPI)"
+  pRating = RatingScale lookup(pScore)                     // ≤2 bila kritis gagal (§4.5)
+  merit   = MeritMatrix aktif → gridJson[pRating]           // {bonusMonths, raisePct:[min,max]}
+  return {pScore, pRating, bonusMonths, raisePct}          // TANPA nominal Rp — vault §32
+```
+
+Endpoint `POST {action:previewImpact}` (read-only, §17); hasil tidak disimpan — hanya
+ActivityLog panggilan (D21). Matriks yang sama dipakai Alur 8 (§32) supaya angka yang
+dilihat atasan saat menilai KONSISTEN dengan yang dijalankan pasca-publikasi.
 
 ## 17. API Blueprint
 
@@ -1013,10 +1062,18 @@ Konvensi proyek (kebab-case, action via POST body, `?q=` pencarian, offset/limit
                                          ?importTemplate=actuals (unduh .xlsx — AMANDEMEN 2 §18.5)
                                          POST {action:submitSelf|saveManagerScore|submitManager|
                                          pullAutoSources|finalize|importActualsPreview|
-                                         importActualsCommit}  (finalize → approval chain;
-                                         pullAutoSources → pratinjau + terapkan §18.6)
+                                         importActualsCommit|previewImpact|aiCompose}
+                                         (finalize → approval chain; pullAutoSources →
+                                         pratinjau + terapkan §18.6; previewImpact → estimasi
+                                         bonus/kenaikan real-time dari draf nilai §18.12 —
+                                         AMANDEMEN 3: read-only, tanpa nominal Rp, guard §35-31;
+                                         aiCompose → poin pendek → draf kalimat ulasan §18.11 —
+                                         AMANDEMEN 3: compose-only server-side, rate-limit D20,
+                                         guard §35-30)
 /api/rekankerja/performance/feedback360 GET ?cycleId|mine · POST {action:invite|remind|decline|
-                                         submit} (submit anonim; agregasi di service)
+                                         submit|aiCompose} (submit anonim; agregasi di service;
+                                         aiCompose utk komentar reviewer — AMANDEMEN 3 §18.11,
+                                         identitas reviewer tak pernah dikirim ke model)
 
 # P4 — kalibrasi & hasil
 /api/rekankerja/performance/calibration  GET ?cycleId&unitId (distribusi) · GET ?curve=1
@@ -1043,8 +1100,12 @@ Konvensi proyek (kebab-case, action via POST body, `?q=` pencarian, offset/limit
 # ESS (portal karyawan)
 /api/rekankerja/ess/my-goals             GET (KPI+progress) · POST {action:propose|addEvidence}
 /api/rekankerja/ess/my-appraisal         GET (status fase + hasil published) · POST {action:
-                                         submitSelf|acknowledge|appeal|withdrawAppeal}
-/api/rekankerja/ess/my-360               GET (undangan saya) · POST {action:submit|decline}
+                                         submitSelf|acknowledge|appeal|withdrawAppeal|aiCompose}
+                                         (aiCompose = AI Assist ulasan self-assessment —
+                                         AMANDEMEN 3 §18.11; estimator dampak TIDAK ada di
+                                         ESS — karyawan tidak melihat, D21)
+/api/rekankerja/ess/my-360               GET (undangan saya) · POST {action:submit|decline|
+                                         aiCompose} (aiCompose — AMANDEMEN 3 §18.11)
 /api/rekankerja/ess/my-checkins         GET (riwayat 1-on-1 saya)
 ```
 
@@ -1098,6 +1159,12 @@ menempel ke halaman "Pengajuan" (pola PR Approval ESS).
     tahun ini tanpa merusak data penilaian tahun-tahun sebelumnya (§18.9).
 18. **Bell curve kalibrasi** (AMANDEMEN 2): sebaran nilai kurva lonceng untuk
     HR/Direksi + deteksi atasan "terlalu pelis/royal" (§18.10).
+19. **AI Assist kolom ulasan** (AMANDEMEN 3): penilai menulis poin pendek → AI
+    menyusun draf kalimat profesional & konstruktif — compose-only, editable,
+    flag audit internal (§18.11).
+20. **Estimasi dampak real-time** (AMANDEMEN 3): panel di form atasan menampilkan
+    estimasi bonus/kenaikan dari MeritMatrix aktif saat nilai diisi — tanpa nominal
+    Rp, label tegas "estimasi bukan keputusan" (§18.12).
 
 ### 18.1 KPI Builder — "mudah mengisi KPI" sebagai fitur kelas satu (AMANDEMEN 1)
 
@@ -1349,6 +1416,82 @@ sebelumnya.
   bukan memaksa bentuk distribusi tertentu. Tooltip edukatif menjelaskan cara
   membaca kurva & z-score (anti salah tafsir).
 
+### 18.11 AI Assist Kolom Ulasan — poin pendek → feedback profesional (AMANDEMEN 3)
+
+**Masalah**: kolom ulasan kosong adalah penunda submit terbesar ("mau nulis apa
+ya?") — dan yang terisi serang "kerja bagus, pertahankan": feedback yang tidak bisa
+ditindaklanjuti. **Janji UX**: penilai tetap menulis ISInya (poin pendek), AI hanya
+menyusun kalimatnya.
+
+1. **Titik masuk**: tombol kecil **"✨ Susun dengan AI"** di samping SEMUA kolom
+   ulasan — komentar kompetensi atasan (termasuk yang wajib saat skor ekstrem),
+   ulasan self-assessment ESS (selfComment §15), komentar reviewer 360. (Catatan
+   check-in bisa menyusul — ekstensi murah, belum dijadwalkan.)
+2. **Dialog isi**: (a) **poin pendek** 1–6 butir, bahasa seadanya — typo oke,
+   campur ID/EN oke; (b) **nada**: Profesional netral · Memberi semangat · Tegas
+   namun konstruktif; (c) **panjang**: ringkas (2–3 kalimat) / sedang (4–6).
+   Konteks kompetensi + skor terpilih dikirim otomatis sebagai bahan — bukan
+   sesuatu yang "dinilai ulang" AI.
+3. **Hasil = DRAF di textarea**, bukan komentar tersimpan: penilai menekan
+   **"Pakai"** → teks masuk kolom → bebas diedit → melewati validasi yang sama
+   (komentar wajib saat skor ekstrem, panjang minimum). Chip **"poin saya"**
+   ditampilkan di atas textarea — penilai selalu melihat bahan aslinya, bukan
+   narasi ajaib yang tidak dikenalnya; tombol "kembali ke poin saya" selalu ada.
+4. **Batas keras** (D20 — turunan prinsip §12-9 "AI asisten menulis, bukan
+   pengganti menilai"):
+   - **Compose-only**: AI hanya merangkai ulang poin + konteks skor yang dikirim;
+     prompt melarang menambah fakta/metrik/pujian baru; TIDAK melihat dan TIDAK
+     menghasilkan angka skor apa pun.
+   - **Server-side only**: gateway AI internal (z-ai-web-dev-sdk di backend — kunci
+     API tidak pernah menyentuh klien); payload minimal: poin, nama kompetensi,
+     skor terpilih, tone, bahasa UI aktif (ID/EN) — TANPA data pribadi lain
+     (gaji, PIP, riwayat disiplin).
+   - **Nada aman**: prompt terkunci style-guide — SARA-safe, tanpa janji
+     karir/keuangan, fokus perilaku spesifik yang bisa diperbaiki.
+   - **Rate-limit 20 susunan/jam/user**: tombol berubah "coba lagi nanti" (bukan
+     error merah) — mencegah spam biaya & ketergantungan berlebih.
+   - **Audit**: setiap panggilan ter-ActivityLog; komentar yang dipakai ditandai
+     `aiAssisted` (§15) — flag INTERNAL (HR/audit), tidak ditampilkan ke karyawan:
+     kualitas teks tetap tanggung jawab penilai.
+   - **Anonimitas 360 tetap utuh**: reviewer 360 boleh memakai AI assist;
+     identitas reviewer tidak pernah dikirim ke model.
+5. **Kegagalan tenang**: gateway timeout/error → banner halus "AI sedang tidak
+   tersedia — tulis manual, coba lagi nanti"; form 100% berfungsi tanpa AI (AI
+   adalah percepatan, bukan ketergantungan — zero-blocking).
+
+### 18.12 Estimasi Dampak Real-Time — bonus & kenaikan di layar atasan (AMANDEMEN 3)
+
+**Masalah**: atasan memberi nilai "dalam gelap" tanpa tahu konsekuensinya; HR
+menjadi kalkulator manusia setiap kali ditanya "nilai saya dapat apa".
+**Desain**: panel samping sticky **"Estimasi dampak (draf)"** pada form penilaian
+atasan (desktop: kanan; mobile: kartu collapsible paling bawah) — ter-update
+real-time (debounce ±1 detik) setiap nilai KPI/kompetensi berubah → panggil
+`previewImpact` (server otoritatif; klien tidak pernah menghitung sendiri — §12-1).
+
+- **Isi panel**: skor provisional (angka besar) → rating provisional (chip warna
+  RatingScale) → dari **MeritMatrix aktif**: "bonus ± X bulan · kenaikan gaji Y–Z%"
+  → breakdown mini per komponen (KPI/kompetensi/nilai inti) + status kelengkapan
+  ("belum lengkap: 4/8 KPI — nilai masih bisa berubah"). Bila KPI kritis gagal →
+  baris merah "KPI kritis gagal — rating maksimal 2 (§4.5)".
+- **Hanya % dan bulan — TANPA nominal Rp** (D21): nominal dihitung & disimpan
+  terenkripsi di modul merit pasca-publikasi (§32); estimator sengaja berhenti di
+  persentase agar fokus penilai tidak teralihkan ke jumlah uang.
+- **Label tegas** di panel: "ESTIMASI berdasar nilai sementara & matriks merit
+  aktif — bukan keputusan; tunduk pada kalibrasi, approval, dan kebijakan final
+  HR." (tooltip menjelaskan rantai §30–§32). Hasil TIDAK disimpan — hanya
+  ActivityLog panggilan.
+- **Akses** (D21): atasan langsung untuk bawahannya selama fase Assessment · HR
+  (semua peserta) · Direksi (lensa agregat). **Karyawan & reviewer 360 tidak
+  melihat estimator** — hasil final dikomunikasikan lewat publikasi §31 (satu
+  sumber kebenaran; mencegah estimasi salah tafsir menjadi "janji").
+- **Konsekuensi sadar, bukan alat menghaluskan nilai**: justru karena dampak
+  terlihat, diskusi kalibrasi menjadi jujur — didampingi lensa bell curve §18.10
+  (atasan yang menekan/menggelembungkan nilai akan terdeteksi z-score-nya);
+  setiap penyesuaian tetap lewat CalibrationDecision ter-audit.
+- **OKR-proof**: estimator membaca SKOR komponen (§16), bukan sumber indikator —
+  bila modul OKR diaktifkan kelak (backlog §3.3), estimasi otomatis mengikuti
+  tanpa perubahan desain.
+
 ## 19. Integrasi Lintas Modul (kontrak yang diumumkan)
 
 | Modul | Titik sambung | Arah | Mekanisme |
@@ -1362,6 +1505,7 @@ sebelumnya.
 | **Letters** | surat hasil/PIP/prob | performance → letters | 3 jenis template surat baru di LetterTemplate; terbit saat keputusan (pola surat offer/appointment) |
 | **Approval engine** | 4 docType baru | performance ↔ engine | `PerformanceAppraisal`, `ProbationDecision`, `PipPlan`, `MeritRecommendation` (§11.1) |
 | **Notifikasi/Email/WA** | semua milestone + nudge | performance → notif | `performance.*` events (goal approved, fase buka/tutup, hasil terpublikasi, PIP jatuh tempo, prob jatuh tempo H-14/H-3); **AMANDEMEN 2**: nudge Command Center multi-kanal — in-app + email + WhatsApp dengan deep-link token ke formulir (§18.8); Slack = backlog adapter webhook generik (D17) |
+| **AI Gateway internal** | AI Assist kolom ulasan | performance → AI | server-side z-ai-web-dev-sdk (compose-only; kunci tidak ke klien); payload minimal tanpa data pribadi ekstra; tone terkunci; rate-limit + flag aiAssisted + ActivityLog (AMANDEMEN 3 §18.11, D20) |
 | **eSign** | surat keputusan | performance → esign | request e-sign surat PIP/percobaan bila perusahaan mau (opsional) |
 | **MetricSnapshot** | analitik modul | performance → snapshot | metric baru: perf_completion, rating_distribution, pip_recovery_rate |
 
@@ -1378,7 +1522,7 @@ Ukuran: M ≈ 2–4 hari, L ≈ 5–8 hari, XL ≈ 9–14 hari (agent-assisted, 
 | **P0 Fondasi & Master** | 17 model schema + DDL + parity step; masters (KPI library starter-pack ±40 KPI 4 perspektif BSC, 12 kompetensi ber-level, skala rating, template, merit matrix default) + **versioning pustaka §18.9 (AMANDEMEN 2: kolom versi KpiDefinition & Competency + perilaku minor/definitif)**; menu & rail grup; settings; penomoran | **M** | migrasi idempoten 3 tenant; halaman Master CRUD + riwayat versi; tsc/lint/audit gate |
 | **P1 Siklus & Target** | cycle CRUD + gerbang fase + enroll peserta (auto: karyawan Active, snapshot manager); **KPI Builder §18.1 + salin dari periode sebelumnya §18.2** (copyPreview/copyFromCycle/copyTeam + prefill siklus); penetapan KPI (assign batch + self-propose MBO + approval) + lock; validasi Σbobot; **AMANDEMEN 2: impor Excel target §18.5 + TAB Command Center & nudge multi-kanal §18.8 + autosave/progress bar infra formulir §18.7** | **L–XL** | alur 1–2 E2E termasuk salin PER-2025→PER-2026 + bulk tim + impor target (baris kotor ditolak, hanya baris valid) + nudge ter-log & rate-limit + pemulihan draf; guard §35 baris 1–7 + 24–26 + 29 |
 | **P2 Check-in & Monitoring** | CheckIn CRUD + scheduler reminder + progress midActual + revisi target mid-year (approval ringan atasan-atas) | **M** | alur 3 E2E |
-| **P3 Penilaian & 360** | fase self + manager (form §18-4) + pullAutoSources (6 binding) + feedback360 (undang/isian/anonim ≥3); **AMANDEMEN 2: impor Excel realisasi §18.5 + pratinjau tarikan §18.6 + autosave/progress bar di semua form penilaian §18.7** | **L** | alur 5 E2E + bukti tarikan otomatis + impor realisasi (baris kotor ditolak) + autosave recovery |
+| **P3 Penilaian & 360** | fase self + manager (form §18-4) + pullAutoSources (6 binding) + feedback360 (undang/isian/anonim ≥3); **AMANDEMEN 2: impor Excel realisasi §18.5 + pratinjau tarikan §18.6 + autosave/progress bar di semua form penilaian §18.7**; **AMANDEMEN 3: AI Assist kolom ulasan §18.11 (aiCompose di appraisals/feedback360/ESS) + panel estimasi dampak real-time §18.12 (previewImpact, tanpa nominal Rp)** | **L–XL** | alur 5 E2E + bukti tarikan otomatis + impor realisasi (baris kotor ditolak) + autosave recovery + AI compose teruji (poin → draf editable; rate-limit D20; flag aiAssisted; dwibahasa ID+EN) + estimasi konsisten formula §16 (ubah nilai → estimasi berubah; akses karyawan ESS ditolak 403) |
 | **P4 Kalibrasi & Finalisasi** | dashboard distribusi + **BELL CURVE §18.10 (AMANDEMEN 2: histogram + overlay normal + z-flag pelis/royal + central tendency)** + CalibrationSession/Decision (audit) + docType PerformanceAppraisal di engine + struktur AS-PERF-STD + finalisasi & publikasi + acknowledgement + banding ESS | **L–XL** | alur 6–7 E2E + bell curve flag sesuai D19; audit trail lengkap |
 | **P5 Merit, PA & Surat** | MeritMatrix → MeritRecommendation (docType nominal + vault) → toPayroll/toPersonnelAction; surat PER/PIP/PRB; notifikasi milestone | **L–XL** | alur 8 E2E + jurnal payroll menyerap |
 | **P6 PIP End-to-End** | create/activate/checkpoint/extend/outcome + sambungan disciplinary + scheduler jatuh tempo | **L** | alur 9 E2E |
@@ -1387,8 +1531,9 @@ Ukuran: M ≈ 2–4 hari, L ≈ 5–8 hari, XL ≈ 9–14 hari (agent-assisted, 
 | **P9 Kepatuhan & Hardening** | visibility matrix §11.3 enforcement; DSR karyawan (extend DataSubjectRequest); retensi arsip; rate-limit submit 360; uji beban enroll massal | **M** | matriks akses teruji negatif (403); DSR selesai |
 
 **Backlog (belum dijadwalkan — XL / butuh keputusan user)**: mode OKR kuartalan + board
-transparan; AI ringkasan check-in & deteksi bias bahasa; modul Training/pengembangan
-terhubung skor kompetensi; succession planning penuh di atas 9-box; benchmark gaji.
+transparan; AI ringkasan check-in & deteksi bias bahasa (AI di luar compose-only
+§18.11); modul Training/pengembangan terhubung skor kompetensi; succession planning
+penuh di atas 9-box; benchmark gaji.
 
 ## 21. Quality Gates & Definition of Done
 
@@ -1406,6 +1551,11 @@ Sama dengan standar proyek (per fase, tanpa kecuali):
    (simulasi putus koneksi → pemulihan draf lokal); nudge (rate-limit 6 jam &
    ActivityLog); bell curve (z-flag atasan pelis/royal sesuai D19); versioning
    (ubah definisi definitif → versi baru → data penilaian tahun lama UTUH).
+8. **Fitur AMANDEMEN 3 teruji eksplisit di fase P3**: aiCompose (poin → draf yang
+   dapat diedit; keluaran dwibahasa ID **dan** EN; rate-limit aktif; payload yang
+   menyertakan skor untuk "disusun" ditolak); estimasi dampak (ubah nilai → estimasi
+   berubah sesuai formula §16; akses karyawan ESS ditolak 403; respons tanpa nominal
+   Rp); flag aiAssisted tercatat pada baris komentar yang memakainya.
 
 **Definition of Done modul (keseluruhan)**: siklus penuh dapat dijalankan di data MII
 dari pembuatan siklus hingga merit diterapkan payroll + surat terbit + PIP selesai,
@@ -1421,6 +1571,10 @@ seluruhnya ter-ActivityLog, dwibahasa, mobile, dan 3 tenant ter-isolasi.
 | Nudge menjadi spam / mengganggu | rendah | rate-limit 1 per peserta per kanal per 6 jam + konfirmasi jumlah penerima + kirim hanya jam kerja + ActivityLog semua kirim (D17) |
 | Bell curve disalahartikan jadi kuota paksa | sedang | kurva = lensa kewajaran; forced distribution tetap OFF (D2); penyesuaian hanya via CalibrationDecision beralasan + tooltip edukatif (§18.10) |
 | Versioning membingungkan HR | rendah | default sederhana: minor inline / definitif versi baru + catatan; data historis aman otomatis (snapshot baris penilaian — §18.9 lapis 1) |
+| AI menyimpang dari poin / nada tidak pantas / halusinasi | sedang | compose-only (AI hanya merangkai poin penilai — dilarang menambah fakta/metrik), hasil = draf yang dapat diedit, tone terkunci pilihan, prompt SARA-safe, rate-limit 20/jam/user + flag aiAssisted audit (D20) |
+| Estimator dianggap janji → harapan karyawan meleset | sedang | label tegas "estimasi bukan keputusan" + hanya % & bulan tanpa nominal Rp + karyawan tidak melihat estimator (D21) + satu sumber kebenaran: publikasi hasil §31 |
+| Atasan "menghaluskan" nilai karena melihat estimasi bonus | sedang | memang tujuan desain §12-10 (konsekuensi sadar); penyeimbang: bell curve z-flag §18.10 + kalibrasi wajib + komentar ekstrem; setiap penyesuaian tetap CalibrationDecision ter-audit |
+| Biaya/latensi gateway AI membengkak | rendah | rate-limit per user + tombol manual (bukan auto per ketikan) + payload minimal + fallback tenang "tulis manual" (AI tidak pernah memblokir form) |
 | Sengketa ketenagakerjaan atas hasil | tinggi | audit trail (CalibrationDecision + ActivityLog) + jendela banding + bukti KPI ter-lampir + ekspor riwayat (PP 35/2021) |
 | Penilaian bias atasan | sedang | distribusi + panduan + kalibrasi wajib + komentar wajib skor ekstrem |
 | Overlap dengan payroll cycle (bonus telat) | sedang | `apply` mengecek jendela PayrollRun terbuka; fallback draft PA SalaryAdjustment bila run tertutup |
@@ -1452,6 +1606,8 @@ seluruhnya ter-ActivityLog, dwibahasa, mobile, dan 3 tenant ter-isolasi.
 | D17 | Kanal & frekuensi nudge | in-app + email + WhatsApp (deep-link token ke formulir); Slack = backlog (adapter webhook generik); maks 1 per peserta per kanal per 6 jam; kirim hanya jam kerja | tanpa rate-limit / tanpa WA |
 | D18 | Autosave | debounce 3 s + interval maks 10 s + mirror localStorage + pemulihan draf eksplisit (server = sumber kebenaran) | hanya simpan manual |
 | D19 | Ambang flag atasan di bell curve | z ≤ −1 "pelis" / z ≥ +1 "royal" (amber); |z| ≥ 2 merah; + deteksi central tendency σ tim < ½ σ perusahaan | ambang selisih mean saja |
+| D20 | Batas AI Assist ulasan | compose-only dari poin penilai (dilarang menambah fakta/angka); server-side gateway internal; tone & panjang terkunci; hasil = draf editable + flag aiAssisted (audit internal); rate-limit 20 susunan/jam/user; payload minimal tanpa data pribadi ekstra; bahasa ikut UI aktif | AI bebas menulis tanpa poin user / auto-apply tanpa konfirmasi manusia |
+| D21 | Estimasi dampak: siapa & sejauh apa | atasan langsung (fase Assessment) + HR + Direksi agregat; isi = bulan bonus & % kenaikan (range) TANPA nominal Rp; karyawan & reviewer 360 TIDAK melihat; label "estimasi bukan keputusan"; stateless (hanya ActivityLog) | menampilkan nominal Rp juga / estimator terlihat karyawan |
 
 ---
 ---
@@ -1580,7 +1736,9 @@ tempo — lewat jatuh tempo tanpa keputusan → eskalasi direksi + tanda merah d
    (AMANDEMEN 2 §18.6: atasan bisa menarik ulang massal dengan dialog pratinjau
    sebelum diterapkan — konfirmasi timpa bila sudah ada input manual.)
 2. **Karyawan (ESS)** mengisi: aktual KPI manual + bukti + self-assessment kompetensi
-   (selfScore per kompetensi) → `submitSelf` (status SelfDone).
+   (selfScore per kompetensi) → `submitSelf` (status SelfDone). (AMANDEMEN 3 §18.11:
+   ulasan self-assessment punya tombol "✨ Susun dengan AI" — poin pendek → draf
+   kalimat yang dapat diedit; compose-only.)
 3. **360 (bila aktif)**: atasan/HR mengundang reviewer (peer/subordinate/cross);
    reviewer anonim mengisi di ESS sebelum dueAt; sistem menandai Expired setelah lewat.
 4. **Atasan** menilai: verifikasi aktual KPI manual, skor kompetensi per deskriptor
@@ -1589,6 +1747,10 @@ tempo — lewat jatuh tempo tanpa keputusan → eskalasi direksi + tanda merah d
    → status ManagerDone. (AMANDEMEN 2 §18.5: atasan/HR bisa **impor realisasi
    massal via Excel** — mengisi `finalActual` tanpa mengubah status; §18.7: form
    dilengkapi autosave berkala + progress bar "Formulir Anda selesai X%".)
+   (AMANDEMEN 3 §18.11: komentar atasan dapat disusun AI dari poin pendek — flag
+   aiAssisted; §18.12: panel "Estimasi dampak (draf)" tampil real-time selama atasan
+   mengisi — % bonus/kenaikan dari MeritMatrix aktif, tanpa nominal Rp, label
+   "estimasi bukan keputusan".)
 **Guard**: submitManager ditolak bila masih ada KPI aktual null atau Σbobot menyimpang;
 fase self wajib lewat (atau dilewati resmi via null window) sebelum manager aktif.
 
@@ -1627,7 +1789,9 @@ fase self wajib lewat (atau dilewati resmi via null window) sebelum manager akti
 
 1. Sistem membuat **draf MeritRecommendation** otomatis untuk peserta Closed
    (matrix aktif × finalRating → bulan bonus & % kenaikan; nominal dihitung dari
-   payroll profile, disimpan vault).
+   payroll profile, disimpan vault). (Matriks yang sama dipakai estimator §18.12 —
+   angka yang dilihat atasan saat menilai konsisten dengan yang dijalankan di sini;
+   AMANDEMEN 3.)
 2. HR review/adjust → **submit** → approval `MeritRecommendation` (nominal-tier D12:
    L2 Direktur bila > Rp 10 jt) → Approved.
 3. **Penerapan** (pilih sesuai situasi): (a) `toPayroll` — menyerap bonus/adjustment
@@ -1844,16 +2008,19 @@ flowchart LR
 | 27 | importActuals (preview/commit Excel — §18.5) | HR / atasan (timnya) | jendela manager terbuka; hanya kolom finalActual; target sudah GoalApproved | fase sudah Kalibrasi / KPI tak ditemukan |
 | 28 | newVersion / archive pustaka (§18.9) | HR | newVersion: tahun berlaku + catatan perubahan wajib; arsip = soft (data tetap terbaca) | hard-delete definisi yang dirujuk baris penilaian (DILARANG) |
 | 29 | nudge / nudgeAll (§18.8) | HR / atasan (timnya) | fase aktif terkait; rate-limit 1 per peserta per kanal per 6 jam; ActivityLog | melebihi rate-limit / di luar jam kerja (antre otomatis) |
+| 30 | aiCompose (§18.11) | karyawan peserta (self) / atasan snapshot / reviewer 360 dengan undangan aktif | aktor sah untuk kolom ulasan terkait; rate-limit 20/jam/user (D20); hasil hanya draf (belum tersimpan sebagai komentar) | melebihi rate-limit / payload menyertakan skor yang minta "disusun" / fase terkait belum terbuka |
+| 31 | previewImpact (§18.12) | atasan snapshot / HR | fase Assessment terbuka; hanya peserta bawahannya (HR: semua peserta); read-only, tanpa nominal Rp (D21) | dipanggil karyawan ESS / reviewer 360 / di luar fase / mencoba mutasi lewat endpoint ini |
+| 32 | apply hasil AI → komentar (§18.11) | penilai pemilik kolom | konfirmasi "Pakai" eksplisit; teks melewati validasi yang sama (wajib-ekstrem, panjang); flag aiAssisted tercatat | auto-apply tanpa konfirmasi manusia (DILARANG) |
 
 ## 36. Matriks Aktor × Menu × Endpoint (utama)
 
 | Aktor | Menu admin | Endpoint inti yang dipakai |
 |---|---|---|
-| HR Admin | semua `performance:*` | masters(create/newVersion/archive), cycles(action+nudge), goals(assign/submit/copy/importTargets), checkins, appraisals(submitManager/pullAutoSources/importActuals), feedback360, calibration(distribusi+curve), results, merit, pip, probation, reports |
-| Atasan | Target & KPI · Check-in · Penilaian · (Hasil tim) | goals(assign/submit/copyFromCycle/copyTeam/importTargets tim), cycles(commandCenter+nudge tim), checkins, appraisals(submitManager/pullAutoSources/importActuals), calibration(ikut, curve tim sendiri), results(read tim) |
+| HR Admin | semua `performance:*` | masters(create/newVersion/archive), cycles(action+nudge), goals(assign/submit/copy/importTargets), checkins, appraisals(submitManager/pullAutoSources/importActuals/previewImpact/aiCompose), feedback360(aiCompose), calibration(distribusi+curve), results, merit, pip, probation, reports |
+| Atasan | Target & KPI · Check-in · Penilaian · (Hasil tim) | goals(assign/submit/copyFromCycle/copyTeam/importTargets tim), cycles(commandCenter+nudge tim), checkins, appraisals(submitManager/pullAutoSources/importActuals/previewImpact/aiCompose), calibration(ikut, curve tim sendiri), results(read tim) |
 | Atasan L2 | read-only + approval revisi | goals(reviseTarget approval), approval inbox (PerformanceAppraisal/PipPlan) |
 | Direksi | Hasil & 9-Box (agregat) | results(9box), calibration(curve perusahaan — §18.10), approval inbox (jenjang 3) |
-| Karyawan ESS | Target Saya · Penilaian Saya · 360 Saya | ess/my-goals, ess/my-appraisal, ess/my-360, ess/my-checkins |
+| Karyawan ESS | Target Saya · Penilaian Saya · 360 Saya | ess/my-goals, ess/my-appraisal(+aiCompose), ess/my-360(+aiCompose), ess/my-checkins |
 | Reviewer 360 (bukan peserta pun boleh) | 360 Saya | ess/my-360 |
 
 ## 37. Kepatuhan UU PDP Sepanjang Siklus
@@ -1866,6 +2033,8 @@ flowchart LR
 | Hasil & 9-box | penilaian, potensi | 9-box/merit = HR+direksi saja; hasil pribadi = peserta; laporan publik = agregat ter-anonimkan |
 | Banding | alasan sengketa | ter-audit; akses HR + peserta |
 | Merit | nominal uang | vault terenkripsi (enc:v1) + MoneyViewGrant bila perlu |
+| AI Assist ulasan (§18.11) | poin penilai, nama kompetensi, skor terpilih | compose-only; payload minimal tanpa data pribadi lain; gateway internal server-side; rate-limit; flag aiAssisted + ActivityLog (D20); identitas reviewer 360 tak pernah dikirim ke model |
+| Estimasi dampak (§18.12) | rating sementara, % merit | akses atasan/HR/Direksi saja (karyawan tidak); tanpa nominal Rp; stateless + ActivityLog panggilan (D21) |
 | Retensi & DSR | seluruh data kinerja | retensi default 5 tahun (D); DSR Access/Export per karyawan (perluasan DataSubjectRequest); ActivityLog semua akses baca sensitif |
 
 ---
@@ -1962,7 +2131,7 @@ Atasan penilai: Sri Wahyuni — HR Director · Bobot: KPI 70 / Kompetensi 20 / N
    Eka Putri (MII00046) untuk alur probation.
 6. Bahasa dokumen: Indonesia; UI aplikasi dwibahasa penuh ID/EN.
 
-## Lampiran G — Wireframe: KPI Builder, Salin Periode, Impor Excel, Command Center, Bell Curve & Progress Bar (AMANDEMEN 1+2)
+## Lampiran G — Wireframe: KPI Builder, Salin Periode, Impor Excel, Command Center, Bell Curve, Progress Bar, AI Assist & Estimasi Dampak (AMANDEMEN 1+2+3)
 
 ### G.1 Titik awal builder (peserta tanpa KPI — §18.1-2)
 
@@ -2098,14 +2267,60 @@ KPI 2  Akurasi data karyawan (manual)
  "Draf lokal 14:31:58 lebih baru dari server — [Pulihkan] [Buang]")
 [tutup browser dgn perubahan belum tersimpan → peringatan beforeunload]
 ```
+### G.9 AI Assist kolom ulasan — poin → draf kalimat (§18.11 — AMANDEMEN 3)
+
+```
+KOMENTAR ATASAN · Kompetensi: Komunikasi (skor 3) · PER-2026-0007
+[✨ Susun dengan AI]                    (rate-limit 20 susunan/jam/user · D20)
+
+┌ SUSUN ULASAN DENGAN AI ──────────────────────────────┐
+│ Poin saya (1–6, bahasa seadanya):                    │
+│  • sering telat kirim laporan mingguan                │
+│  • komunikasi ke vendor lambat dijawab                │
+│  • presentasi ke klien terakhir bagus                 │
+│ Nada   : (•) Tegas namun konstruktif                  │
+│         ( ) Profesional netral  ( ) Memberi semangat  │
+│ Panjang: (•) Ringkas 2–3 kalimat   ( ) Sedang 4–6     │
+│                                  [ Batal ] [ Susun → ]│
+└───────────────────────────────────────────────────────┘
+→ DRAF (edit bebas — AI tidak menambah fakta di luar poin Anda):
+  "Aspek yang perlu ditingkatkan: ketepatan pengiriman laporan mingguan dan
+   kecepatan respons kepada vendor. Sisi positif yang perlu dipertahankan: kualitas
+   presentasi kepada klien. Fokus periode berikutnya: konsistensi timeline
+   pelaporan yang disepakati."
+  ⟨disusun dari 3 poin Anda — [lihat poin asli]⟩
+  [Pakai sebagai komentar]  [Susun ulang]  [Tulis sendiri]
+→ jika dipakai: tersimpan dgn flag aiAssisted (audit internal, bukan tampilan
+  karyawan) · AI tidak pernah melihat/mengisi angka skor.
+```
+
+### G.10 Estimasi dampak real-time — panel di form atasan (§18.12 — AMANDEMEN 3)
+
+```
+FORM PENILAIAN ATASAN · PER-2026-0007            (desktop: panel kanan sticky)
+┌─ ESTIMASI DAMPAK (draf) ──────────────┐
+│ Skor provisional    83,2  (4/8 KPI)   │ ← belum lengkap — bisa berubah
+│ Rating provisional  4 · Baik           │
+│ ───────────────────────────────────── │
+│ Bonus (matriks aktif): ± 1,5 bulan    │
+│ Kenaikan gaji        : 6–8%           │ ← % saja — nominal Rp TIDAK
+│                                      │    ditampilkan di sini (D21)
+│ ⚠ KPI kritis gagal: 0                 │
+│ ⓘ ESTIMASI bukan keputusan — tunduk  │
+│   kalibrasi, approval & kebijakan HR │
+└───────────────────────────────────────┘
+(nilai KPI/kompetensi diketik → debounce ±1 s → previewImpact server →
+ panel ter-update live; hasil tidak disimpan — hanya ActivityLog)
+```
 
 ---
 
-*Dokumen berstatus **menunggu keputusan user** atas Register Keputusan §23 (D1–D19,
-termasuk 3 keputusan AMANDEMEN 1 dan 4 keputusan AMANDEMEN 2) sebelum fase P0
-dieksekusi. Belum ada baris kode aplikasi yang berubah — termasuk seluruh isi
-AMANDEMEN 1 (KPI Builder UX + salin dari periode sebelumnya) dan AMANDEMEN 2
+*Dokumen berstatus **menunggu keputusan user** atas Register Keputusan §23 (D1–D21,
+termasuk 3 keputusan AMANDEMEN 1, 4 keputusan AMANDEMEN 2, dan 2 keputusan AMANDEMEN 3)
+sebelum fase P0 dieksekusi. Belum ada baris kode aplikasi yang berubah — termasuk
+seluruh isi AMANDEMEN 1 (KPI Builder UX + salin dari periode sebelumnya), AMANDEMEN 2
 (impor Excel, tarikan otomatis berpratinjau, autosave + progress bar, HR Command
-Center + nudge multi-kanal, versioning pustaka, bell curve kalibrasi).*
+Center + nudge multi-kanal, versioning pustaka, bell curve kalibrasi), dan AMANDEMEN 3
+(AI Assist kolom ulasan compose-only + estimasi dampak bonus/kenaikan real-time).*
 
 
