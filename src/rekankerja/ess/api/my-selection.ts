@@ -1,4 +1,4 @@
-// GET /api/rekankerja/ess/my-selection — MySelectionProcess oranHR (§2.10):
+// GET /api/rekankerja/ess/my-selection — MySelectionProcess RekanKerja (§2.10):
 // tahapan seleksi milik karyawan ESS sebagai kandidat INTERNAL (JobCandidate
 // via employeeId — status Nominated|InProcess;Passed/Failed tetap tampil utk
 // riwayat). POST — acknowledge tahap sendiri (needAcknowledgement).

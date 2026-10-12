@@ -1,6 +1,6 @@
 "use client";
 // RekanKerja Recruitment F5 — view "Demografi & Segmen": demografi pelamar
-// (padanan ApplicantDemography oranHR §2.5 — chart "Display Chart"), segmen
+// (padanan ApplicantDemography RekanKerja §2.5 — chart "Display Chart"), segmen
 // talent pool, dan silver medalist (kandidat lulus seleksi tanpa pengangkatan
 // — auto-saran HRX). Chart bar murni CSS/div (tanpa library eksternal).
 import { useApi } from "@/rekankerja/shared/lib/api";
@@ -132,8 +132,8 @@ export function DemographicsPage() {
         eyebrow={t("Recruitment · F5")}
         title={t("Demografi & Segmen Pelamar", "Applicant Demographics & Segments")}
         description={t(
-          "Profil talent pool — jenis kelamin, kelompok umur, pendidikan tertinggi, sumber pelamar & status (padanan ApplicantDemography oranHR), segmen talent pool, dan kandidat silver medalist.",
-          "Talent pool profile — gender, age group, highest education, applicant source & status (oranHR ApplicantDemography equivalent), talent pool segments, and silver medalist candidates.",
+          "Profil talent pool — jenis kelamin, kelompok umur, pendidikan tertinggi, sumber pelamar & status (padanan ApplicantDemography RekanKerja), segmen talent pool, dan kandidat silver medalist.",
+          "Talent pool profile — gender, age group, highest education, applicant source & status (RekanKerja ApplicantDemography equivalent), talent pool segments, and silver medalist candidates.",
         )}
       />
 

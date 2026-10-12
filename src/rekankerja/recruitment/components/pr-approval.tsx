@@ -1,6 +1,6 @@
 "use client";
 // RekanKerja Recruitment F1 — kotak persetujuan PR (padanan
-// PersonnelRequisitionToApprove.jsp oranHR). List semua PR Submitted;
+// PersonnelRequisitionToApprove.jsp RekanKerja). List semua PR Submitted;
 // otorisasi keputusan sesungguhnya di engine approval (decide time).
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";

@@ -1,7 +1,7 @@
 # AUDIT BISNIS PROSES — MODUL TRAVEL (PERJALANAN DINAS) RekanKerja HRIS
 
 Task ID: **24-e** · Jenis: audit READ-ONLY (tanpa mutasi, tanpa commit) · Tanggal: 2026-09-02 (jam sistem sandbox)
-Cakupan: `src/rekankerja/travel/**` (7 api + travel-service.ts + travel-seed.ts + 9 komponen), `prisma/schema-tenant.prisma` (10 model Travel), integrasi payroll (`payroll-service.ts`, `provisioning.ts`), referensi `ANALISA-TRAVEL.md` (oranHR), probing runtime GET tenant MII + verifikasi data PostgreSQL read-only.
+Cakupan: `src/rekankerja/travel/**` (7 api + travel-service.ts + travel-seed.ts + 9 komponen), `prisma/schema-tenant.prisma` (10 model Travel), integrasi payroll (`payroll-service.ts`, `provisioning.ts`), referensi `ANALISA-TRAVEL.md` (RekanKerja), probing runtime GET tenant MII + verifikasi data PostgreSQL read-only.
 Data MII diverifikasi: 7 request, 6 claim, 17 baris biaya, 4 zona, 5 template, 14 jenis biaya, budget 2026 Rp 250jt (4 CC), 10 jurnal (4 klaim + 6 payroll), 1 assignment UTRP.
 Temuan audit modul sebelumnya (AUDIT-MODULES.md F-04/F-11) sudah diperbaiki dan TIDAK dilaporkan ulang.
 
@@ -9,7 +9,7 @@ Temuan audit modul sebelumnya (AUDIT-MODULES.md F-04/F-11) sudah diperbaiki dan 
 
 ## 1. RINGKASAN EKSEKUTIF
 
-Modul Travel mengimplementasikan alur oranHR secara cukup lengkap: master (zona/template/jenis biaya+limit/akun) → request multi-destinasi + uang muka → approval → klaim settlement formula (a)+(b)−(c) → approval + jurnal otomatis → transfer payroll UTRP/TRVSTLIN → Paid saat run konfirmasi, plus budget tahunan per cost center (soft limit). Formula oranHR dipertahankan dan jurnal per baris biaya benar secara struktur.
+Modul Travel mengimplementasikan alur RekanKerja secara cukup lengkap: master (zona/template/jenis biaya+limit/akun) → request multi-destinasi + uang muka → approval → klaim settlement formula (a)+(b)−(c) → approval + jurnal otomatis → transfer payroll UTRP/TRVSTLIN → Paid saat run konfirmasi, plus budget tahunan per cost center (soft limit). Formula RekanKerja dipertahankan dan jurnal per baris biaya benar secara struktur.
 
 Namun audit menemukan **2 temuan KRITIS pada rantai uang** dan **8 MAJOR guard hilang**:
 1. **Transfer payroll "idempoten" yang salah** — transfer kedua ke period yang sama MENGHAPUS komponen UTRP/TRVSTLIN klaim yang sudah ditransfer sebelumnya, lalu hanya menulis ulang klaim yang masih Approved → klaim lama ditandai **Paid tanpa dibayar** saat run dikonfirmasi.
@@ -41,7 +41,7 @@ decideTravelRequest (PATCH /travel/requests, action approve|reject|cancel)
         │
 [HR] POST /travel/claims ──► TravelClaim (Submitted) + TravelClaimExpense (multi baris)
         ├─ validasi: karyawan aktif, template aktif, ≥1 baris, jenis aktif, amount>0
-        ├─ limit per jenis: amount > limitAmount → flag overLimit (WARNING saja, sesuai oranHR soft-limit)
+        ├─ limit per jenis: amount > limitAmount → flag overLimit (WARNING saja, sesuai RekanKerja soft-limit)
         ├─ a/b/c = input klien (di-clamp ≥0), totalSettlement = round2(a+loss+b−c)   ← M-1 (tidak dihitung dari rincian vs advance)
         ├─ requestId opsional (klaim mandiri); status request TIDAK dicek di sini     ← M-2
         └─ request.claimRequestedAt = now (flag "sudah pernah diklaim" — hanya display) ← K-2
@@ -55,7 +55,7 @@ decideClaim (PATCH /travel/claims, action approve|reject|cancel)
                 │
 [HR] POST /travel/transfer {periodId} ──► transferClaimsToPayroll
         ├─ guard: period tidak Locked/Closed (period "Processed" dengan run sudah dikonfirmasi TETAP LOLOS) ← M-4
-        ├─ ambil SEMUA klaim status Approved (semua tanggal — semantik oranHR HR pilih period target)
+        ├─ ambil SEMUA klaim status Approved (semua tanggal — semantik RekanKerja HR pilih period target)
         ├─ deleteMany assignment Specific UTRP/TRVSTLIN period ini (SEMUA, termasuk milik klaim
         │   yang sudah Transferred sebelumnya) lalu tulis ulang HANYA untuk klaim Approved  ← K-1
         ├─ b (payableEmployee) → EmployeeComponentAssignment UTRP (Earning Compensation, dibulatkan)
@@ -68,7 +68,7 @@ decideClaim (PATCH /travel/claims, action approve|reject|cancel)
         (TANPA verifikasi komponen benar-benar ada di payslip/run item)  ← M-4
                 │
 [budget] listBudgets: used = Σ totalSettlement klaim Transferred/Paid dengan claimDate dalam window tahun
-         (soft limit — over-budget hanya warning UI, sesuai perilaku oranHR MII)
+         (soft limit — over-budget hanya warning UI, sesuai perilaku RekanKerja MII)
 ```
 
 Titik integrasi lain: `provisioning.ts:669-670` membuat komponen UTRP/TRVSTLIN (tanpa TRVLOAN); `payroll-service.ts:373` confirmRun memanggil markTravelPaidForRun; `travel-seed.ts` shared oleh prisma/seed.ts & scripts/migrate-travel.ts.
@@ -77,7 +77,7 @@ Titik integrasi lain: `provisioning.ts:669-670` membuat komponen UTRP/TRVSTLIN (
 
 ## 3. TABEL STATE MACHINE
 
-### 3.1 TravelRequest (`status` default "Submitted"; tidak ada status Prepared seperti oranHR)
+### 3.1 TravelRequest (`status` default "Submitted"; tidak ada status Prepared seperti RekanKerja)
 
 | From | Trigger (action) | Guard | To | Efek samping |
 |---|---|---|---|---|
@@ -85,7 +85,7 @@ Titik integrasi lain: `provisioning.ts:669-670` membuat komponen UTRP/TRVSTLIN (
 | Submitted | approve | status ∈ from | Approved | boleh jadi dasar previewClaim; advance dihitung sebagai outstanding di KPI |
 | Submitted, Approved | reject | status ∈ from | Rejected | klaim **Submitted** request ini → Cancelled; klaim Approved/Transferred/Paid TIDAK disentuh; **advance tidak dihapus/ditandai**; claimRequestedAt tidak direset |
 | Submitted, Approved | cancel | status ∈ from | Cancelled | idem reject |
-| Approved | (tidak ada edit) | — | — | **tidak ada endpoint edit/return-to-prepare sama sekali** (beda oranHR: Return To Prepare); tidak ada jalur reopen |
+| Approved | (tidak ada edit) | — | — | **tidak ada endpoint edit/return-to-prepare sama sekali** (beda RekanKerja: Return To Prepare); tidak ada jalur reopen |
 
 Catatan: `decidedById` tersedia di schema tapi **tidak pernah diisi** (m-1). Cancel/Reject setelah klaim Transferred/Paid membiarkan klaim tetap diproses bayar (M-2/M-4 cluster).
 
@@ -108,8 +108,8 @@ Tidak punya state machine sama sekali: satu baris (amount, note, givenAt) dibuat
 
 ## 4. AUDIT KALKULASI SETTLEMENT (a)(b)(c) + BUDGET
 
-### 4.1 Formula oranHR — implementasi
-- Server (`travel-service.ts:447-451`): `a=max(0,otherCompanyExp)`, `loss=max(0,exchangeLoss)`, `b=max(0,payableEmployee)`, `c=max(0,payableCompany)`, `totalSettlement=round2(a+loss+b−c)` → **identik oranHR** (termasuk kemungkinan negatif = karyawan bon). ✓
+### 4.1 Formula RekanKerja — implementasi
+- Server (`travel-service.ts:447-451`): `a=max(0,otherCompanyExp)`, `loss=max(0,exchangeLoss)`, `b=max(0,payableEmployee)`, `c=max(0,payableCompany)`, `totalSettlement=round2(a+loss+b−c)` → **identik RekanKerja** (termasuk kemungkinan negatif = karyawan bon). ✓
 - Saran UI (`travel-claims.tsx:97-101`): `grossRealisasi = Σbaris + a + loss`; `saranB = max(0, gross−advance)`; `saranC = max(0, advance−gross)` → logika (a) realisasi < kasbon → kembalikan; (b) = ; (c) realisasi > kasbon → bayar. Benar secara konsep, **tetapi hanya placeholder** — b/c tetap input bebas (M-1).
 - Verifikasi data: CL-2026-002 (advance 15jt; rincian 13,7jt + rugi kurs 300rb = gross 14jt → c = 1jt ✓ konsisten formula). CL-2026-001 (advance 3jt; rincian 3,9jt → b = 900rb ✓).
 
@@ -122,10 +122,10 @@ Tidak punya state machine sama sekali: satu baris (amount, note, givenAt) dibuat
 
 ### 4.3 Budget
 - `used = Σ totalSettlement klaim Transferred/Paid dengan claimDate ∈ [startDate, endDate]` (travel-service.ts:823-839) — diverifikasi live: 900rb+730rb+850rb+1,25jt = **3.730.000** ✓ konsisten API ↔ DB.
-- Klaim **Approved belum dihitung sebagai komitmen** → budget tampak lebih rendah dari komitmen berjalan (soft limit oranHR memang hanya monitoring, tapi commitment-view standar tidak ada).
+- Klaim **Approved belum dihitung sebagai komitmen** → budget tampak lebih rendah dari komitmen berjalan (soft limit RekanKerja memang hanya monitoring, tapi commitment-view standar tidak ada).
 - Budget **per cost center**: hanya alokasi angka; **used per CC tidak dihitung**; klaim mandiri tanpa cost center tidak teralokasi; Σ item tidak divalidasi ≤ totalBudget.
 - **Tidak ada rate per grade/zona/durasi**: tidak ada item budget "hotel per malam × malam" atau "uang harian × hari otomatis dari tanggal trip"; semua nominal klaim manual (qty hanya keterangan) → GAP g-3. Limit jenis diperiksa **per total baris, bukan per unit** (L-POCKET limit 500rb dengan qty 3 hari = 1,2jt → selalu salah flag; L-BBM 125rb × 2 hari) → M-6.
-- Over-budget = warning saja (sesuai perilaku oranHR MII: used > budget tetap diproses) — by design, didokumentasikan.
+- Over-budget = warning saja (sesuai perilaku RekanKerja MII: used > budget tetap diproses) — by design, didokumentasikan.
 
 ### 4.4 Jurnal & transfer payroll
 - Jurnal klaim benar-balanced (D=C, terverifikasi JV-2026-005/006/007/008), idempoten regenerate, dan dihapus saat cancel post-approve. ✓
@@ -191,7 +191,7 @@ Tidak punya state machine sama sekali: satu baris (amount, note, givenAt) dibuat
 - Dampak: klaim biaya di luar trip bisa diapprove; periode budget/klaim bisa digeser via claimDate; tidak ada cek "klaim hanya setelah trip selesai" & batas settlementDay (overdue hanya badge).
 - Saran fix: validasi rentang per kaki + rentang request + monotonic seq; expenseDate ∈ [dateFrom, dateTo + toleransi]; claimDate ≥ dateTo (warning lewat settlementDue).
 
-**M-6 · Limit jenis biaya diperiksa per TOTAL baris, bukan per unit (hari/malam/km) — semantik limit oranHR hilang**
+**M-6 · Limit jenis biaya diperiksa per TOTAL baris, bukan per unit (hari/malam/km) — semantik limit RekanKerja hilang**
 - Lokasi: `travel-service.ts:435` (`e.amount > t.limitAmount`), `travel-claims.tsx:383` (sama di UI); `qty` tersimpan tetapi tidak dipakai (`:479`).
 - Bukti data: L-POCKET limit 500rb, klaim 1,2jt qty 3 hari (400rb/hari) → service akan flag over-limit padahal per hari wajar; L-BBM 125rb qty 2 hari → 250rb kena flag; sebaliknya seed membuat baris over-limit tanpa flag (over=false di DB) → badge "LEBIH LIMIT" tidak muncul di data demo.
 - Dampak: guard limit salah arah (false positive per durasi; false negative via seed/manual); approver kehilangan sinyal yang benar.
@@ -205,7 +205,7 @@ Tidak punya state machine sama sekali: satu baris (amount, note, givenAt) dibuat
 
 **M-8 · Jenis biaya L-* (lokal) vs O-* (luar negeri) tidak difilter per destinasi/zona**
 - Lokasi: `travel-service.ts:368` (previewClaim mengembalikan SEMUA jenis aktif), `travel-claims.tsx:399-405` (dropdown semua jenis); flag `overseas`/zona hanya data display.
-- Dampak: trip dalam negeri bisa memakai O-HOTEL dan trip luar negeri memakai L-HOTEL tanpa warning — salah klasifikasi biaya, salah akun/limit, laporan per jenis menyesatkan (padanan oranHR memisahkan definisi Local vs Overseas).
+- Dampak: trip dalam negeri bisa memakai O-HOTEL dan trip luar negeri memakai L-HOTEL tanpa warning — salah klasifikasi biaya, salah akun/limit, laporan per jenis menyesatkan (padanan RekanKerja memisahkan definisi Local vs Overseas).
 - Saran fix: filter/flag jenis biaya sesuai kombinasi destinasi (ada kaki overseas → O-*; semua lokal → L-*), atau minimal warning di approve.
 
 ### MINOR
@@ -220,15 +220,15 @@ Tidak punya state machine sama sekali: satu baris (amount, note, givenAt) dibuat
 
 **m-5 · Budget per CC tidak dihitung terpakainya & item tak divalidasi** — `listBudgets:829-837` hanya total; `upsertBudget:841-880` tidak cek Σ item ≤ totalBudget; klaim mandiri tanpa CC tak teralokasi. Fix: agregasi used per costCenter dari klaim; validasi Σ item.
 
-**m-6 · Klaim Approved tidak dihitung sebagai komitmen budget** — used hanya Transferred/Paid (`:826-828`); over-budget warning by-design oranHR (didokumentasikan), namun commitment-view standar (klaim Approved pending transfer) tidak ada → HR bisa over-commit tanpa sinyal. Fix: tambah kolom "committed" terpisah dari "used".
+**m-6 · Klaim Approved tidak dihitung sebagai komitmen budget** — used hanya Transferred/Paid (`:826-828`); over-budget warning by-design RekanKerja (didokumentasikan), namun commitment-view standar (klaim Approved pending transfer) tidak ada → HR bisa over-commit tanpa sinyal. Fix: tambah kolom "committed" terpisah dari "used".
 
 ### GAP (proses standar perjalanan dinas yang belum ada)
 
-- **g-1 Kwitansi/attachment**: `needDocs` hanya badge — tidak ada upload/penyimpanan dokumen pendukung per baris biaya (oranHR "Need Supporting Documents").
-- **g-2 Multi-currency**: field `currency` ada tapi klaim IDR-only; exchangeLoss manual; tidak ada Exchange Transaction/kurs beli-jual (oranHR Currency Rate tab).
-- **g-3 Tarif budget per grade/zona/durasi**: tidak ada rate hotel per malam / uang harian per hari yang dihitung otomatis dari tanggal trip, tidak ada nominal per grade (oranHR ExpenseAccount "Based On Region/OrgUnit/Grade") — semua nominal manual.
-- **g-4 Approval multi-layer per nominal**: tidak ada Partially Approved / matrix approval berdasarkan nilai advance/klaim (oranHR punya); hanya 1 langkah approve; juga tidak ada "Return To Prepare" (revisi request) dan tidak ada edit request sama sekali.
-- **g-5 ESS self-service**: MyTravelRequest / MyTravelClaim / MyTravelRequestToApprove oranHR tidak ada — seluruh aksi lewat UI HR.
+- **g-1 Kwitansi/attachment**: `needDocs` hanya badge — tidak ada upload/penyimpanan dokumen pendukung per baris biaya (RekanKerja "Need Supporting Documents").
+- **g-2 Multi-currency**: field `currency` ada tapi klaim IDR-only; exchangeLoss manual; tidak ada Exchange Transaction/kurs beli-jual (RekanKerja Currency Rate tab).
+- **g-3 Tarif budget per grade/zona/durasi**: tidak ada rate hotel per malam / uang harian per hari yang dihitung otomatis dari tanggal trip, tidak ada nominal per grade (RekanKerja ExpenseAccount "Based On Region/OrgUnit/Grade") — semua nominal manual.
+- **g-4 Approval multi-layer per nominal**: tidak ada Partially Approved / matrix approval berdasarkan nilai advance/klaim (RekanKerja punya); hanya 1 langkah approve; juga tidak ada "Return To Prepare" (revisi request) dan tidak ada edit request sama sekali.
+- **g-5 ESS self-service**: MyTravelRequest / MyTravelClaim / MyTravelRequestToApprove RekanKerja tidak ada — seluruh aksi lewat UI HR.
 - **g-6 TRVLOAN / advance sebagai EmployeeLoan**: potongan bertahap pinjaman uang muka tidak ada — hanya satu-shot TRVSTLIN (di backlog Task 19).
 - **g-7 Detail settlement lain**: Cash On Hand, Cash Return, Entertainment Guest sebagai tabel terpisah (guest hanya kolom nama), itinerary/booking transport & tiket, template laporan PDF — disederhanakan/di-backlog.
 
@@ -241,4 +241,4 @@ Tidak punya state machine sama sekali: satu baris (amount, note, givenAt) dibuat
 3. **Menengah**: validasi tanggal (M-5), limit per unit (M-6), akun jurnal per metode settlement + jurnal advance (M-7), filter L-*/O-* (M-8).
 4. **Backlog produk**: attachment kwitansi, multi-currency, tarif per grade/durasi, approval matrix nominal, ESS, TRVLOAN.
 
-Positif yang layak dipertahankan: formula (a)+(b)−(c) persis oranHR; jurnal per baris biaya balanced & idempoten-regenerate; transfer antar-period tidak bisa dobel; budget soft-limit sesuai perilaku nyata MII; KPI budgetUsed terverifikasi konsisten dengan data (3,73jt).
+Positif yang layak dipertahankan: formula (a)+(b)−(c) persis RekanKerja; jurnal per baris biaya balanced & idempoten-regenerate; transfer antar-period tidak bisa dobel; budget soft-limit sesuai perilaku nyata MII; KPI budgetUsed terverifikasi konsisten dengan data (3,73jt).

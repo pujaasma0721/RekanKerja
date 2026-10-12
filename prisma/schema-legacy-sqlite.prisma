@@ -270,7 +270,7 @@ model ApprovalLayer {
 
 // ============ WAGE & ACCOUNTING RULES ============
 
-// Master komponen upah — sejajar dengan "Salary Component" oranHR:
+// Master komponen upah — sejajar dengan "Salary Component" RekanKerja:
 // klasifikasi wageType (13), incomeTaxMethod (8), formula, prorata, basis JAMSOSTEK,
 // referensi SPT/natura, pasangan back-pay, dsb.
 model WageComponent {
@@ -346,7 +346,7 @@ model ProcessType {
   componentAssignments EmployeeComponentAssignment[]
 }
 
-// Paket komponen upah per karyawan (gaya "Wage Template" oranHR).
+// Paket komponen upah per karyawan (gaya "Wage Template" RekanKerja).
 model WageTemplate {
   id          String  @id @default(cuid())
   code        String  @unique
@@ -462,7 +462,7 @@ model PayrollRun {
   lines       PayrollRunLine[]
 }
 
-// Header hasil per karyawan per run — snapshot (seperti "Wage Transaction" oranHR):
+// Header hasil per karyawan per run — snapshot (seperti "Wage Transaction" RekanKerja):
 // PTKP, bruto, potongan, pajak R/I, THP, identitas & penempatan saat proses.
 model PayrollRunLine {
   id            String  @id @default(cuid())
@@ -563,7 +563,7 @@ model EmployeeComponentAssignment {
 
 // ============ PAYROLL JURNAL (P4 — Posting Otomatis) ============
 // Jurnal payroll — di-generate otomatis saat run dikonfirmasi (pattern "Transfer to
-// Accounting" oranHR: Journal No/Type/Date tercatat pada wage transaction).
+// Accounting" RekanKerja: Journal No/Type/Date tercatat pada wage transaction).
 model PayrollJournal {
   id          String   @id @default(cuid())
   journalNo   String   @unique // JV-2026-001
@@ -623,7 +623,7 @@ model PostingEvent {
 }
 
 // ============ EMPLOYEE BENEFIT (P5 — Benefit & Klaim) ============
-// Jenis benefit (pola oranHR "BenefitType"): limit per siklus reset (bulanan/
+// Jenis benefit (pola RekanKerja "BenefitType"): limit per siklus reset (bulanan/
 // kuartalan/tahunan), auto-approve saat dalam limit, pay-in-payroll (dibayar via
 // run payroll ProcessType BENEFIT) atau dibayar langsung dari kas.
 model BenefitType {

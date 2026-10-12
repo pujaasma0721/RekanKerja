@@ -1,6 +1,6 @@
 // ============================================================================
 // RECRUITMENT F5 — Demografi pelamar + segmen talent pool + silver medalist
-// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F5 + analisa oranHR §2.5
+// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F5 + analisa RekanKerja §2.5
 // ApplicantDemography "Display Chart").
 //
 // Semua agregat dari kolom polos Applicant (gender/birthDate/highestEduLevel/

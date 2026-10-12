@@ -1,14 +1,14 @@
-# ANALISA-MEDICAL — Modul Medical Benefit oranHR → RekanKerja
+# ANALISA-MEDICAL — Modul Medical Benefit RekanKerja → RekanKerja
 
-> Task 21 · Sumber: eksplorasi live `https://demo.oranhr.com/` (login MII000001/MII1,
+> Task 21 · Sumber: eksplorasi live `https://demo.RekanKerja.com/` (login MII000001/MII1,
 > presenter ExtJS dibaca langsung dari `var APPJSON` tiap halaman + data grid nyata).
 > Modul terakhir dari 6 modul RekanKerja (HR · Payroll · Attendance · Leave · Travel · **Medical**).
 
 ---
 
-## 1. Peta Halaman oranHR (12 halaman + 3 ESS)
+## 1. Peta Halaman RekanKerja (12 halaman + 3 ESS)
 
-Modul **Medical Benefit** di navigasi oranHR punya 4 cabang:
+Modul **Medical Benefit** di navigasi RekanKerja punya 4 cabang:
 
 | # | Halaman (JSP) | Presenter | Isi nyata di MII demo |
 |---|---|---|---|
@@ -83,7 +83,7 @@ bagian ditolak). Saldo karyawan berkurang sebesar approved saat Settled (used be
 
 ## 4. Keputusan Desain RekanKerja (12 halaman → 8 view)
 
-| View RekanKerja | Padanan oranHR |
+| View RekanKerja | Padanan RekanKerja |
 |---|---|
 | `medical-overview` (Ringkasan) | dashboard modul + KPI |
 | `medical-info` (Saldo Medis Karyawan) | Employee Medical Information + Generate Employee Medical Info + Initial + My Medical Information |
@@ -129,7 +129,7 @@ segmentasi 10 karakteristik, exchange multi-currency, partially-approved.
 - BPJS Kesehatan adalah dasar; benefit medis perusahaan = pelengkap (reimbursement
   rawat inap/jalan, kacamata, gigi, persalinan, imunisasi anak).
 - Limit klasik: rawat inap ≈ 1×gaji/tahun; rawat jalan nominal/kapasitas; kacamata
-  1× per 1-2 tahun (freq Year Period — persis konsep oranHR).
+  1× per 1-2 tahun (freq Year Period — persis konsep RekanKerja).
 - Dependent: pasangan + max 2 anak (batas usia 21/25 th) — dipakai limit bersama
   (Shared) atau terpisah.
 

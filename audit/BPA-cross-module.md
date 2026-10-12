@@ -18,7 +18,7 @@
 | Idempotensi transfer & jurnal | ✅ delete+recreate per period; run unik per period+type; jurnal unik per runId · 🔴 **generator nomor jurnal 3 versi saling bertabrakan** (bukti live JV-2027..JV-2031) |
 | Double posting travel (jurnal klaim + payroll) | 🔴 Bagian `payableEmployee` tercatat **dua kali** (beban 5105 + kas 1101) saat klaim di-approve lalu ditransfer ke payroll |
 | Leave → TA | ✅ Approve cuti meregenerasi AttendanceDaily `OnLeave`, tidak double-count dengan Absent |
-| TA → payroll | ⚠️ Snapshot via transfer manual (oranHR-style); window tanggal **tidak divalidasi** terhadap period; karyawan tanpa data kehadiran **dibayar penuh tanpa peringatan** |
+| TA → payroll | ⚠️ Snapshot via transfer manual (RekanKerja-style); window tanggal **tidak divalidasi** terhadap period; karyawan tanpa data kehadiran **dibayar penuh tanpa peringatan** |
 | ActivityLog | ⚠️ Coverage proses bisnis cukup luas, tetapi **75/75 baris live tanpa aktor** (appUserId NULL) |
 | Provisioning tenant baru | ✅ Master 6 modul lengkap (leave 12 jenis, medical types+providers, TA day-type/schedule, travel zone/template/expense, COA 5105/5106, komponen LEMBUR/UCT/UTRP/UMC) · ❌ ApprovalTemplate/AppUser/AccessGroup **tidak** dibuat |
 
@@ -83,7 +83,7 @@
 | Travel — TravelRequest | Submitted→Approved/Rejected/Cancelled (travel-service.ts:302) | ❌ | ❌ | ❌ Tidak ada |
 | Travel — TravelClaim | Submitted→Approved (→ jurnal) → Transferred → Paid (travel-service.ts:655) | ❌ | ❌ | ❌ Tidak ada; approve langsung posting jurnal |
 | Medical — MedicalClaim | Draft→Submitted→(return)→Approved→Settled + statusLog per aktor (medical-service.ts:722) | ❌ | ❌ | ⚠ Satu-satunya modul yang mengisi aktor (`actor?.uid` platform) di statusLog/ActivityLog — tetapi **tanpa role check** siapa pun boleh settle |
-| Payroll — BenefitClaim | Pending→Approved (auto-approve dalam limit) →Scheduled→Paid (benefit-service.ts:216) | ❌ (auto-approve in-limit = desain oranHR) | ❌ | ❌ `approvedBy` diambil dari **body request client** (default "Admin Payroll") |
+| Payroll — BenefitClaim | Pending→Approved (auto-approve dalam limit) →Scheduled→Paid (benefit-service.ts:216) | ❌ (auto-approve in-limit = desain RekanKerja) | ❌ | ❌ `approvedBy` diambil dari **body request client** (default "Admin Payroll") |
 | TA — OvertimeOrder | Pending→Approved (actual dari clocking)→verify→Paid (attendance-service.ts:753) | ❌ | ❌ | ❌ `approver` string dari body, default "Admin HR" |
 | TA — WorkOffPermission | Pending→Approved/Rejected (attendance-service.ts:876) | ❌ | ❌ | ❌ idem |
 | Payroll — PayrollRun | Draft→Calculated→**Confirmed** (confirmRun)→Paid | ❌ (tanpa approval layer — operator ganda payroll tidak dimodelkan) | ❌ | ❌ confirm/markPaid oleh user login mana pun |
@@ -159,7 +159,7 @@
 
 ## 7. Data Flow TA → Payroll & Leave → TA
 
-- **TA → payroll** = snapshot manual (oranHR-style): `transferToPayroll` → rekap `recapPeriod(from,to)` → assignment Specific LEMBUR/TLATE/TABS/TKEHADIRAN. Payroll engine (`buildRunRows`, payroll-service.ts:72-77) **tidak membaca AttendanceDaily sama sekali** — hanya Specific/Periodic assignment. Konsekuensi:
+- **TA → payroll** = snapshot manual (RekanKerja-style): `transferToPayroll` → rekap `recapPeriod(from,to)` → assignment Specific LEMBUR/TLATE/TABS/TKEHADIRAN. Payroll engine (`buildRunRows`, payroll-service.ts:72-77) **tidak membaca AttendanceDaily sama sekali** — hanya Specific/Periodic assignment. Konsekuensi:
   - Karyawan tanpa data kehadiran → `recapPeriod` menghasilkan 0 potongan (baris harian kosong ≠ Absent) dan engine membayar gaji pokok penuh → **dibayar penuh tanpa peringatan** (G-04).
   - Period Desember tidak otomatis = daily 1–31 Des; window ditentukan operator (M-04) — bisa sengaja/diam-diam digeser.
 - **Leave → TA**: approve/reject/cancel leave request memicu `regenerateDaily` per hari cuti (leave-service.ts:619-627, dynamic import) → status `OnLeave` dengan paid/unpaid + half-day (attendance-service.ts:146-167, 313-325). Absen & cuti **tidak double count** (cabang leave diperiksa sebelum cabang absent; rekap memisahkan `leavePaid/leaveUnpaid` vs `absentDays`). ✅ Ini integrasi lintas-modul tertulis yang paling sehat.
@@ -218,7 +218,7 @@
 18. **G-01 · Approval engine tunggal untuk seluruh modul belum ada**: multi-layer hanya PA; leave/travel/medical/benefit/overtime/workoff single-step tanpa template per proses, tanpa inbox approver per user, tanpa routing atasan langsung (manager karyawan tidak dipakai sebagai approver di modul mana pun). ApprovalTemplate.docType praktis satu nilai.
 19. **G-02 · Approval master tidak diprovision untuk tenant baru** (ApprovalTemplate/AppUser/AccessGroup) → layer PA kosong & cek identitas terlewati.
 20. **G-03 · Tidak ada notifikasi/reminder approval lintas modul** (tidak ada email/task inbox).
-21. **G-04 · Payroll tidak melakukan sanity-check absensi** — run bisa dikonfirmasi tanpa transfer TA periode tsb tanpa peringatan; karyawan tanpa data kehadiran dibayar penuh secara default (by-design oranHR transfer, tapi tanpa guard).
+21. **G-04 · Payroll tidak melakukan sanity-check absensi** — run bisa dikonfirmasi tanpa transfer TA periode tsb tanpa peringatan; karyawan tanpa data kehadiran dibayar penuh secara default (by-design RekanKerja transfer, tapi tanpa guard).
 22. **G-05 · Dua sistem klaim "benefit" paralel** — payroll `BenefitClaim` (Pending/Approved/Scheduled/Paid, auto-approve in-limit) vs medical `MedicalClaim` (Draft/Submitted/Approved/Settled) — dua sumber kebenaran untuk konsep serupa, badge meta & KPI terpisah.
 23. **G-06 · PostingEvent tidak diimplementasikan** — model + seed ada (schema:630) tetapi tidak ada logika posting yang membacanya.
 

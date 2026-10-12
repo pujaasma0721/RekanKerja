@@ -3,7 +3,7 @@
 Modul rekrutmen end-to-end: dari permintaan karyawan (PR) sampai kandidat
 diterima menjadi karyawan — plus kepatuhan UU PDP (F9). Sumber desain:
 `DEVELOPMENT-PLAN-RECRUITMENT.md` (§5 kontrak API, §7 fase F0–F9) mengacu
-analisa oranHR §2.5/§2.6 + HRX (pattern AI-recruitment engine).
+analisa RekanKerja §2.5/§2.6 + HRX (pattern AI-recruitment engine).
 
 ## 1. Purpose
 

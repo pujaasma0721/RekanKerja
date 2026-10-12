@@ -2,7 +2,7 @@
 
 Tanggal: 22 Januari 2026 (sesi lanjutan Task 24, pasca audit struktur Task 23 / commit `ec82d9f`)
 Lingkup: **proses bisnis** 6 modul domain + mesin lintas-modul (approval, transfer payroll, jurnal) — bukan gaya kode (sudah dicakup AUDIT-MODULES.md).
-Metode: 7 auditor paralel (1 per modul + 1 lintas-modul) — rekonstruksi proses as-is dari source `src/rekankerja/**` + schema Prisma, verifikasi runtime read-only (GET API + SQL) atas data demo MII, pembandingan referensi oranHR (`ANALISA-*.md`, `PRD-HR-BASE.md`).
+Metode: 7 auditor paralel (1 per modul + 1 lintas-modul) — rekonstruksi proses as-is dari source `src/rekankerja/**` + schema Prisma, verifikasi runtime read-only (GET API + SQL) atas data demo MII, pembandingan referensi RekanKerja (`ANALISA-*.md`, `PRD-HR-BASE.md`).
 Laporan detail per modul: `audit/BPA-<modul>.md`.
 
 ---
@@ -37,7 +37,7 @@ Laporan detail per modul: `audit/BPA-<modul>.md`.
 
 ### Yang sudah sehat (patut dipertahankan)
 - Isolasi tenant 73/73 handler (audit lintas-modul); snapshot histori payroll aman dari mutasi master.
-- Formula oranHR yang setia & terverifikasi numerik: saldo cuti a–g (prorata bulanan, carry hangus 31-12, half-day), settlement travel (a)(b)(c), plafon medical faktor gaji, upah lembur 1/173 weekday/weekend PP 35/2021, jurnal run payroll balanced D=C.
+- Formula RekanKerja yang setia & terverifikasi numerik: saldo cuti a–g (prorata bulanan, carry hangus 31-12, half-day), settlement travel (a)(b)(c), plafon medical faktor gaji, upah lembur 1/173 weekday/weekend PP 35/2021, jurnal run payroll balanced D=C.
 - Rotasi 3 regu + shift malam 22:00–06:00 lintas hari, integrasi mass leave → presensi (42 karyawan), idempotensi delete-rewrite transfer leave, N2G gross-up konvergen.
 
 ---

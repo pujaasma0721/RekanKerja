@@ -270,7 +270,7 @@ export function MedicalBenefitTypePage() {
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="YEAR">{t("per tahun", "per year")}</SelectItem>
-                    {/* W1-8 — frekuensi multi-tahun (pad oranHR Year Period):
+                    {/* W1-8 — frekuensi multi-tahun (pad RekanKerja Year Period):
                         nilai freqValue = jarak tahun antar klaim (mis. 1× / 2 tahun) */}
                     <SelectItem value="EVERY_X_YEARS">{t("setiap X tahun", "every X years")}</SelectItem>
                     <SelectItem value="MEDICAL">{t("per period medis", "per medical period")}</SelectItem>

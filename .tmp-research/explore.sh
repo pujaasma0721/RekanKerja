@@ -1,6 +1,6 @@
 #!/bin/bash
 # usage: explore.sh <PageName> <shotname(optional)>
-agent-browser --session oran open "https://demo.oranhr.com/$1.jsp" >/dev/null 2>&1
+agent-browser --session oran open "https://demo.RekanKerja.com/$1.jsp" >/dev/null 2>&1
 agent-browser --session oran wait 5000 >/dev/null 2>&1
 echo "===== $1 ====="
 agent-browser --session oran eval "$(cat /home/z/my-project/.tmp-research/extract2.js)" 2>&1

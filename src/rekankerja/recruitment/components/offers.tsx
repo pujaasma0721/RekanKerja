@@ -3,7 +3,7 @@
 // terlacak (nomor OFF, gaji final terenkripsi, timer kedaluwarsa), approval
 // offer opsional, respons kandidat (diterima/ditolak + note counter),
 // pengangkatan (surat + penolakan batch saat PR fulfilled) + lanjutan ke
-// onboarding karyawan baru, dan funnel rekrutmen. Padanan oranHR
+// onboarding karyawan baru, dan funnel rekrutmen. Padanan RekanKerja
 // OfferTracking/JoiningProcess + HRX E1/E3/H1 (DEVELOPMENT-PLAN-RECRUITMENT.md
 // §7 F4). Dialog di offer-dialogs.tsx.
 import { useEffect, useMemo, useRef, useState } from "react";

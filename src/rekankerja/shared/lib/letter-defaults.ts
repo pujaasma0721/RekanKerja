@@ -789,7 +789,7 @@ PIHAK KEDUA
     key: "REC_INVITE",
     category: "Recruitment",
     name: "Surat Undangan Seleksi",
-    description: "Undangan tahapan seleksi kandidat (padanan template_code oranHR §2.6) — kirim saat tahap dijadwalkan.",
+    description: "Undangan tahapan seleksi kandidat (padanan template_code RekanKerja §2.6) — kirim saat tahap dijadwalkan.",
     subject: "Undangan Seleksi",
     signatoryTitle: "HR Manager",
     body: `{{letter_no}}
@@ -860,7 +860,7 @@ Demikian penawaran ini kami sampaikan. Kami menantikan kabar baik dari Saudara/i
     key: "REC_APPOINT",
     category: "Recruitment",
     name: "Surat Pengangkatan Karyawan",
-    description: "Pengangkatan kandidat yang menerima offer — penempatan posisi, atasan, dan tanggal mulai (padanan oranHR §2.7 Appointment).",
+    description: "Pengangkatan kandidat yang menerima offer — penempatan posisi, atasan, dan tanggal mulai (padanan RekanKerja §2.7 Appointment).",
     subject: "Surat Pengangkatan",
     signatoryTitle: "HR Manager",
     body: `{{letter_no}}
@@ -896,7 +896,7 @@ Demikian surat pengangkatan ini kami sampaikan. Selamat bergabung — kami menya
     key: "REC_REJECT",
     category: "Recruitment",
     name: "Surat Penolakan Lamaran",
-    description: "Penolakan kepada kandidat/pelamar lain pada PR yang sama setelah kebutuhan terpenuhi (batch — padanan oranHR §2.7 rejection).",
+    description: "Penolakan kepada kandidat/pelamar lain pada PR yang sama setelah kebutuhan terpenuhi (batch — padanan RekanKerja §2.7 rejection).",
     subject: "Surat Penolakan",
     signatoryTitle: "HR Manager",
     body: `{{letter_no}}

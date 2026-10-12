@@ -1,6 +1,6 @@
-# ANALISA DEEP-DIVE: Modul Travel Administration oranHR → Rencana Implementasi Perjalanan Dinas RekanKerja
+# ANALISA DEEP-DIVE: Modul Travel Administration RekanKerja → Rencana Implementasi Perjalanan Dinas RekanKerja
 
-> Dokumen analisa murni. Basis: eksplorasi langsung demo.oranhr.com (login MII000001,
+> Dokumen analisa murni. Basis: eksplorasi langsung demo.RekanKerja.com (login MII000001,
 > PT Mitra Industri Internasional / "MII", versi 11.08.00) — seluruh 12 halaman modul
 > Travel Administration dipetakan via navigasi tree (ExtJS) & data nyata dibaca dari
 > grid + form + handler JS + source JSP (presenter class), ditambah halaman ESS terkait
@@ -9,7 +9,7 @@
 
 ---
 
-## 1. PETA MODUL TRAVEL ADMINISTRATION ORANHR (12 HALAMAN, 3 GRUP)
+## 1. PETA MODUL TRAVEL ADMINISTRATION ORekanKerja (12 HALAMAN, 3 GRUP)
 
 ```
 TRAVEL ADMINISTRATION
@@ -90,7 +90,7 @@ Start Date | End Date | Request Date | Claim Date | Cost Center (auto)
 Voucher No | Settlement Method (default template: "Settled by Cash")
 Purpose | Remark | Journal No | Journal Type | Journal Date (auto saat posting)
 
-SETTLEMENT AMOUNT (formula oranHR):
+SETTLEMENT AMOUNT (formula RekanKerja):
   Amount of Other Company Expense  (a)  — biaya dibayar pihak lain (kartu korporat dsb.)
   Amount of Currency Exchange Loss (a)  — rugi selisih kurs (transaksi overseas)
   Amount Payable to Employee       (b)  — harus dibayar ke karyawan
@@ -171,7 +171,7 @@ Based On: Region | Organization Unit | Company Office | Employment Type | Positi
 L-HOTEL → Debit+Credit 00013 (region JAKARTA), L_BBM → 00004, E-GIFT → 900001, L-POCKET MONEY → 900002
 ```
 → journal posting klaim memetakan tiap baris biaya ke akun beban (Debit) dengan dimensi
-analisis (cost center / region / grade) — sama seperti posting payroll oranHR.
+analisis (cost center / region / grade) — sama seperti posting payroll RekanKerja.
 
 DomesticZone.jsp (zona):
 ```
@@ -187,7 +187,7 @@ Wage for Compensation  → UTRP     (upah kompensasi travel — dibayar)
 Wage for Deduction     → TRVSTLIN (potongan settlement — kelebihan uang muka)
 ```
 
-### 2.7 ALUR END-TO-END ORANHR (disintesis dari halaman + data)
+### 2.7 ALUR END-TO-END ORekanKerja (disintesis dari halaman + data)
 
 ```
 [HR/ESS] Travel Request (Prepared)
@@ -210,7 +210,7 @@ Wage for Deduction     → TRVSTLIN (potongan settlement — kelebihan uang muka
 
 ## 3. ANALISA KEKUATAN & KEPUTUSAN DESAIN REKANKERJA
 
-| Aspek oranHR | Keputusan RekanKerja |
+| Aspek RekanKerja | Keputusan RekanKerja |
 |---|---|
 | 12 halaman ExtJS terpisah | 8 view dalam 1 modul travel (paradigma attendance/leave) |
 | Formula settlement (a)+(b)-(c) | Dipertahankan persis — sumber kebenaran finansial klaim |
@@ -307,7 +307,7 @@ GET  /reports                  — klaim per period, biaya per jenis, budget vs 
   Advance/Claim+Expense) → DDL → apply ke 3 tenant.
 - **T2 Service** travel-service.ts: docNo per-prefix, submitRequest/decideRequest,
   createClaim (auto-copy request: template/cost center/purpose/destinasi), validasi limit
-  per jenis biaya (warning + boleh lewat sesuai perilaku oranHR), formula settlement,
+  per jenis biaya (warning + boleh lewat sesuai perilaku RekanKerja), formula settlement,
   approveClaim → journal + update budget used, transferClaimToPayroll (idempotent),
   markTravelPaidForRun, budgetOverview, travelStats.
 - **T3 API** 8 route.

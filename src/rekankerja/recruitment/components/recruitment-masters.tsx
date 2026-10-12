@@ -245,8 +245,8 @@ export function RecruitmentMastersPage() {
         eyebrow={t("Recruitment · Master")}
         title={t("Master Rekrutmen", "Recruitment Masters")}
         description={t(
-          "Konfigurasi master modul rekrutmen: metode & media pencarian, agency, pos biaya, skill, dokumen wajib pelamar, kategori & skala penilaian, grup SLA, dan katalog tahap seleksi (padanan General Setting oranHR — 15 master dirasionalisasi menjadi 10).",
-          "Recruitment module master configuration: sourcing methods & media, agencies, cost items, skills, required documents, evaluation categories & scales, SLA groups, and the selection stage catalog (oranHR General Setting — 15 masters rationalized into 10).",
+          "Konfigurasi master modul rekrutmen: metode & media pencarian, agency, pos biaya, skill, dokumen wajib pelamar, kategori & skala penilaian, grup SLA, dan katalog tahap seleksi (padanan General Setting RekanKerja — 15 master dirasionalisasi menjadi 10).",
+          "Recruitment module master configuration: sourcing methods & media, agencies, cost items, skills, required documents, evaluation categories & scales, SLA groups, and the selection stage catalog (RekanKerja General Setting — 15 masters rationalized into 10).",
         )}
         actions={(
           <Button onClick={openNew}>

@@ -1,14 +1,14 @@
 # BPA — AUDIT BISNIS PROSES MODUL LEAVE (CUTI) — RekanKerja HRIS
 
 **Task ID:** 24-d · **Mode:** READ-ONLY (kode + probe GET runtime; 0 mutasi) · **Tanggal audit:** 2 Sep 2026 (jam server sandbox)
-**Cakupan:** `src/rekankerja/leave/**` (8 API + leave-service.ts + leave-seed.ts + 9 komponen), `prisma/schema-tenant.prisma` (5 model Leave), integrasi `attendance-service.ts` (leaveFor/regenerateDaily/recapPeriod), `provisioning.ts` (LEAVE_TYPE_DEFS), payroll (`transferEncashment`, `markEncashmentPaidForRun`), referensi `ANALISA-LEAVE.md` (oranHR 14 halaman), worklog Task 18/22/23.
+**Cakupan:** `src/rekankerja/leave/**` (8 API + leave-service.ts + leave-seed.ts + 9 komponen), `prisma/schema-tenant.prisma` (5 model Leave), integrasi `attendance-service.ts` (leaveFor/regenerateDaily/recapPeriod), `provisioning.ts` (LEAVE_TYPE_DEFS), payroll (`transferEncashment`, `markEncashmentPaidForRun`), referensi `ANALISA-LEAVE.md` (RekanKerja 14 halaman), worklog Task 18/22/23.
 **Data MII live (probe):** 546 saldo (42 kar. × 12 jenis 2026 + 42 baris CT-THN 2025), 86 request (3 Submitted / 39 Approved / 1 Rejected / 1 Cancelled / 42 MassLeave), 5 encashment (2 Paid, 2 Approved, 1 Rejected), 1 event massal SKB (42 baris). Endpoint: 8/8 GET → 200.
 
 ---
 
 ## 1. RINGKASAN EKSEKUTIF
 
-Modul Leave mengimplementasikan formula saldo oranHR **(a)+(b)+(c)−(d)+(e)+(f)+(g)** secara setia: saldo TIDAK disimpan sebagai kolom taken statis melainkan **dihitung dinamis dari request** (`computeParts`) — desain ini menghilangkan risiko pemotongan ganda klasik (double-deduct) pada approve/cancel, dan terbukti konsisten numerik di data live (546 baris; agregat taken 106,5 = 100 (permintaan 2025) + 6,5 (2026 lampau); laporan per jenis 50,5 hari CT-THN cocok dengan penjumlahan request; saldo MII00001 = 6+9+0−(0+2+0+3) = 10 ✓). Prorata bulanan "earned by end of month", carry-over max 6 hari + hangus 31-12, half-day 0,5 via sesi AM/PM, hari kerja dihitung dari jadwal modul TA, cuti massal SKB, encashment → UCT → payroll → Paid saat run dikonfirmasi: **semua rantai end-to-end berjalan dan terverifikasi live**.
+Modul Leave mengimplementasikan formula saldo RekanKerja **(a)+(b)+(c)−(d)+(e)+(f)+(g)** secara setia: saldo TIDAK disimpan sebagai kolom taken statis melainkan **dihitung dinamis dari request** (`computeParts`) — desain ini menghilangkan risiko pemotongan ganda klasik (double-deduct) pada approve/cancel, dan terbukti konsisten numerik di data live (546 baris; agregat taken 106,5 = 100 (permintaan 2025) + 6,5 (2026 lampau); laporan per jenis 50,5 hari CT-THN cocok dengan penjumlahan request; saldo MII00001 = 6+9+0−(0+2+0+3) = 10 ✓). Prorata bulanan "earned by end of month", carry-over max 6 hari + hangus 31-12, half-day 0,5 via sesi AM/PM, hari kerja dihitung dari jadwal modul TA, cuti massal SKB, encashment → UCT → payroll → Paid saat run dikonfirmasi: **semua rantai end-to-end berjalan dan terverifikasi live**.
 
 Namun ditemukan **2 temuan KRITIS** yang keduanya berakar pada satu kelemahan desain: **saldo permintaan yang masih pending tidak direservasi dan tidak dire-validasi pada saat approval** — sehingga kombinasi 2+ permintaan/encashment paralel yang masing-masing lolos cek saldo saat submit dapat menghasilkan **saldo negatif pada jenis cuti yang tidak mengizinkan advance** dan **cashed melebihi entitlement**. Ditambah **guard tanggal** (backdate & validitas periode) yang tidak ada → **saldo periode kedaluwarsa (mis. 2025) tetap bisa dipakai/diuangkan** (vektor double-dip uang karena 6 hari dari saldo itu sudah terbawa ke 2026). Regenerasi absensi saat reject/cancel/mass leave juga **menulis baris "Absent" untuk tanggal masa depan** (tanpa clock log) yang bisa memotong upah lewat rekap absensi. Approval tidak mencatat identitas approver (`decidedById` selalu null) dan tidak ada otorisasi peran/layer atasan.
 
@@ -106,7 +106,7 @@ Total: **2 KRITIS · 4 MAJOR · 9 MINOR · 10 GAP** (beberapa GAP sudah dicatat 
 ```
 earned     = prorateMonthly ? entitlement × earnedMonths(max(validFrom, join), asOf) / 12 : entitlement
              earnedMonths = selisih bulan + 1 (bulan berjalan dihitung PENUH — "by end of month"), clamp 0..12
-forfeited  = carriedOver bila asOf > 31-12 tahun periode (hardcoded 31-12, padanan forfeiture oranHR)
+forfeited  = carriedOver bila asOf > 31-12 tahun periode (hardcoded 31-12, padanan forfeiture RekanKerja)
 taken      = Σ workingDays request (Approved|MassLeave, emp×jenis×tahun) dengan dateTo < asOf
 applied    = Σ workingDays request (Approved|MassLeave) dengan dateTo ≥ asOf
 remaining  = carriedOver + earned + adjustment − forfeited − cashed − taken − applied
@@ -125,19 +125,19 @@ remaining  = carriedOver + earned + adjustment − forfeited − cashed − take
 | Hari kerja | rentang 10–12 Agu = 3 hari (Sabtu/Minggu dikecualikan) ✓ | resolveDayType TA |
 | KPI overview | avgAnnualRemaining 13,49 · approvedThisYear 47 (=5 approved + 42 massal) ✓ | konsisten |
 
-### 4.3 Perbandingan dengan UU 13/2003 / PP 35/2021 / oranHR
+### 4.3 Perbandingan dengan UU 13/2003 / PP 35/2021 / RekanKerja
 
 | Aspek | RekanKerja as-implemented | Seharusnya / referensi | Penilaian |
 |---|---|---|---|
-| Hak tahunan | 12 hari, prorata bulanan, waiting 6 bulan (oranHR MII) | UU 13/2003 §79: **12 hari kerja setelah 12 bulan kerja berlanjut**; oranHR MII memakai waiting 6 bln + prorate | ⚠️ Mengikuti oranHR; deviasi vs UU (waiting 6 ≠ 12 bln, prorata memungkinkan ambil < 12 bln) — tercatat sadar di ANALISA §5-L2 |
-| Hak per masa kerja | seragam per jenis; hanya adjustment manual (±) | oranHR 15 dimensi rule (service year dsb.) | GAP G-02 (backlog Task 18) |
-| Cuti Besar | 12 hari, waiting **72 bulan** | oranHR MII 12 hari >5 th (**60 bln**); konvensi umum 3 bulan | ⚠️ MINOR + GAP G-02 |
-| Jenis non-saldo | SEMUA jenis punya saldo (termasuk nikah/duka/haji) — saldo "seragam" | oranHR juga row per jenis; konsep "unpaid/event leave tanpa saldo" tidak dimodelkan | Desain mengikuti oranHR; catatan: duka/nikah tidak diprorata ✓, event-based full entitlement ✓ |
-| Melahirkan/keguguran (perempuan) | **TIDAK ADA jenisnya** | UU 13/2003 §82: 1,5 bln sebelum + 1,5 sesudah; oranHR: Melahirkan 3 bulan (unit MONTH) | **GAP G-01** — jenis cuti Indonesia paling fundamental hilkap |
-| Satuan bulan | kolom `unit` MONTH ada tapi perhitungan selalu HARI | oranHR: satuan campur hari/bulan | MINOR L-16 (latent) |
-| Carry-over | max **6** hari, hangus 31-12 periode berikut | oranHR MII: max 32, forfeiture 31-12, carry period 1 th | ✓ mekanisme ada (angka lebih ketat — pilihan konfigurasi) |
-| Half-day 0,5 | ✓ AM/PM sesi | oranHR + max 4 jam | ✓ (GAP "max hour" G-08) |
-| Prorata karyawan baru | ✓ earnedMonths dari join | oranHR "Prorate by month" + *incomplete month rule* | ✓ (bulan parsial dihitung penuh — MINOR) |
+| Hak tahunan | 12 hari, prorata bulanan, waiting 6 bulan (RekanKerja MII) | UU 13/2003 §79: **12 hari kerja setelah 12 bulan kerja berlanjut**; RekanKerja MII memakai waiting 6 bln + prorate | ⚠️ Mengikuti RekanKerja; deviasi vs UU (waiting 6 ≠ 12 bln, prorata memungkinkan ambil < 12 bln) — tercatat sadar di ANALISA §5-L2 |
+| Hak per masa kerja | seragam per jenis; hanya adjustment manual (±) | RekanKerja 15 dimensi rule (service year dsb.) | GAP G-02 (backlog Task 18) |
+| Cuti Besar | 12 hari, waiting **72 bulan** | RekanKerja MII 12 hari >5 th (**60 bln**); konvensi umum 3 bulan | ⚠️ MINOR + GAP G-02 |
+| Jenis non-saldo | SEMUA jenis punya saldo (termasuk nikah/duka/haji) — saldo "seragam" | RekanKerja juga row per jenis; konsep "unpaid/event leave tanpa saldo" tidak dimodelkan | Desain mengikuti RekanKerja; catatan: duka/nikah tidak diprorata ✓, event-based full entitlement ✓ |
+| Melahirkan/keguguran (perempuan) | **TIDAK ADA jenisnya** | UU 13/2003 §82: 1,5 bln sebelum + 1,5 sesudah; RekanKerja: Melahirkan 3 bulan (unit MONTH) | **GAP G-01** — jenis cuti Indonesia paling fundamental hilkap |
+| Satuan bulan | kolom `unit` MONTH ada tapi perhitungan selalu HARI | RekanKerja: satuan campur hari/bulan | MINOR L-16 (latent) |
+| Carry-over | max **6** hari, hangus 31-12 periode berikut | RekanKerja MII: max 32, forfeiture 31-12, carry period 1 th | ✓ mekanisme ada (angka lebih ketat — pilihan konfigurasi) |
+| Half-day 0,5 | ✓ AM/PM sesi | RekanKerja + max 4 jam | ✓ (GAP "max hour" G-08) |
+| Prorata karyawan baru | ✓ earnedMonths dari join | RekanKerja "Prorate by month" + *incomplete month rule* | ✓ (bulan parsial dihitung penuh — MINOR) |
 | Black-out date | tidak ada | standar proses umum | GAP G-05 |
 | Upah encashment | gpokok/**25** | ANALISA L4 menetapkan /25 | ✓ konsisten submit & transfer |
 
@@ -177,7 +177,7 @@ remaining  = carriedOver + earned + adjustment − forfeited − cashed − take
 - Saran fix: ekstrak `actor?.uid` dari session cookie di kedua PATCH (pola medical) + validasi peran (OWNER/ADMIN HR) sebelum decide; jangka panjang: sambungkan ke approval template layer.
 
 **L-06 · Saldo request lintas-periode & snapshot encashment tak sinkron — request 30 Des→5 Jan seluruhnya dibebankan ke periode tanggal mulai.**
-- Lokasi: `submitRequest:520` (`year = yearForDate(type, emp, from)` — hanya tanggal mulai); `workingDays` utuh dari rentang; tidak ada split periode. oranHR memecah permintaan lintas periode/atribut "Entitled in Next Period".
+- Lokasi: `submitRequest:520` (`year = yearForDate(type, emp, from)` — hanya tanggal mulai); `workingDays` utuh dari rentang; tidak ada split periode. RekanKerja memecah permintaan lintas periode/atribut "Entitled in Next Period".
 - Dampak: saldo periode lalu terpotong untuk hari yang jatuh di periode baru (atau sebaliknya belum-tahun-baru terpotong dari periode baru); saldo tahun berikutnya tidak akurat untuk tahun bergantian.
 - Saran fix: pecah perhitungan per periode (dua segmen request) atau validasi rentang tidak boleh melintasi batas periode.
 
@@ -201,15 +201,15 @@ remaining  = carriedOver + earned + adjustment − forfeited − cashed − take
 
 | ID | Gap | Referensi | Status di worklog |
 |---|---|---|---|
-| G-01 | **Cuti melahirkan (1,5+1,5 bulan, UU §82) & keguguran (perempuan)** tidak ada di seed 12 jenis — satuan MONTH disiapkan tapi tak terpakai | oranHR 20 jenis MII (Melahirkan 3 bulan); UU 13/2003 | TIDAK pernah dicatat — temuan baru |
-| G-02 | Entitlement diferensiasi masa kerja (12/14 hari, cuti besar ≥5 th & konvensi 3 bulan; 15 dimensi oranHR) tidak ada — hanya adjustment manual; waiting CT-BESAR 72 bln ≠ 5 th | UU/PP + oranHR | Backlog Task 18 (parsial) |
-| G-03 | **Cancel/undo permintaan Approved & pembatalan baris MassLeave tidak ada** (oranHR Cancel berlaku juga untuk approved) | oranHR Operation | Baru |
-| G-04 | `needDocs` hanya info form — **tidak ada lampiran file & enforcement dokumen** | oranHR File Name + Need Supporting Documents | Backlog Task 18 |
+| G-01 | **Cuti melahirkan (1,5+1,5 bulan, UU §82) & keguguran (perempuan)** tidak ada di seed 12 jenis — satuan MONTH disiapkan tapi tak terpakai | RekanKerja 20 jenis MII (Melahirkan 3 bulan); UU 13/2003 | TIDAK pernah dicatat — temuan baru |
+| G-02 | Entitlement diferensiasi masa kerja (12/14 hari, cuti besar ≥5 th & konvensi 3 bulan; 15 dimensi RekanKerja) tidak ada — hanya adjustment manual; waiting CT-BESAR 72 bln ≠ 5 th | UU/PP + RekanKerja | Backlog Task 18 (parsial) |
+| G-03 | **Cancel/undo permintaan Approved & pembatalan baris MassLeave tidak ada** (RekanKerja Cancel berlaku juga untuk approved) | RekanKerja Operation | Baru |
+| G-04 | `needDocs` hanya info form — **tidak ada lampiran file & enforcement dokumen** | RekanKerja File Name + Need Supporting Documents | Backlog Task 18 |
 | G-05 | Black-out date / minimum notice pengajuan tidak ada | praktik umum | Baru |
-| G-06 | Partially Approved per hari tidak ada (approve all-or-nothing) | oranHR status | Backlog Task 18 |
-| G-07 | ESS self-service & approval atasan (MyLeaveRequestToApprove) tidak ada | oranHR ESS | Backlog Task 18 |
-| G-08 | Max Hour for Half Day (4 jam) tidak dimodelkan (half-day hanya sesi AM/PM) | oranHR atribut | Baru |
-| G-09 | Penyesuaian massal per jenis+org (GenerateLeaveAdjustmentProcess) & Initial Leave Information (carry awal implementasi) hanya per-karyawan dialog | oranHR Process | Baru (parsial backlog) |
+| G-06 | Partially Approved per hari tidak ada (approve all-or-nothing) | RekanKerja status | Backlog Task 18 |
+| G-07 | ESS self-service & approval atasan (MyLeaveRequestToApprove) tidak ada | RekanKerja ESS | Backlog Task 18 |
+| G-08 | Max Hour for Half Day (4 jam) tidak dimodelkan (half-day hanya sesi AM/PM) | RekanKerja atribut | Baru |
+| G-09 | Penyesuaian massal per jenis+org (GenerateLeaveAdjustmentProcess) & Initial Leave Information (carry awal implementasi) hanya per-karyawan dialog | RekanKerja Process | Baru (parsial backlog) |
 | G-10 | Kalender cuti bersama pemerintah otomatis (SKB) tidak ada — mass leave manual | SKB 3 Menteri | Backlog Task 18 |
 
 **Catatan GAP yang SUDAH tercakup (tidak menjadi gap):** carry-over expired ✓ (hangus 31-12, live data konsisten), half-day 0,5 ✓, prorata karyawan baru ✓, upah /25 ✓, cuti bersama SKB manual ✓, validasi hari-kerja-only ✓.

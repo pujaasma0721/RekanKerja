@@ -52,7 +52,7 @@ export function MedicalInfoPage() {
   const [genYear, setGenYear] = useState(String(currentYear + 1));
   const [genType, setGenType] = useState("all");
   const [genCorrection, setGenCorrection] = useState(false);
-  // W3-2 (fix G-10): input migrasi saldo awal eksplisit (pad oranHR
+  // W3-2 (fix G-10): input migrasi saldo awal eksplisit (pad RekanKerja
   // InitialMedicalBenefit.jsp) — initialUsed per baris saldo.
   const [migOpen, setMigOpen] = useState(false);
   const [migTarget, setMigTarget] = useState<{ employeeId: string; typeId: string; year: number; label: string; current: number } | null>(null);

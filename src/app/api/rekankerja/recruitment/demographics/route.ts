@@ -4,7 +4,7 @@ import { applicantDemographics } from "@/rekankerja/recruitment/services/demogra
 
 // ============================================================================
 // RECRUITMENT F5 — API Demografi pelamar + segmen talent pool + silver
-// medalist (oranHR §2.5 ApplicantDemography + HRX auto-saran talent pool).
+// medalist (RekanKerja §2.5 ApplicantDemography + HRX auto-saran talent pool).
 //   GET ?stats=1 → { total, byGender, byAge, byEdu, bySource, byStatus,
 //                    segments, silver }
 // Guard menu: recruitment:demographics (juga view-any dari talent pool).

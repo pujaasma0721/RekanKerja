@@ -72,7 +72,7 @@ export function salaryOfAssignment(tc: FieldCrypto, stored: string | null): numb
 
 /** W1-2 (fix m-6): nilai aktif komponen upah karyawan — presedensi
  *  assignment spesifik (Specific berjalan > Periodic) > besaran dasar komponen.
- *  Mencakup kasus target oranHR: komponen upah MEDICAL_KL sebagai basis plafon. */
+ *  Mencakup kasus target RekanKerja: komponen upah MEDICAL_KL sebagai basis plafon. */
 async function activeWageComponentValue(db: TenantDb, employeeId: string, wageCode: string | null): Promise<number> {
   if (!wageCode) return 0;
   const comp = await db.wageComponent.findUnique({ where: { code: wageCode }, select: { id: true, amount: true } });
@@ -106,7 +106,7 @@ export function prorateFactorFor(enabled: boolean, joinDate: Date | null | undef
   return factor > 0 && factor < 1 ? Math.round(factor * 10000) / 10000 : 1;
 }
 
-/** W1-8 (fix M-5): jumlah klaim dalam window frekuensi — pad oranHR
+/** W1-8 (fix M-5): jumlah klaim dalam window frekuensi — pad RekanKerja
  *  "Max Claim sekali dalam setiap X tahun" (Year Period): hitung klaim aktif
  *  (Submitted/Approved/Settled) X tahun terakhir; YEAR → tahun kalender berjalan. */
 async function freqClaimCount(db: TenantDb, input: { employeeId: string; typeId: string; claimDate: string; freqPeriod: string; freqValue: number }): Promise<number> {
@@ -322,7 +322,7 @@ export interface UpsertTypeInput {
   name: string;
   description?: string;
   needReceipt?: boolean;
-  /** W3-1 (fix G-2): surat rujukan wajib untuk jenis ini (pad oranHR letter_no). */
+  /** W3-1 (fix G-2): surat rujukan wajib untuk jenis ini (pad RekanKerja letter_no). */
   needLetter?: boolean;
   limitRule: string; // UNLIMITED|NOMINAL|FACTOR|WAGE_COMPONENT
   limitValue?: number;
@@ -1051,7 +1051,7 @@ export async function submitClaim(
   }
 
   // W3-1 (fix G-2 BPA-medical): jenis needLetter wajib menyertakan nomor surat
-  // rujukan dokter/RS (pad oranHR letter_no — praktik rawat inap). Enforce di
+  // rujukan dokter/RS (pad RekanKerja letter_no — praktik rawat inap). Enforce di
   // service agar jalur admin & ESS (keduanya lewat submitClaim) sama-sama tertutup.
   const typeRec = await db.medicalBenefitType.findUnique({
     where: { id: input.typeId }, select: { name: true, needLetter: true },
@@ -1078,7 +1078,7 @@ export async function submitClaim(
   }
 
   // validasi frekuensi (padanan Max Claim in X period) — W1-8: EVERY_X_YEARS
-  // menghitung klaim aktif X tahun terakhir (Year Period oranHR), bukan tahun kalender.
+  // menghitung klaim aktif X tahun terakhir (Year Period RekanKerja), bukan tahun kalender.
   if (!preview.freqUnlimited && preview.freqValue > 0) {
     const freqCount = await freqClaimCount(db, {
       employeeId: input.employeeId, typeId: input.typeId, claimDate: input.claimDate,
@@ -1949,11 +1949,11 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
   // ---- W1-4: STORNO klaim Settled — dokumen pembalik + jurnal pembalik +
   // restore saldo. State machine: Settled → (storno) → Cancelled dengan klaim
   // mirror (state Cancelled, reversalOfId → klaim asal, total −approved).
-  // Alasan WAJIB (padanan "Enter Reason" oranHR). Idempoten via reversalOfId
+  // Alasan WAJIB (padanan "Enter Reason" RekanKerja). Idempoten via reversalOfId
   // @unique — klaim settled hanya bisa di-storno sekali.
   if (input.action === "storno") {
     if (!input.note?.trim()) {
-      throw new Error("Storno wajib menyertakan alasan (padanan Enter Reason oranHR)");
+      throw new Error("Storno wajib menyertakan alasan (padanan Enter Reason RekanKerja)");
     }
     const dup = await db.medicalClaim.findUnique({ where: { reversalOfId: claim.id }, select: { docNo: true } });
     if (dup) {
@@ -2321,7 +2321,7 @@ export async function transferUnusedToPayroll(
     throw new Error(
       `Transfer sisa saldo hanya boleh pada period AKHIR TAHUN ${input.year} (endDate ≥ 31 Des ${input.year}) — ` +
       `period ${period.name} berakhir ${periodEnd.toISOString().slice(0, 10)}. ` +
-      'Kebijakan CASH: "dibayarkan tunai di akhir periode" (padanan oranHR Paid at end of period).',
+      'Kebijakan CASH: "dibayarkan tunai di akhir periode" (padanan RekanKerja Paid at end of period).',
     );
   }
 
@@ -2481,7 +2481,7 @@ export async function markMedicalPaidForRun(db: TenantDb, runId: string): Promis
 // ============ W4-1 (fix G-3 BPA-medical) — piutang asuransi ============
 // Jurnal settle memecah bagian asuransi ke akun piutang 13xx (fix M-7 wave 1);
 // sebelumnya tidak ada proses klaim ke asuransi — piutang "diam" di buku besar.
-// Alur oranHR "Paid By Insurance %" kini lengkap: kirim klaim ke asuransi →
+// Alur RekanKerja "Paid By Insurance %" kini lengkap: kirim klaim ke asuransi →
 // terima pembayaran (jurnal kas/piutang) → atau hapus buku (write-off).
 
 /** Bagian asuransi klaim — MIRROR persis kalkulasi generateSettleJournal
@@ -2799,7 +2799,7 @@ export async function medicalStats(db: TenantDb, year: number, mv: MoneyView) {
       claimCount: v.claimCount, approvedAmount: v.approvedAmount,
     };
   }).sort((a, b) => b.approvedAmount - a.approvedAmount);
-  // W2-6 (fix G-9 BPA-medical): rekap beban per karyawan (padanan oranHR
+  // W2-6 (fix G-9 BPA-medical): rekap beban per karyawan (padanan RekanKerja
   // MedicalBenefitSummaryEmployee) — agregat klaim Settled tahun tsb.
   const byEmployeeMap = new Map<string, { employeeNo: string; fullName: string; claimCount: number; approvedAmount: number }>();
   for (const r of settledRows) {

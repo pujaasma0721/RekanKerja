@@ -164,8 +164,8 @@ export function RecruitmentOverview() {
             </CardTitle>
             <CardDescription className="text-xs">
               {t(
-                "Padanan Standard Selection Process oranHR — katalog per-tenant, berurutan, dengan SLA per tahap. Dipakai proses seleksi kandidat (F3).",
-                "oranHR Standard Selection Process equivalent — per-tenant catalog, ordered, with per-stage SLA. Used by candidate selection (F3).",
+                "Padanan Standard Selection Process RekanKerja — katalog per-tenant, berurutan, dengan SLA per tahap. Dipakai proses seleksi kandidat (F3).",
+                "RekanKerja Standard Selection Process equivalent — per-tenant catalog, ordered, with per-stage SLA. Used by candidate selection (F3).",
               )}
             </CardDescription>
           </CardHeader>
@@ -536,8 +536,8 @@ export function RecruitmentOverview() {
             </CardTitle>
             <CardDescription className="text-xs">
               {t(
-                "10 master (padanan General Setting oranHR). Kelola di menu Master Rekrutmen.",
-                "10 masters (oranHR General Setting equivalent). Manage in the Recruitment Masters menu.",
+                "10 master (padanan General Setting RekanKerja). Kelola di menu Master Rekrutmen.",
+                "10 masters (RekanKerja General Setting equivalent). Manage in the Recruitment Masters menu.",
               )}
             </CardDescription>
           </CardHeader>

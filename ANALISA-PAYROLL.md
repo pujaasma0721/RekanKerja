@@ -1,13 +1,13 @@
-# ANALISA DEEP-DIVE: Modul Payroll oranHR → Rencana Implementasi Payroll RekanKerja
+# ANALISA DEEP-DIVE: Modul Payroll RekanKerja → Rencana Implementasi Payroll RekanKerja
 
-> Dokumen analisa murni (tanpa perubahan kode). Basis: eksplorasi langsung demo.oranhr.com
+> Dokumen analisa murni (tanpa perubahan kode). Basis: eksplorasi langsung demo.RekanKerja.com
 > (login MII000001, PT Mitra Industri Internasional / "MII", versi 11.08.00) — 74 halaman
 > modul Payroll Administration dipetakan, form & data nyata dibaca via API ExtJS.
 > Tanggal: sesi analisa payroll. Penulis: agent RekanKerja.
 
 ---
 
-## 1. PETA MODUL PAYROLL ORANHR (74 HALAMAN, 8 GRUP)
+## 1. PETA MODUL PAYROLL ORekanKerja (74 HALAMAN, 8 GRUP)
 
 ```
 PAYROLL ADMINISTRATION
@@ -216,7 +216,7 @@ Allow Overlimit, **Pay In Payroll** + Process Type, Send Employee ID to Journal.
 - SalaryIncrement: parameter global (Effective Date, Reference Letter, Rounding, All Employee,
   **Clear Salary History Record Later Than Effective Date**) + grid karyawan berisi snapshot
   kerja DAN field salary history: `sh_golid, sh_valid_to, basic_salary, currency, per_unit,
-  start_date, end_date` → oranHR menyimpan **gaji juga ber-history** (pola sama dgn
+  start_date, end_date` → RekanKerja menyimpan **gaji juga ber-history** (pola sama dgn
   EmployeeAssignment RekanKerja).
 
 ### 2.15 Transfer Bank Payment — file per bank × office × processType
@@ -235,7 +235,7 @@ payroll dienkripsi aplikasi, akses per user. Modul access group "Payroll" terpis
 
 ## 3. PERBANDINGAN DENGAN KONDISI REKANKERJA SAAT INI
 
-| Aspek | oranHR | RekanKerja sekarang | Gap |
+| Aspek | RekanKerja | RekanKerja sekarang | Gap |
 |---|---|---|---|
 | Master komponen upah | WageCode 40+ atribut, 13 wage type, 8 metode pajak, formula engine, scoping 17 dimensi, natura, back pay mapping | `WageComponent`: code/name/type(3)/calcMethod(3)/amount/prorated/taxable/active | **BESAR** — klasifikasi & perilaku pajak belum ada |
 | Period payroll | Tabel period + jendela TA/SC + SPT month/year | — | BELUM ADA |
@@ -252,7 +252,7 @@ payroll dienkripsi aplikasi, akses per user. Modul access group "Payroll" terpis
 | Jurnal | COA per wage code D/K + cost center + 10 analisis + journal di transaksi | `AccountGroup/Account/PostingEvent` (sederhana) | SEBAGIAN (struktur ada, mapping per komponen belum) |
 | Benefit | Tipe + klaim + approval + pay-in-payroll | — | BELUM ADA |
 | Service charge / simulasi / piecework | Ada (industri hotel/retail) | — | BELUM ADA (opsional utk RekanKerja) |
-| Approval payroll | — (oranHR approval umumnya di modul lain; loan & benefit claim pakai approval) | ✅ engine PA + ApprovalLayer ada | MODAL KUAT |
+| Approval payroll | — (RekanKerja approval umumnya di modul lain; loan & benefit claim pakai approval) | ✅ engine PA + ApprovalLayer ada | MODAL KUAT |
 | Keamanan payroll | Enkripsi data + user assignment | AccessGroup + ActivityLog | SEBAGIAN |
 
 **Kesimpulan gap:** RekanKerja punya *foundation* bagus (EmployeeAssignment ber-histori, engine
@@ -264,7 +264,7 @@ payroll**: period → run → hasil → pajak → output (payslip/bank/SPT).
 ## 4. RANCANGAN IMPLEMENTASI REKANKERJA (USULAN — belum dieksekusi)
 
 ### Fase P1 — Foundation Payroll (prasyarat)
-1. **Upgrade `WageComponent`** → sejajarkan dgn oranHR: wageType (13), wageCategory (3),
+1. **Upgrade `WageComponent`** → sejajarkan dgn RekanKerja: wageType (13), wageCategory (3),
    incomeTaxMethod (8), processMethod G2N/N2G, rounding type+value, includeInBasicIncome,
    jamsostekBasis (JSTK type), displayInPaySlip, includeInTHP, applyTHRRules, prorate fields,
    sptReference, naturaType, formula (rule) + variabel sistem, validFrom/To, wageCodeBackPay.
@@ -317,14 +317,14 @@ payroll**: period → run → hasil → pajak → output (payslip/bank/SPT).
 
 ### Catatan arsitektur
 - Semua tabel hasil (run/line) menyimpan **snapshot** (nilai & label komponen saat proses) —
-  histori tidak berubah saat master diubah (pola oranHR: golid/golversion = optimistic locking
+  histori tidak berubah saat master diubah (pola RekanKerja: golid/golversion = optimistic locking
   + audit; RekanKerja cukup pakai createdAt/updatedAt + ActivityLog).
 - NetToGross dihitung iteratif (gross diproyeksikan dari net target) — catat actualNetTax &
-  actualGrossTax seperti oranHR.
+  actualGrossTax seperti RekanKerja.
 - Multi-office (Company Office) → di RekanKerja bisa dipetakan ke OrgUnit level tinggi; file bank
   bisa difilter per unit.
 - Keamanan: batasi tampilan nominal gaji via AccessGroup role "Payroll" (enkripsi penuh ala
-  oranHR = over-engineering utk RekanKerja tahap ini).
+  RekanKerja = over-engineering utk RekanKerja tahap ini).
 
 ### Urutan kerja yang disarankan (bila disetujui)
 P1 (schema + UI master period/processType/komponen upgrade) → P2 (engine + payslip + E2E

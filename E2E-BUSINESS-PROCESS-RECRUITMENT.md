@@ -95,7 +95,7 @@ Portal karir (publik :3010)                HR / Recruiter (aplikasi utama :3000)
 > Entity: `RecruitmentPlan` (status `Draft → Applied`), `RecruitmentBudget`.
 
 MPP (Man Power Planning) di RekanKerja = **Rencana Rekrutmen** per
-periode × posisi × kantor, memakai **formula oranHR a–h** — seluruh kolom
+periode × posisi × kantor, memakai **formula RekanKerja a–h** — seluruh kolom
 c/g/h **dihitung saat baca**, bukan disimpan:
 
 | Sel | Nama | Sumber |
@@ -146,7 +146,7 @@ chip rencana / “di luar rencana”.
 
 **Anggaran** per periode: `totalBudget` + `adjust` (uang vault-encrypted)
 vs `used` = Σ `actualCost` metode iklan JO pada periode tsb — dua level
-oranHR: per Job Opportunity + per PR yang diiklankan. Sisa = unused.
+RekanKerja: per Job Opportunity + per PR yang diiklankan. Sisa = unused.
 
 **Siklus hidup rencana:** `Draft` (bisa diubah/dihapus) → **Apply**
 (`Applied`, terkunci — revisi = duplikat). Rencana menjadi **basis
@@ -279,7 +279,7 @@ dibatalkan + kandidat `Withdrawn`.
 > Menu: **Rekrutmen → Lowongan & Kandidat → Talent Pool** (transfer)
 > + dialog di **Kandidat & Seleksi**. Entity: `JobCandidate`.
 
-HR **memindahkan pelamar talent pool → kandidat PR** (padanan oranHR
+HR **memindahkan pelamar talent pool → kandidat PR** (padanan RekanKerja
 "Transfer To Job Candidate"):
 
 **Guard:** PR harus `Approved`/`OnHold` · pelamar `Active` · unik
@@ -480,7 +480,7 @@ dan onboarding berjalan di modul HR (checklist per bagian).
 flowchart TD
     subgraph MPP["TAHAP 0 — MPP: Rencana & Anggaran (F5)"]
         A1([Mulai]) --> A2["HR menyusun RecruitmentPlan<br/>(periode × posisi × kantor)"]
-        A2 --> A3["Formula oranHR a–h:<br/>(c)=a+b · (g)=d+e−f · (h)=c−g<br/>= KEBUTUHAN REKRUT"]
+        A2 --> A3["Formula RekanKerja a–h:<br/>(c)=a+b · (g)=d+e−f · (h)=c−g<br/>= KEBUTUHAN REKRUT"]
         A3 --> A4["Anggaran periode:<br/>total + adjust (vault) vs used (biaya JO)"]
         A4 --> A5{"Plan Apply?"}
         A5 -->|Draft — masih revisi| A2

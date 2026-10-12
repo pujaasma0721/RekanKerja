@@ -68,7 +68,7 @@ const COMMON_PASSWORDS = [
   "iloveyou", "letmein", "welcome", "monkey", "dragon", "sunshine", "princess", "football",
   "admin", "admin123", "administrator", "root", "toor", "master", "guest", "user",
   "test", "test123", "demo", "demo123", "secret", "changeme", "temp", "qwerty123",
-  "onevity", "onevity123", "rekankerja", "rekankerja123", "oranhr", "hris", "hrd123", "payroll123",
+  "onevity", "onevity123", "rekankerja", "rekankerja123", "RekanKerja", "hris", "hrd123", "payroll123",
   "sandi", "sandilemah", "indonesia", "jakarta", "merdeka", "budi123",
 ];
 

@@ -1,5 +1,5 @@
 // Fix 93 — Wave 4 Medical E2E (local dev): G-3 piutang asuransi
-//   W4-1 (G-3)  — siklus piutang asuransi (padanan oranHR "Paid By Insurance %"):
+//   W4-1 (G-3)  — siklus piutang asuransi (padanan RekanKerja "Paid By Insurance %"):
 //                 settle → jurnal split 5106/piutang 13xx → kirim ke asuransi →
 //                 terima pembayaran (jurnal kas/piutang, parsial→PAID) →
 //                 atau hapus buku (jurnal beban/piutang) + guard + KPI.

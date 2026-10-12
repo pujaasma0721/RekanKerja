@@ -1,7 +1,7 @@
-# ANALISA DEEP-DIVE: Modul Recruitment oranHR → Rencana Implementasi Recruitment RekanKerja
+# ANALISA DEEP-DIVE: Modul Recruitment RekanKerja → Rencana Implementasi Recruitment RekanKerja
 
 > Dokumen analisa murni (tanpa perubahan kode aplikasi — sesuai mandat user).
-> Basis: eksplorasi langsung **demo.oranhr.com** (login `MII000001` / `MII1`, company
+> Basis: eksplorasi langsung **demo.RekanKerja.com** (login `MII000001` / `MII1`, company
 > *MII - Mitra Industri Internasional*, aplikasi versi `11.08.00`, JSP + ExtJS).
 > Metode: browser automation (agent-browser) — navigasi 50 halaman, ekstraksi store
 > ExtJS (kolom grid + field model + sample data), screenshot 29 bukti visual + analisa
@@ -10,7 +10,7 @@
 
 ---
 
-## 1. PETA MODUL RECRUITMENT ORANHR (60 HALAMAN)
+## 1. PETA MODUL RECRUITMENT ORekanKerja (60 HALAMAN)
 
 ```
 MODULE: Recruitment (admin)
@@ -147,7 +147,7 @@ Number to Recruit (h) = (c)−(g)
 
 - Tombol: New/Duplicate/Edit/Delete/**Apply** (submit approval)/Save/Cancel.
 - `PersonnelRequisitionToApprove` = inbox approval PR (kolom identik + state).
-- **Workflow approval PR** memakai mesin approval oranHR (lihat §4).
+- **Workflow approval PR** memakai mesin approval RekanKerja (lihat §4).
 - `RecruitmentActivity` = query funnel rekrutmen (filter: job, company office,
   from–to date). Kolom: `Applied Applicant → Candidate → Processed Candidate →
   Interview HR → Interview User → Psikotes → Offering Salary → Medical Cek Up →
@@ -272,7 +272,7 @@ ke **onboarding wizard** yang sudah ada.
   (1800 dtk, indexing question), WPT, Kraepelin, MSDT.
 - Per instrumen: bank Statement (soal), Formula (skoring), Dictionary (kamus
   interpretasi) — total 14 halaman master.
-- **Insight**: oranHR punya engine uji psikologi ONLINE lengkap dengan proctoring
+- **Insight**: RekanKerja punya engine uji psikologi ONLINE lengkap dengan proctoring
   kamera. Ini fitur sangat berat — kandidat "nice-to-have" jangka panjang, bukan MVP.
 
 ### 2.10 ESS self-service rekrutmen
@@ -289,7 +289,7 @@ ke **onboarding wizard** yang sudah ada.
 
 ## 3. DATA MODEL INFERENSI (reverse-engineering dari store ExtJS)
 
-> Konvensi oranHR: PK `golid` + `golversion` (optimistic lock). Nama kolom snake_case.
+> Konvensi RekanKerja: PK `golid` + `golversion` (optimistic lock). Nama kolom snake_case.
 > Di bawah ini diterjemahkan ke konsep entitas (nama RekanKerja disarankan di §7).
 
 ```
@@ -372,7 +372,7 @@ PR Fulfilled → RecruitmentPlan rekonsiliasi (fulfilled/appointed/unfulfilled)
 Applicant.state = Employed ; lamaran lain → Send Rejection Date (surat penolakan)
 ```
 
-- **Approval**: PR melewati mesin approval oranHR (inbox khusus PR + ESS approval).
+- **Approval**: PR melewati mesin approval RekanKerja (inbox khusus PR + ESS approval).
 - **SLA**: per tahap seleksi punya `sla_days` (mis. Interview 30 hari) — pantau overdue.
 - **Notifikasi**: SelectionNotifier memicu email per event (terhubung email config).
 - **Penomoran dokumen**: RecruitmentIdentity (PR No, JO Ref No, Letter No) per company.
@@ -381,7 +381,7 @@ Applicant.state = Employed ; lamaran lain → Send Rejection Date (surat penolak
 
 ## 5. INTEGRASI LINTAS MODUL
 
-| Tujuan | Bentuk integrasi oranHR |
+| Tujuan | Bentuk integrasi RekanKerja |
 |---|---|
 | HR Base | PR memakai position/job/org/office master; appointment membuat **Employee + Person + User + Role Group** sekaligus; supervisor dari master employee |
 | Approval engine | PR approval berjenjang + ESS approval inbox |
@@ -396,11 +396,11 @@ Applicant.state = Employed ; lamaran lain → Send Rejection Date (surat penolak
 
 ## 6. GAP ANALYSIS vs RekanKerja SEKARANG
 
-| Aspek | oranHR | RekanKerja saat ini | Status |
+| Aspek | RekanKerja | RekanKerja saat ini | Status |
 |---|---|---|---|
 | Modul recruitment | 60 halaman penuh | — | **GAP TOTAL** |
 | Permintaan karyawan (PR) + approval | PR + inbox + ESS approval | engine approval parametrik (ApprovalStructure) + PA sudah ada | **MODAL KUAT** (engine-nya tinggal pakai) |
-| Manpower planning | Recruitment Plan berpola rumus (a)-(h) | — (HR Reports ada headcount stats) | GAP TOTAL (versi oranHR) |
+| Manpower planning | Recruitment Plan berpola rumus (a)-(h) | — (HR Reports ada headcount stats) | GAP TOTAL (versi RekanKerja) |
 | Anggaran rekrutmen | budget + realisasi 2 level | — | GAP TOTAL |
 | Iklan lowongan (JO) + slot per PR + metode | lengkap | — | GAP TOTAL |
 | Talent pool pelamar + query builder | ApplicantEngine multi-dimensi | — | GAP TOTAL |
@@ -681,7 +681,7 @@ mengikuti gating vault uang.
   proctoring kamera) — sangat berat, niche, dan risiko privasi tinggi. Di fase
   lanjut cukup catat HASIL tes manual (upload laporan) — bila suatu saat mau
   online, buat fase tersendiri.
-- **Password pelamar / portal self-service pelamar** (oranHR field password +
+- **Password pelamar / portal self-service pelamar** (RekanKerja field password +
   activation) — tunda; fase awal pelamar tidak login. Portal apply publik
   cukup form anonim tanpa akun.
 - **Multi-company lintas tenant** — RekanKerja schema-per-tenant; companyId
@@ -769,7 +769,7 @@ dipanggil mode prefill-readonly untuk field rekrutmen).
    — data masuk staging `ApplicantWeb`-style (status Pending) → HR "Upload"
    (verifikasi) ke talent pool + email konfirmasi + captcha/rate-limit.
 3. **RecruitmentPlan** (manpower sederhana: per periode + posisi + office,
-   target vs realisasi rekrut — tanpa 24 kolom spreadsheet oranHR; 6–8 kolom inti)
+   target vs realisasi rekrut — tanpa 24 kolom spreadsheet RekanKerja; 6–8 kolom inti)
    + **RecruitmentBudget** (anggaran periode + realisasi dari method cost +
    ringkasan per JO/PR).
 4. **Demografi & kalender**: chart demografi pelamar + kalender jadwal seleksi
@@ -792,7 +792,7 @@ validasi upload, consent UU PDP).
 P1 PR+approval ──► P2 JO+pelamar ──► P3 seleksi ──► P4 appointment+onboarding
                                                     └► P5 ESS+publik+anggaran
 Nilai bisnis tercepat: P1+P2 (permintaan terkontrol + talent pool)
-Titik diferensiator RekanKerja: P4 (onboarding integration) — oranHR tidak
+Titik diferensiator RekanKerja: P4 (onboarding integration) — RekanKerja tidak
 seamless di sini (buat Employee manual dua kali input).
 ```
 
@@ -815,11 +815,11 @@ seamless di sini (buat Employee manual dua kali input).
 ## 10. KEPUTUSAN YANG PERLU DIPUTUSKAN (sebelum mulai P1)
 
 1. **Portal publik** sejak awal (P5) atau internal-only dulu? → rekomendasi: internal dulu.
-2. **Budget & biaya rekrutmen** perlu di fase berapa? (oranHR menaruhnya di depan;
+2. **Budget & biaya rekrutmen** perlu di fase berapa? (RekanKerja menaruhnya di depan;
    rekomendasi kita: P5 — nilai bisnisnya setelah alur inti jalan).
 3. **Kandidat internal** (mutasi/promosi via rekrutmen) masuk P3 atau ditunda?
    → rekomendasi: masuk (modal Employee sudah ada).
-4. **Recruitment Plan (manpower)** perlu pola 24-kolom oranHR atau versi ringkas?
+4. **Recruitment Plan (manpower)** perlu pola 24-kolom RekanKerja atau versi ringkas?
    → rekomendasi ringkas (§8 P5).
 5. Psikotest online: **tidak dibangun** dalam 5 fase ini (backlog) — setuju?
 

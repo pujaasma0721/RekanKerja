@@ -4,7 +4,7 @@
 > Lingkup: `src/rekankerja/time-attendance/**` (10 api + attendance-service.ts + 10 komponen),
 > `prisma/schema-tenant.prisma` (9 model TA), route thin `src/app/api/rekankerja/attendance/**`,
 > integrasi Leave (`leave-service.ts`) & Payroll (`payroll-service.ts`), referensi bisnis
-> `ANALISA-ATTENDANCE.md` (28 halaman oranHR). Temuan F-01..F-12 AUDIT-MODULES.md
+> `ANALISA-ATTENDANCE.md` (28 halaman RekanKerja). Temuan F-01..F-12 AUDIT-MODULES.md
 > (sudah diperbaiki) TIDAK dilaporkan ulang.
 > Metode: pembacaan kode penuh (966 baris service + 10 API + 10 komponen) + probing runtime
 > GET-only (login hrd@mii.co.id → workspace MII) + query SQL read-only ke schema tenant MII.
@@ -16,7 +16,7 @@
 
 ## 1. RINGKASAN EKSEKUTIF
 
-Modul TimeAttendance RekanKerja mengimplementasikan alur inti oranHR secara **berfungsi dan
+Modul TimeAttendance RekanKerja mengimplementasikan alur inti RekanKerja secara **berfungsi dan
 terverifikasi live**: master (8 tipe hari termasuk shift malam lintas hari, jadwal cycle 5/7
 hari + anchor Senin) → assignment jadwal (auto-close assignment lama) → clock log (IN pertama /
 OUT terakhir) → kalkulasi AttendanceDaily (hour buckets: telat/pulang cepat/kerja/absen) →
@@ -26,7 +26,7 @@ OnLeave) bekerja; rotasi 3 regu & shift malam 22:00–06:00 terbukti benar di da
 
 Namun audit menemukan **3 temuan KRITIS pada rantai nilai uang (lembur/absensi → payroll)**:
 (1) order lembur berstatus **Paid tetap ikut rekap jendela berikutnya** → skenario pembayaran
-ganda saat jendela transfer overlap (pola cutoff 25–24 oranHR); (2) **clock-out setelah tengah
+ganda saat jendela transfer overlap (pola cutoff 25–24 RekanKerja); (2) **clock-out setelah tengah
 malam dibuang** untuk tipe hari non-lintas-hari → karyawan yang lembur sampai >24:00 dianggap
 **Absen penuh** (potongan 1/25 gaji); (3) flag `Paid` ditandai berdasar window **period** run,
 bukan window **transfer** yang benar-benar dibayarkan → order bisa ditandai Paid tanpa pernah
@@ -168,7 +168,7 @@ hardcode — `overtimeRoundingMinutes` & `minOvertimeMinutes` di rule tidak dipa
 (recapPeriod otPay), via `transferToPayroll:595`. Filter `status in ["Approved","Paid"]`
 tanpa memeriksa `paidRunNo`. Live: rekap Sep overtimePay Rp 2.236.561 seluruhnya berasal dari
 5 order ber-status **Paid** (paidRunNo PR-2026-09-SAL-01). Skenario nyata: HR membuka period
-Okt dan mentransfer jendela cutoff oranHR 25 Sep–24 Okt → kelima order Sep dibayar **lagi**
+Okt dan mentransfer jendela cutoff RekanKerja 25 Sep–24 Okt → kelima order Sep dibayar **lagi**
 di run Okt (assignment baru period Okt; run Sep sudah Confirmed tidak ter-koreksi).
 Saran fix minimal: di `recapPeriod`/`transferToPayroll` filter OT dengan `paidRunNo: null`
 (hanya Approved yang belum dibayar); regenerasi display boleh tetap memuat Paid.
@@ -208,7 +208,7 @@ Fix: `hourIndex <= 7 ? 2 : hourIndex === 8 ? 3 : 4`.
 
 **M-2 · Clock-in saja / lupa clock-out = Absen penuh + potongan 1/25 gaji**
 `attendance-service.ts:353-356`. Praktik umum Indonesia: lupa clock-out dianggap hadir
-(pulang tepat waktu) atau masuk antrean koreksi; oranHR punya Employee Clocking Approval.
+(pulang tepat waktu) atau masuk antrean koreksi; RekanKerja punya Employee Clocking Approval.
 Di sini langsung Absent full-day (live: 26 baris Sep, semuanya full absenceMinutes).
 Tidak ada fitur koreksi rekap oleh admin (field `revised/revisedBy/state "Revised"` ada tapi
 tak pernah diset; upsert malah me-reset). Fix minimal: cabang "Tanpa clock-out" → hadir
@@ -217,7 +217,7 @@ dengan early = sisa toleransi + flag butuh koreksi (state "Revised"/note), bukan
 **M-3 · Pulang cepat > toleransi tidak ada konsekuensi**
 `attendance-service.ts:366-369` menghitung earlyMinutes, tapi `recapPeriod:522-525` hanya
 punya potongan telat (per menit) dan absen (per hari). Live: MII00011 2026-09-09 early 105
-mnt (di luar toleransi 10) → status Present, abs 61 mnt, **potongan 0**. oranHR memetakan
+mnt (di luar toleransi 10) → status Present, abs 61 mnt, **potongan 0**. RekanKerja memetakan
 EARLYOUT ke wage. Fix minimal: tambahkan potongan early (per menit, komponen TLATE atau
 TEARLY) atau minimal masukkan early-beyond-tolerance sebagai absenceMinutes berbayar.
 
@@ -233,7 +233,7 @@ Fix minimal: terapkan minOvertimeMinutes/overtimeRoundingMinutes di `overtimePay
 **M-5 · Jendela transfer bebas overlap antar period, tanpa penanda baris sudah ditransfer**
 `attendance-service.ts:570-595` + `api/absence.ts:49-73`. Idempoten hanya per (period ×
 processType). Transfer jendela 1–30 Sep ke period Sep lalu jendela 25 Sep–24 Okt ke period
-Okt → TABS/TLATE/TKEHADIRAN hari 25–30 Sep dipotong/dibayar dua kali (oranHR punya kebijakan
+Okt → TABS/TLATE/TKEHADIRAN hari 25–30 Sep dipotong/dibayar dua kali (RekanKerja punya kebijakan
 "Duplicate Period Entries"). Fix minimal: catat window transfer terakhir per period (atau
 tandai AttendanceDaily.transferredPeriod) dan tolak/warn overlap.
 
@@ -277,7 +277,7 @@ terakhirnya; upah lembur/potongan memakai gaji hari ini, bukan gaji saat kejadia
 
 ### GAP (proses standar presensi Indonesia belum ada)
 
-- **G-1 · `WorkOffPermission.deductLeave` tidak pernah memotong saldo modul Leave** (oranHR
+- **G-1 · `WorkOffPermission.deductLeave` tidak pernah memotong saldo modul Leave** (RekanKerja
   "Deduct Leave"). Absensi & Izin (workoff) dan modul Cuti berjalan paralel tanpa sinkron —
   saldo cuti bisa "dipakai dua kali" (izin + cuti terpisah) atau tidak berkurang.
 - **G-2 · Kalender hari libur nasional tidak ada** — kategori day type Holiday tersedia tapi
@@ -293,11 +293,11 @@ terakhirnya; upah lembur/potongan memakai gaji hari ini, bukan gaji saat kejadia
   karyawan tsb / tombol Refresh per tanggal / approval izin-cuti; tanpa disiplin refresh
   harian, karyawan tanpa clock tidak muncul sebagai Absen di rekap (tanpa import mesin —
   G-8 — tidak ada sumber massal otomatis).
-- **G-6 · Pembulatan granular (User Defined Rounding oranHR)** tidak ada — hanya floor
+- **G-6 · Pembulatan granular (User Defined Rounding RekanKerja)** tidak ada — hanya floor
   kelipatan N untuk telat; lembur ceil 30 mnt hardcode; tabel interval (0-5→0, 6-15→15) tak
   tersedia.
 - **G-7 · Break/Lunch wage tidak dihitung** — istirahat tidak mengurangi jam kerja normal,
-  `breakPaid` diabaikan (oranHR BREAK wage).
+  `breakPaid` diabaikan (RekanKerja BREAK wage).
 - **G-8 · Import mesin finger / ESS mobile / geofence & `WorkOffPermission.recurrence`**
   — enum source "Machine|Mobile" sudah disiapkan; recurrence tersimpan tak dipakai
   (dinyatakan backlog di ANALISA — dicatat untuk kelengkapan BPA).

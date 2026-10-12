@@ -1,5 +1,5 @@
 // ============================================================================
-// RECRUITMENT F5 — Lamaran lowongan internal via ESS (oranHR §2.10
+// RECRUITMENT F5 — Lamaran lowongan internal via ESS (RekanKerja §2.10
 // MyJobOpportunity + MyEmpAppliedJobOpportunity).
 //
 // MyJobOpportunity: slot Posted+Open yang BELUM lewat lastAcceptDate —

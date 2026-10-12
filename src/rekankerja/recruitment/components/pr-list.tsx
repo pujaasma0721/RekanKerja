@@ -1,6 +1,6 @@
 "use client";
 // RekanKerja Recruitment F1 — daftar Permintaan Karyawan (PR) + form New/Edit
-// (padanan PersonnelRequisition.jsp oranHR §2.3 analisa, state machine §4.3).
+// (padanan PersonnelRequisition.jsp RekanKerja §2.3 analisa, state machine §4.3).
 // Server-side: pagination offset + advance search `&` + filter status + sort.
 import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
@@ -359,8 +359,8 @@ export function PrListPage() {
         eyebrow={t("Recruitment · Permintaan Karyawan")}
         title={t("Permintaan Karyawan (PR)", "Personnel Requisition (PR)")}
         description={t(
-          "Pengajuan kebutuhan karyawan baru/pengganti — masuk jalur approval berjenjang sebelum dibuka lowongan (F2). Padanan Personnel Requisition oranHR.",
-          "New/replacement headcount requests — routed through tiered approval before job openings are created (F2). oranHR Personnel Requisition equivalent.",
+          "Pengajuan kebutuhan karyawan baru/pengganti — masuk jalur approval berjenjang sebelum dibuka lowongan (F2). Padanan Personnel Requisition RekanKerja.",
+          "New/replacement headcount requests — routed through tiered approval before job openings are created (F2). RekanKerja Personnel Requisition equivalent.",
         )}
         actions={canCreate && (
           <Button onClick={openNew} className="ov-fill ov-glow gap-2">

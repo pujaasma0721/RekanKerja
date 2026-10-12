@@ -1,6 +1,6 @@
 // ============================================================================
 // RECRUITMENT F3 — JobCandidate service (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3):
-// transfer pelamar talent pool → kandidat PR (padanan oranHR "Transfer To Job
+// transfer pelamar talent pool → kandidat PR (padanan RekanKerja "Transfer To Job
 // Candidate") + kandidat INTERNAL (employee — HRX A4): mutasi/promosi ikut
 // jalur seleksi yang sama. Rantai tahap dibuat selection-service
 // (ensureStepsForCandidate — difilter appliesInternal/appliesExternal).

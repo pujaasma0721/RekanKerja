@@ -116,7 +116,7 @@ export interface MedicalStatsUI {
   byEmployee?: { employeeNo: string; fullName: string; claimCount: number; approvedAmount: number }[];
 }
 
-/** W4-1 (fix G-3) — baris piutang asuransi (padoran oranHR Paid By Insurance %). */
+/** W4-1 (fix G-3) — baris piutang asuransi (padoran RekanKerja Paid By Insurance %). */
 export interface InsReceivableUI {
   id: string; docNo: string; employeeNo: string; fullName: string;
   typeCode: string; typeName: string; insurer: string; pctInsurance: number;

@@ -1,5 +1,5 @@
 "use client";
-// RekanKerja ESS F5 — Lowongan Internal (padanan oranHR §2.10 MyJobOpportunity
+// RekanKerja ESS F5 — Lowongan Internal (padanan RekanKerja §2.10 MyJobOpportunity
 // + MyEmpAppliedJobOpportunity): daftar slot lowongan aktif yang bisa dilamar
 // karyawan (termasuk JO khusus internal / dalam jendela internal-first yang
 // tidak tayang di portal publik) + riwayat lamaran internal + tarik lamaran.
@@ -315,8 +315,8 @@ export function EssMyJobsPage() {
         eyebrow={t("ESS · Rekrutmen")}
         title={t("Lowongan Internal", "Internal Jobs")}
         description={t(
-          "Lowongan aktif yang bisa Anda lamar — termasuk iklan khusus internal / jendela internal-first yang tidak tayang di portal publik. Padanan My Job Opportunity oranHR.",
-          "Active openings you can apply to — including internal-only ads / internal-first windows that are not shown on the public portal. The oranHR My Job Opportunity counterpart.",
+          "Lowongan aktif yang bisa Anda lamar — termasuk iklan khusus internal / jendela internal-first yang tidak tayang di portal publik. Padanan My Job Opportunity RekanKerja.",
+          "Active openings you can apply to — including internal-only ads / internal-first windows that are not shown on the public portal. The RekanKerja My Job Opportunity counterpart.",
         )}
       />
 

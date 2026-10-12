@@ -1,6 +1,6 @@
 // ============================================================================
 // RECRUITMENT F9 — Compliance Hardening UU PDP
-// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F9 + oranHR §2.5 ApplicantEngine
+// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F9 + RekanKerja §2.5 ApplicantEngine
 // + HRX I1–I7): Data Subject Request (DSR akses/ekspor/hapus + SLA),
 // consent withdrawal, retensi & anonimisasi otomatis, audit akses PII,
 // utilitas pseudonimisasi utk analytics/latih AI.

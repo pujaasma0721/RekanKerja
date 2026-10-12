@@ -659,7 +659,7 @@ function DataSchemeTab() {
       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-5 lg:col-span-3 dark:border-slate-700 dark:bg-slate-900/30">
         <p className="flex items-start gap-2.5 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-          {t("Halaman ini menampilkan skema akses data secara statis sebagai ilustrasi perilaku OranHR Scheme Setup (Company Office / Position / Grade Structure). Konfigurasi aktif ditentukan oleh kombinasi ", "This page presents the data access scheme statically as an illustration of OranHR Scheme Setup behavior (Company Office / Position / Grade Structure). The active configuration is determined by the combination of ")}<b className="text-slate-700 dark:text-slate-300">{t("access group", "access group")}</b> + <b className="text-slate-700 dark:text-slate-300">{t("posisi jabatan", "job position")}</b>{t(" masing-masing pengguna.", " for each user.")}
+          {t("Halaman ini menampilkan skema akses data secara statis sebagai ilustrasi perilaku RekanKerja Scheme Setup (Company Office / Position / Grade Structure). Konfigurasi aktif ditentukan oleh kombinasi ", "This page presents the data access scheme statically as an illustration of RekanKerja Scheme Setup behavior (Company Office / Position / Grade Structure). The active configuration is determined by the combination of ")}<b className="text-slate-700 dark:text-slate-300">{t("access group", "access group")}</b> + <b className="text-slate-700 dark:text-slate-300">{t("posisi jabatan", "job position")}</b>{t(" masing-masing pengguna.", " for each user.")}
         </p>
       </div>
     </div>

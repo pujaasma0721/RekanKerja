@@ -22,14 +22,14 @@ Dokumen ini adalah **hasil kombinasi dua sumber** yang diminta user:
 
 | # | Sumber | Isi | Peran dalam kombinasi |
 |---|---|---|---|
-| 1 | `ANALISA-RECRUITMENT.md` (Task rec-1) | Analisa deep-dive modul Recruitment **oranHR** dari eksplorasi langsung `demo.oranhr.com` (60 halaman: 54 admin + 6 ESS, ekstraksi store ExtJS, 30 screenshot, analisa VLM) → data model inferensi, workflow, gap analysis, rekomendasi skema, roadmap P1–P5 | **Tulang punggung** — alur bisnis teruji di pasar Indonesia (proven workflow), struktur data nyata, integrasi ke modul HR Base |
+| 1 | `ANALISA-RECRUITMENT.md` (Task rec-1) | Analisa deep-dive modul Recruitment **RekanKerja** dari eksplorasi langsung `demo.RekanKerja.com` (60 halaman: 54 admin + 6 ESS, ekstraksi store ExtJS, 30 screenshot, analisa VLM) → data model inferensi, workflow, gap analysis, rekomendasi skema, roadmap P1–P5 | **Tulang punggung** — alur bisnis teruji di pasar Indonesia (proven workflow), struktur data nyata, integrasi ke modul HR Base |
 | 2 | `upload/Recruitment.md` — *MASTER PROMPT: HRX-RECRUIT* | Spesifikasi ambisius modul rekrutmen AI-native: 10 prinsip desain, 12 bounded context, Modul fitur A–I, fase 0–9, quality gates, definisi selesai end-to-end | **Lapisan diferensiasi** — visi produk (AI-native, explainable, candidate-first, fairness by design) + fitur generasi baru (AI scoring, copilot, offer tracking, compliance UU PDP-grade) |
 
 **Prinsip kombinasi**:
-1. Alur bisnis inti mengikuti **oranHR** (Plan → PR → Approval → JO → Pelamar → Kandidat →
+1. Alur bisnis inti mengikuti **RekanKerja** (Plan → PR → Approval → JO → Pelamar → Kandidat →
    Seleksi → Appointment → Employee) karena teruji dan cocok konteks Indonesia.
 2. Standar pengalaman & inteligensi mengikuti **HRX** (AI explainable, candidate experience,
-   fairness, compliance) karena itu diferensiator vs oranHR.
+   fairness, compliance) karena itu diferensiator vs RekanKerja.
 3. Semua asumsi teknis HRX (NestJS greenfield, Redis, OpenSearch, S3, microservice-ready)
    **diadaptasikan ke arsitektur nyata RekanKerja** — lihat §2. Tidak ada stack baru yang
    diwajibkan; kapabilitas dipertahankan, implementasinya menumpang pola yang sudah ada.
@@ -38,7 +38,7 @@ Dokumen ini adalah **hasil kombinasi dua sumber** yang diminta user:
 
 **Cara membaca saat eksekusi**: buka §7 (fase) → kerjakan scope berurutan → verifikasi
 acceptance per fase → ikuti quality gates §8 dan aturan kerja §9. Matriks jejak fitur (§3)
-dipakai untuk memastikan tidak ada item HRX/oranHR yang hilang diam-diam.
+dipakai untuk memastikan tidak ada item HRX/RekanKerja yang hilang diam-diam.
 
 ---
 
@@ -47,8 +47,8 @@ dipakai untuk memastikan tidak ada item HRX/oranHR yang hilang diam-diam.
 ### 1.1 Misi
 
 Membangun **RekanKerja Rekrutmen** — modul rekrutmen end-to-end di dalam platform
-RekanKerja yang: (a) **menandingi kelengkapan alur oranHR** (dari manpower planning sampai
-pengangkatan karyawan), (b) **melampaui oranHR** pada titik integrasi (appointment →
+RekanKerja yang: (a) **menandingi kelengkapan alur RekanKerja** (dari manpower planning sampai
+pengangkatan karyawan), (b) **melampaui RekanKerja** pada titik integrasi (appointment →
 onboarding wizard tanpa double-entry), dan (c) **menyelipkan inteligensi HRX** — AI yang
 explainable, adil, dan selalu punya jalur manual — tanpa menjadikan AI titik tunggal
 kegagalan.
@@ -180,20 +180,20 @@ Legenda keputusan: **ADOPT** (dibangun) · **ADAPT** (dibangun versi rasional) �
 
 ### 3.1 Modul A — Strategic Workforce Planning
 
-| Fitur (HRX) | Bukti oranHR (analisa) | Keputusan RekanKerja | Fase |
+| Fitur (HRX) | Bukti RekanKerja (analisa) | Keputusan RekanKerja | Fase |
 |---|---|---|---|
 | A1 Headcount plan grid per unit + budget | `RecruitmentPlan` 24-kolom rumus (a)–(h) + rekonsiliasi PR (§2.1) | **ADAPT** ringkas 6–8 kolom inti + rekonsiliasi otomatis ke PR (requested/fulfilled/unfulfilled) | F5 |
-| A2 Attrition prediction per role | — (tidak ada di oranHR) | **BACKLOG** (perlu data historis 12+ bln; antarmuka disiapkan di MetricSnapshot F8) | — |
+| A2 Attrition prediction per role | — (tidak ada di RekanKerja) | **BACKLOG** (perlu data historis 12+ bln; antarmuka disiapkan di MetricSnapshot F8) | — |
 | A3 Requisition engine (rich builder + state machine + approval multi-level + replacement) | PR form lengkap + Apply + inbox approval + auto_jop (§2.3, §4) | **ADOPT** + perluas: state machine eksplisit, dimensi approval parametrik (posisi/grade/jumlah/salaryBudget via ApprovalStructure existing) | F1 |
 | A4 Internal mobility gateway (window internal-first + talent marketplace) | ESS MyJobOpportunity + kandidat Internal (§2.6, §2.10) | **ADAPT**: kandidat internal di F3 + flag window internal-first di JO (F2); *talent marketplace* → **BACKLOG** | F2/F3 |
 | A5 Budget guardrails (blokir offer over-budget) | RecruitmentBudget + method cost (§2.2, §2.4) | **ADAPT**: field anggaran di PR (F1) + rekap realisasi (F5); *blocking real-time* → **BACKLOG** | F1/F5 |
 
 ### 3.2 Modul B — AI Intelligence Engine (diferensiator utama)
 
-| Fitur (HRX) | Bukti oranHR (analisa) | Keputusan RekanKerja | Fase |
+| Fitur (HRX) | Bukti RekanKerja (analisa) | Keputusan RekanKerja | Fase |
 |---|---|---|---|
 | B1 CV parsing multilingual → JSON + confidence + human-verify | Input manual + ApplicantWeb staging (§2.5) | **ADOPT** via ai-provider (VLM/OCR pada PDF/DOCX) → pre-fill form pelamar + UI verifikasi per field | F6a |
-| B2 Explainable scoring 0–100 + rubric no-code | — (oranHR skor manual per tahap, §2.6) | **ADOPT**: rubrik bobot per slot/PR, breakdown per-faktor + bukti dari CV; skor manual tetap bisa (fallback) | F6b |
+| B2 Explainable scoring 0–100 + rubric no-code | — (RekanKerja skor manual per tahap, §2.6) | **ADOPT**: rubrik bobot per slot/PR, breakdown per-faktor + bukti dari CV; skor manual tetap bisa (fallback) | F6b |
 | B3 Knockout engine | — | **ADOPT**: pertanyaan knockout saat apply, auto-disposition + surat penolakan ramah + audit log | F6b |
 | B4 Semantic search natural language | ApplicantEngine query builder multi-dimensi (§2.5) | **ADAPT dua tingkat**: (1) query builder rasional F2; (2) pencarian natural-language (FTS/trigram → pgvector opsional) | F2 → F6c |
 | B5 Recruiter copilot (draft JD, summarize kandidat, pertanyaan interview, outreach, pipeline Q&A) | — | **ADOPT** versi ringkas via ai-provider (chat terkurasi, bukan chat bebas tanpa konteks) | F6c |
@@ -203,7 +203,7 @@ Legenda keputusan: **ADOPT** (dibangun) · **ADAPT** (dibangun versi rasional) �
 
 ### 3.3 Modul C — Sourcing & Recruitment Marketing
 
-| Fitur (HRX) | Bukti oranHR (analisa) | Keputusan RekanKerja | Fase |
+| Fitur (HRX) | Bukti RekanKerja (analisa) | Keputusan RekanKerja | Fase |
 |---|---|---|---|
 | C1 Career site builder no-code + SEO + one-click apply | JobDescription publik + ApplicantWeb staging (§2.4, §2.5) | **ADAPT** (Amande men 1 §2.0): **Portal Kandidat — aplikasi TERPISAH** `mini-services/candidate-portal/` (domain `karir.<perusahaan>`): daftar lowongan publik read-only + form lamaran anonim → staging → verifikasi HR. Builder no-code penuh → **BACKLOG** | F2 |
 | C2 Multi-posting hub (Glints/Kalibrr/JobStreet/LinkedIn) | Metode advertensi dicatat manual + cost (§2.4) | **BACKLOG** (feed XML/JSON generik bisa disiapkan di F7 sebagai fondasi) | — |
@@ -212,7 +212,7 @@ Legenda keputusan: **ADOPT** (dibangun) · **ADAPT** (dibangun versi rasional) �
 
 ### 3.4 Modul D — Structured Hiring & Interview Orchestration
 
-| Fitur (HRX) | Bukti oranHR (analisa) | Keputusan RekanKerja | Fase |
+| Fitur (HRX) | Bukti RekanKerja (analisa) | Keputusan RekanKerja | Fase |
 |---|---|---|---|
 | D1 Pipeline kanban drag-drop + keyboard-first | EvaluationProcess per PR + per kandidat (§2.6) | **ADOPT**: board kandidat per PR (kolom = tahap seleksi), bulk action, keyboard J/K | F3 |
 | D2 Structured scorecards (rubric 1–5 anchored, mandatory feedback, panel + divergence flag) | Master EvaluationCategory/Scale/StatementTemplate + hasil per tahap (§2.6, §2.8) | **ADOPT+PERLUAS**: ScorecardTemplate per tahap; feedback wajib sebelum naik tahap; selisih panel >2 → alert kalibrasi | F3 |
@@ -223,7 +223,7 @@ Legenda keputusan: **ADOPT** (dibangun) · **ADAPT** (dibangun versi rasional) �
 
 ### 3.5 Modul E — Offer Management
 
-| Fitur (HRX) | Bukti oranHR (analisa) | Keputusan RekanKerja | Fase |
+| Fitur (HRX) | Bukti RekanKerja (analisa) | Keputusan RekanKerja | Fase |
 |---|---|---|---|
 | E1 Offer builder (template + merge field + salary guidance + approval by value) | Tahap "Offering Salary" dalam seleksi + surat pengangkatan (§2.6, §2.7) | **ADOPT**: entitas Offer terpisah dari tahap seleksi; template letter engine; guidance vs range gaji slot JO; approval offer via scope approval sendiri | F4 |
 | E2 E-signature (OTP + typed + drawn, tamper-evident, audit) | — | **ADAPT**: e-sign ringkas di F7 (OTP email + typed signature + hash PDF + audit). *TTE tersertifikasi eksternal* → **BACKLOG** | F7 |
@@ -232,16 +232,16 @@ Legenda keputusan: **ADOPT** (dibangun) · **ADAPT** (dibangun versi rasional) �
 
 ### 3.6 Modul F — Automation & Workflow Engine
 
-| Fitur (HRX) | Bukti oranHR (analisa) | Keputusan RekanKerja | Fase |
+| Fitur (HRX) | Bukti RekanKerja (analisa) | Keputusan RekanKerja | Fase |
 |---|---|---|---|
 | F1 Visual workflow builder no-code | — (konfigurasi lewat master) | **ADAPT ringkas**: rule otomasi event umum (auto-ack, auto-reminder, auto-stage) di F7; *builder visual penuh* → **BACKLOG** | F7 |
-| F2 Approval engine (matrix, delegasi, SLA, eskalasi) | Mesin approval oranHR + inbox PR (§4) | **SUDAH ADA** (ApprovalStructure parametrik + delegasi + MFA) → tinggal scope baru `recruitment/pr` (+ `recruitment/offer` di F4) | F1/F4 |
+| F2 Approval engine (matrix, delegasi, SLA, eskalasi) | Mesin approval RekanKerja + inbox PR (§4) | **SUDAH ADA** (ApprovalStructure parametrik + delegasi + MFA) → tinggal scope baru `recruitment/pr` (+ `recruitment/offer` di F4) | F1/F4 |
 | F3 Notification hub (preferensi, digest, batching) | SelectionNotifier per event (§5) | **SUDAH ADA** (notifications + email config + template) → perluas preferensi + digest | F7 |
 | F4 SLA engine per tahap + aging + eskalasi | sla_group ("Interview" 30 hari) + IncompleteEvaluation (§2.6, §2.8) | **ADOPT**: SLA per tahap + indikator aging + eskalasi notifikasi | F3 (dasar) → F7 (eskalasi) |
 
 ### 3.7 Modul G — Analytics & Insights
 
-| Fitur (HRX) | Bukti oranHR (analisa) | Keputusan RekanKerja | Fase |
+| Fitur (HRX) | Bukti RekanKerja (analisa) | Keputusan RekanKerja | Fase |
 |---|---|---|---|
 | G1 Dashboard real-time (funnel, requisition health, workload, SLA, source ROI) | RecruitmentActivity funnel bertingkat + ApplicantDemography chart (§2.3, §2.5) | **ADOPT** di atas engine chart existing; funnel dasar lebih awal | F4 (funnel) → F8 (penuh) |
 | G2 Metrics catalog (Time to Fill/Hire, konversi per tahap, cost per hire, offer acceptance rate, interview pass rate, source effectiveness, first-year attrition, quality-of-hire, diversity pass-through, requisition aging) | Kolom funnel Applied → … → Hired (§2.3) | **ADOPT** mayoritas; *first-year attrition & quality-of-hire* butuh data post-hire → F8 opsional (marked); diversity pass-through = adverse-impact dashboard (P4) | F8 |
@@ -251,17 +251,17 @@ Legenda keputusan: **ADOPT** (dibangun) · **ADAPT** (dibangun versi rasional) �
 
 ### 3.8 Modul H — Onboarding Handoff & Integration
 
-| Fitur (HRX) | Bukti oranHR (analisa) | Keputusan RekanKerja | Fase |
+| Fitur (HRX) | Bukti RekanKerja (analisa) | Keputusan RekanKerja | Fase |
 |---|---|---|---|
-| H1 Hire conversion (kandidat → karyawan, zero re-entry) | CandidateAppointment membuat Employee+Person+User+Role sekaligus (§2.7) — oranHR **double-entry manual** | **ADOPT + LEBIH BAIK**: tombol "Lanjutkan ke Onboarding" membuka **wizard onboarding existing ter-prefill** (nama, posisi, office, supervisor, employmentStatus dari PR) — diferensiator utama RekanKerja | F4 |
+| H1 Hire conversion (kandidat → karyawan, zero re-entry) | CandidateAppointment membuat Employee+Person+User+Role sekaligus (§2.7) — RekanKerja **double-entry manual** | **ADOPT + LEBIH BAIK**: tombol "Lanjutkan ke Onboarding" membuka **wizard onboarding existing ter-prefill** (nama, posisi, office, supervisor, employmentStatus dari PR) — diferensiator utama RekanKerja | F4 |
 | H2 Onboarding automation (checklist IT, BPJS, kontrak, payroll) | — | **SUDAH ADA** wizard + checklist → trigger otomatis saat Employee dibuat | F4 |
 | H3 Integration layer (REST + webhook HMAC + retry/DLQ + health) | — | **ADAPT**: webhook outbound (F7); API internal mengikuti konvensi `/api/rekankerja/...`; *health dashboard* versi ringkas | F7 |
 
 ### 3.9 Modul I — Compliance, Security & Trust (UU PDP-grade)
 
-| Fitur (HRX) | Bukti oranHR (analisa) | Keputusan RekanKerja | Fase |
+| Fitur (HRX) | Bukti RekanKerja (analisa) | Keputusan RekanKerja | Fase |
 |---|---|---|---|
-| I1 Consent management (granular, versi, withdrawal) | — (demo oranHR plaintext PII — analisa §6 mencatat RekanKerja unggul) | **ADOPT**: consent saat input/apply (F2) → ledger lengkap + withdrawal (F9) | F2 → F9 |
+| I1 Consent management (granular, versi, withdrawal) | — (demo RekanKerja plaintext PII — analisa §6 mencatat RekanKerja unggul) | **ADOPT**: consent saat input/apply (F2) → ledger lengkap + withdrawal (F9) | F2 → F9 |
 | I2 Data subject requests (akses/ekspor/hapus + SLA) | — | **ADOPT** (workflow internal HR dengan audit) | F9 |
 | I3 Retention policy (anonymize rejected 12/24 bln) | keep-on-file 12 bln → Outdated (§2.5) | **ADOPT**: Outdated otomatis (F2) → **anonimisasi otomatis** pasca retensi, kecuali talent pool dengan consent aktif | F2 → F9 |
 | I4 Audit trail PII (immutable, exportable) | ActivityLog existing + golid/golversion optimistic lock (§3) | **SUDAH ADA** ActivityLog → perluas: log akses PII pelamar + export | F9 |
@@ -269,9 +269,9 @@ Legenda keputusan: **ADOPT** (dibangun) · **ADAPT** (dibangun versi rasional) �
 | I6 Security (enkripsi field, OWASP, rate limit, 2FA) | Plaintext di demo | **SUDAH ADA & UNGGUL** (field-crypto, masking per role, MFA) → terapkan ke PII pelamar + rate limit form publik | F2 dst. |
 | I7 Anonymization utility (analytics & AI training) | — | **ADOPT** | F9 |
 
-### 3.10 Fitur oranHR yang sengaja TIDAK diadopsi (keputusan tetap)
+### 3.10 Fitur RekanKerja yang sengaja TIDAK diadopsi (keputusan tetap)
 
-| Fitur oranHR | Alasan | Pengganti |
+| Fitur RekanKerja | Alasan | Pengganti |
 |---|---|---|
 | Engine psikotest online (5 instrumen + proctoring kamera, 14 halaman master) | Sangat berat, niche, risiko privasi tinggi (kamera kandidat) | Catat hasil tes manual + upload laporan (F3); bila suatu saat online → fase tersendiri (BACKLOG) |
 | Portal akun pelamar (password + aktivasi) | Perluasaan permukaan serangan & PII; nilai MVP rendah | Form publik anonim + email konfirmasi di **aplikasi terpisah** Portal Kandidat (§2.0, F2); portal self-service → BACKLOG (di aplikasi portal) |
@@ -325,7 +325,7 @@ SlaGroup
 // + kolom baru: replacedEmployeeId String? (replacement req ↔ alasan attrition)
 
 // ── F2: consent & staging publik (HRX I1, C1-lite) ─────────────────────────
-model PublicApplication {          // staging form publik (padanan ApplicantWeb oranHR)
+model PublicApplication {          // staging form publik (padanan ApplicantWeb RekanKerja)
   id            String   @id @default(cuid())
   jobOpeningId  String?
   status        String   @default("Pending")  // Pending|Verified|Rejected|Spam
@@ -415,10 +415,10 @@ model Offer {
 }
 // Approval offer → ApprovalStructure scope "recruitment/offer" (dimensi nilai/grade).
 
-// ── F5: plan & budget ringkas (padanan oranHR §2.1–2.2, versi rasional) ────
+// ── F5: plan & budget ringkas (padanan RekanKerja §2.1–2.2, versi rasional) ────
 model RecruitmentPlan {
   id             String   @id @default(cuid())
-  period         String                 // "2026" atau "2026-B" (sub-periode, konvensi oranHR)
+  period         String                 // "2026" atau "2026-B" (sub-periode, konvensi RekanKerja)
   positionId     String
   companyOfficeId String?
   initialTarget  Int      @default(0)   // (a)
@@ -644,11 +644,11 @@ GET/POST /api/rekankerja/ess/pr               GET  /api/rekankerja/ess/pr-to-app
 | **F9** | Compliance Hardening (UU PDP penuh) | HRX I | **M** |
 
 ```
-GELOMBANG 1 — CORE REKRUTMEN (setara + melampaui oranHR):
+GELOMBANG 1 — CORE REKRUTMEN (setara + melampaui RekanKerja):
 F0 ─► F1 PR+approval ─► F2 lowongan+pelamar+publik ─► F3 seleksi ─► F4 offer+appointment
      └► F5 ESS+plan+budget
      Nilai bisnis tercepat: F1+F2 (permintaan terkontrol + talent pool).
-     Titik unggul vs oranHR: F4 (onboarding tanpa double-entry) + dwibahasa + PII enkripsi.
+     Titik unggul vs RekanKerja: F4 (onboarding tanpa double-entry) + dwibahasa + PII enkripsi.
 
 GELOMBANG 2 — INTELLIGENCE & HARDENING (diferensiasi HRX):
 F6 AI ─► F7 otomasi+integrasi+e-sign ─► F8 analytics ─► F9 compliance
@@ -749,7 +749,7 @@ apply + window internal-first opsional per JO) + apply + MyEmpAppliedJobOpportun
 notifikasi; (2) **RecruitmentPlan ringkas** (6–8 kolom; formula a–h dihitung otomatis +
 rekonsiliasi PR: requested/fulfilled/unfulfilled) + `MysRecruitmentPlanning` ESS;
 (3) **RecruitmentBudget** (anggaran periode + realisasi agregat dari method cost + summary
-per JO/PR — padanan dua level oranHR); (4) **demografi pelamar** (chart existing) +
+per JO/PR — padanan dua level RekanKerja); (4) **demografi pelamar** (chart existing) +
 **segmen talent pool** sederhana (TalentPool + auto-saran "silver medalist": Passed tapi
 tidak di-appoint).
 **Acceptance**: karyawan ESS melihat & melamar lowongan internal → tercatat sebagai
@@ -849,7 +849,7 @@ pool; log akses PII bisa diexport.
 | D1 | Portal publik sejak awal? | **Ya — sebagai APLIKASI TERPISAH sejak F2** (`mini-services/candidate-portal/`, port 3010; domain produksi `karir.<perusahaan>` ≠ aplikasi utama — Amande men 1 §2.0). Form anonim + staging + verifikasi manual; versi portal akun self-service → backlog di aplikasi portal | HRX P3 "candidate = customer" mengangkat prioritas; user menegaskan pemisahan domain — portal TIDAK digabung ke aplikasi utama (tidak ada guest section route `/`) |
 | D2 | Anggaran rekrutmen di fase berapa? | Field di PR sejak F1; pelacakan & rekap di F5 | Nilai bisnis alur inti dulu (analisa), data tetap tertangkap sejak awal (HRX A5) |
 | D3 | Kandidat internal masuk? | **Ya, F3** | Rekomendasi analisa + selaras HRX A4 internal-first; modal Employee sudah ada |
-| D4 | Pola manpower plan? | Ringkas 6–8 kolom + rekonsiliasi otomatis (F5) | 24-kolom oranHR overkill (analisa §3.10) |
+| D4 | Pola manpower plan? | Ringkas 6–8 kolom + rekonsiliasi otomatis (F5) | 24-kolom RekanKerja overkill (analisa §3.10) |
 | D5 | Psikotest online? | **Tidak** (backlog) | Analisa §3.10 + HRX juga menyerahkannya ke adapter eksternal (D5) |
 | D6 | E-signature? | Ringkas OTP + typed di F7 (bukan F4) | Jangan menunda inti alur; HRX E2 tetap tercakup |
 | D7 | AI bila model tidak tersedia? | Mode `simulated` berlabel + fallback manual penuh | HRX P1/P2 + aturan agen §2.4 |
@@ -956,23 +956,23 @@ UU PDP No. 27/2022.
    formal mengikuti kebijakan klien (opsi TTE eksternal).
 6. Pelamar tidak punya akun di sistem (F0–F9) — identitas via email + nomor lamaran;
    portal kandidat = **aplikasi terpisah** (§2.0), akun pelamar = backlog di aplikasi portal.
-7. Sub-periode perencanaan mengikuti pola oranHR (`2026`, `2026-B`) — string bebas.
+7. Sub-periode perencanaan mengikuti pola RekanKerja (`2026`, `2026-B`) — string bebas.
 8. Dalam sandbox, verifikasi kualitas = protokol §8 (E2E browser terdokumentasi + lint);
    suite tes otomatis = standar engineering produksi (backlog D8).
 
 ## LAMPIRAN B — RUJUKAN ARTEFAK
 
-- `ANALISA-RECRUITMENT.md` — analisa lengkap modul Recruitment oranHR (60 halaman, data
+- `ANALISA-RECRUITMENT.md` — analisa lengkap modul Recruitment RekanKerja (60 halaman, data
   model inferensi §3, workflow §4, gap §6, skema dasar §7, bukti eksplorasi §11).
 - `upload/Recruitment.md` — master prompt HRX-RECRUIT asli (sumber kedua dokumen ini).
 - `.tmp-research/rec-*.png` (30 screenshot), `.tmp-research/rec-data/*.json` (50 ekstraksi
-  store ExtJS), `.tmp-research/vlm-*.json` — bukti eksplorasi oranHR.
+  store ExtJS), `.tmp-research/vlm-*.json` — bukti eksplorasi RekanKerja.
 - `PRD-HR-BASE.md` — konteks platform HR Base (master Employee/Position/Org/Approval).
 - `DEPLOY-RUNBOOK.md` — prosedur deploy & pemulihan lingkungan.
 - `worklog.md` — riwayat eksekusi (protokol pencatatan per fase).
 
 ---
 
-*Dokumen final ini disusun sebagai hasil kombinasi eksplisit kedua sumber (analisa oranHR +
+*Dokumen final ini disusun sebagai hasil kombinasi eksplisit kedua sumber (analisa RekanKerja +
 master prompt HRX-Recruit) atas permintaan user. Tidak ada baris kode aplikasi RekanKerja
 yang diubah dalam pembuatannya. Eksekusi dimulai dari F0 setelah "GO".*

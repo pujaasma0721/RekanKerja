@@ -430,8 +430,8 @@ export const SERVER_ERR_EN: Record<string, string> = {
   "Saldo medis karyawan belum digenerate untuk tahun ini":
     "The employee's medical balances have not been generated for this year",
   "Saldo tidak ditemukan": "Balance not found",
-  "Storno wajib menyertakan alasan (padanan Enter Reason oranHR)":
-    "A storno must include a reason (the equivalent of oranHR's Enter Reason)",
+  "Storno wajib menyertakan alasan (padanan Enter Reason RekanKerja)":
+    "A storno must include a reason (the equivalent of RekanKerja's Enter Reason)",
   "Tanggal klaim mendahului tanggal bergabung karyawan": "The claim date precedes the employee's join date",
   "Tanggal klaim tidak boleh di masa depan": "The claim date cannot be in the future",
   "Tanggal klaim tidak valid": "Invalid claim date",

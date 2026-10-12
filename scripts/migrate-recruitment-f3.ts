@@ -242,7 +242,7 @@ async function ensureF3Reference(db: ReturnType<typeof getTenantClient>): Promis
     notes.push(`template surat ${t.key}`);
   }
 
-  // 2) Psikotes minResultPass = 70 (padanan min_result_pass oranHR §2.6)
+  // 2) Psikotes minResultPass = 70 (padanan min_result_pass RekanKerja §2.6)
   const psiko = await db.selectionProcess.findUnique({ where: { code: "PSIKOTES" }, select: { id: true, minResultPass: true } });
   if (psiko && psiko.minResultPass == null) {
     await db.selectionProcess.update({ where: { id: psiko.id }, data: { minResultPass: 70 } });

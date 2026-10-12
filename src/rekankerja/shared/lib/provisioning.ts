@@ -436,7 +436,7 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
 
 /** Master rekrutmen + rantai tahap seleksi standar (idempoten per code). */
 export async function ensureRecruitmentReference(db: TenantDb): Promise<void> {
-  // Metode rekrutmen (padanan RecruitmentMethodDesc oranHR §2.8)
+  // Metode rekrutmen (padanan RecruitmentMethodDesc RekanKerja §2.8)
   const methods: { code: string; name: string; scope: string; sortOrder: number }[] = [
     { code: "IJP", name: "Internal Job Posting", scope: "Internal", sortOrder: 1 },
     { code: "MATCHING", name: "Matching Recommendation", scope: "Internal", sortOrder: 2 },
@@ -451,7 +451,7 @@ export async function ensureRecruitmentReference(db: TenantDb): Promise<void> {
     if (!before) await db.recruitmentMethod.create({ data: m });
   }
 
-  // Media advertensi (padanan AdMediaType oranHR)
+  // Media advertensi (padanan AdMediaType RekanKerja)
   const media: { code: string; name: string; sortOrder: number }[] = [
     { code: "KORAN", name: "Koran", sortOrder: 1 },
     { code: "PORTAL", name: "Portal Lowongan", sortOrder: 2 },
@@ -464,7 +464,7 @@ export async function ensureRecruitmentReference(db: TenantDb): Promise<void> {
     if (!before) await db.adMediaType.create({ data: m });
   }
 
-  // Pos biaya rekrutmen (padanan RecruitmentCostItem oranHR)
+  // Pos biaya rekrutmen (padanan RecruitmentCostItem RekanKerja)
   const costItems: { code: string; name: string; description: string; sortOrder: number }[] = [
     { code: "IKLAN", name: "Biaya Iklan", description: "Advertensi lowongan (media/portal)", sortOrder: 1 },
     { code: "FEE_AGENCY", name: "Fee Agency", description: "Fee konsultansi/penempatan vendor", sortOrder: 2 },
@@ -478,7 +478,7 @@ export async function ensureRecruitmentReference(db: TenantDb): Promise<void> {
     if (!before) await db.recruitmentCostItem.create({ data: m });
   }
 
-  // Skill (padanan Skill oranHR: "Bahasa Inggris (menulis)", "Others")
+  // Skill (padanan Skill RekanKerja: "Bahasa Inggris (menulis)", "Others")
   const skills: { code: string; name: string; sortOrder: number }[] = [
     { code: "INGGRIS_LISAN", name: "Bahasa Inggris (lisan)", sortOrder: 1 },
     { code: "INGGRIS_TULIS", name: "Bahasa Inggris (menulis)", sortOrder: 2 },
@@ -490,7 +490,7 @@ export async function ensureRecruitmentReference(db: TenantDb): Promise<void> {
     if (!before) await db.skill.create({ data: m });
   }
 
-  // Dokumen wajib pelamar (padanan RequirementDocument oranHR: CV & KTP mandatory)
+  // Dokumen wajib pelamar (padanan RequirementDocument RekanKerja: CV & KTP mandatory)
   const docs: { code: string; title: string; fileType: string; mandatory: boolean; sortOrder: number }[] = [
     { code: "CV", title: "Curriculum Vitae (CV)", fileType: "pdf,doc,docx", mandatory: true, sortOrder: 1 },
     { code: "KTP", title: "Kartu Tanda Penduduk (KTP)", fileType: "jpg,jpeg,png,pdf", mandatory: true, sortOrder: 2 },
@@ -531,7 +531,7 @@ export async function ensureRecruitmentReference(db: TenantDb): Promise<void> {
     if (!before) await db.evaluationScale.create({ data: m });
   }
 
-  // SLA group (padanan SLA Group oranHR: "Interview" 30 hari)
+  // SLA group (padanan SLA Group RekanKerja: "Interview" 30 hari)
   const slas: { code: string; name: string; days: number; sortOrder: number }[] = [
     { code: "ADMIN", name: "Administrasi", days: 7, sortOrder: 1 },
     { code: "PSIKOTES", name: "Psikotes", days: 14, sortOrder: 2 },
@@ -544,7 +544,7 @@ export async function ensureRecruitmentReference(db: TenantDb): Promise<void> {
     if (!before) await db.slaGroup.create({ data: m });
   }
 
-  // Katalog tahap seleksi standar (padanan Standard Selection Process oranHR
+  // Katalog tahap seleksi standar (padanan Standard Selection Process RekanKerja
   // §2.6) — rantai default F0: Interview HR → Psikotes → Interview User →
   // Offering → Medical. Per-tenant, dapat diedit (config-over-code P6).
   const selections: {
@@ -612,7 +612,7 @@ const F3_SCORECARD_SEED: { name: string; stageCode: string | null; description: 
 
 /** Referensi F3: minResultPass Psikotes + template scorecard default. */
 export async function ensureRecruitmentF3Reference(db: TenantDb): Promise<void> {
-  // Psikotes minResultPass = 70 (padanan min_result_pass oranHR §2.6)
+  // Psikotes minResultPass = 70 (padanan min_result_pass RekanKerja §2.6)
   const psiko = await db.selectionProcess.findUnique({ where: { code: "PSIKOTES" }, select: { id: true, minResultPass: true } });
   if (psiko && psiko.minResultPass == null) {
     await db.selectionProcess.update({ where: { id: psiko.id }, data: { minResultPass: 70 } });
