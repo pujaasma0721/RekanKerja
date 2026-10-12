@@ -425,6 +425,14 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
     await ensurePerfApprovalStructure(db);
   } catch { /* struktur unik per code — race tenant bootstrap aman diabaikan */ }
 
+  // P5-PERF — struktur approval merit nominal-tier + template surat hasil
+  // penilaian (tenant baru; tenant lama di-heal ensureMeritInfrastructure
+  // saat menu merit dibuka pertama kali).
+  try {
+    const { ensureMeritInfrastructure } = await import("@/rekankerja/performance/services/merit-service");
+    await ensureMeritInfrastructure(db);
+  } catch { /* struktur/template unik per code — race tenant bootstrap aman diabaikan */ }
+
   // F0-REC — master Rekrutmen + katalog tahap seleksi default (tenant baru).
   // Tenant existing di-heal scripts/migrate-recruitment-f0.ts via parity-runner
   // (seed identik — insert-only per code; lihat DEVELOPMENT-PLAN-RECRUITMENT.md §7 F0).

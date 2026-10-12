@@ -136,6 +136,7 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   "performance:results": [
     { key: "publish", label: "Mempublikasikan & menutup hasil", hint: "Publish ke ESS + tutup siklus hasil (Alur 7)" },
     { key: "appeal", label: "Memutuskan banding", hint: "Keputusan banding karyawan (jendela D6)" },
+    { key: "merit", label: "Usulan merit & penerapan", hint: "MeritRecommendation → approval nominal → payroll/PA + surat hasil + usul PIP (Alur 8)" },
   ],
   "performance:pip": [
     { key: "activate", label: "Mengaktifkan PIP", hint: "Aktivasi program perbaikan kinerja 30/60/90" },

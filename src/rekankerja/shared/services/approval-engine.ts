@@ -21,14 +21,16 @@ export type DbOrTx = TenantDb | Prisma.TransactionClient;
 
 // ============ konstanta domain ============
 
-export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal"] as const;
+export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal", "MeritRecommendation"] as const;
 export type ApprovalDocType = (typeof APPROVAL_DOC_TYPES)[number];
 
 /** docType yang jenjangnya bisa memakai syarat nominal (besaran). */
-export const AMOUNT_DOC_TYPES: ApprovalDocType[] = ["Travel", "Medical", "Loan", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal"];
+export const AMOUNT_DOC_TYPES: ApprovalDocType[] = ["Travel", "Medical", "Loan", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal", "MeritRecommendation"];
 // P4 — PerformanceAppraisal memakai amount sebagai FLAG (bukan nominal): 1 = rating
 // ekstrem (jenjang L3 Direktur aktif via min/max=1), 2 = normal. JANGAN tampilkan
 // amount ini sebagai rupiah di UI (docType bukan uang).
+// P5 — MeritRecommendation memakai amount sebagai NOMINAL RUPIAH ASLI (D12:
+// max(bonus, kenaikan)) — tier L2 Direktur aktif bila > Rp 10 jt (AS-MERIT-STD).
 
 export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   Leave: "Cuti (Leave)",
@@ -41,6 +43,7 @@ export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   RecruitmentPR: "Permintaan Karyawan (PR)",
   RecruitmentOffer: "Penawaran Kandidat (Offer)",
   PerformanceAppraisal: "Finalisasi Hasil Penilaian (Performance)",
+  MeritRecommendation: "Usulan Merit — Bonus & Kenaikan (Performance)",
 };
 
 export const APPROVER_TYPE_LABEL: Record<string, string> = {

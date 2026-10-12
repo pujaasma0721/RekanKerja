@@ -432,7 +432,7 @@ export async function buildLetterContext(
 export async function issueLetter(
   db: TenantDb,
   opts: {
-    category: "Disciplinary" | "PersonnelAction" | "EmployeeService";
+    category: "Disciplinary" | "PersonnelAction" | "EmployeeService" | "Performance";
     templateKey: string;
     employeeId: string;
     personnelActionId?: string | null;
@@ -440,6 +440,12 @@ export async function issueLetter(
     actorId?: string | null;
     /** keperluan surat layanan (Permintaan ESS / input HR saat terbit dari profil). */
     purpose?: string | null;
+    /** P5-PERF — kunci idempoten alternatif utk dokumen TANPA PA/disiplin
+     *  (disimpan di metaJson.sourceRef; surat sama tidak terbit dua kali). */
+    sourceRef?: string | null;
+    /** P5-PERF — token konteks tambahan (mis. appraisal_doc_no, final_score) —
+     *  menimpa konteks standar bila kuncinya sama. */
+    extraContext?: Record<string, string>;
   },
 ): Promise<IssuedLetter> {
   const { category, templateKey, employeeId } = opts;
@@ -454,7 +460,7 @@ export async function issueLetter(
     );
   }
 
-  // 2. idempoten per dokumen sumber + template
+  // 2. idempoten per dokumen sumber + template (PA / disiplin / sourceRef P5)
   const sourceFilter = opts.personnelActionId
     ? { personnelActionId: opts.personnelActionId, templateKey }
     : opts.disciplinaryRecordId
@@ -463,6 +469,26 @@ export async function issueLetter(
   if (sourceFilter) {
     const existing = await db.letterDocument.findFirst({
       where: sourceFilter,
+      include: { employee: { select: { fullName: true } } },
+      orderBy: { issuedAt: "desc" },
+    });
+    if (existing) {
+      const meta = parseMeta(existing.metaJson);
+      return {
+        id: existing.id,
+        refNo: existing.refNo,
+        body: existing.body,
+        subject: existing.subject,
+        templateName: meta.templateName ?? existing.templateKey,
+        employeeName: existing.employee.fullName,
+        issuedAt: existing.issuedAt,
+      };
+    }
+  }
+  // 2b. P5-PERF — idempoten via metaJson.sourceRef (surat modul tanpa kolom sumber)
+  if (opts.sourceRef) {
+    const existing = await db.letterDocument.findFirst({
+      where: { templateKey: opts.templateKey, metaJson: { contains: `"sourceRef":"${opts.sourceRef}"` } },
       include: { employee: { select: { fullName: true } } },
       orderBy: { issuedAt: "desc" },
     });
@@ -497,7 +523,7 @@ export async function issueLetter(
   const countSame = await db.letterDocument.count({
     where: { category, issuedAt: { gte: yearStart, lt: yearEnd } },
   });
-  const code = category === "Disciplinary" ? "HR-DIS" : category === "PersonnelAction" ? "HR-PA" : "HR-ES";
+  const code = category === "Disciplinary" ? "HR-DIS" : category === "PersonnelAction" ? "HR-PA" : category === "Performance" ? "HR-PF" : "HR-ES";
   const refNo = `${String(countSame + 1).padStart(3, "0")}/${code}/${ROMAN[now.getMonth()]}/${year}`;
 
   // 4. render snapshot + simpan + jejak aktivitas
@@ -509,6 +535,7 @@ export async function issueLetter(
     letterNo: refNo,
     purpose: opts.purpose ?? null,
   });
+  if (opts.extraContext) Object.assign(ctx, opts.extraContext); // P5-PERF — token tambahan menimpa standar
   const body = renderLetterBody(template.body, ctx);
 
   const doc = await db.letterDocument.create({
@@ -526,6 +553,7 @@ export async function issueLetter(
         templateKey,
         officeId: employee.companyOfficeId,
         ...(opts.purpose?.trim() ? { purpose: opts.purpose.trim() } : {}),
+        ...(opts.sourceRef ? { sourceRef: opts.sourceRef } : {}),
       }),
       issuedAt: now,
       createdById: opts.actorId ?? null,
@@ -555,11 +583,11 @@ export async function issueLetter(
 }
 
 /** Parse metaJson LetterDocument dengan aman. */
-export function parseMeta(metaJson: string | null): { templateName?: string; templateKey?: string; officeId?: string; purpose?: string } {
+export function parseMeta(metaJson: string | null): { templateName?: string; templateKey?: string; officeId?: string; purpose?: string; sourceRef?: string } {
   if (!metaJson) return {};
   try {
     const parsed = JSON.parse(metaJson) as Record<string, unknown>;
-    return (parsed && typeof parsed === "object" ? parsed : {}) as { templateName?: string; templateKey?: string; officeId?: string; purpose?: string };
+    return (parsed && typeof parsed === "object" ? parsed : {}) as { templateName?: string; templateKey?: string; officeId?: string; purpose?: string; sourceRef?: string };
   } catch {
     return {};
   }

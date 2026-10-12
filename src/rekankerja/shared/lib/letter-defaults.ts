@@ -20,7 +20,7 @@
 //   · UI Template Surat (daftar token + tombol "Kembalikan ke bawaan")
 // =====================================================================
 
-export type LetterCategory = "Disciplinary" | "PersonnelAction" | "EmployeeService" | "Recruitment";
+export type LetterCategory = "Disciplinary" | "PersonnelAction" | "EmployeeService" | "Recruitment" | "Performance";
 
 export interface LetterTemplateDefault {
   key: string;
@@ -923,6 +923,40 @@ Demikian kami sampaikan. Kami mengucapkan sukses bagi perjalanan karier Saudara/
 {{signatory_name}}
 {{signatory_title}}`,
   },
+  // ---------------- PENILAIAN KINERJA (P5-PERF — §32 alur 8) ----------------
+  {
+    key: "PERF_RESULT",
+    category: "Performance",
+    name: "Surat Hasil Penilaian Kinerja",
+    description: "Hasil akhir penilaian kinerja periodik (skor + rating) — diterbitkan dari menu Performance · Hasil & 9-Box.",
+    subject: "Surat Hasil Penilaian Kinerja",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Hasil Penilaian Kinerja Periode {{period_label}}
+
+Kepada Yth.
+Bapak/Ibu {{employee_name}}
+NIK {{employee_no}}
+{{employee_position}} — {{employee_org_unit}}
+
+Dengan ini kami sampaikan hasil Penilaian Kinerja Anda untuk periode {{period_label}}, sebagai berikut:
+
+    Dokumen penilaian : {{appraisal_doc_no}}
+    Skor akhir       : {{final_score}}
+    Rating           : {{final_rating}} — {{final_rating_label}}
+
+Hasil tersebut merupakan rekapitulasi capaian KPI, penilaian kompetensi, dan masukan 360 derajat sepanjang periode penilaian, yang telah melalui proses kalibrasi antar-atasan. Apabila terdapat hal yang ingin didiskusikan lebih lanjut, silakan menghubungi HRD atau atasan langsung Anda.
+
+Demikian surat ini kami sampaikan. Atas perhatian dan kerja sama Anda sepanjang periode penilaian, kami ucapkan terima kasih.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
 ];
 
 // ---------------- KATALOG PLACEHOLDER (untuk editor + mesin render) ----------------
@@ -962,6 +996,16 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholderGroup[] = [
       { token: "employee_level", desc: "Level jabatan saat ini" },
       { token: "employee_status", desc: "Status kepegawaian (Permanent/Contract/…)" },
       { token: "join_date", desc: "Tanggal bergabung" },
+    ],
+  },
+  {
+    group: "Penilaian Kinerja (P5)",
+    tokens: [
+      { token: "appraisal_doc_no", desc: "Nomor dokumen penilaian (PER-…)" },
+      { token: "final_score", desc: "Skor akhir penilaian" },
+      { token: "final_rating", desc: "Rating akhir (1–5)" },
+      { token: "final_rating_label", desc: "Label rating (mis. Baik)" },
+      { token: "period_label", desc: "Label periode penilaian (mis. 2026)" },
     ],
   },
   {
