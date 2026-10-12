@@ -392,6 +392,10 @@ const STEPS: Step[] = [
   // PLAN-LINK — tautan eksplisit MPP (RecruitmentPlan) ↔ PR: kolom
   // PersonnelRequisition.planId + index + FK (monitoring capaian MPP dari PR).
   { key: "plan-link", label: "PLAN-LINK — kolom PersonnelRequisition.planId (tautan eksplisit MPP↔PR)", run: (s) => import("../../../../scripts/migrate-plan-link").then((m) => m.main(s)) },
+  // P0-PERF (DEVELOPMENT-PLAN-PERFORMANCE.md §20 P0) — 20 tabel modul
+  // Performance + master default (KPI starter-pack 40, kompetensi 12,
+  // skala rating, template bobot, merit matrix, setting).
+  { key: "performance-p0", label: "P0 Performance — 20 tabel + master default (KPI lib, kompetensi, skala, template, merit)", run: (s) => import("../../../../scripts/migrate-performance-p0").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -712,7 +716,29 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (planLinkOk < schemas.length)
       reasons.push(`${schemas.length - planLinkOk} tenant tanpa kolom PersonnelRequisition.planId (PLAN-LINK — tautan MPP↔PR)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk, recCandOk, recOfferOk, recPlanOk, recAiOk, recF7Ok, recF8Ok, recF9Ok, planLinkOk) };
+    // P0-PERF — tabel master KpiDefinition (pustaka KPI modul Performance)
+    // belum ada = gap (20 tabel + seed master dibuat step performance-p0).
+    const perfKpiOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'KpiDefinition' AND table_schema = ANY($1::text[])`,
+    );
+    if (perfKpiOk < schemas.length)
+      reasons.push(`${schemas.length - perfKpiOk} tenant tanpa tabel KpiDefinition (P0 — modul Performance)`);
+    // P0-PERF — tabel PerformanceCycle (siklus penilaian) belum ada = gap.
+    const perfCycleOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'PerformanceCycle' AND table_schema = ANY($1::text[])`,
+    );
+    if (perfCycleOk < schemas.length)
+      reasons.push(`${schemas.length - perfCycleOk} tenant tanpa tabel PerformanceCycle (P0 — modul Performance)`);
+    // P0-PERF — AMANDEMEN 2: kolom versioning pustaka (§18.9) belum ada = gap.
+    const perfVerOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'KpiDefinition' AND column_name = 'versionNo' AND table_schema = ANY($1::text[])`,
+    );
+    if (perfVerOk < schemas.length)
+      reasons.push(`${schemas.length - perfVerOk} tenant tanpa kolom KpiDefinition.versionNo (P0 AMANDEMEN 2 — versioning pustaka)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk, recCandOk, recOfferOk, recPlanOk, recAiOk, recF7Ok, recF8Ok, recF9Ok, planLinkOk, perfKpiOk, perfCycleOk, perfVerOk) };
   } finally {
     await c.end();
   }
@@ -778,4 +804,6 @@ export async function runParityPipeline(log: (line: string) => void = (l) => con
     running = false;
     await releaseParityLock(lock);
   }
-}
+}
+
+

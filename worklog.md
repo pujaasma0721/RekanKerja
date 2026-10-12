@@ -6621,3 +6621,28 @@ Stage Summary:
 - AMANDEMEN 3 selesai: 2 permintaan user terpetakan penuh — ⑧ AI Assist kolom ulasan (§18.11, D20: compose-only dari poin penilai, server-side z-ai-web-dev-sdk, draf editable + flag aiAssisted, rate-limit 20/jam/user, payload minimal PDP-safe) ⑨ estimasi dampak real-time bonus/kenaikan di layar atasan (§18.12 + formula §16, D21: MeritMatrix aktif, % & bulan tanpa nominal Rp, karyawan tidak melihat, stateless + ActivityLog).
 - Prinsip desain dijaga: AI asisten menulis bukan pengganti menilai (§12-9); konsekuensi transparan tapi estimasi bukan janji (§12-10); human-in-the-loop semua jalur (auto-apply AI DILARANG — guard 32); hemat arsitektur (0 tabel/endpoint/halaman baru — hanya 4 kolom + 2 action verbs); anonimitas 360 utuh; estimator konsisten dengan Alur 8 (satu sumber kebenaran matriks merit).
 - Tetap DOKUMEN MURNI — Register Keputusan kini D1-D21; menunggu persetujuan/eksekusi user. Catatan: pesan user memuat "3." kosong — slot cadangan dicatat di header dokumen.
+
+---
+Task ID: PERF-P0
+Agent: main (Z.ai Code)
+Task: P0 Performance — Fondasi & Master (DEVELOPMENT-PLAN-PERFORMANCE.md §20 P0): eksekusi → test → perbaiki → audit → perbaiki → selesai
+
+Work Log:
+- prisma/schema-tenant.prisma: +20 model Performance (§15 lengkap: setting, KpiDefinition/Competency ber-versi AM2 §18.9, RatingScale, PerformanceTemplate+Item, MeritMatrix, PerformanceCycle, AppraisalRecord, AppraisalKpi ber-provenance AM1, AppraisalCompetencyScore ber-flag AI AM3, CheckIn, Feedback360+Answer, CalibrationSession+Decision, MeritRecommendation vault, PipPlan+Checkpoint, ProbationEvaluation) + 5 relasi balik Employee (PerfEmployee/PerfManager/F360Reviewer/PipEmployee/ProbEmployee); bun run db:generate + tenant:ddl; bump cache tag tenant-db F9REC→PERF0.
+- scripts/migrate-performance-p0.ts (pola F0-REC): CREATE TABLE IF NOT EXISTS ×20 + index/FK idempoten + seed master (40 KPI 4 perspektif BSC termasuk 6 binding auto-source §16, 12 kompetensi 5-level, skala 5, template 2, merit matrix 1, setting 1) — dijalankan 2× idempoten di 3 tenant.
+- parity-runner.ts: step "performance-p0" (append-only) + 3 gap check baru (KpiDefinition, PerformanceCycle, KpiDefinition.versionNo) + readySchemas chain.
+- provisioning.ts: ensurePerformanceReference(db) dipanggil seedTenantReference (tenant baru); seed data SATU sumber di src/rekankerja/performance/services/perf-defaults.ts (hindari duplikasi F0).
+- Menu/rail: store.ts (+performance ModuleId/SectionId/label/default), app-shell.tsx (MODULES Performance hex #d946ef ikon Target + PERFORMANCE_NAV 12 menu 7 grup §14.2 + navOfModule + defaultSectionOfModuleFor), page.tsx (dynamic import + switch).
+- MENU_OPS menu-perms.ts: performance:* (cycles enroll/openGoal/advance/nudge; goals submit/copy/import/revise; appraisals submitManager/pullAuto/importActuals/aiCompose/previewImpact; calibration decide/session; results publish/appeal; pip activate/checkpoint/outcome; probation decide; masters newVersion/archive).
+- API: src/rekankerja/performance/api/masters.ts (GET list by kind + counts + historyOf; POST upsert/newVersion/archive; DELETE guard rujukan §35-28) + settings.ts (GET/PATCH validasi); route re-export di src/app/api/rekankerja/performance/{masters,settings}.
+- Service: perf-master-service.ts (upsert minor-only utk definitif; newVersion → Superseded+supersededById; arsip lembut+unarchive; delete guard rujukan AppraisalKpi/AppraisalCompetencyScore/Feedback360Answer/template/merit) + perf-service.ts (nextPerfDocNo PER|PRB|PIP|MER per PerformanceSetting, parseWeights, ratingOfScore §16).
+- UI: performance-module.tsx (12 view; 9 placeholder fase informatif), performance-overview.tsx (4 kartu KPI + peta menu fase), performance-masters.tsx (5 tab, badge AUTO, chip versi + riwayat versi dialog, mode "Simpan sebagai versi baru" dengan field definitif terbuka + tahun berlaku + catatan wajib), performance-settings.tsx.
+- TEST (agent-browser, login hrd@mii.co.id): rail Performance muncul; nav 7 grup; overview render; masters 5 tab 40/12/5/2/1 baris; pencarian q API ✓; E2E VERSIONING: CUS-AKURASI-ORDER v2 (unit % → "poin akurasi", tahun 2027, catatan) → v1 otomatis Superseded tanpa tombol New version/Archive; dialog riwayat menampilkan v2+v1+catatan; settings GET/PATCH ✓; dwibahasa EN+ID ✓; mobile 375×812 no h-scroll ✓; data uji v2 direvert (SQL), v1 dipulihkan Active.
+- PERBAIKI: relasi implisit Prisma (performanceCycleId/calibrationSessionId) → eksplisit cycle/session; UX versioning: field definitif kini TERBUKA di mode versi baru (sebelumnya disabled).
+- AUDIT: tsc 0 error; lint 0 error/6 warning baseline; audit-bilingual TOTAL_GAP naik 209→149 (perbaiki: COMP_SEED d tuple→objek properti preseden letter-defaults, COMPETENCY_LEVEL_LABELS+_EN sibling R4, opsi→triple R2 [value,ID,EN], CORE_TEMPLATE_ITEMS derive dari COMP_SEED, PERF_CONST dihapus dead-code, MASTER_KINDS→Object.keys, placeholder t()-wrap); migrasi re-run idempoten; dev.log bersih.
+
+Stage Summary:
+- P0 SELESAI. Fondasi modul Performance aktif: 20 tabel di 3 tenant + parity step; master CRUD + versioning pustaka §18.9 + riwayat versi berfungsi E2E; menu rail 12 item; settings; penomoran PER/PRB/PIP/MER siap.
+- Gate §21 terpenuhi: tsc 0 / lint baseline / bilingual 149 / parity hijau / E2E ID+EN / mobile.
+- Catatan lingkungan: kontainer 4GB RAM → OOM-kill next-server saat kompilasi berat (watch-dev.sh auto-restart; browser agent ditutup saat coding untuk ruang memori).
+- Siap P1 (Siklus & Target: cycle CRUD + gerbang fase + enroll + KPI Builder §18.1 + salin periode §18.2 + impor Excel §18.5 + Command Center §18.8 + autosave/progress bar §18.7).

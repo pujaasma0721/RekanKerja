@@ -40,7 +40,7 @@ import {
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
   MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
-  UsersRound, UserRoundCheck, Handshake, PieChart, Settings,
+  UsersRound, UserRoundCheck, Handshake, PieChart, Settings, Target, ClipboardPen, Gauge, GitBranch, NotebookPen, MessagesSquare, CalendarCheck2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -91,6 +91,10 @@ export const MODULES: ModuleMeta[] = [
   // F0-REC (DEVELOPMENT-PLAN-RECRUITMENT.md) — modul Rekrutmen: PR → lowongan
   // → talent pool → seleksi → appointment→onboarding. F0: master + overview.
   { id: "recruitment", label: "Recruitment", short: "Rekrutmen", desc: "Permintaan karyawan, seleksi & pengangkatan", icon: UserRoundSearch, ready: true, hex: "#ea580c" },
+  // P0-PERF (DEVELOPMENT-PLAN-PERFORMANCE.md) — modul Performance: siklus
+  // penilaian, KPI & target, check-in, penilaian, kalibrasi, merit, PIP,
+  // evaluasi masa percobaan. P0: master + menu + settings.
+  { id: "performance", label: "Performance", short: "Kinerja", desc: "Penilaian kinerja, KPI & siklus", icon: Target, ready: true, hex: "#d946ef" },
 ];
 
 export const SETTINGS_META = {
@@ -322,6 +326,38 @@ const RECRUITMENT_NAV: NavGroup[] = [
   ] },
 ];
 
+// P0-PERF — pengelompokan mengikuti pola modul lain (§14.2): Ringkasan
+// mandiri + SIKLUS / PENILAIAN / TINDAK LANJUT + Master Kinerja, Laporan,
+// Pengaturan. Label grup & item dwibahasa via BASE_EN (t(label)).
+const PERFORMANCE_NAV: NavGroup[] = [
+  { section: "performance", children: [
+    { id: "overview", label: "Ringkasan", icon: LayoutDashboard },
+  ] },
+  { section: "performance", label: "Siklus", children: [
+    { id: "cycles", label: "Siklus Penilaian", icon: ClipboardPen },
+    { id: "goals", label: "Target & KPI", icon: Target },
+    { id: "checkins", label: "Check-in", icon: MessagesSquare },
+  ] },
+  { section: "performance", label: "Penilaian", children: [
+    { id: "appraisals", label: "Penilaian", icon: NotebookPen },
+    { id: "calibration", label: "Kalibrasi", icon: Gauge },
+    { id: "results", label: "Hasil & 9-Box", icon: BarChart3 },
+  ] },
+  { section: "performance", label: "Tindak Lanjut", children: [
+    { id: "pip", label: "PIP", icon: Waypoints },
+    { id: "probation", label: "Evaluasi Masa Percobaan", icon: CalendarCheck2 },
+  ] },
+  { section: "performance", label: "Master Kinerja", children: [
+    { id: "masters", label: "Master Kinerja", icon: Boxes },
+  ] },
+  { section: "performance", label: "Laporan", children: [
+    { id: "reports", label: "Laporan", icon: BarChart3 },
+  ] },
+  { section: "performance", label: "Pengaturan", children: [
+    { id: "settings", label: "Pengaturan", icon: Settings },
+  ] },
+];
+
 // Pengaturan sistem — cross-module, tampil di panel semua modul + rail bawah.
 export const SETTINGS_NAV: NavGroup[] = [
   { section: "settings", label: "Pengaturan Sistem", children: [
@@ -353,6 +389,7 @@ export function navOfModule(m: ModuleId): NavGroup[] {
     case "medical": return MEDICAL_NAV;
     case "whistleblowing": return WHISTLEBLOW_NAV;
     case "recruitment": return RECRUITMENT_NAV;
+    case "performance": return PERFORMANCE_NAV;
     default: return HR_NAV;
   }
 }
@@ -1340,6 +1377,7 @@ function defaultSectionOfModuleFor(m: ModuleId): SectionId {
     case "travel": return "travel";
     case "medical": return "medical";
     case "recruitment": return "recruitment";
+    case "performance": return "performance";
     default: return "dashboard";
   }
 }

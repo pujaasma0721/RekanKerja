@@ -49,20 +49,20 @@ model CompanyOffice {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  company            Company              @relation(fields: [companyId], references: [id])
+  company            Company                @relation(fields: [companyId], references: [id])
   workLocations      WorkLocation[]
-  employees          Employee[]           @relation("EmployeeOffice")
+  employees          Employee[]             @relation("EmployeeOffice")
   assignments        EmployeeAssignment[]
-  approvalStructures ApprovalStructure[]  @relation("StructureOffice")
-  accessRules        DataAccessRule[]     @relation("AccessRuleOffice")
+  approvalStructures ApprovalStructure[]    @relation("StructureOffice")
+  accessRules        DataAccessRule[]       @relation("AccessRuleOffice")
   minimumWages       MinimumWage[]
   prs                PersonnelRequisition[] @relation("PrOffice")
 
   // F5-REC — baris rencana rekrutmen (RecruitmentPlan) per kantor
-  recruitmentPlans   RecruitmentPlan[]  @relation("PlanOffice")
+  recruitmentPlans RecruitmentPlan[] @relation("PlanOffice")
 
   // F4-REC — rekrutmen: penempatan kantor pada surat pengangkatan kandidat
-  apptAppointments   CandidateAppointment[] @relation("ApptOffice")
+  apptAppointments CandidateAppointment[] @relation("ApptOffice")
 }
 
 // Lokasi kerja (site/plant) — dimensi penempatan & kriteria approval.
@@ -92,7 +92,7 @@ model WorkLocation {
   openings           JobOpening[]         @relation("OpeningLocation")
 
   // F4-REC — rekrutmen: penempatan lokasi kerja pada pengangkatan kandidat
-  apptAppointments   CandidateAppointment[] @relation("ApptLocation")
+  apptAppointments CandidateAppointment[] @relation("ApptLocation")
 }
 
 // Level jabatan (Staff/Supervisor/Manager/Director…) — master terpisah dari Grade.
@@ -120,18 +120,18 @@ model OrgUnit {
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())
 
-  parent             OrgUnit?             @relation("OrgTree", fields: [parentId], references: [id])
-  children           OrgUnit[]            @relation("OrgTree")
-  company            Company              @relation(fields: [companyId], references: [id])
+  parent             OrgUnit?               @relation("OrgTree", fields: [parentId], references: [id])
+  children           OrgUnit[]              @relation("OrgTree")
+  company            Company                @relation(fields: [companyId], references: [id])
   positions          Position[]
   assignments        EmployeeAssignment[]
-  employees          Employee[]           @relation("EmployeeOrgUnit")
-  approvalStructures ApprovalStructure[]  @relation("StructureOrgUnit")
-  accessRules        DataAccessRule[]     @relation("AccessRuleOrgUnit")
+  employees          Employee[]             @relation("EmployeeOrgUnit")
+  approvalStructures ApprovalStructure[]    @relation("StructureOrgUnit")
+  accessRules        DataAccessRule[]       @relation("AccessRuleOrgUnit")
   prs                PersonnelRequisition[] @relation("PrOrgUnit")
 
   // F4-REC — rekrutmen: unit kerja pada surat pengangkatan kandidat
-  apptAppointments   CandidateAppointment[] @relation("ApptOrgUnit")
+  apptAppointments CandidateAppointment[] @relation("ApptOrgUnit")
 }
 
 // ============ POSITION DEFINITION ============
@@ -317,47 +317,56 @@ model Employee {
   approvalStepsAsApprover   ApprovalStep[]           @relation("StepApproverEmployee")
 
   // F1-REC — modul Rekrutmen: PR yang diajukan / diampu officer / penggantian
-  prsRequested       PersonnelRequisition[] @relation("PrRequester")
-  prsAsOfficer       PersonnelRequisition[] @relation("PrOfficer")
-  prsAsReplacement   PersonnelRequisition[] @relation("PrReplacement")
+  prsRequested     PersonnelRequisition[] @relation("PrRequester")
+  prsAsOfficer     PersonnelRequisition[] @relation("PrOfficer")
+  prsAsReplacement PersonnelRequisition[] @relation("PrReplacement")
 
   // F2-REC — rekrutmen: penyusun JobOpportunity / perujuk pelamar / verifikator
   // lamaran publik staging.
-  josPrepared        JobOpportunity[]       @relation("JoPreparer")
-  applicantsReferred Applicant[]            @relation("ApplicantReferrer")
-  publicAppsVerified PublicApplication[]    @relation("PaVerifier")
+  josPrepared        JobOpportunity[]    @relation("JoPreparer")
+  applicantsReferred Applicant[]         @relation("ApplicantReferrer")
+  publicAppsVerified PublicApplication[] @relation("PaVerifier")
 
   // F3-REC — seleksi: pencatat nominasi kandidat / kandidat internal /
   // evaluator tahap / pengisi scorecard.
   candidatesNominated  JobCandidate[]           @relation("CandidateNominator")
-  candidatesAsInternal  JobCandidate[]           @relation("CandidateInternalEmployee")
-  stepsPerformed        CandidateSelectionStep[] @relation("StepPerformer")
-  scorecardsEvaluated   CandidateScorecard[]     @relation("ScorecardEvaluator")
+  candidatesAsInternal JobCandidate[]           @relation("CandidateInternalEmployee")
+  stepsPerformed       CandidateSelectionStep[] @relation("StepPerformer")
+  scorecardsEvaluated  CandidateScorecard[]     @relation("ScorecardEvaluator")
 
   // F4-REC — pengangkatan: atasan kandidat yang diangkat / karyawan hasil
   // rekrutmen (backlink Employee dari continueToOnboarding).
-  apptSupervised      CandidateAppointment[]    @relation("ApptSupervisor")
-  apptEmployees       CandidateAppointment[]    @relation("ApptEmployee")
+  apptSupervised CandidateAppointment[] @relation("ApptSupervisor")
+  apptEmployees  CandidateAppointment[] @relation("ApptEmployee")
 
   // F4-REC — offer yang dibuat karyawan ini (jejak pembuat)
-  offersCreated       CandidateOffer[]          @relation("OfferCreator")
+  offersCreated CandidateOffer[] @relation("OfferCreator")
 
   // F5-REC — lamaran lowongan internal via ESS (MyJobOpportunity §2.10)
-  empJobApplications  EmpJobApplication[]       @relation("EmpJobApplied")
+  empJobApplications EmpJobApplication[] @relation("EmpJobApplied")
 
   // F6-REC — AI: verifikator hasil parsing CV / pemicu skor AI kandidat
-  cvParsesVerified   CvParseResult[]          @relation("CvParseVerifier")
-  aiScoresGenerated  CandidateAiScore[]       @relation("AiScoreGenerator")
+  cvParsesVerified  CvParseResult[]    @relation("CvParseVerifier")
+  aiScoresGenerated CandidateAiScore[] @relation("AiScoreGenerator")
 
   // F7-REC — e-sign: peminta tanda tangan kandidat / preferensi notifikasi
-  esignRequested     EsignRequest[]           @relation("EsignRequester")
-  notificationPref   NotificationPref?         @relation("NotificationPrefEmployee")
+  esignRequested   EsignRequest[]    @relation("EsignRequester")
+  notificationPref NotificationPref? @relation("NotificationPrefEmployee")
 
   // F8-REC — analitik: tampilan laporan tersimpan milik karyawan ini
-  savedReportViews   SavedReportView[]         @relation("SavedReportViewOwner")
+  savedReportViews SavedReportView[] @relation("SavedReportViewOwner")
 
   // F9-REC — compliance: penangan DSR pelamar
-  dsrHandled       DataSubjectRequest[]      @relation("DsrHandler")
+  dsrHandled DataSubjectRequest[] @relation("DsrHandler")
+
+  // P0-PERF — modul Performance (DEVELOPMENT-PLAN-PERFORMANCE.md §15):
+  // karyawan yang dinilai / atasan penilai snapshot / reviewer 360 /
+  // peserta PIP / karyawan masa percobaan.
+  perfAppraisals   AppraisalRecord[]     @relation("PerfEmployee")
+  perfManaged      AppraisalRecord[]     @relation("PerfManager")
+  f360ReviewsGiven Feedback360[]         @relation("F360Reviewer")
+  pipPlans         PipPlan[]             @relation("PipEmployee")
+  probationEvals   ProbationEvaluation[] @relation("ProbEmployee")
 
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
@@ -1221,7 +1230,7 @@ model Attachment {
   uploadedBy  String?
   createdAt   DateTime @default(now())
 
-  employeeDocuments EmployeeDocument[]
+  employeeDocuments  EmployeeDocument[]
   // F2-REC — dokumen pelamar (ApplicantDocument.attachment)
   applicantDocuments ApplicantDocument[] @relation("ApplicantDocAttachment")
 
@@ -1622,15 +1631,15 @@ model ScheduleAssignment {
 
 // Log presensi mentah — clock in/out manual/web (siap diperluas mesin & mobile).
 model AttendanceClockLog {
-  id         String   @id @default(cuid())
-  employeeId String
-  timestamp  DateTime
-  direction  String   @default("IN") // IN|OUT
-  source     String   @default("Manual") // Manual|Web|Mobile|Machine
-  note       String?
+  id           String   @id @default(cuid())
+  employeeId   String
+  timestamp    DateTime
+  direction    String   @default("IN") // IN|OUT
+  source       String   @default("Manual") // Manual|Web|Mobile|Machine
+  note         String?
   // T7-ESS: posisi clock via web/mobile (opsional — geolocation presensi).
-  latitude   Float?
-  longitude  Float?
+  latitude     Float?
+  longitude    Float?
   // Task 100 F1 (G13/G22/G30): bukti & verifikasi identitas saat clock —
   // selfieUrl = path relatif storage foto selfie; deviceId = fingerprint
   // perangkat klien; faceVerified = hasil perbandingan VLM vs foto referensi;
@@ -1640,7 +1649,7 @@ model AttendanceClockLog {
   deviceId     String?
   faceVerified Boolean?
   anomalyNotes String?
-  createdAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
@@ -1800,7 +1809,7 @@ model AttendanceRule {
   fatigueMinRestHours              Int      @default(12)
   // Task 100 F1 (G16/G8-device) — API key perangkat presensi (device punch,
   // agen D): "ovdev_{slug}_{hex48}"; dibuat op regenDeviceKey (GET disembunyikan).
-  deviceApiKey                    String?
+  deviceApiKey                     String?
   // Task 100 F1 (G29) — ambang burnout: rata-rata jam lembur per bulan (3 bulan
   // rolling) yang menghasilkan flag pada laporan anomali.
   burnoutOtHoursMonthly            Int      @default(40)
@@ -1840,7 +1849,7 @@ model OpenShiftClaim {
   createdAt  DateTime  @default(now())
 
   post     OpenShiftPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([postId, employeeId])
 }
@@ -1865,32 +1874,32 @@ model HolidayDate {
 // Master jenis cuti — padanan "Leave Type" (LeaveTypeDetail.jsp, 40+ atribut
 // diringkas ke atribut inti yang dipakai kalkulasi RekanKerja).
 model LeaveType {
-  id             String   @id @default(cuid())
-  code           String   @unique // CT-THN, CT-NIKAH, CT-BESAR...
-  name           String
-  description    String?
-  unit           String   @default("DAY") // DAY|MONTH — satuan saldo (Day(s)/Month(s))
-  entitlement    Float    @default(0) // hak per periode
-  maxPerRequest  Float    @default(0) // 0 = sama dengan entitlement
-  paid           Boolean  @default(true) // cuti dibayar (absen berbayar → TA tidak memotong)
-  cashable       Boolean  @default(false) // saldo bisa diuangkan (encashment → payroll)
-  periodMode     String   @default("CALENDAR") // CALENDAR (1 Jan–31 Des) | ANNIVERSARY (per tgl join)
-  prorateMonthly Boolean  @default(false) // earned akumulasi bulan berlalu × hak/12
-  carryOverMax   Float    @default(0) // batas saldo bawa periode lalu (0 = tidak boleh bawa)
-  waitingMonths  Int      @default(0) // masa kerja minimum sebelum cuti bisa diambil
-  allowAdvance   Boolean  @default(false) // boleh saldo minus (advance leave)
-  allowHalfDay   Boolean  @default(true) // boleh setengah hari (sesi AM/PM)
-  needDocs       Boolean  @default(false) // perlu dokumen pendukung
+  id                 String   @id @default(cuid())
+  code               String   @unique // CT-THN, CT-NIKAH, CT-BESAR...
+  name               String
+  description        String?
+  unit               String   @default("DAY") // DAY|MONTH — satuan saldo (Day(s)/Month(s))
+  entitlement        Float    @default(0) // hak per periode
+  maxPerRequest      Float    @default(0) // 0 = sama dengan entitlement
+  paid               Boolean  @default(true) // cuti dibayar (absen berbayar → TA tidak memotong)
+  cashable           Boolean  @default(false) // saldo bisa diuangkan (encashment → payroll)
+  periodMode         String   @default("CALENDAR") // CALENDAR (1 Jan–31 Des) | ANNIVERSARY (per tgl join)
+  prorateMonthly     Boolean  @default(false) // earned akumulasi bulan berlalu × hak/12
+  carryOverMax       Float    @default(0) // batas saldo bawa periode lalu (0 = tidak boleh bawa)
+  waitingMonths      Int      @default(0) // masa kerja minimum sebelum cuti bisa diambil
+  allowAdvance       Boolean  @default(false) // boleh saldo minus (advance leave)
+  allowHalfDay       Boolean  @default(true) // boleh setengah hari (sesi AM/PM)
+  needDocs           Boolean  @default(false) // perlu dokumen pendukung
   // Task 99 — policy engine v2 ringan (audit Leave G10, benchmark BreezeLeave):
   // notice period, batas hari kerja berturut lintas permintaan, dan periode
   // sibuk (blackout) per jenis cuti. 0/kosong = tanpa batas (kompatibilitas penuh).
-  noticeDays         Int    @default(0) // minimal hari pemberitahuan sebelum tanggal mulai
-  maxConsecutiveDays Float  @default(0) // batas hari kerja BERTURUT termasuk permintaan berdampingan (0 = bebas)
-  blackoutDates      String @default("[]") // JSON [{from:"YYYY-MM-DD", to:"YYYY-MM-DD", note?}] — periode sibuk
-  active         Boolean  @default(true)
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  noticeDays         Int      @default(0) // minimal hari pemberitahuan sebelum tanggal mulai
+  maxConsecutiveDays Float    @default(0) // batas hari kerja BERTURUT termasuk permintaan berdampingan (0 = bebas)
+  blackoutDates      String   @default("[]") // JSON [{from:"YYYY-MM-DD", to:"YYYY-MM-DD", note?}] — periode sibuk
+  active             Boolean  @default(true)
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   balances    LeaveBalance[]
   requests    LeaveRequest[]
@@ -2052,17 +2061,17 @@ model TravelZone {
 // per malam. Nilai IDR (luar negeri = konversi kurs, lihat kolom note).
 // Dipakai estimateTrip() di form pengajuan + saran baris ALLOWANCE klaim.
 model TravelCityRate {
-  id           String   @id @default(cuid())
-  city         String   @unique
-  country      String   @default("Indonesia")
-  overseas     Boolean  @default(false)
-  zoneCode     String? // zona master (LOCAL/JABAR/ASIA/…) — info tampilan
-  uangHarian   Float    @default(0) // per HARI trip (acuan PMK 32/2025)
-  plafonHotel  Float    @default(0) // per MALAM menginap
-  note         String?
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  city        String   @unique
+  country     String   @default("Indonesia")
+  overseas    Boolean  @default(false)
+  zoneCode    String? // zona master (LOCAL/JABAR/ASIA/…) — info tampilan
+  uangHarian  Float    @default(0) // per HARI trip (acuan PMK 32/2025)
+  plafonHotel Float    @default(0) // per MALAM menginap
+  note        String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // Template perjalanan — padanan "Travel Administration Template" (ClaimTmpl.jsp):
@@ -2405,7 +2414,7 @@ model MedicalBalance {
   depAdjustment    String   @default("0") // M-8
   depUsed          String   @default("0") // M-8
   carriedOver      String   @default("0") // sisa tahun lalu (kebijakan CARRY) (M-8)
-  prorateFactor    Float?   // W1-8 — snapshot faktor prorata masa kerja saat saldo digenerate (null = 1.0)
+  prorateFactor    Float? // W1-8 — snapshot faktor prorata masa kerja saat saldo digenerate (null = 1.0)
   generatedAt      DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -2453,22 +2462,22 @@ model MedicalClaim {
   // "Paid By Insurance %"): jurnal settle memecah bagian asuransi ke piutang
   // 13xx; kolom ini mengelola siklusnya NONE → SUBMITTED → PAID / WRITTEN_OFF.
   insState       String    @default("NONE") // NONE|SUBMITTED|PAID|WRITTEN_OFF
-  insRefNo       String?   // nomor klaim pada asuransi
+  insRefNo       String? // nomor klaim pada asuransi
   insAmount      String    @default("0") // snapshot piutang saat settle (terenkripsi)
   insSubmittedAt DateTime?
   insPaidAt      DateTime?
-  insPaidAmount  String?   // nilai yang dibayarkan asuransi (terenkripsi)
+  insPaidAmount  String? // nilai yang dibayarkan asuransi (terenkripsi)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  employee Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  type     MedicalBenefitType @relation(fields: [typeId], references: [id])
-  lines    MedicalClaimLine[]
+  employee     Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type         MedicalBenefitType @relation(fields: [typeId], references: [id])
+  lines        MedicalClaimLine[]
   // W1-4 — storno: klaim pembalik menunjuk klaim aslinya (1:1 — klaim settled
   // hanya boleh di-storno sekali; klaim pembalik snapshot −totalApproved).
-  reversalOf    MedicalClaim?  @relation("MedicalStorno", fields: [reversalOfId], references: [id])
-  reversalOfId  String?  @unique
-  reversedBy    MedicalClaim?  @relation("MedicalStorno")
+  reversalOf   MedicalClaim?      @relation("MedicalStorno", fields: [reversalOfId], references: [id])
+  reversalOfId String?            @unique
+  reversedBy   MedicalClaim?      @relation("MedicalStorno")
 
   @@index([state])
   @@index([year, typeId])
@@ -2500,11 +2509,10 @@ model MedicalClaimLine {
   // HOSPITAL) — validasi aktif saat submit; `hospital` tetap snapshot nama.
   providerId         String?
 
-  claim   MedicalClaim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  claim    MedicalClaim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
   provider MedicalProvider? @relation(fields: [providerId], references: [id])
 
   @@index([providerId])
-
   // M-15 (audit 42): dedupe kwitansi lintas klaim saat submit klaim medis
   // (medical-service.ts: findMany receiptNo IN [...] + claim.employeeId) —
   // dulu Seq Scan seluruh baris perawatan.
@@ -3009,11 +3017,11 @@ model WhistleblowReport {
 model SignatureKey {
   id                  String    @id @default(cuid())
   appUserId           String    @unique
-  publicKey           String    // PEM SPKI RSA-2048
-  encryptedPrivateKey String    // PEM PKCS8 dienkripsi field-crypto tenant
+  publicKey           String // PEM SPKI RSA-2048
+  encryptedPrivateKey String // PEM PKCS8 dienkripsi field-crypto tenant
   algorithm           String    @default("RSA-PSS-SHA256")
   status              String    @default("Active") // Active | Revoked
-  pinHash             String?   // bcrypt PIN tanda tangan (terpisah password login)
+  pinHash             String? // bcrypt PIN tanda tangan (terpisah password login)
   pinSetAt            DateTime?
   createdAt           DateTime  @default(now())
   rotatedAt           DateTime?
@@ -3046,16 +3054,16 @@ model SignatureRecord {
 // Challenge tanda tangan — PIN/OTP 6 digit (hash scrypt, bukan plaintext),
 // 5 menit, maks 3 percobaan, satu pemakaian. Baris lama dibuang lazy.
 model SignatureChallenge {
-  id          String   @id @default(cuid())
-  appUserId   String
-  docType     String
-  docId       String
-  codeHash    String // scrypt$ salt$ hash
-  purpose     String   @default("sign")
-  attempts    Int      @default(0)
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime @default(now())
+  id        String    @id @default(cuid())
+  appUserId String
+  docType   String
+  docId     String
+  codeHash  String // scrypt$ salt$ hash
+  purpose   String    @default("sign")
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([appUserId, createdAt])
 }
@@ -3155,24 +3163,24 @@ model NonEmployeePartner {
 // Tahunan. Nilai uang TERENKRIPSI (enc:v1:n) — dekripsi hanya di batas
 // serializer (money-view).
 model NonEmployeePayment {
-  id              String    @id @default(cuid())
-  docNo           String    @unique // BPNP-2026-0001 — dibuat server (max-scan per tahun, pola modul medical)
-  partnerId       String
-  description     String
-  grossAmount     String // penghasilan bruto yang dibayarkan ke Bukan Pegawai — TERENKRIPSI (M-8)
-  excludedNotes   String? // catatan komponen yang dikeluarkan dari bruto (tenaga kerja/material/pihak ketiga — Pasal 12(4)-(5))
-  excludedAmount  String? // nilai komponen Pasal 12(4)(b) yang dikeluarkan dari bruto SEBELUM ×50% — TERENKRIPSI (M-8)
-  dpp             String // = 50% × (grossAmount − excludedAmount) (snapshot hasil kalkulasi) — TERENKRIPSI (M-8)
-  pph21           String // = tarif Pasal 17 × dpp (snapshot hasil kalkulasi) — TERENKRIPSI (M-8)
-  netAmount       String // = grossAmount − pph21 — TERENKRIPSI (M-8)
-  paymentDate     DateTime
-  taxYear         Int // tahun pajak (dari paymentDate)
-  taxMonth        Int // masa pajak 1-12 (dari paymentDate) — kunci ledger bukti potong
-  status          String    @default("Draft") // Draft | Paid | Cancelled
-  paidAt          DateTime?
-  createdBy       String? // nama aktor
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  docNo          String    @unique // BPNP-2026-0001 — dibuat server (max-scan per tahun, pola modul medical)
+  partnerId      String
+  description    String
+  grossAmount    String // penghasilan bruto yang dibayarkan ke Bukan Pegawai — TERENKRIPSI (M-8)
+  excludedNotes  String? // catatan komponen yang dikeluarkan dari bruto (tenaga kerja/material/pihak ketiga — Pasal 12(4)-(5))
+  excludedAmount String? // nilai komponen Pasal 12(4)(b) yang dikeluarkan dari bruto SEBELUM ×50% — TERENKRIPSI (M-8)
+  dpp            String // = 50% × (grossAmount − excludedAmount) (snapshot hasil kalkulasi) — TERENKRIPSI (M-8)
+  pph21          String // = tarif Pasal 17 × dpp (snapshot hasil kalkulasi) — TERENKRIPSI (M-8)
+  netAmount      String // = grossAmount − pph21 — TERENKRIPSI (M-8)
+  paymentDate    DateTime
+  taxYear        Int // tahun pajak (dari paymentDate)
+  taxMonth       Int // masa pajak 1-12 (dari paymentDate) — kunci ledger bukti potong
+  status         String    @default("Draft") // Draft | Paid | Cancelled
+  paidAt         DateTime?
+  createdBy      String? // nama aktor
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   partner NonEmployeePartner @relation(fields: [partnerId], references: [id], onDelete: Restrict)
 
@@ -3204,7 +3212,7 @@ model RecruitmentMethod {
   updatedAt   DateTime @updatedAt
 
   // F2-REC — kanal biaya per JobOpportunity (JobOpeningMethod.method)
-  joMethods   JobOpeningMethod[] @relation("MethodJoOpening")
+  joMethods JobOpeningMethod[] @relation("MethodJoOpening")
 }
 
 // Media advertensi lowongan (padanan AdMediaType: Koran, Portal…).
@@ -3224,14 +3232,14 @@ model AdMediaType {
 
 // Vendor agency/tenaga eksternal (padanan EmpAgency: nama+alamat+note).
 model EmploymentAgency {
-  id      String   @id @default(cuid())
-  code    String   @unique
-  name    String
-  address String?
-  contact String?
-  note    String?
-  active  Boolean  @default(true)
-  sortOrder Int    @default(0)
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  address   String?
+  contact   String?
+  note      String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -3253,17 +3261,17 @@ model RecruitmentCostItem {
   updatedAt   DateTime @updatedAt
 
   // F2-REC — pos biaya pada kanal JobOpeningMethod
-  joMethods   JobOpeningMethod[] @relation("CostItemJoOpening")
+  joMethods JobOpeningMethod[] @relation("CostItemJoOpening")
 }
 
 // Skill/kemampuan kandidat (padanan Skill: "Bahasa Inggris (menulis)"…).
 model Skill {
-  id       String   @id @default(cuid())
-  code     String   @unique
-  name     String
-  criteria String?
-  active   Boolean  @default(true)
-  sortOrder Int     @default(0)
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  criteria  String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -3301,24 +3309,24 @@ model EvaluationCategory {
 
 // Skala penilaian + ranking (padanan Applicant Evaluation Scale: Low(1)…).
 model EvaluationScale {
-  id       String   @id @default(cuid())
-  code     String   @unique
-  name     String
-  ranking  Int      @default(1)
-  active   Boolean  @default(true)
-  sortOrder Int     @default(0)
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  ranking   Int      @default(1)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 // Grup SLA seleksi (padanan SLA Group: "Interview" 30 hari).
 model SlaGroup {
-  id       String   @id @default(cuid())
-  code     String   @unique
-  name     String
-  days     Int      @default(30)
-  active   Boolean  @default(true)
-  sortOrder Int     @default(0)
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  days      Int      @default(30)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -3347,7 +3355,7 @@ model SelectionProcess {
   updatedAt           DateTime @updatedAt
 
   // F3-REC — langkah per kandidat + template scorecard yang terikat tahap ini
-  steps             CandidateSelectionStep[]
+  steps              CandidateSelectionStep[]
   scorecardTemplates ScorecardTemplate[]      @relation("ProcessScorecardTemplates")
 }
 
@@ -3381,7 +3389,7 @@ model PersonnelRequisition {
   miscSpec                String? // spesifikasi lain
   additionalQualification String? // kualifikasi tambahan
   salaryBudget            String? // TERENKRIPSI vault uang (enc:v1:n:…) — decrypt hanya di batas serializer
-  autoPostOpening          Boolean   @default(false) // auto buat JobOpening saat Approved (dipakai F2)
+  autoPostOpening         Boolean   @default(false) // auto buat JobOpening saat Approved (dipakai F2)
   slaTargetDays           Int? // target hari penyelesaian (HRX A3)
   replacedEmployeeId      String? // PR penggantian (attrition) — karyawan yang digantikan
   // F6-REC — rubrik skor AI no-code per PR (HRX B2): JSON string
@@ -3391,7 +3399,7 @@ model PersonnelRequisition {
   // PLAN-LINK — tautan EKSPLISIT PR→rencana MPP (RecruitmentPlan) yang dilayaninya.
   // Null = PR ad-hoc / akan di-match otomatis oleh rekonsiliasi (posisi+kantor+
   // scope tahun) di planning-service. Validasi: hanya rencana berstatus Applied.
-  planId                   String?
+  planId                  String?
   status                  String    @default("Draft") // Draft|Submitted|Approved|Rejected|OnHold|Fulfilled|Closed|Cancelled
   decisionNote            String? // catatan keputusan approver (reject/close)
   submittedAt             DateTime?
@@ -3399,24 +3407,24 @@ model PersonnelRequisition {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
-  requestedBy        Employee       @relation("PrRequester", fields: [requestedById], references: [id])
+  requestedBy        Employee         @relation("PrRequester", fields: [requestedById], references: [id])
   plan               RecruitmentPlan? @relation("PlanPrs", fields: [planId], references: [id])
-  position           Position?      @relation("PrPosition", fields: [positionId], references: [id])
-  job                Job?           @relation("PrJob", fields: [jobId], references: [id])
-  orgUnit            OrgUnit?       @relation("PrOrgUnit", fields: [orgUnitId], references: [id])
-  companyOffice      CompanyOffice? @relation("PrOffice", fields: [companyOfficeId], references: [id])
-  recruitmentOfficer Employee?      @relation("PrOfficer", fields: [recruitmentOfficerId], references: [id])
-  replacedEmployee   Employee?      @relation("PrReplacement", fields: [replacedEmployeeId], references: [id])
+  position           Position?        @relation("PrPosition", fields: [positionId], references: [id])
+  job                Job?             @relation("PrJob", fields: [jobId], references: [id])
+  orgUnit            OrgUnit?         @relation("PrOrgUnit", fields: [orgUnitId], references: [id])
+  companyOffice      CompanyOffice?   @relation("PrOffice", fields: [companyOfficeId], references: [id])
+  recruitmentOfficer Employee?        @relation("PrOfficer", fields: [recruitmentOfficerId], references: [id])
+  replacedEmployee   Employee?        @relation("PrReplacement", fields: [replacedEmployeeId], references: [id])
 
   // F2-REC — slot lowongan yang melayani PR ini
-  openings           JobOpening[]   @relation("PrOpenings")
+  openings JobOpening[] @relation("PrOpenings")
 
   // F3-REC — kandidat yang dinominasikan ke PR ini
-  candidates         JobCandidate[] @relation("PrCandidates")
+  candidates JobCandidate[] @relation("PrCandidates")
 
   // F4-REC — offer & pengangkatan dari PR ini
-  offers             CandidateOffer[]       @relation("PrOffers")
-  appointments       CandidateAppointment[] @relation("PrAppointments")
+  offers       CandidateOffer[]       @relation("PrOffers")
+  appointments CandidateAppointment[] @relation("PrAppointments")
 
   @@index([status, requestDate])
   @@index([requestedById])
@@ -3449,22 +3457,22 @@ model PersonnelRequisition {
 // Iklan lowongan (padanan JobOpportunity §2.4): refNo JO-YYYY-NNNN,
 // status Draft|Posted|Closed|Obsolete; berisi N slot (per PR) + kanal biaya.
 model JobOpportunity {
-  id             String    @id @default(cuid())
-  refNo          String    @unique // JO-2026-0001 (docNo prefix-tahun-seq)
-  title          String // judul iklan (default: posisi slot pertama — editable)
-  preparedById   String? // Employee penyusun (null = sistem/auto-post)
-  datePrepared   DateTime  @default(now())
-  status         String    @default("Draft") // Draft|Posted|Closed|Obsolete
-  datePosted     DateTime? // saat mulai tampil publik
-  content        String? // isi iklan (ringkasan tugas/kualifikasi)
-  contactPerson  String? // kontak HR yang ditampilkan
-  lastAcceptDate DateTime? // batas akhir penerimaan lamaran
+  id                 String    @id @default(cuid())
+  refNo              String    @unique // JO-2026-0001 (docNo prefix-tahun-seq)
+  title              String // judul iklan (default: posisi slot pertama — editable)
+  preparedById       String? // Employee penyusun (null = sistem/auto-post)
+  datePrepared       DateTime  @default(now())
+  status             String    @default("Draft") // Draft|Posted|Closed|Obsolete
+  datePosted         DateTime? // saat mulai tampil publik
+  content            String? // isi iklan (ringkasan tugas/kualifikasi)
+  contactPerson      String? // kontak HR yang ditampilkan
+  lastAcceptDate     DateTime? // batas akhir penerimaan lamaran
   // F5-REC — jendela internal-first (opsional per JO): sebelum tanggal ini
   // lowongan HANYA terlihat & bisa dilamar karyawan (ESS Lowongan Internal),
   // belum tayang di portal publik; internalOnly = khusus internal selamanya.
   internalOnly       Boolean   @default(false)
   internalFirstUntil DateTime?
-  createdAt         DateTime  @default(now())
+  createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   preparedBy Employee?          @relation("JoPreparer", fields: [preparedById], references: [id])
@@ -3478,37 +3486,37 @@ model JobOpportunity {
 // Slot lowongan per PR (padanan JobOpening): satu PR bisa dilayani
 // banyak JO, satu JO bisa menampung banyak slot PR (unik per pasangan).
 model JobOpening {
-  id                String    @id @default(cuid())
-  jobOpportunityId  String
-  prId              String
-  titleToShow       String // judul yang ditampilkan di slot
-  workLocationId    String?
-  salaryMin         Int? // rentang gaji IKLAN (publik by design — bukan data pribadi)
-  salaryMax         Int?
-  currency          String    @default("IDR")
-  salaryUnit        String    @default("Monthly")
-  jobDescSummary    String? // ringkasan tugas (tampil publik)
-  jobSpecSummary    String? // ringkasan kualifikasi (tampil publik)
-  status            String    @default("Open") // Open|Fulfilled|Closed
-  postedAt          DateTime? // kapan slot mulai tampil di portal publik
-  closedAt          DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  jobOpportunityId String
+  prId             String
+  titleToShow      String // judul yang ditampilkan di slot
+  workLocationId   String?
+  salaryMin        Int? // rentang gaji IKLAN (publik by design — bukan data pribadi)
+  salaryMax        Int?
+  currency         String    @default("IDR")
+  salaryUnit       String    @default("Monthly")
+  jobDescSummary   String? // ringkasan tugas (tampil publik)
+  jobSpecSummary   String? // ringkasan kualifikasi (tampil publik)
+  status           String    @default("Open") // Open|Fulfilled|Closed
+  postedAt         DateTime? // kapan slot mulai tampil di portal publik
+  closedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  jobOpportunity    JobOpportunity         @relation(fields: [jobOpportunityId], references: [id])
-  pr                PersonnelRequisition    @relation("PrOpenings", fields: [prId], references: [id])
-  workLocation      WorkLocation?          @relation("OpeningLocation", fields: [workLocationId], references: [id])
-  applications      ApplicantApplication[]
+  jobOpportunity     JobOpportunity         @relation(fields: [jobOpportunityId], references: [id])
+  pr                 PersonnelRequisition   @relation("PrOpenings", fields: [prId], references: [id])
+  workLocation       WorkLocation?          @relation("OpeningLocation", fields: [workLocationId], references: [id])
+  applications       ApplicantApplication[]
   publicApplications PublicApplication[]
 
   // F5-REC — lamaran karyawan internal (ESS) ke slot ini
-  empApplications   EmpJobApplication[]    @relation("EmpJobApplications")
+  empApplications EmpJobApplication[] @relation("EmpJobApplications")
 
   // F4-REC — offer yang terikat slot ini (guidance rentang gaji iklan)
-  offers            CandidateOffer[]       @relation("OpeningOffers")
+  offers CandidateOffer[] @relation("OpeningOffers")
 
   // F6-REC — pertanyaan knockout per slot (HRX B3)
-  knockouts         KnockoutQuestion[]     @relation("OpeningKnockouts")
+  knockouts KnockoutQuestion[] @relation("OpeningKnockouts")
 
   @@unique([jobOpportunityId, prId])
   @@index([prId])
@@ -3518,24 +3526,24 @@ model JobOpening {
 // Kanal publikasi + biaya per JO (padanan JobOpeningMethod): metode,
 // media iklan, agency, pos biaya, planned/actual (vault uang).
 model JobOpeningMethod {
-  id                String    @id @default(cuid())
-  jobOpportunityId  String
-  methodId          String // RecruitmentMethod master
-  adMediaTypeId     String?
-  agencyId          String?
-  costItemId        String? // RecruitmentCostItem
-  plannedCost       String? // TERENKRIPSI vault uang (enc:v1:n:…) — decrypt di serializer
-  actualCost        String? // idem
-  datePosted        DateTime?
-  note              String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  jobOpportunityId String
+  methodId         String // RecruitmentMethod master
+  adMediaTypeId    String?
+  agencyId         String?
+  costItemId       String? // RecruitmentCostItem
+  plannedCost      String? // TERENKRIPSI vault uang (enc:v1:n:…) — decrypt di serializer
+  actualCost       String? // idem
+  datePosted       DateTime?
+  note             String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  jobOpportunity JobOpportunity        @relation(fields: [jobOpportunityId], references: [id], onDelete: Cascade)
-  method         RecruitmentMethod     @relation("MethodJoOpening", fields: [methodId], references: [id])
-  adMediaType    AdMediaType?          @relation("AdMediaJoOpening", fields: [adMediaTypeId], references: [id])
-  agency         EmploymentAgency?     @relation("AgencyJoOpening", fields: [agencyId], references: [id])
-  costItem       RecruitmentCostItem?  @relation("CostItemJoOpening", fields: [costItemId], references: [id])
+  jobOpportunity JobOpportunity       @relation(fields: [jobOpportunityId], references: [id], onDelete: Cascade)
+  method         RecruitmentMethod    @relation("MethodJoOpening", fields: [methodId], references: [id])
+  adMediaType    AdMediaType?         @relation("AdMediaJoOpening", fields: [adMediaTypeId], references: [id])
+  agency         EmploymentAgency?    @relation("AgencyJoOpening", fields: [agencyId], references: [id])
+  costItem       RecruitmentCostItem? @relation("CostItemJoOpening", fields: [costItemId], references: [id])
 
   @@index([jobOpportunityId])
 }
@@ -3591,9 +3599,9 @@ model Applicant {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  adMediaType      AdMediaType?      @relation("ApplicantAdMedia", fields: [adMediaTypeId], references: [id])
-  agency           EmploymentAgency? @relation("ApplicantAgency", fields: [agencyId], references: [id])
-  referralEmployee Employee?         @relation("ApplicantReferrer", fields: [referralEmployeeId], references: [id])
+  adMediaType      AdMediaType?           @relation("ApplicantAdMedia", fields: [adMediaTypeId], references: [id])
+  agency           EmploymentAgency?      @relation("ApplicantAgency", fields: [agencyId], references: [id])
+  referralEmployee Employee?              @relation("ApplicantReferrer", fields: [referralEmployeeId], references: [id])
   educations       ApplicantEducation[]
   experiences      ApplicantExperience[]
   skills           ApplicantSkill[]
@@ -3601,11 +3609,11 @@ model Applicant {
   applications     ApplicantApplication[]
   consents         ApplicantConsent[]
   // F3-REC — kandidat PR yang bersumber dari pelamar ini
-  candidates       JobCandidate[]     @relation("ApplicantCandidates")
+  candidates       JobCandidate[]         @relation("ApplicantCandidates")
   // F6-REC — hasil parsing CV (AI/manual/simulated) milik pelamar ini
-  cvParses         CvParseResult[]    @relation("ApplicantCvParses")
+  cvParses         CvParseResult[]        @relation("ApplicantCvParses")
   // F9-REC — permintaan subjek data (UU PDP) milik pelamar ini
-  dsrRequests      DataSubjectRequest[] @relation("ApplicantDsr")
+  dsrRequests      DataSubjectRequest[]   @relation("ApplicantDsr")
 
   @@index([status])
   @@index([keepOnFileUntil])
@@ -3674,10 +3682,10 @@ model ApplicantDocument {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  applicant        Applicant          @relation(fields: [applicantId], references: [id], onDelete: Cascade)
-  requiredDocument RequiredDocument?  @relation("ApplicantRequiredDoc", fields: [requiredDocumentId], references: [id])
+  applicant        Applicant         @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  requiredDocument RequiredDocument? @relation("ApplicantRequiredDoc", fields: [requiredDocumentId], references: [id])
   attachmentId     String?
-  attachment       Attachment?        @relation("ApplicantDocAttachment", fields: [attachmentId], references: [id], onDelete: SetNull)
+  attachment       Attachment?       @relation("ApplicantDocAttachment", fields: [attachmentId], references: [id], onDelete: SetNull)
 
   @@index([applicantId])
 }
@@ -3699,7 +3707,7 @@ model ApplicantApplication {
   jobOpening JobOpening @relation(fields: [jobOpeningId], references: [id])
 
   // F6-REC — jawaban pertanyaan knockout lamaran ini
-  answers    ApplicationAnswer[] @relation("ApplicationAnswers")
+  answers ApplicationAnswer[] @relation("ApplicationAnswers")
 
   @@unique([applicantId, jobOpeningId])
   @@index([jobOpeningId])
@@ -3717,15 +3725,15 @@ model PublicApplication {
   cvStoragePath String?
   ipHash        String? // rate-limit & audit (SHA-256 salted — bukan IP mentah)
   submittedAt   DateTime  @default(now())
-  verifiedById   String? // Employee verifikator
-  verifiedAt     DateTime?
+  verifiedById  String? // Employee verifikator
+  verifiedAt    DateTime?
   rejectNote    String? // alasan tolak (staging)
   consentId     String? // → ApplicantConsent (channel public-form)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   jobOpening JobOpening? @relation(fields: [jobOpeningId], references: [id])
-  verifiedBy Employee?  @relation("PaVerifier", fields: [verifiedById], references: [id])
+  verifiedBy Employee?   @relation("PaVerifier", fields: [verifiedById], references: [id])
 
   @@index([status, submittedAt])
 }
@@ -3787,25 +3795,25 @@ model JobCandidate {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  pr            PersonnelRequisition    @relation("PrCandidates", fields: [prId], references: [id])
-  applicant     Applicant?             @relation("ApplicantCandidates", fields: [applicantId], references: [id])
-  employee      Employee?              @relation("CandidateInternalEmployee", fields: [employeeId], references: [id])
-  nominatedBy  Employee?              @relation("CandidateNominator", fields: [nominatedById], references: [id])
+  pr             PersonnelRequisition     @relation("PrCandidates", fields: [prId], references: [id])
+  applicant      Applicant?               @relation("ApplicantCandidates", fields: [applicantId], references: [id])
+  employee       Employee?                @relation("CandidateInternalEmployee", fields: [employeeId], references: [id])
+  nominatedBy    Employee?                @relation("CandidateNominator", fields: [nominatedById], references: [id])
   selectionSteps CandidateSelectionStep[]
   scorecards     CandidateScorecard[]
   letters        RecruitmentLetter[]
 
   // F4-REC — offer & pengangkatan kandidat ini (1 kandidat bisa punya
   // beberapa offer historis; pengangkatan 1:1 dengan offer via offerId unik)
-  offers         CandidateOffer[]       @relation("CandidateOffers")
-  appointments   CandidateAppointment[] @relation("CandidateAppointments")
+  offers       CandidateOffer[]       @relation("CandidateOffers")
+  appointments CandidateAppointment[] @relation("CandidateAppointments")
 
   // F5-REC — lamaran internal ESS yang menominasikan kandidat ini
   // (satu kandidat bisa dirujuk >1 lamaran slot berbeda dari PR yang sama)
   empApplications EmpJobApplication[] @relation("EmpJobApplicationCandidate")
 
   // F6-REC — skor AI explainable (HRX B2) — histori generate per kandidat
-  aiScores         CandidateAiScore[]  @relation("CandidateAiScores")
+  aiScores CandidateAiScore[] @relation("CandidateAiScores")
 
   @@unique([prId, applicantId]) // 1 pelamar 1 PR (employee internal bebas)
   @@index([prId, status])
@@ -3836,9 +3844,9 @@ model CandidateSelectionStep {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  candidate        JobCandidate      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  selectionProcess SelectionProcess @relation(fields: [selectionProcessId], references: [id])
-  performedBy      Employee?         @relation("StepPerformer", fields: [performedById], references: [id])
+  candidate        JobCandidate         @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  selectionProcess SelectionProcess     @relation(fields: [selectionProcessId], references: [id])
+  performedBy      Employee?            @relation("StepPerformer", fields: [performedById], references: [id])
   scorecards       CandidateScorecard[]
   letters          RecruitmentLetter[]
 
@@ -3858,7 +3866,7 @@ model ScorecardTemplate {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  selectionProcess SelectionProcess?    @relation("ProcessScorecardTemplates", fields: [selectionProcessId], references: [id])
+  selectionProcess SelectionProcess?     @relation("ProcessScorecardTemplates", fields: [selectionProcessId], references: [id])
   competencies     ScorecardCompetency[]
   scorecards       CandidateScorecard[]
 
@@ -3867,13 +3875,13 @@ model ScorecardTemplate {
 
 // Rubrik kompetensi 1–5 anchored (anchorsJson = [{value,label,guide}…]).
 model ScorecardCompetency {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   templateId  String
   name        String
   description String?
-  weight      Float   @default(1)
+  weight      Float    @default(1)
   anchorsJson String?
-  orderNo     Int     @default(1)
+  orderNo     Int      @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -3894,14 +3902,14 @@ model CandidateScorecard {
   submittedAt     DateTime?
   recommendation  String? // StrongHire|Hire|NoHire|StrongNoHire
   overallComment  String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  candidate      JobCandidate          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  selectionStep  CandidateSelectionStep @relation(fields: [selectionStepId], references: [id], onDelete: Cascade)
-  template       ScorecardTemplate     @relation(fields: [templateId], references: [id])
-  evaluator      Employee              @relation("ScorecardEvaluator", fields: [evaluatorId], references: [id])
-  items          ScorecardItem[]
+  candidate     JobCandidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  selectionStep CandidateSelectionStep @relation(fields: [selectionStepId], references: [id], onDelete: Cascade)
+  template      ScorecardTemplate      @relation(fields: [templateId], references: [id])
+  evaluator     Employee               @relation("ScorecardEvaluator", fields: [evaluatorId], references: [id])
+  items         ScorecardItem[]
 
   @@unique([selectionStepId, evaluatorId])
 }
@@ -3938,11 +3946,11 @@ model RecruitmentLetter {
   issuedAt        DateTime @default(now())
   createdById     String? // Employee penerbit (jejak)
 
-  candidate     JobCandidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  candidate     JobCandidate            @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   selectionStep CandidateSelectionStep? @relation(fields: [selectionStepId], references: [id])
 
   // F7-REC — permintaan e-sign kandidat utk surat ini (offer/pengangkatan)
-  esignRequests EsignRequest[]        @relation("EsignLetter")
+  esignRequests EsignRequest[] @relation("EsignLetter")
 
   @@index([candidateId, issuedAt])
   @@index([kind, issuedAt])
@@ -3992,13 +4000,13 @@ model CandidateOffer {
   updatedAt    DateTime  @updatedAt
 
   pr          PersonnelRequisition  @relation("PrOffers", fields: [prId], references: [id])
-  candidate   JobCandidate         @relation("CandidateOffers", fields: [candidateId], references: [id])
-  jobOpening  JobOpening?          @relation("OpeningOffers", fields: [jobOpeningId], references: [id])
-  createdBy   Employee?            @relation("OfferCreator", fields: [createdById], references: [id])
+  candidate   JobCandidate          @relation("CandidateOffers", fields: [candidateId], references: [id])
+  jobOpening  JobOpening?           @relation("OpeningOffers", fields: [jobOpeningId], references: [id])
+  createdBy   Employee?             @relation("OfferCreator", fields: [createdById], references: [id])
   appointment CandidateAppointment?
 
   // F7-REC — permintaan e-sign kandidat utk offer ini
-  esignRequests EsignRequest[]     @relation("EsignOffer")
+  esignRequests EsignRequest[] @relation("EsignOffer")
 
   @@index([status, expiryDate]) // monitor expiry + reminder scheduler
   @@index([prId])
@@ -4009,8 +4017,8 @@ model CandidateOffer {
 // REC_REJECT ke kandidat lain di PR yang sama saat fulfilled). Lanjut ke
 // onboarding membuat Employee + assignment + checklist (backlink di bawah).
 model CandidateAppointment {
-  id               String    @id @default(cuid())
-  offerId          String    @unique // 1 offer 1 pengangkatan
+  id               String   @id @default(cuid())
+  offerId          String   @unique // 1 offer 1 pengangkatan
   candidateId      String
   prId             String
   appointmentDate  DateTime // tanggal pengangkatan (prefill: offer.startDate)
@@ -4020,25 +4028,25 @@ model CandidateAppointment {
   workLocationId   String?
   supervisorId     String? // Employee atasan langsung
   gradeId          String?
-  employmentStatus String    @default("Permanent") // prefill dari PR
-  workShift        String    @default("Regular")
+  employmentStatus String   @default("Permanent") // prefill dari PR
+  workShift        String   @default("Regular")
   letterNo         String? // surat pengangkatan REC_APPOINT
   employeeId       String? // F4 backlink: karyawan hasil onboarding
   onboardingId     String? // F4 backlink: proses Onboarding checklist
-  status           String    @default("Appointed") // Appointed|Onboarded (Employee dibuat)
+  status           String   @default("Appointed") // Appointed|Onboarded (Employee dibuat)
   note             String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   offer         CandidateOffer       @relation(fields: [offerId], references: [id])
-  candidate     JobCandidate        @relation("CandidateAppointments", fields: [candidateId], references: [id])
+  candidate     JobCandidate         @relation("CandidateAppointments", fields: [candidateId], references: [id])
   pr            PersonnelRequisition @relation("PrAppointments", fields: [prId], references: [id])
-  position      Position?           @relation("ApptPosition", fields: [positionId], references: [id])
-  orgUnit       OrgUnit?            @relation("ApptOrgUnit", fields: [orgUnitId], references: [id])
-  companyOffice CompanyOffice?      @relation("ApptOffice", fields: [companyOfficeId], references: [id])
-  workLocation  WorkLocation?       @relation("ApptLocation", fields: [workLocationId], references: [id])
-  supervisor    Employee?          @relation("ApptSupervisor", fields: [supervisorId], references: [id])
-  employee      Employee?          @relation("ApptEmployee", fields: [employeeId], references: [id])
+  position      Position?            @relation("ApptPosition", fields: [positionId], references: [id])
+  orgUnit       OrgUnit?             @relation("ApptOrgUnit", fields: [orgUnitId], references: [id])
+  companyOffice CompanyOffice?       @relation("ApptOffice", fields: [companyOfficeId], references: [id])
+  workLocation  WorkLocation?        @relation("ApptLocation", fields: [workLocationId], references: [id])
+  supervisor    Employee?            @relation("ApptSupervisor", fields: [supervisorId], references: [id])
+  employee      Employee?            @relation("ApptEmployee", fields: [employeeId], references: [id])
 
   @@index([prId])
   @@index([employeeId])
@@ -4083,7 +4091,7 @@ model RecruitmentPlan {
   companyOffice CompanyOffice? @relation("PlanOffice", fields: [companyOfficeId], references: [id])
 
   // PLAN-LINK — PR yang secara eksplisit melayani rencana ini
-  prs           PersonnelRequisition[] @relation("PlanPrs")
+  prs PersonnelRequisition[] @relation("PlanPrs")
 
   @@index([period])
   @@index([status])
@@ -4118,9 +4126,9 @@ model EmpJobApplication {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  employee    Employee       @relation("EmpJobApplied", fields: [employeeId], references: [id])
-  jobOpening  JobOpening     @relation("EmpJobApplications", fields: [jobOpeningId], references: [id])
-  candidate   JobCandidate? @relation("EmpJobApplicationCandidate", fields: [candidateId], references: [id])
+  employee   Employee      @relation("EmpJobApplied", fields: [employeeId], references: [id])
+  jobOpening JobOpening    @relation("EmpJobApplications", fields: [jobOpeningId], references: [id])
+  candidate  JobCandidate? @relation("EmpJobApplicationCandidate", fields: [candidateId], references: [id])
 
   @@unique([employeeId, jobOpeningId])
   @@index([employeeId])
@@ -4149,17 +4157,17 @@ model EmpJobApplication {
 // "Bersedia ditempatkan di Bandung?"). Gagal knockout = auto-disposition
 // (staging Rejected/auto + surat penolakan ramah + audit — service F6).
 model KnockoutQuestion {
-  id            String    @id @default(cuid())
-  jobOpeningId String
+  id            String   @id @default(cuid())
+  jobOpeningId  String
   question      String
   expectedValue String // jawaban yang diharapkan (string/bool "Ya"/"Tidak")
-  mode          String    @default("Equals") // Equals|Contains|NotEquals
-  active        Boolean   @default(true)
-  orderNo       Int       @default(1)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  mode          String   @default("Equals") // Equals|Contains|NotEquals
+  active        Boolean  @default(true)
+  orderNo       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  jobOpening JobOpening        @relation("OpeningKnockouts", fields: [jobOpeningId], references: [id], onDelete: Cascade)
+  jobOpening JobOpening          @relation("OpeningKnockouts", fields: [jobOpeningId], references: [id], onDelete: Cascade)
   answers    ApplicationAnswer[] @relation("KnockoutAnswers")
 
   @@index([jobOpeningId])
@@ -4167,12 +4175,12 @@ model KnockoutQuestion {
 
 // Jawaban pertanyaan knockout per lamaran (disimpan utk audit — HRX B3).
 model ApplicationAnswer {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   applicationId String
   questionId    String
   answer        String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   application ApplicantApplication @relation("ApplicationAnswers", fields: [applicationId], references: [id], onDelete: Cascade)
   question    KnockoutQuestion     @relation("KnockoutAnswers", fields: [questionId], references: [id], onDelete: Cascade)
@@ -4199,8 +4207,8 @@ model CvParseResult {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  applicant   Applicant  @relation("ApplicantCvParses", fields: [applicantId], references: [id], onDelete: Cascade)
-  verifiedBy  Employee? @relation("CvParseVerifier", fields: [verifiedById], references: [id])
+  applicant  Applicant @relation("ApplicantCvParses", fields: [applicantId], references: [id], onDelete: Cascade)
+  verifiedBy Employee? @relation("CvParseVerifier", fields: [verifiedById], references: [id])
 
   @@index([applicantId])
 }
@@ -4220,7 +4228,7 @@ model CandidateAiScore {
   generatedById String
 
   candidate   JobCandidate @relation("CandidateAiScores", fields: [candidateId], references: [id], onDelete: Cascade)
-  generatedBy Employee    @relation("AiScoreGenerator", fields: [generatedById], references: [id])
+  generatedBy Employee     @relation("AiScoreGenerator", fields: [generatedById], references: [id])
 
   @@index([candidateId, generatedAt])
 }
@@ -4252,8 +4260,8 @@ model WebhookEndpoint {
   secretEnc  String // TERENKRIPSI field-crypto — HMAC secret (jangan plaintext)
   active     Boolean  @default(true)
   note       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   deliveries WebhookDelivery[]
 
@@ -4319,9 +4327,9 @@ model EsignRequest {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  letter       RecruitmentLetter? @relation("EsignLetter", fields: [letterId], references: [id], onDelete: SetNull)
-  offer        CandidateOffer?   @relation("EsignOffer", fields: [offerId], references: [id], onDelete: SetNull)
-  requestedBy  Employee         @relation("EsignRequester", fields: [requestedById], references: [id])
+  letter      RecruitmentLetter? @relation("EsignLetter", fields: [letterId], references: [id], onDelete: SetNull)
+  offer       CandidateOffer?    @relation("EsignOffer", fields: [offerId], references: [id], onDelete: SetNull)
+  requestedBy Employee           @relation("EsignRequester", fields: [requestedById], references: [id])
 
   @@index([status])
 }
@@ -4339,13 +4347,13 @@ model EsignRequest {
 // ============================================================================
 
 model MetricSnapshot {
-  id          String   @id @default(cuid())
-  metric      String // time_to_fill | offer_acceptance_rate | interview_pass_rate | source_effectiveness | requisition_aging | cost_per_hire | ...
-  period      String // "2026" | "2026-10" | "2026-Q4"
-  dimsJson    String? // {"position":"Accountant","source":"Referral"}
-  value       Float
-  computedAt  DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  metric     String // time_to_fill | offer_acceptance_rate | interview_pass_rate | source_effectiveness | requisition_aging | cost_per_hire | ...
+  period     String // "2026" | "2026-10" | "2026-Q4"
+  dimsJson   String? // {"position":"Accountant","source":"Referral"}
+  value      Float
+  computedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([metric, period, dimsJson])
   @@index([metric, period])
@@ -4353,14 +4361,14 @@ model MetricSnapshot {
 
 // Tampilan laporan tersimpan (G3) — milik karyawan (ownerId).
 model SavedReportView {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   ownerId     String
   name        String
   view        String // reports|applicants|selection|...
   filtersJson String // parameter filter (pr, periode, sumber, dst.)
-  schedule    String    @default("none") // none|weekly — ringkasan email mingguan
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  schedule    String   @default("none") // none|weekly — ringkasan email mingguan
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   owner Employee @relation("SavedReportViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
@@ -4396,4 +4404,396 @@ model DataSubjectRequest {
 
   @@index([status, dueAt])
   @@index([applicantId])
+}
+
+// ============================================================================
+// PERFORMANCE — P0: FONDASI & MASTER (DEVELOPMENT-PLAN-PERFORMANCE.md §15;
+// AMANDEMEN 1 provenance salin-periode; AMANDEMEN 2 versioning pustaka §18.9;
+// AMANDEMEN 3 AI-assist kolom ulasan §18.11).
+//
+// • Master: PerformanceSetting, KpiDefinition (ber-versi), Competency
+//   (ber-versi), RatingScale, PerformanceTemplate(+Item), MeritMatrix.
+// • Siklus & penilaian (P1–P4): PerformanceCycle, AppraisalRecord,
+//   AppraisalKpi (snapshot definisi + origin/copiedFromId AMANDEMEN 1),
+//   AppraisalCompetencyScore (selfComment + flag aiAssisted AMANDEMEN 3),
+//   CheckIn, Feedback360(+Answer), CalibrationSession, CalibrationDecision.
+// • Konsekuensi (P5–P7): MeritRecommendation (nominal vault enc:v1:n:),
+//   PipPlan(+Checkpoint), ProbationEvaluation.
+// • Konvensi: enum = String + komentar daftar nilai (tanpa enum Prisma);
+//   @@index semua kolom foreign-key + filter utama; uang sensitif → vault.
+// ============================================================================
+
+model PerformanceSetting {
+  id             String   @id @default(cuid())
+  docPrefixes    String   @default("PER|PRB|PIP|MER") // penomoran per jenis dokumen
+  defWeights     String   @default("70|20|10") // wKPI|wKomp|wCore default (D5)
+  appealDays     Int      @default(7) // jendela banding setelah publikasi (D6)
+  retentionYears Int      @default(5) // retensi arsip hasil (Lampiran F)
+  updatedAt      DateTime @updatedAt
+}
+
+model KpiDefinition {
+  // pustaka KPI per tenant (starter-pack ±40, 4 perspektif BSC — Lampiran B).
+  id             String   @id @default(cuid())
+  code           String // AMANDEMEN 2: unique per (code, versionNo) §18.9
+  name           String
+  category       String // Financial|Customer|InternalProcess|LearningGrowth (BSC §3.4)
+  polarity       String // Higher|Lower|Boolean
+  unit           String // "%|Rp|hari|unit|…"
+  dataSource     String   @default("Manual") // Manual|Attendance|Payroll|Recruitment|Leave
+  sourceKey      String? // binding data otomatis §16, mis. "attendance_presence_pct"
+  description    String?
+  active         Boolean  @default(true)
+  // AMANDEMEN 2 — versioning pustaka (§18.9): ubah definisi tahun ini tanpa
+  // merusak data tahun lalu (baris penilaian memang sudah snapshot — lapis 2).
+  versionNo      Int      @default(1) // 1, 2, 3 … per code
+  effectiveYear  Int // tahun mulai berlaku versi ini
+  status         String   @default("Active") // Active|Superseded|Archived
+  supersededById String? // id versi pengganti (jejak)
+  changeNote     String? // catatan apa yang berubah (audit HR)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([code, versionNo]) // code tidak lagi unique tunggal (AMANDEMEN 2)
+  @@index([category, active])
+  @@index([status])
+}
+
+model Competency {
+  // kompetensi + deskriptor 5 level (anchor anti-halo §8).
+  id             String   @id @default(cuid())
+  code           String // AMANDEMEN 2: unique per (code, versionNo) §18.9
+  name           String
+  kind           String // CoreValue|Managerial|Technical
+  levelsJson     String // [{level:1..5, label, descriptor}] — deskriptor perilaku per level
+  active         Boolean  @default(true)
+  // AMANDEMEN 2 — versioning pustaka (§18.9), sama seperti KpiDefinition
+  versionNo      Int      @default(1)
+  effectiveYear  Int
+  status         String   @default("Active") // Active|Superseded|Archived
+  supersededById String?
+  changeNote     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([code, versionNo])
+  @@index([kind, active])
+  @@index([status])
+}
+
+model RatingScale {
+  // skala konversi skor→rating (dapat dikustom per tenant — D1).
+  id        String  @id @default(cuid())
+  value     Int     @unique // 1..5
+  labelId   String // "Sangat Baik"
+  labelEn   String // "Outstanding"
+  minScore  Float   @unique // 90|80|70|60|0
+  color     String // emerald|teal|lime|amber|rose (token warna UI)
+  guideline String? // panduan deskriptor kapan diberikan
+}
+
+model PerformanceTemplate {
+  // template bobot & komponen per kelompok jabatan (D5).
+  id          String                    @id @default(cuid())
+  code        String                    @unique
+  name        String
+  weightsJson String // {kpi:70, competency:20, core:10}
+  active      Boolean                   @default(true)
+  items       PerformanceTemplateItem[]
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+}
+
+model PerformanceTemplateItem {
+  id         String              @id @default(cuid())
+  templateId String
+  kind       String // Kpi|Competency
+  refId      String // KpiDefinition.id | Competency.id
+  weight     Float // bobot dalam komponennya; Σ per kind = 100
+  template   PerformanceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+model MeritMatrix {
+  // matriks rating → % bonus & % kenaikan (dipakai Alur 8 + estimator §18.12).
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  gridJson  String // {5:{bonusMonths:2,raisePct:[8,12]},3:{…}} + catatan kebijakan
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// ===== SIKLUS & PENILAIAN (P1–P4) =====
+
+model PerformanceCycle {
+  id          String               @id @default(cuid())
+  code        String               @unique // PER-2026 (tahunan) / PER-2026-H1
+  name        String
+  cycleType   String               @default("Annual") // Annual|MidYearOnly|OffCycle
+  periodStart DateTime
+  periodEnd   DateTime
+  // jendela fase (digerbangkan; null = fase dilewati)
+  goalStart   DateTime?
+  goalEnd     DateTime?
+  midStart    DateTime?
+  midEnd      DateTime?
+  selfStart   DateTime?
+  selfEnd     DateTime?
+  mgrStart    DateTime?
+  mgrEnd      DateTime?
+  calibStart  DateTime?
+  calibEnd    DateTime?
+  publishAt   DateTime?
+  weightsJson String // override bobot default untuk siklus ini
+  feedback360 Boolean              @default(false) // aktifkan 360 pada siklus ini (D3)
+  status      String               @default("Draft") // Draft|GoalSetting|Ongoing|Assessment|Calibration|Published|Closed
+  createdBy   String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  appraisals  AppraisalRecord[]
+  sessions    CalibrationSession[]
+
+  @@index([status, periodEnd])
+}
+
+model AppraisalRecord {
+  // 1 baris per karyawan per siklus (peserta; dokumen PER-YYYY-NNNN).
+  id              String               @id @default(cuid())
+  docNo           String               @unique
+  cycleId         String
+  employeeId      String
+  managerId       String? // snapshot atasan penilai saat enroll
+  templateId      String?
+  goalsCopiedFrom String? // AMANDEMEN 1 — kode siklus sumber salinan KPI (§18.2)
+  // skor — semua null sampai fase terkait; dihitung server (§16)
+  kpiTotalWeight  Float?
+  selfScore       Float?
+  managerScore    Float?
+  finalScore      Float? // pasca kalibrasi
+  finalRating     Int? // 1..5
+  potentialBand   Int? // 1..3 (isi saat kalibrasi — bahan 9-box)
+  status          String               @default("Enrolled") // Enrolled|GoalProposed|GoalApproved|Ongoing|SelfDone|ManagerDone|Calibrating|Finalized|Published|Appealed|Closed
+  acknowledgedAt  DateTime?
+  appealNote      String?
+  appealStatus    String? // Submitted|Rejected|Adjusted|Withdrawn
+  appealDecidedBy String?
+  appealDecidedAt DateTime?
+  cycle           PerformanceCycle     @relation(fields: [cycleId], references: [id])
+  employee        Employee             @relation("PerfEmployee", fields: [employeeId], references: [id])
+  manager         Employee?            @relation("PerfManager", fields: [managerId], references: [id])
+  merit           MeritRecommendation?
+
+  @@unique([cycleId, employeeId])
+  @@index([employeeId])
+  @@index([cycleId, status])
+  @@index([managerId])
+}
+
+model AppraisalKpi {
+  // KPI yang dinilai utk satu appraisal — SNAPSHOT definisi (§18.9 lapis 1).
+  id            String  @id @default(cuid())
+  appraisalId   String
+  kpiDefId      String? // dari pustaka ATAU free-text (usulan karyawan)
+  title         String
+  polarity      String
+  unit          String
+  thresholdMin  Float? // ambang gagal (F)
+  target        Float // target (T)
+  stretchValue  Float? // opsional — skor bisa sampai 120
+  weight        Float // Σ per appraisal = 100
+  isCritical    Boolean @default(false) // gagal Boolean kritis = rating ≤2 (§4.5)
+  dataSource    String  @default("Manual")
+  autoValueJson String? // hasil tarikan otomatis (sumber+periode+nilai) — bukti
+  midActual     Float? // checkpoint tengah tahun (progress)
+  finalActual   Float?
+  evidenceJson  String? // [{type:"attachment",id}|{type:"note",text}] — bukti per KPI
+  proposedBy    String  @default("Manager") // Manager|Employee (mode MBO §3.2)
+  // AMANDEMEN 1 — provenance baris (§18.2): jejak salin antar-periode
+  origin        String  @default("Fresh") // Fresh|Template|CopiedFromCycle|EmployeeProposal
+  copiedFromId  String? // id AppraisalKpi sumber (bila origin=CopiedFromCycle)
+
+  @@index([appraisalId])
+  @@index([kpiDefId])
+}
+
+model AppraisalCompetencyScore {
+  // nilai kompetensi oleh penilai (bukan 360).
+  id             String  @id @default(cuid())
+  appraisalId    String
+  competencyId   String
+  score          Int // 1..5 (dinilai saat fase manager; self saat fase self)
+  selfScore      Int?
+  comment        String?
+  // AMANDEMEN 3 §18.11 — ulasan & flag AI assist (audit internal)
+  selfComment    String? // ulasan self-assessment per kompetensi (bisa disusun AI dari poin)
+  aiAssisted     Boolean @default(false) // komentar atasan (comment) disusun dgn bantuan AI lalu diedit
+  selfAiAssisted Boolean @default(false) // flag utk selfComment
+
+  @@unique([appraisalId, competencyId])
+  @@index([competencyId])
+}
+
+model CheckIn {
+  // 1-on-1 terdokumentasi (fase Do §2).
+  id             String    @id @default(cuid())
+  appraisalId    String
+  heldAt         DateTime
+  agenda         String?
+  notesJson      String // {wins:[], blockers:[], next:[]} — ringkas & terstruktur
+  managerComment String?
+  nextCheckInAt  DateTime?
+  status         String    @default("Planned") // Planned|Held|Missed
+  createdById    String?
+  createdAt      DateTime  @default(now())
+
+  @@index([appraisalId, heldAt])
+}
+
+model Feedback360 {
+  // undangan reviewer 360 (opsional per siklus — D3).
+  id           String              @id @default(cuid())
+  appraisalId  String
+  reviewerId   String // Employee id
+  reviewerType String // Peer|Subordinate|CrossTeam|Upward
+  status       String              @default("Invited") // Invited|Submitted|Declined|Expired
+  dueAt        DateTime?
+  submittedAt  DateTime?
+  reviewer     Employee            @relation("F360Reviewer", fields: [reviewerId], references: [id])
+  answers      Feedback360Answer[]
+
+  @@unique([appraisalId, reviewerId, reviewerType])
+  @@index([appraisalId])
+  @@index([reviewerId])
+}
+
+model Feedback360Answer {
+  id           String      @id @default(cuid())
+  feedbackId   String
+  competencyId String
+  score        Int // 1..5
+  comment      String? // ditampilkan HANYA ter-agregasi ≥3 reviewer (§37)
+  aiAssisted   Boolean     @default(false) // AMANDEMEN 3 §18.11 — anonimitas 360 tetap utuh
+  feedback     Feedback360 @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId, competencyId])
+}
+
+model CalibrationSession {
+  // forum penyetaraan standar antar atasan.
+  id               String                @id @default(cuid())
+  cycleId          String
+  orgUnitId        String? // lingkup diskusi
+  heldAt           DateTime
+  participantsJson String // [employeeId…] hadir
+  chairId          String? // ketua (kepala unit)
+  notes            String?
+  cycle            PerformanceCycle      @relation(fields: [cycleId], references: [id])
+  decisions        CalibrationDecision[]
+
+  @@index([cycleId])
+}
+
+model CalibrationDecision {
+  // SETIAP perubahan hasil ter-audit (§7.2; guard §35-9).
+  id            String             @id @default(cuid())
+  sessionId     String
+  appraisalId   String
+  oldScore      Float?
+  newScore      Float?
+  oldRating     Int?
+  newRating     Int?
+  potentialBand Int? // isi/ubah 9-box band di sini
+  reason        String // WAJIB — alasan kalibrasi
+  decidedBy     String
+  decidedAt     DateTime           @default(now())
+  session       CalibrationSession @relation(fields: [sessionId], references: [id])
+
+  @@index([appraisalId])
+  @@index([sessionId])
+}
+
+// ===== KONSEKUENSI (P5–P7) =====
+
+model MeritRecommendation {
+  // usulan per karyawan pasca-publikasi (dokumen MER-YYYY-NNNN).
+  id                String          @id @default(cuid())
+  docNo             String          @unique
+  appraisalId       String          @unique
+  matrixId          String?
+  bonusMonths       Float?
+  bonusAmount       String? // VAULT terenkripsi (enc:v1:n:…)
+  raisePct          Float?
+  raiseAmount       String? // VAULT
+  note              String?
+  status            String          @default("Draft") // Draft|Submitted|Approved|Rejected|Applied|Cancelled
+  personnelActionId String? // PA SalaryAdjustment/Promotion yang digulirkan
+  appliedRunNo      String? // PayrollRun yang menyerap (bukti penerapan)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  appraisal         AppraisalRecord @relation(fields: [appraisalId], references: [id])
+
+  @@index([status])
+}
+
+model PipPlan {
+  // Program Perbaikan Kinerja 30/60/90 hari (Alur 9).
+  id           String          @id @default(cuid())
+  docNo        String          @unique // PIP-2026-0001
+  employeeId   String
+  appraisalId  String? // asal (rating ≤2) — bisa null (kasus khusus)
+  startDate    DateTime
+  endDate      DateTime // 1–3 bulan (D7)
+  targetsJson  String // [{title, metric, target, weight}] — mini-KPI PIP
+  reviewerId   String // atasan pembina
+  hrAdvisorId  String?
+  status       String          @default("Draft") // Draft|Active|Extended|Recovered|NotRecovered|Cancelled
+  outcomeNotes String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  checkpoints  PipCheckpoint[]
+  employee     Employee        @relation("PipEmployee", fields: [employeeId], references: [id])
+
+  @@index([employeeId, status])
+  @@index([reviewerId])
+}
+
+model PipCheckpoint {
+  // evaluasi berkala PIP (seq ≈ 30/60/90 hari).
+  id             String    @id @default(cuid())
+  pipId          String
+  seq            Int // 1..3
+  dueDate        DateTime
+  achievementPct Float?
+  notes          String?
+  status         String    @default("Pending") // Pending|Reviewed
+  reviewedById   String?
+  reviewedAt     DateTime?
+  pip            PipPlan   @relation(fields: [pipId], references: [id], onDelete: Cascade)
+
+  @@unique([pipId, seq])
+}
+
+model ProbationEvaluation {
+  // evaluasi masa percobaan (dari onboarding — Alur 4; ≤3 bulan UU 13/2003 Ps.60).
+  id                String    @id @default(cuid())
+  docNo             String    @unique // PRB-2026-0001
+  employeeId        String
+  onboardingId      String? // otomatis saat hire dari rekrutmen (D9)
+  cycleId           String? // siklus penilaian tempat dia terdaftar
+  dueDate           DateTime // H+3bln joinDate (maks! §7.1)
+  criteriaJson      String // kriteria ringkas [{title, weight}] + kompetensi terpilih
+  managerScore      Float?
+  hrNote            String?
+  recommendation    String? // Confirm|Extend|Terminate
+  decisionDate      DateTime?
+  personnelActionId String? // PA yang digulirkan (ChangeStatus/ExtendProbation/Termination)
+  status            String    @default("Open") // Open|Assessed|Recommended|Decided|Cancelled
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  employee          Employee  @relation("ProbEmployee", fields: [employeeId], references: [id])
+
+  @@index([employeeId, status])
+  @@index([dueDate])
 }

@@ -107,6 +107,48 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   "leave:leave-approval": [{ key: "approve", label: "Menyetujui / menolak cuti", hint: "Aksi Setujui & Tolak pada persetujuan cuti" }],
   "leave:leave-encashment": [{ key: "approve", label: "Menyetujui / menolak encashment", hint: "Memutuskan pengajuan uang pengganti cuti" }],
 
+  // P0-PERF — Performance (DEVELOPMENT-PLAN-PERFORMANCE.md §17/§35/§36):
+  // katalog aksi khusus per menu modul Kinerja.
+  "performance:cycles": [
+    { key: "enroll", label: "Mendaftarkan peserta", hint: "Enroll karyawan Active ke siklus (snapshot atasan penilai)" },
+    { key: "openGoal", label: "Membuka fase target", hint: "Membuka jendela penetapan KPI (openGoal)" },
+    { key: "advance", label: "Menggerakkan fase siklus", hint: "startOngoing/startAssessment/startCalibration/publish/close" },
+    { key: "nudge", label: "Mengirim pengingat (nudge)", hint: "Remind/Remind All multi-kanal dengan deep-link (§18.8, rate-limit D17)" },
+  ],
+  "performance:goals": [
+    { key: "submit", label: "Menyetujui target KPI", hint: "Submit target peserta (kunci — Σbobot 100, 3–8 item)" },
+    { key: "copy", label: "Menyalin KPI periode lalu", hint: "copyPreview/copyFromCycle/copyTeam — salin definisi+target, capaian reset (§18.2)" },
+    { key: "import", label: "Impor Excel target", hint: "Unduh template, unggah, pratinjau validasi, commit baris valid saja (§18.5)" },
+    { key: "revise", label: "Revisi target mid-year", hint: "Revisi target fase Ongoing dengan approval atas (Alur 3)" },
+  ],
+  "performance:appraisals": [
+    { key: "submitManager", label: "Menilai & submit penilaian", hint: "Form atasan: aktual KPI + skor kompetensi + komentar ekstrem" },
+    { key: "pullAuto", label: "Menarik data otomatis", hint: "Tarik nilai KPI ber-sumber dari modul lain (§18.6)" },
+    { key: "importActuals", label: "Impor realisasi Excel", hint: "Impor finalActual massal — tidak mengubah status (§18.5)" },
+    { key: "aiCompose", label: "Menyusun ulasan dengan AI", hint: "AI Assist kolom ulasan — poin → draf kalimat (§18.11, compose-only)" },
+    { key: "previewImpact", label: "Melihat estimasi dampak", hint: "Estimasi bonus/kenaikan real-time dari draf nilai (§18.12, tanpa nominal Rp)" },
+  ],
+  "performance:calibration": [
+    { key: "decide", label: "Keputusan kalibrasi", hint: "CalibrationDecision ter-audit (dari → ke, alasan wajib)" },
+    { key: "session", label: "Sesi kalibrasi", hint: "Buka/tutup sesi forum penyetaraan standar" },
+  ],
+  "performance:results": [
+    { key: "publish", label: "Mempublikasikan hasil", hint: "Publish hasil ke ESS karyawan (Alur 7)" },
+    { key: "appeal", label: "Memutuskan banding", hint: "Keputusan banding karyawan (jendela D6)" },
+  ],
+  "performance:pip": [
+    { key: "activate", label: "Mengaktifkan PIP", hint: "Aktivasi program perbaikan kinerja 30/60/90" },
+    { key: "checkpoint", label: "Review checkpoint", hint: "Menilai capaian checkpoint PIP" },
+    { key: "outcome", label: "Menutup outcome PIP", hint: "Recovered/NotRecovered/Cancelled" },
+  ],
+  "performance:probation": [
+    { key: "decide", label: "Keputusan masa percobaan", hint: "Confirm/Extend/Terminate + PA + surat" },
+  ],
+  "performance:masters": [
+    { key: "newVersion", label: "Versi baru pustaka", hint: "Simpan definisi KPI/kompetensi sebagai versi baru (§18.9)" },
+    { key: "archive", label: "Mengarsipkan definisi", hint: "Arsip lembut — hilang dari picker, data historis tetap terbaca" },
+  ],
+
   // F1-REC — Rekrutmen: PR (permintaan karyawan) + kotak approval
   "recruitment:pr": [
     { key: "apply", label: "Mengajukan PR", hint: "Meneruskan draft permintaan karyawan ke jalur approval" },

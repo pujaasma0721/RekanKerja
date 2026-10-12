@@ -217,6 +217,8 @@ const TPL_DEFS: { code: string; name: string; description: string; components: s
 import { LETTER_TEMPLATE_DEFAULTS } from "@/rekankerja/shared/lib/letter-defaults";
 // F-02 BPA-AUDIT-53 — tabel TER resmi Lampiran PMK 168/2023 (sumber tunggal).
 import { TER_OFFICIAL } from "@/rekankerja/payroll/services/ter-official";
+// P0-PERF — data default modul Performance (satu sumber dgn migrate-performance-p0)
+import { KPI_SEED, COMP_SEED, SCALE_SEED, TEMPLATE_SEED, CORE_TEMPLATE_ITEMS, MERIT_SEED, PERF_YEAR, COMPETENCY_LEVEL_LABELS, compLevelDescriptors } from "@/rekankerja/performance/services/perf-defaults";
 
 export async function seedTenantReference(db: TenantDb): Promise<void> {
   // lookup master
@@ -430,6 +432,98 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
   // Template surat REC_OFFER/REC_APPOINT/REC_REJECT ikut dari
   // LETTER_TEMPLATE_DEFAULTS di atas (kategori "Recruitment").
   await ensureRecruitmentF4Reference(db);
+
+  // P0-PERF — referensi master modul Performance (DEVELOPMENT-PLAN-PERFORMANCE.md
+  // §20 P0; idempoten per code/version).
+  await ensurePerformanceReference(db);
+}
+
+// ============ PERFORMANCE REFERENCE (P0 — DEVELOPMENT-PLAN-PERFORMANCE.md) ============
+
+/** Master performance default (idempoten per code+versionNo / value / code). */
+export async function ensurePerformanceReference(db: TenantDb): Promise<void> {
+  // PerformanceSetting — satu baris per tenant
+  const st = await db.performanceSetting.findFirst({ select: { id: true } });
+  if (!st) {
+    await db.performanceSetting.create({ data: {} });
+  }
+
+  // Pustaka KPI starter-pack 40 (insert-only per code+versionNo=1)
+  for (const k of KPI_SEED) {
+    const before = await db.kpiDefinition.findUnique({
+      where: { code_versionNo: { code: k.code, versionNo: 1 } },
+      select: { id: true },
+    });
+    if (!before) {
+      await db.kpiDefinition.create({
+        data: {
+          code: k.code, name: k.name, category: k.category, polarity: k.polarity, unit: k.unit,
+          dataSource: k.dataSource ?? "Manual", sourceKey: k.sourceKey ?? null,
+          description: k.description ?? null, versionNo: 1, effectiveYear: PERF_YEAR, status: "Active",
+        },
+      });
+    }
+  }
+
+  // Kompetensi 12 ber-deskriptor 5 level
+  for (const cp of COMP_SEED) {
+    const before = await db.competency.findUnique({
+      where: { code_versionNo: { code: cp.code, versionNo: 1 } },
+      select: { id: true },
+    });
+    if (!before) {
+      await db.competency.create({
+        data: {
+          code: cp.code, name: cp.name, kind: cp.kind,
+          levelsJson: JSON.stringify(compLevelDescriptors(cp).map((descriptor, i) => ({ level: i + 1, label: COMPETENCY_LEVEL_LABELS[i], descriptor }))),
+          versionNo: 1, effectiveYear: PERF_YEAR, status: "Active",
+        },
+      });
+    }
+  }
+
+  // Skala rating 5 tingkat
+  for (const sc of SCALE_SEED) {
+    const before = await db.ratingScale.findUnique({ where: { value: sc.value }, select: { id: true } });
+    if (!before) await db.ratingScale.create({ data: sc });
+  }
+
+  // Template bobot + item kompetensi
+  for (const tp of TEMPLATE_SEED) {
+    const before = await db.performanceTemplate.findUnique({ where: { code: tp.code }, select: { id: true } });
+    if (before) continue;
+    const tpl = await db.performanceTemplate.create({
+      data: { code: tp.code, name: tp.name, weightsJson: tp.weightsJson, active: true },
+    });
+    for (const it of tp.compItems) {
+      const comp = await db.competency.findUnique({
+        where: { code_versionNo: { code: it.code, versionNo: 1 } }, select: { id: true },
+      });
+      if (comp) {
+        await db.performanceTemplateItem.create({
+          data: { templateId: tpl.id, kind: "Competency", refId: comp.id, weight: it.weight },
+        });
+      }
+    }
+    for (const cc of CORE_TEMPLATE_ITEMS) {
+      const comp = await db.competency.findUnique({
+        where: { code_versionNo: { code: cc, versionNo: 1 } }, select: { id: true },
+      });
+      if (comp) {
+        await db.performanceTemplateItem.create({
+          data: { templateId: tpl.id, kind: "Competency", refId: comp.id, weight: 25 },
+        });
+      }
+    }
+  }
+
+  // Matriks merit default
+  const mm = await db.meritMatrix.findUnique({ where: { code: MERIT_SEED.code }, select: { id: true } });
+  if (!mm) {
+    await db.meritMatrix.create({
+      data: { code: MERIT_SEED.code, name: MERIT_SEED.name, gridJson: MERIT_SEED.gridJson, active: true },
+    });
+  }
 }
 
 // ============ RECRUITMENT REFERENCE (F0 — DEVELOPMENT-PLAN-RECRUITMENT.md) ============
