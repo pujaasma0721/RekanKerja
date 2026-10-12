@@ -4,7 +4,6 @@
 import { PerformanceOverviewPage } from "./performance-overview";
 import { PerformanceMastersPage } from "./performance-masters";
 import { PerformanceSettingsPage } from "./performance-settings";
-import { PerfComingSoon } from "./perf-coming-soon";
 import { PerformanceCyclesPage } from "./performance-cycles";
 import { PerformanceGoalsPage } from "./performance-goals";
 import { PerformanceCheckinsPage } from "./performance-checkins";
@@ -13,6 +12,7 @@ import { PerformanceCalibrationPage } from "./performance-calibration";
 import { PerformanceResultsPage } from "./performance-results";
 import { PerformancePipPage } from "./performance-pip";
 import { PerformanceProbationPage } from "./performance-probation";
+import { PerformanceReportsPage } from "./performance-reports";
 
 export function PerformanceModule({ view }: { view: string }) {
   switch (view) {
@@ -35,7 +35,7 @@ export function PerformanceModule({ view }: { view: string }) {
     case "probation":
       return <PerformanceProbationPage />;
     case "reports":
-      return <PerfComingSoon view="reports" phase="P8" />;
+      return <PerformanceReportsPage />;
     case "masters":
       return <PerformanceMastersPage />;
     case "settings":

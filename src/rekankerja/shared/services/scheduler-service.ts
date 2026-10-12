@@ -60,6 +60,9 @@ import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service"
 import { jobPerfCheckInReminders } from "@/rekankerja/performance/services/checkin-service";
 import { jobPerfPipReminders } from "@/rekankerja/performance/services/pip-service";
 import { jobPerfProbationReminders } from "@/rekankerja/performance/services/probation-service";
+// P8-PERF — snapshot metrik kinerja (perf_completion, perf_rating_distribution,
+// perf_pip_recovery_rate) ke MetricSnapshot yang sama dgn analitik rekrutmen.
+import { snapshotPerfMetrics } from "@/rekankerja/performance/services/perf-metrics";
 import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webhook-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
@@ -1654,6 +1657,9 @@ export interface SchedulerJobCounts {
   /** P7-PERF — evaluasi percobaan H-14/H-3 + lewat tenggat tanpa keputusan
    *  (eskalasi mingguan) yang diingatkan job perf-probation-reminder. */
   perfProbReminded: number;
+  /** P8-PERF — baris MetricSnapshot kinerja ditulis job perf-metrics-snapshot
+   *  (harian; perf_completion + perf_rating_distribution + perf_pip_recovery_rate). */
+  perfMetricsSnapshotted: number;
   /** F2-REC — pelamar talent pool yang otomatis jadi Outdated oleh job
    *  applicant-outdated (keepOnFileUntil lewat; idempoten by filter Active). */
   applicantOutdatedRows: number;
@@ -1755,6 +1761,7 @@ export async function runAllJobs(
     perfCheckInReminded: 0,
     perfPipReminded: 0,
     perfProbReminded: 0,
+    perfMetricsSnapshotted: 0,
 };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1869,6 +1876,18 @@ export async function runAllJobs(
     const r = await jobPerfProbationReminders(db);
     jobs.perfProbReminded = r.reminded;
     notificationsSent += r.notified;
+  });
+  // P8-PERF — snapshot metrik kinerja harian (MetricSnapshot periode YYYY-MM;
+  // upsert idempoten, klaim dedupe per hari — pola recruitment-metrics-snapshot).
+  await guarded("perf-metrics-snapshot", async () => {
+    const key = `perf-metrics-snapshot:${dayKey()}`;
+    const claimed = await claimReminder(
+      db,
+      key,
+      `Snapshot metrik kinerja periode berjalan diperbarui (${dayKey()})`,
+    );
+    if (!claimed) return; // sudah disnapshot hari ini
+    jobs.perfMetricsSnapshotted = await snapshotPerfMetrics(db);
   });
 
   // F2-REC — talent pool: pelamar keep-on-file lewat → Outdated otomatis.

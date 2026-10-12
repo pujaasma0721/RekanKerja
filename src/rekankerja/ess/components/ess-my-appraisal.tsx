@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
-import { NotebookPen, Sparkles, Send, Zap, Waypoints } from "lucide-react";
+import { NotebookPen, Sparkles, Send, Zap, Waypoints, FileSpreadsheet } from "lucide-react";
 
 const API = "/api/rekankerja/ess/my-appraisal";
 
@@ -98,8 +98,20 @@ export function EssMyAppraisalPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="flex items-center gap-2 text-xl font-bold"><NotebookPen className="h-6 w-6 text-fuchsia-600 dark:text-fuchsia-400" aria-hidden /> {t("Penilaian Saya", "My Appraisal")}</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{t("Self-assessment kompetensi + hasil terpublikasi (satu sumber kebenaran — §31).", "Competency self-assessment + published results (single source of truth — §31).")}</p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h1 className="flex items-center gap-2 text-xl font-bold"><NotebookPen className="h-6 w-6 text-fuchsia-600 dark:text-fuchsia-400" aria-hidden /> {t("Penilaian Saya", "My Appraisal")}</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t("Self-assessment kompetensi + hasil terpublikasi (satu sumber kebenaran — §31).", "Competency self-assessment + published results (single source of truth — §31).")}</p>
+          </div>
+          {/* P8 — ekspor riwayat sendiri (PP 35/2021 §7.2): XLSX multi-sheet */}
+          <a
+            href={`/api/rekankerja/ess/my-history?export=xlsx&lang=${lang}`}
+            className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            aria-label={t("Unduh riwayat kinerja saya sebagai XLSX", "Download my performance history as XLSX")}
+          >
+            <FileSpreadsheet className="h-4 w-4" aria-hidden /> {t("Unduh riwayat saya (XLSX)", "Download my history (XLSX)")}
+          </a>
+        </div>
       </div>
 
       {/* P6-PERF — Program Perbaikan Kinerja Anda (§33-3: read-only progress) */}
