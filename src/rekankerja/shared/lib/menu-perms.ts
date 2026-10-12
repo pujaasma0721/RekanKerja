@@ -149,7 +149,12 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "cancel", label: "Membatalkan PIP", hint: "Membatalkan program (mis. resign) — alasan ter-audit" },
   ],
   "performance:probation": [
+    { key: "new", label: "Membuat evaluasi percobaan", hint: "Evaluasi masa percobaan manual (karyawan tanpa evaluasi terbuka — tenggat maks 3 bulan sejak join §7.1)" },
+    { key: "assess", label: "Penilaian atasan", hint: "Mengisi skor atasan 0–100 + kriteria bobot 3–6 item" },
+    { key: "recommend", label: "Rekomendasi HR", hint: "Confirm / Extend (perjanjian kerja baru — UU 13/2003 Ps.60) / Terminate" },
+    { key: "submit", label: "Mengajukan keputusan", hint: "Meneruskan rekomendasi ke jalur persetujuan AS-PROB-STD (L3 Direktur hanya utk Terminate)" },
     { key: "decide", label: "Keputusan masa percobaan", hint: "Confirm/Extend/Terminate + PA + surat" },
+    { key: "cancel", label: "Membatalkan evaluasi", hint: "Membatalkan evaluasi percobaan (mis. salah karyawan) — alasan ter-audit" },
   ],
   "performance:masters": [
     { key: "newVersion", label: "Versi baru pustaka", hint: "Simpan definisi KPI/kompetensi sebagai versi baru (§18.9)" },

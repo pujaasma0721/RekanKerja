@@ -559,6 +559,21 @@ export async function continueToOnboarding(
     note: `Hasil rekrutmen — offer ${appt.offer.offerNo}, surat pengangkatan ${appt.letterNo ?? "-"}`,
   });
 
+  // P7-PERF D9 — evaluasi masa percobaan otomatis dari onboarding (tenggat =
+  // joinDate + 90 hari — maks 3 bulan UU 13/2003 Ps.60 §7.1). Failure-safe:
+  // onboarding TIDAK boleh gagal bila pembuatan evaluasi gagal (log & lanjut).
+  try {
+    const { createProbationFromOnboarding } = await import("@/rekankerja/performance/services/probation-service");
+    await createProbationFromOnboarding(db, {
+      employeeId: employee.id,
+      onboardingId: onboarding.id,
+      joinDate,
+      actor: input.actor?.name ?? "system-onboarding",
+    });
+  } catch (e) {
+    console.error("[probation] auto-create evaluasi percobaan dari onboarding gagal:", e instanceof Error ? e.message : e);
+  }
+
   // email checklist per bagian (butuh req utk link publik — best effort)
   let emailsSent = 0;
   if (input.req) {

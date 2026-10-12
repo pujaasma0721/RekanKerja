@@ -73,6 +73,10 @@ const STATUS_MAP: Record<string, { label: string; cls: string; dot: string }> = 
   Extended: { label: "Diperpanjang", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25", dot: "bg-amber-500" },
   Recovered: { label: "Pulih", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25", dot: "bg-emerald-500" },
   NotRecovered: { label: "Belum Pulih", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25", dot: "bg-rose-500" },
+  // P7-PERF — status evaluasi masa percobaan (§34.5)
+  Assessed: { label: "Dinilai", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25", dot: "bg-amber-500" },
+  Recommended: { label: "Direkomendasikan", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand-85 dark:border-brand/25", dot: "bg-brand" },
+  Decided: { label: "Diputuskan", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25", dot: "bg-emerald-500" },
 };
 
 // Peta EN paralel STATUS_MAP (label ID dipertahankan; render t(label, EN[label])).
@@ -105,6 +109,10 @@ const STATUS_LABEL_EN: Record<string, string> = {
   Extended: "Extended",
   Recovered: "Recovered",
   NotRecovered: "Not Recovered",
+  // P7-PERF — status evaluasi masa percobaan
+  Assessed: "Assessed",
+  Recommended: "Recommended",
+  Decided: "Decided",
 };
 
 export function StatusPill({ status, className }: { status: string; className?: string }) {

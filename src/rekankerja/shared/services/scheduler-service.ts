@@ -59,6 +59,7 @@ import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service"
 // P2-PERF — reminder check-in terlewat (§27-1)
 import { jobPerfCheckInReminders } from "@/rekankerja/performance/services/checkin-service";
 import { jobPerfPipReminders } from "@/rekankerja/performance/services/pip-service";
+import { jobPerfProbationReminders } from "@/rekankerja/performance/services/probation-service";
 import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webhook-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
@@ -1650,6 +1651,9 @@ export interface SchedulerJobCounts {
   /** P6-PERF — checkpoint PIP menjelang jatuh tempo + PIP lewat tenggat +7 hari
    *  tanpa outcome yang diingatkan job perf-pip-reminder (dedupe per key). */
   perfPipReminded: number;
+  /** P7-PERF — evaluasi percobaan H-14/H-3 + lewat tenggat tanpa keputusan
+   *  (eskalasi mingguan) yang diingatkan job perf-probation-reminder. */
+  perfProbReminded: number;
   /** F2-REC — pelamar talent pool yang otomatis jadi Outdated oleh job
    *  applicant-outdated (keepOnFileUntil lewat; idempoten by filter Active). */
   applicantOutdatedRows: number;
@@ -1750,6 +1754,7 @@ export async function runAllJobs(
     retentionSkippedConsent: 0,
     perfCheckInReminded: 0,
     perfPipReminded: 0,
+    perfProbReminded: 0,
 };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1855,6 +1860,14 @@ export async function runAllJobs(
   await guarded("perf-pip-reminder", async () => {
     const r = await jobPerfPipReminders(db);
     jobs.perfPipReminded = r.reminded;
+    notificationsSent += r.notified;
+  });
+  // P7-PERF — percobaan: H-14 & H-3 menjelang jatuh tempo → ingatkan atasan +
+  // HR; lewat jatuh tempo tanpa keputusan → eskalasi mingguan HR + direktur
+  // (dedupe ActivityLog Reminder per key — entity ProbationEvaluation).
+  await guarded("perf-probation-reminder", async () => {
+    const r = await jobPerfProbationReminders(db);
+    jobs.perfProbReminded = r.reminded;
     notificationsSent += r.notified;
   });
 

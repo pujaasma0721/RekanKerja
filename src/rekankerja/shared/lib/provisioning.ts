@@ -441,6 +441,14 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
     await ensurePipInfrastructure(db);
   } catch { /* struktur/template unik per code — race tenant bootstrap aman diabaikan */ }
 
+  // P7-PERF — struktur approval keputusan percobaan (AS-PROB-STD) + template
+  // surat PROB_RESULT/PROB_EXTEND (tenant baru; tenant lama di-heal
+  // ensureProbInfrastructure saat menu percobaan dibuka pertama kali).
+  try {
+    const { ensureProbInfrastructure } = await import("@/rekankerja/performance/services/probation-service");
+    await ensureProbInfrastructure(db);
+  } catch { /* struktur/template unik per code — race tenant bootstrap aman diabaikan */ }
+
   // F0-REC — master Rekrutmen + katalog tahap seleksi default (tenant baru).
   // Tenant existing di-heal scripts/migrate-recruitment-f0.ts via parity-runner
   // (seed identik — insert-only per code; lihat DEVELOPMENT-PLAN-RECRUITMENT.md §7 F0).
