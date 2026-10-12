@@ -62,7 +62,13 @@ export async function main(schemas?: string[]): Promise<void> {
       console.log(`  ${schemaName}:`);
       for (const ddl of [...CREATE_TABLES, ...AFTER_TABLE]) {
         await c.query(`SET search_path TO "${schemaName}"`);
-        await c.query(ddl);
+        // Race-safe: ADD CONSTRAINT paralel dua penulis → 42710 (idempoten)
+        try {
+          await c.query(ddl);
+        } catch (e) {
+          const pgCode = (e as { code?: string }).code;
+          if (pgCode !== "42710" && !/already exists/.test(String(e))) throw e;
+        }
       }
       console.log(`    2 tabel F8 siap (MetricSnapshot, SavedReportView)`);
     } finally {

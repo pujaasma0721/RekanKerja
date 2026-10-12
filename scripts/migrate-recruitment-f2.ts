@@ -651,7 +651,15 @@ export async function main(schemas?: string[]): Promise<void> {
       console.log(`  ${schemaName}:`);
       for (const ddl of [...CREATE_TABLES, ...AFTER_TABLE]) {
         await c.query(`SET search_path TO "${schemaName}"`);
-        await c.query(ddl);
+        // Race-safe: ADD CONSTRAINT paralel dua penulis → 42710 duplicate_object
+        // "already exists" (constraint yang sama terpasang penulis lain sejak
+        // cek pg_constraint) — diperlakukan idempoten; kode lain tetap dilempar.
+        try {
+          await c.query(ddl);
+        } catch (e) {
+          const pgCode = (e as { code?: string }).code;
+          if (pgCode !== "42710" && !/already exists/.test(String(e))) throw e;
+        }
       }
       console.log(`    11 tabel F2 siap (JobOpportunity … ApplicantConsent)`);
     } finally {

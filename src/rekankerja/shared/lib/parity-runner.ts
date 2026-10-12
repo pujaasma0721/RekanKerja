@@ -16,7 +16,7 @@
 // AKHIR sebelum travel-settlement-fix yang menulis amount terenkripsi).
 import { Client } from "pg";
 import { db as platform } from "@/lib/db";
-import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { getTenantClient, disconnectTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 import { WA_DEFAULT_TEMPLATES } from "@/rekankerja/shared/services/wa-defaults";
 
 const TENANT_URL = () =>
@@ -48,6 +48,76 @@ export type ParityGap = {
 type Step = { key: string; label: string; run: (schemas: string[]) => Promise<void> };
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/**
+ * FIX stability-parity (deploy 2026-10-12): Prisma "Engine is not yet connected" /
+ * "Response from the Engine was empty" — transient saat 1 proses membuka banyak
+ * client Prisma + child query-engine (sebuah engine instance menumpuk ±1 pipe
+ * IPC ×4 FD; soft-limit `ulimit -n` 1024 di SSH membikin engine mati di tengah
+ * siklus, PM2 default 1M+ aman — app produksi TIDAK terpengaruh). Retry sekali
+ * dgn jeda — migrasi idempoten, aman diulang dari titik gagal.
+ */
+const TRANSIENT_ENGINE = /Engine is not yet connected|Response from the Engine was empty|Engine is already terminating/i;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function runStepWithRetry(step: Step, schemas: string[], log: (line: string) => void): Promise<{ ok: boolean; ms: number; error?: string }> {
+  const t0 = Date.now();
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      await step.run(schemas);
+      return { ok: true, ms: Date.now() - t0 };
+    } catch (e) {
+      const m = msg(e);
+      if (attempt < 4 && TRANSIENT_ENGINE.test(m)) {
+        // backoff 1s → 2s → 12s: kegagalan engine biasanya pulih <2s, tapi
+        // slot janggal (pool 3-conn Prisma membuat engine lama jenuh) butuh
+        // jeda yang cukup sampai lapisan engine yang sakit terpancutan.
+        const backoffMs = attempt < 3 ? attempt * 1000 : 12_000;
+        log(`⟳ ${step.label} — engine transient (attempt ${attempt}/4), jeda ${backoffMs / 1000}s lalu ulang…`);
+        await sleep(backoffMs);
+        // HARD RECOVERY: buang SEMUA tenant client cache (engine lama yang
+        // sakit ikut ter-destroy) — getTenantClient membuat instance+engine baru
+        // di upaya berikutnya. Setiap skrip idempoten, aman diulangan.
+        for (const s of schemas) disconnectTenantClient(s);
+        continue;
+      }
+      return { ok: false, ms: Date.now() - t0, error: m };
+    }
+  }
+  return { ok: false, ms: Date.now() - t0, error: "unreachable" };
+}
+
+/**
+ * Advisory-lock antar-proses (pg_advisory_lock): app bootstrap (instrumentation)
+ * dan POST /api/admin/seed-demo bisa berbarengan dgn CLI eksternal juga meluncur
+ * pipeline → dua penulis DDL bersamaan memicu race pg_class_relname_nsp_index
+ * (pg syscache flush; retry-submit kecil pun kalah). Satu kunci dgn fence ID:
+ * pertama menang, yang lain lewat SATU detik lalu dibatalkan — atanapun failover
+ * bila pemegang lock mati (pid hilang).
+ */
+async function acquireParityLock(): Promise<{ client: import("pg").Client; mine: boolean } | null> {
+  const c = new Client({ connectionString: TENANT_URL() });
+  try {
+    await c.connect();
+    // Pemegang lock mati (pid tak ada lagi) → hasilkan lock itu bebas.
+    await c.query(`SELECT pg_advisory_unlock_all() FROM pg_locks l WHERE l.locktype='advisory' AND NOT EXISTS (SELECT 1 FROM pg_stat_activity a WHERE a.pid = l.pid)`).catch(() => {});
+    // fence id: parity-runner-pipeline (arbitrary hash tetap)
+    const got = await c.query<{ got: boolean }>(`SELECT pg_try_advisory_lock(918273645) AS got`);
+    if (!got.rows[0]?.got) { await c.end(); return null; }
+    return { client: c, mine: true };
+  } catch {
+    try { await c.end(); } catch { /* ignore */ }
+    return null; // DB tak terjangkau — jangan blokir pipeline (noop-safe: migrasi idempoten)
+  }
+}
+
+async function releaseParityLock(lock: { client: import("pg").Client } | null): Promise<void> {
+  if (!lock) return;
+  try {
+    await lock.client.query(`SELECT pg_advisory_unlock(918273645)`);
+  } catch { /* ignore */ }
+  try { await lock.client.end(); } catch { /* ignore */ }
+}
 
 /** Adapter skrip migrasi task-41/43: main() mereka menerima
  *  {slug, schemaName}[] (hasil query registry), sedangkan runner bekerja
@@ -654,6 +724,14 @@ export function parityRunnerStatus() {
  */
 export async function runParityPipeline(log: (line: string) => void = (l) => console.log(`[parity] ${l}`)): Promise<ParityReport> {
   if (running) throw new Error("Pipeline parity masih berjalan — tunggu hingga selesai.");
+  // Advisory-lock antar-proses: bootstrap aplikasi + pemicu CLI bisa jalan
+  // bersamaan → race DDL (pg_class_relname_nsp_index). Yang gagal pegang lock
+  // memberi jeda singkat lalu menskip (pipa lagi akan healing di boot berikut).
+  const lock = await acquireParityLock();
+  if (!lock) {
+    log("proses lain memegang lock parity — pipeline dilewati (migrasi berlanjut via pemegang lock).");
+    return { schemas: await tenantSchemas().catch(() => []), steps: [], ok: true, finishedAt: new Date().toISOString() };
+  }
   running = true;
   try {
     const schemas = await tenantSchemas();
@@ -673,17 +751,10 @@ export async function runParityPipeline(log: (line: string) => void = (l) => con
     }
     const steps: ParityStepResult[] = [];
     for (const step of STEPS) {
-      const t0 = Date.now();
-      try {
-        await step.run(schemas);
-        const ms = Date.now() - t0;
-        steps.push({ key: step.key, label: step.label, ok: true, ms });
-        log(`✓ ${step.label} (${(ms / 1000).toFixed(1)}s)`);
-      } catch (e) {
-        const ms = Date.now() - t0;
-        steps.push({ key: step.key, label: step.label, ok: false, ms, error: msg(e) });
-        log(`✗ ${step.label} GAGAL: ${msg(e)} — lanjut ke langkah berikutnya`);
-      }
+      const r = await runStepWithRetry(step, schemas, log);
+      steps.push({ key: step.key, label: step.label, ...r });
+      if (r.ok) log(`✓ ${step.label} (${(r.ms / 1000).toFixed(1)}s)`);
+      else log(`✗ ${step.label} GAGAL: ${r.error ?? ""} — lanjut ke langkah berikutnya`);
     }
     const gap = await checkParityGap().catch((e) => ({ gap: true, reasons: [`cek gap gagal: ${msg(e)}`], tenants: schemas.length, readySchemas: 0 }) as ParityGap);
     const ok = steps.every((r) => r.ok) && !gap.gap;
@@ -692,7 +763,8 @@ export async function runParityPipeline(log: (line: string) => void = (l) => con
     if (gap.gap) log(`SELESAI dengan sisa gap: ${gap.reasons.join("; ")}`);
     else log(`SELESAI — ${schemas.length} tenant paritas penuh (${steps.length} langkah).`);
     return report;
-  } finally {
+  }    finally {
     running = false;
+    await releaseParityLock(lock);
   }
-}
+}

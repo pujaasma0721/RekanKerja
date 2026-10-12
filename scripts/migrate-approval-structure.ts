@@ -11,7 +11,7 @@ import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { getTenantClient, disconnectTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { startApprovalChain } from "@/rekankerja/shared/services/approval-engine";
@@ -79,7 +79,18 @@ export async function applyApprovalDdl(schemaName: string): Promise<{ tables: nu
       const create = stmt.match(/^CREATE TABLE "([A-Za-z]+)"/);
       if (create && NEW_TABLES.includes(create[1])) {
         if (existing.has(create[1])) continue; // idempoten
-        await c.query(stmt); tables++; continue;
+        // Race-safe: CREATE TABLE paralel dua penulis dapat impas pg_class
+        // relname race (pg syscache flush) — sudah-ada diperlakukan idempoten.
+        try {
+          await c.query(stmt);
+        } catch (e) {
+          const pgCode = (e as { code?: string }).code;
+          if (!(pgCode === "23505" || pgCode === "42P07" || pgCode === "42710" || /pg_class_relname_nsp_index|already exists/.test(String(e)))) {
+            throw e;
+          }
+        }
+        tables++;
+        continue;
       }
       const idx = stmt.match(/^CREATE (?:UNIQUE )?INDEX "[A-Za-z0-9_]+" ON "([A-Za-z]+)"/);
       if (idx && NEW_TABLES.includes(idx[1])) {
@@ -102,14 +113,27 @@ export async function applyApprovalDdl(schemaName: string): Promise<{ tables: nu
         [schemaName, table, column],
       );
       if (has.rowCount === 0) {
-        await c.query(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${ddl}`);
-        columns++;
+        // Race-safe: ADD COLUMN paralel dua penulis → 42710 duplicate_object "already exists"
+        try {
+          await c.query(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${ddl}`);
+          columns++;
+        } catch (e) {
+          const pgCode = (e as { code?: string }).code;
+          if (pgCode !== "42710" && !/already exists/.test(String(e))) throw e;
+        }
       }
     }
-    // FK kolom baru (cek nama constraint agar idempoten)
+    // FK kolom baru (cek nama constraint agar idempoten; race-safe 42710)
     for (const { name, sql } of NEW_FKS) {
       const has = await c.query("SELECT 1 FROM pg_constraint WHERE conname = $1", [name]);
-      if (has.rowCount === 0) await c.query(sql);
+      if (has.rowCount === 0) {
+        try {
+          await c.query(sql);
+        } catch (e) {
+          const pgCode = (e as { code?: string }).code;
+          if (pgCode !== "42710" && !/already exists/.test(String(e))) throw e;
+        }
+      }
     }
     return { tables, columns };
   } finally {
@@ -396,11 +420,23 @@ async function backfillChains(db: TenantDb): Promise<{ created: number; finalize
   }
 
   // WorkOff (tanpa nominal; Pending → chain baru, final historis → difinalkan)
-  const workoffs = await db.workOffPermission.findMany({ select: { id: true, employeeId: true, status: true } });
-  for (const r of workoffs) {
-    const before = await db.approvalChain.findUnique({ where: { docType_docId: { docType: "WorkOff", docId: r.id } } });
-    if (!before && r.status === "Pending") { await startApprovalChain(db, { docType: "WorkOff", docId: r.id, employeeId: r.employeeId, createdBy: "backfill" }); created++; }
-    if (before && r.status !== "Pending") await finalize("WorkOff", r.id, r.status);
+  // FIX stability: tenant tanpa tabel WorkOffPermission (schema legacy) →
+  // findMany tersebut memakai model yang di DMMF client ada tapi belum ada
+  // tabelnya di DB — Prisma engine mati di tengah ("Response from the Engine
+  // was empty"/"Engine is not yet connected") dan DECANDAK step parity ini.
+  // Cek information_schema dulu; skip mulus bila tidak ada.
+  const woTable = (await db.$queryRawUnsafe<{ n: number }[]>(
+    "SELECT COUNT(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'WorkOffPermission'",
+  )) as { n: number }[];
+  if ((woTable[0]?.n ?? 0) > 0) {
+    const workoffs = await db.workOffPermission.findMany({ select: { id: true, employeeId: true, status: true } });
+    for (const r of workoffs) {
+      const before = await db.approvalChain.findUnique({ where: { docType_docId: { docType: "WorkOff", docId: r.id } } });
+      if (!before && r.status === "Pending") { await startApprovalChain(db, { docType: "WorkOff", docId: r.id, employeeId: r.employeeId, createdBy: "backfill" }); created++; }
+      if (before && r.status !== "Pending") await finalize("WorkOff", r.id, r.status);
+    }
+  } else {
+    console.log("    WorkOffPermission belum ada — backfill WorkOff dilewati");
   }
 
   return { created, finalized };
@@ -413,23 +449,46 @@ export async function main(schemas?: string[]): Promise<void> {
   const list = schemas ?? SCHEMAS;
   for (const schema of list) {
   console.log(`\n[${schema}] migrasi approval struktur berjenjang…`);
-  const ddl = await applyApprovalDdl(schema);
-  console.log(`  DDL: ${ddl.tables} tabel baru, ${ddl.columns} kolom baru`);
-  const db = getTenantClient(schema);
-  const levels = await backfillPositionLevels(db);
-  console.log(`  PositionLevel: ${levels} posisi dipetakan`);
-  const snapshots = await backfillEmployeeSnapshots(db);
-  console.log(`  Snapshot employee: ${snapshots} karyawan`);
-  const offices = await backfillOfficesLocations(db);
-  if (offices.offices > 0) console.log(`  Kantor/lokasi: 3 kantor + 6 lokasi, ${offices.located} karyawan ditempatkan`);
-  const empCount = await db.employee.count();
-  const structures = empCount > 0 ? await backfillStructures(db) : await backfillGenericStructures(db);
-  console.log(`  Struktur approval: ${structures} dibuat`);
-  const wo = await ensureWorkoffStructure(db);
-  if (wo) console.log("  Struktur WorkOff: AS-WORKOFF-STD dibuat (approval berjenjang izin tidak masuk)");
-  const chains = await backfillChains(db);
-  console.log(`  Chain backfill: ${chains.created} dibuat, ${chains.finalized} difinalkan`);
-  await db.$disconnect();
+  // FIX stability (parity deploy 2026-10-12): engine Prisma per-schema kadang
+  // mati pas "Engine is not yet connected" di koneksi pertama pool 3-conn
+  // (terutama tenant berdata, MII) — retry per-schema dgn $disconnect dulu
+  // (memaksa engine lama dibuang) lalu buat ulang client via getTenantClient;
+  // migrasi idempoten jadi aman diulang dalam skema yang sama.
+  let done = false;
+  let lastErr: unknown = null;
+  for (let attemptNo = 1; attemptNo <= 4 && !done; attemptNo++) {
+    try {
+      if (attemptNo > 1) {
+        const backoff = attemptNo === 3 ? 4000 : attemptNo === 4 ? 15_000 : 1200;
+        console.log(`  ⟳ retry schema (attempt ${attemptNo}/4, jeda ${backoff / 1000}s) — engine transient sebelumnya: ${lastErr instanceof Error ? (lastErr.message || "").slice(0, 80) : String(lastErr).slice(0, 80)}`);
+        await new Promise((r) => setTimeout(r, backoff));
+        disconnectTenantClient(schema); // buang engine lama + re-new saat getTenantClient berikutnya
+      }
+      const ddl = await applyApprovalDdl(schema);
+      console.log(`  DDL: ${ddl.tables} tabel baru, ${ddl.columns} kolom baru`);
+      const db = getTenantClient(schema);
+      const levels = await backfillPositionLevels(db);
+      console.log(`  PositionLevel: ${levels} posisi dipetakan`);
+      const snapshots = await backfillEmployeeSnapshots(db);
+      console.log(`  Snapshot employee: ${snapshots} karyawan`);
+      const offices = await backfillOfficesLocations(db);
+      if (offices.offices > 0) console.log(`  Kantor/lokasi: 3 kantor + 6 lokasi, ${offices.located} karyawan ditempatkan`);
+      const empCount = await db.employee.count();
+      const structures = empCount > 0 ? await backfillStructures(db) : await backfillGenericStructures(db);
+      console.log(`  Struktur approval: ${structures} dibuat`);
+      const wo = await ensureWorkoffStructure(db);
+      if (wo) console.log("  Struktur WorkOff: AS-WORKOFF-STD dibuat (approval berjenjang izin tidak masuk)");
+      const chains = await backfillChains(db);
+      console.log(`  Chain backfill: ${chains.created} dibuat, ${chains.finalized} difinalkan`);
+      done = true;
+    } catch (e) {
+      lastErr = e;
+      disconnectTenantClient(schema);
+    }
+  }
+  if (!done) throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  const dbAfter = getTenantClient(schema);
+  await dbAfter.$disconnect().catch(() => {});
   }
   console.log("\nDONE");
 }

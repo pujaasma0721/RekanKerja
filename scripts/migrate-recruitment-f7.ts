@@ -161,20 +161,43 @@ export async function main(schemas?: string[]): Promise<void> {
       console.log(`  ${schemaName}:`);
       for (const ddl of [...CREATE_TABLES, ...AFTER_TABLE]) {
         await c.query(`SET search_path TO "${schemaName}"`);
-        await c.query(ddl);
+        // DDL race-safe: pembuatan index paralel dua penulis dapat memicu
+        // pg_class_relname_nsp_index (pg syscache flush) — beri satu coba lagi;
+        // ADD CONSTRAINT paralel → 42710 "already exists" (idempoten).
+        try {
+          await c.query(ddl);
+        } catch (e) {
+          const pgCode = (e as { code?: string }).code;
+          if (pgCode === "42710" || /already exists/.test(String(e))) continue; // idempoten
+          if (pgCode === "23505" && /pg_class_relname_nsp_index/.test(String(e))) {
+            await new Promise((r) => setTimeout(r, 300));
+            await c.query(ddl);
+          } else throw e;
+        }
       }
       console.log(`    5 tabel F7 siap (WebhookEndpoint, WebhookDelivery, NotificationPref, RecruitmentSetting, EsignRequest)`);
 
-      // referensi: default setting (insert-only)
+      // referensi: default setting (insert-only). Race-safe: upsert P2002
+      // (baris dibuat penulis paralel sejak tepas where) diperlakukan sudah-ada.
       const db = getTenantClient(schemaName);
       for (const [key, value] of SETTING_DEFAULTS) {
-        await db.recruitmentSetting.upsert({ where: { key }, create: { key, value }, update: {} });
+        await db.recruitmentSetting
+          .upsert({ where: { key }, create: { key, value }, update: {} })
+          .catch((e) => {
+            if ((e as { code?: string }).code === "P2002") return null; // sudah terpasang oleh pemicu paralel
+            throw e;
+          });
       }
 
       if (schemaName.includes("mitra_industri")) {
         const demo = await seedDemoF7(schemaName);
         if (demo) console.log(`    demo: ${demo}`);
       }
+    } catch (e) {
+      // never-throw antar-tenant: kegagalan transient ("Engine is not yet
+      // connected" dsb.) tidak boleh menghentikan tenant berikutnya —
+      // parity tetap lanjut; gap-check di akhir menandai sisa yang impas.
+      console.error(`  ✗ ${schemaName}: ${e instanceof Error ? (e.message || "").slice(0, 120) : String(e)}`);
     } finally {
       await c.end();
     }

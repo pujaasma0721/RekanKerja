@@ -26,7 +26,7 @@
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { tenantCrypto } from "../src/rekankerja/shared/lib/field-crypto";
 import { Client } from "pg";
-import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { getTenantClient, disconnectTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { generateClaimJournal } from "@/rekankerja/travel/services/travel-service";
 
@@ -87,6 +87,32 @@ function journalConsistent(claim: ClaimRow, advance: number, lines: JournalLineR
 }
 
 async function migrateSchema(schemaName: string) {
+  // FIX stability: engine Prisma transient ("Response from the Engine was empty"
+  // dsb.) saat pool 3-conn jenuh — hard-retry dgn disconnectTenantClient
+  // (engine lama ikut dibuang) + backoff; seluruh langkah idempoten.
+  let done = false;
+  let res: Awaited<ReturnType<typeof migrateSchemaInner>> | null = null;
+  let lastErr: unknown = null;
+  for (let attemptNo = 1; attemptNo <= 4 && !done; attemptNo++) {
+    try {
+      if (attemptNo > 1) {
+        const backoff = attemptNo === 4 ? 12_000 : attemptNo * 1200;
+        console.log(`  ⟳ retry schema (attempt ${attemptNo}/4, jeda ${backoff / 1000}s) — engine transient`);
+        await new Promise((r) => setTimeout(r, backoff));
+        disconnectTenantClient(schemaName);
+      }
+      res = await migrateSchemaInner(schemaName);
+      done = true;
+    } catch (e) {
+      lastErr = e;
+      disconnectTenantClient(schemaName);
+    }
+  }
+  if (!done || !res) throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  return res;
+}
+
+async function migrateSchemaInner(schemaName: string) {
   const tc = tenantCrypto(schemaName);
   // normalisasi amount jurnal: string terenkripsi → number (legacy number tetap)
   const decodeAmount = (v: number | string | null): number => {

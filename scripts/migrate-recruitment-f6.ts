@@ -215,7 +215,16 @@ export async function main(schemas?: string[]): Promise<void> {
       console.log(`  ${schemaName}:`);
       for (const ddl of [...CREATE_TABLES, ...AFTER_TABLE]) {
         await c.query(`SET search_path TO "${schemaName}"`);
-        await c.query(ddl);
+        // DDL race-safe: pembuatan index paralel dua penulis dapat memicu
+        // pg_class_relname_nsp_index (pg syscache flush) — beri satu coba lagi.
+        try {
+          await c.query(ddl);
+        } catch (e) {
+          if ((e as { code?: string }).code === "23505" && /pg_class_relname_nsp_index/.test(String(e))) {
+            await new Promise((r) => setTimeout(r, 300));
+            await c.query(ddl);
+          } else throw e;
+        }
       }
       console.log(`    4 tabel F6 siap (KnockoutQuestion, ApplicationAnswer, CvParseResult, CandidateAiScore) + kolom rubricJson PR`);
     } finally {

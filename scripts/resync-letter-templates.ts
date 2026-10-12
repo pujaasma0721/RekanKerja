@@ -3,7 +3,7 @@
 // diperbarui bila belum pernah diedit lewat UI (updatedAt masih ≈ createdAt
 // sejak seeding). Baris yang sudah diedit admin dibiarkan apa adanya.
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
-import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { getTenantClient, disconnectTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 import { LETTER_TEMPLATE_DEFAULTS } from "@/rekankerja/shared/lib/letter-defaults";
 
 const SCHEMAS = [
@@ -21,7 +21,20 @@ function untouched(row: { createdAt: Date; updatedAt: Date }): boolean {
 export async function main(schemas?: string[]): Promise<void> {
   const list = schemas ?? SCHEMAS;
   for (const schema of list) {
-  const db = getTenantClient(schema);
+  // FIX stability: engine transient ("Engine is not yet connected"/"Response
+  // from the Engine was empty") saat client pool 3-conn jenuh — retry dgn
+  // hard-disconnect ulang client; migrasi idempoten aman diulang.
+  let done = false;
+  let lastErr: unknown = null;
+  for (let attemptNo = 1; attemptNo <= 4 && !done; attemptNo++) {
+    try {
+      if (attemptNo > 1) {
+        const backoff = attemptNo === 4 ? 12_000 : attemptNo * 1200;
+        console.log(`${schema}: ⟳ retry (attempt ${attemptNo}/4, jeda ${backoff / 1000}s) — engine transient`);
+        await new Promise((r) => setTimeout(r, backoff));
+        disconnectTenantClient(schema);
+      }
+      const db = getTenantClient(schema);
   let created = 0;
   let refreshed = 0;
   let skipped = 0;
@@ -64,7 +77,14 @@ export async function main(schemas?: string[]): Promise<void> {
     }
   }
   console.log(`${schema}: ${created} template baru, ${refreshed} di-refresh, ${skipped} dibiarkan (sudah diedit)`);
-  await db.$disconnect();
+      done = true;
+    } catch (e) {
+      lastErr = e;
+      disconnectTenantClient(schema);
+    }
+  }
+  if (!done) throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  await getTenantClient(schema).$disconnect().catch(() => {});
   }
   console.log("DONE — resync template surat");
 }
