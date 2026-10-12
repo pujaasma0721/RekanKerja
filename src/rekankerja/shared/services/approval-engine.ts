@@ -21,11 +21,14 @@ export type DbOrTx = TenantDb | Prisma.TransactionClient;
 
 // ============ konstanta domain ============
 
-export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer"] as const;
+export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal"] as const;
 export type ApprovalDocType = (typeof APPROVAL_DOC_TYPES)[number];
 
 /** docType yang jenjangnya bisa memakai syarat nominal (besaran). */
-export const AMOUNT_DOC_TYPES: ApprovalDocType[] = ["Travel", "Medical", "Loan", "TravelClaim", "RecruitmentPR", "RecruitmentOffer"];
+export const AMOUNT_DOC_TYPES: ApprovalDocType[] = ["Travel", "Medical", "Loan", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal"];
+// P4 — PerformanceAppraisal memakai amount sebagai FLAG (bukan nominal): 1 = rating
+// ekstrem (jenjang L3 Direktur aktif via min/max=1), 2 = normal. JANGAN tampilkan
+// amount ini sebagai rupiah di UI (docType bukan uang).
 
 export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   Leave: "Cuti (Leave)",
@@ -37,6 +40,7 @@ export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   TravelClaim: "Klaim Travel (Settlement)",
   RecruitmentPR: "Permintaan Karyawan (PR)",
   RecruitmentOffer: "Penawaran Kandidat (Offer)",
+  PerformanceAppraisal: "Finalisasi Hasil Penilaian (Performance)",
 };
 
 export const APPROVER_TYPE_LABEL: Record<string, string> = {

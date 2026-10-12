@@ -397,6 +397,9 @@ const AFTER_TABLE: string[] = [
   // P3 hotfix — FK relasi eksplisit competency (include competency di penilaian)
   `ALTER TABLE "AppraisalCompetencyScore" DROP CONSTRAINT IF EXISTS "AppraisalCompetencyScore_competencyId_fkey"`,
   `ALTER TABLE "AppraisalCompetencyScore" ADD CONSTRAINT "AppraisalCompetencyScore_competencyId_fkey" FOREIGN KEY ("competencyId") REFERENCES "Competency"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+  // P4 hotfix — FK ketua sesi kalibrasi (include chair di daftar sesi)
+  `ALTER TABLE "CalibrationSession" DROP CONSTRAINT IF EXISTS "CalibrationSession_chairId_fkey"`,
+  `ALTER TABLE "CalibrationSession" ADD CONSTRAINT "CalibrationSession_chairId_fkey" FOREIGN KEY ("chairId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
   `ALTER TABLE "CheckIn" DROP CONSTRAINT IF EXISTS "CheckIn_appraisalId_fkey"`,
   `ALTER TABLE "CheckIn" ADD CONSTRAINT "CheckIn_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   `ALTER TABLE "Feedback360" DROP CONSTRAINT IF EXISTS "Feedback360_appraisalId_fkey"`,

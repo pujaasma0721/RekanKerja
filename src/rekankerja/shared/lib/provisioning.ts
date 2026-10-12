@@ -418,6 +418,13 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
 
   await ensureAttendanceReference(db);
 
+  // P4-PERF — struktur approval finalisasi penilaian (tenant baru; tenant lama
+  // di-heal ensurePerfApprovalStructure saat finalisasi pertama).
+  try {
+    const { ensurePerfApprovalStructure } = await import("@/rekankerja/performance/services/calibration-service");
+    await ensurePerfApprovalStructure(db);
+  } catch { /* struktur unik per code — race tenant bootstrap aman diabaikan */ }
+
   // F0-REC — master Rekrutmen + katalog tahap seleksi default (tenant baru).
   // Tenant existing di-heal scripts/migrate-recruitment-f0.ts via parity-runner
   // (seed identik — insert-only per code; lihat DEVELOPMENT-PLAN-RECRUITMENT.md §7 F0).

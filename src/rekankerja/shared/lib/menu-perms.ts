@@ -131,9 +131,10 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   "performance:calibration": [
     { key: "decide", label: "Keputusan kalibrasi", hint: "CalibrationDecision ter-audit (dari → ke, alasan wajib)" },
     { key: "session", label: "Sesi kalibrasi", hint: "Buka/tutup sesi forum penyetaraan standar" },
+    { key: "finalize", label: "Finalisasi & persetujuan", hint: "Ajukan/putuskan finalisasi berjenjang PerformanceAppraisal (AS-PERF-STD)" },
   ],
   "performance:results": [
-    { key: "publish", label: "Mempublikasikan hasil", hint: "Publish hasil ke ESS karyawan (Alur 7)" },
+    { key: "publish", label: "Mempublikasikan & menutup hasil", hint: "Publish ke ESS + tutup siklus hasil (Alur 7)" },
     { key: "appeal", label: "Memutuskan banding", hint: "Keputusan banding karyawan (jendela D6)" },
   ],
   "performance:pip": [

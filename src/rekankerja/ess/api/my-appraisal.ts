@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { requireEss } from "@/rekankerja/ess/api/ess-auth";
 import { submitSelf, getAssessmentView } from "@/rekankerja/performance/services/appraisal-service";
+import { APPEAL_WINDOW_DAYS } from "@/rekankerja/performance/services/calibration-service";
 import { aiCompose, type AiTone } from "@/rekankerja/performance/services/ai-compose";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 
@@ -12,6 +13,13 @@ async function myAppraisal(db: TenantDb, employeeId: string) {
     where: { employeeId, cycle: { status: { in: ["GoalSetting", "Ongoing", "Assessment", "Calibration", "Published"] } } },
     orderBy: { docNo: "desc" },
   });
+}
+
+/** Jendela banding D6 (7 hari sejak publish) — null bila siklus belum terpublikasi. */
+async function appealWindowEnd(db: TenantDb, cycleId: string): Promise<Date | null> {
+  const c = await db.performanceCycle.findUnique({ where: { id: cycleId }, select: { publishAt: true } });
+  if (!c?.publishAt) return null;
+  return new Date(c.publishAt.getTime() + APPEAL_WINDOW_DAYS * 24 * 3600 * 1000);
 }
 
 export async function GET(req: Request) {
@@ -38,9 +46,25 @@ export async function GET(req: Request) {
           competencyId: c.competencyId, name: c.name, kind: c.kind, levels: c.levels,
           selfScore: c.selfScore, selfComment: c.selfComment,
         })),
-        // hasil terpublikasi (Alur 7) — satu-satunya sumber kebenaran
-        published: ["Published", "Closed"].includes(view.appraisal.status)
-          ? { managerScore: view.appraisal.managerScore, selfScore: view.appraisal.selfScore }
+        // hasil terpublikasi (Alur 7 §31) — satu-satunya sumber kebenaran;
+        // karyawan melihat: skor per KPI, kompetensi, ringkasan 360, rating.
+        published: ["Published", "Appealed", "Closed"].includes(view.appraisal.status)
+          ? {
+              managerScore: view.appraisal.managerScore, selfScore: view.appraisal.selfScore,
+              finalScore: me.finalScore, finalRating: me.finalRating,
+              acknowledgedAt: me.acknowledgedAt?.toISOString() ?? null,
+              appealStatus: me.appealStatus ?? null,
+              appealWindowEnd: await appealWindowEnd(db, me.cycleId),
+              kpiScores: view.kpis.map((k) => ({
+                title: k.title, unit: k.unit, target: k.target,
+                finalActual: k.finalActual, dataSource: k.dataSource,
+              })),
+              compScores: view.comps.map((c) => ({
+                name: c.name, kind: c.kind, managerScore: c.score, comment: c.comment,
+                selfScore: c.selfScore,
+              })),
+              f360summary: view.f360summary,
+            }
           : null,
       },
     });
@@ -66,6 +90,50 @@ export async function POST(req: Request) {
           comment: c.comment != null ? String(c.comment) : undefined,
         })) : [],
       }, m.actor.fullName);
+      return NextResponse.json({ ok: true });
+    }
+    if (b.action === "acknowledge") {
+      // §31-2 — bukti telah dikomunikasikan (bukan persetujuan isi)
+      if (me.status !== "Published" && me.status !== "Appealed") {
+        return NextResponse.json({ error: "Hasil belum dipublikasikan" }, { status: 409 });
+      }
+      if (me.acknowledgedAt) return NextResponse.json({ error: "Sudah acknowledge" }, { status: 409 });
+      await db.appraisalRecord.update({ where: { id: me.id }, data: { acknowledgedAt: new Date() } });
+      await db.activityLog.create({
+        data: { action: "Processed", entity: "AppraisalRecord", entityId: me.id, detail: `Karyawan acknowledge hasil ${me.docNo} (bukti dikomunikasikan)` },
+      });
+      return NextResponse.json({ ok: true });
+    }
+    if (b.action === "submitAppeal") {
+      // §31-3 — banding D6: alasan + bukti tambahan; jendela 7 hari sejak publish
+      const note = String(b.note ?? "").trim();
+      if (me.status !== "Published") {
+        return NextResponse.json({ error: `Hasil berstatus ${me.status} — banding tidak bisa diajukan` }, { status: 409 });
+      }
+      if (me.appealStatus === "Submitted") return NextResponse.json({ error: "Banding sudah diajukan — menunggu keputusan HR" }, { status: 409 });
+      if (note.length < 20) return NextResponse.json({ error: "Alasan banding wajib ≥20 karakter (sertakan bukti tambahan bila ada)" }, { status: 400 });
+      const end = await appealWindowEnd(db, me.cycleId);
+      if (end && new Date() > end) {
+        return NextResponse.json({ error: `Jendela banding sudah tutup (${end.toLocaleDateString("id-ID")} — D6 7 hari)` }, { status: 409 });
+      }
+      await db.appraisalRecord.update({
+        where: { id: me.id },
+        data: { appealNote: note, appealStatus: "Submitted", status: "Appealed" },
+      });
+      await db.activityLog.create({
+        data: { action: "Submitted", entity: "AppraisalRecord", entityId: me.id, detail: `BANDING diajukan utk ${me.docNo}: "${note.slice(0, 120)}"` },
+      });
+      return NextResponse.json({ ok: true });
+    }
+    if (b.action === "withdrawAppeal") {
+      if (me.appealStatus !== "Submitted") return NextResponse.json({ error: "Tidak ada banding aktif" }, { status: 409 });
+      await db.appraisalRecord.update({
+        where: { id: me.id },
+        data: { appealStatus: "Withdrawn", appealDecidedBy: m.actor.fullName, appealDecidedAt: new Date(), status: "Published" },
+      });
+      await db.activityLog.create({
+        data: { action: "Processed", entity: "AppraisalRecord", entityId: me.id, detail: `Banding ${me.docNo} DITARIK pengaju` },
+      });
       return NextResponse.json({ ok: true });
     }
     if (b.action === "aiCompose") {

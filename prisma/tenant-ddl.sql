@@ -5133,6 +5133,9 @@ ALTER TABLE "Feedback360Answer" ADD CONSTRAINT "Feedback360Answer_feedbackId_fke
 ALTER TABLE "CalibrationSession" ADD CONSTRAINT "CalibrationSession_cycleId_fkey" FOREIGN KEY ("cycleId") REFERENCES "PerformanceCycle"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "CalibrationSession" ADD CONSTRAINT "CalibrationSession_chairId_fkey" FOREIGN KEY ("chairId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "CalibrationDecision" ADD CONSTRAINT "CalibrationDecision_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey

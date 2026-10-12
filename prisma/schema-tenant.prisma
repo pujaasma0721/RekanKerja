@@ -365,6 +365,7 @@ model Employee {
   perfAppraisals   AppraisalRecord[]     @relation("PerfEmployee")
   perfManaged      AppraisalRecord[]     @relation("PerfManager")
   f360ReviewsGiven Feedback360[]         @relation("F360Reviewer")
+  calibrationChaired CalibrationSession[] @relation("CalibrationChair")  // P4 — sesi yang diketuai
   pipPlans         PipPlan[]             @relation("PipEmployee")
   probationEvals   ProbationEvaluation[] @relation("ProbEmployee")
 
@@ -4705,6 +4706,7 @@ model CalibrationSession {
   chairId          String? // ketua (kepala unit)
   notes            String?
   cycle            PerformanceCycle      @relation(fields: [cycleId], references: [id])
+  chair            Employee?             @relation("CalibrationChair", fields: [chairId], references: [id])  // P4 — relasi eksplisit utk include
   decisions        CalibrationDecision[]
 
   @@index([cycleId])
