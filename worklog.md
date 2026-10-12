@@ -6716,3 +6716,29 @@ Stage Summary:
 - BONUS: 9 bug tsk tersembunyi modul rekrutmen diperbaiki (utang teknis false-negative tsc), bug runtime master kompetensi (duplikat key) diperbaiki, ESS view persistence.
 - Data demo MII: Tri ManagerDone 86.7, Joko GoalApproved + 1 aktual auto, Tuti/Dedi aktual ter-impor, 3 undangan 360 (1 submitted).
 - Siap P4 (Kalibrasi & Bell Curve: CalibrationSession + decide + histogram z-flag D19).
+
+---
+Task ID: PERF-P4
+Agent: main (Z.ai Code)
+Task: P4 Performance — Kalibrasi & Finalisasi (§20 P4; §30 alur 6; §31 alur 7): bell curve §18.10 D19 + CalibrationSession/Decision + finalisasi approval engine PerformanceAppraisal + publikasi + acknowledgement + banding D6 + HALAMAN HASIL & 9-BOX §18-6 (§17 results API) — review kode subagent → test penuh → perbaiki → audit → selesai
+
+Work Log:
+- MULAI dari commit 53094fd (kode P4 subagent, pesan UUID, worklog belum ada): review penuh menemukan PEKERJAAN BELUM LENGKAP — halaman "Hasil & 9-Box" masih PerfComingSoon + API /performance/results (§17) tidak ada (semua mutasi hasil di-bundel di calibration.ts). Dilengkapi:
+  · calibration-service.ts: resultsView (baris hasil + grid 9-box pot 1-3 × perf rendah/tengah/tinggi dari finalRating + unplaced), acknowledgeOnBehalf (HR tandai dikomunikasikan offline, alasan ≥10 ter-audit), appealOnBehalf (banding atas nama karyawan tanpa akses ESS, jendela D6 dihormati).
+  · api/results.ts + route re-export: GET ?cycleId (hasil+9box+ack) · POST acknowledge|appeal|decideAppeal; guard performance:results.
+  · performance-results.tsx: grid 9-box 3×3 interaktif (klik sel → dialog daftar; label dwibahasa 9 sel: Bintang/Enigma/Tulang punggung/Risiko-PIP dst) + tabel hasil (skor final, rating, band, ack, banding) + dialog aksi atas nama + statistik header (peserta/ack/banding aktif); module switcher results → halaman hidup.
+- SETUP DATA E2E (via API nyata, bukan tulis DB): force PER-2026 Calibration→Assessment (ter-log "LOMPAT dipaksa") → 8 peserta di-score saveDraft+submitManager (aktual KPI per pct + skor kompi + komentar ekstrem §18-4) → kembali ke Calibration. Distribusi 10 peserta: 86.7/94/94/45.2/76/78/25/27/26/84.1 — n=10 μ=63.59 σ=27.83.
+- TEST API E2E (curl/fetch, hrd@mii.co.id): dashboard metric manager (bins 5-pt + overlay normal + kurva 49 titik) + z-flag D19: Joko Susilo z=-1.35 AMBER-PELIS ✓, Bambang & Sri CENTRAL TENDENCY (σtim < ½σ) ✓, Tri OK ✓; metric=final (toggle sebelum/sesudah — Dedi 94→90); createSession; recordDecision alasan <10 → 400 §30-3 ✓; Dedi 94→90 (rating 5 re-hitung server) ✓; Tri potentialBand 9-box=3 ✓; startFinalize batch 10 (2 skipped "sudah dalam persetujuan" — idempoten, sisa dari uji subagent) → approve 3 putaran (rating ekstrem 1/5 → L3 Direktur aktif; normal → 2 jenjang) → 10 Finalized ✓; publish 10 (0 force) ✓.
+- TEST ESS E2E (yusuf@mii.co.id): my-appraisal published block lengkap (finalScore 94, rating 5, kpiScores 3, compScores 12, f360summary, appealWindowEnd +7hr) ✓; acknowledge ✓ + ulang 409 ✓; submitAppeal <20 → 400 ✓, valid ✓, dobel 409 ✓, withdraw ✓, ajuk ulang ✓; D6 EXPIRY: publishAt −8 hari (mutasi sementara + restore eksak) → submitAppeal 409 "Jendela banding sudah tutup" ✓.
+- TEST RESULTS API: GET hasil+9box (10 rows, 2 ter-placed, 8 unplaced) ✓; acknowledge atas nama Joko ✓ + dobel 400 ✓; appeal atas nama <20 → 400 ✓; decideAppeal Rejected via results API ✓; close 10 ✓; guard pasca-close: recordDecision 400 (fase) + ack 400 ✓.
+- TEST UI (agent-browser): Kalibrasi — histogram+kurva normal+garis mean render, klik bin 90-95 → dialog peserta (Dedi 90, Yusuf 94) ✓, tabel z-flag dwibahasa ✓, toggle metric ✓; Hasil & 9-Box — grid 3×3 render (Tri di Bintang, Joko di Perlu pembinaan, "8 belum punya band" note), klik sel Bintang → dialog ✓, tabel hasil ✓; EN↔ID penuh ✓.
+- FIX MOBILE (375×812): TabsList kalibrasi tidak wrap (647px) → h-auto w-full flex-wrap (pola masters); grid 2 kartu z-table/rating memaksa min-content 597px → min-w-0 di kedua Card; hasil: 375 vs 375 semua tab ✓.
+- FIX tsc: PageHeader results pakai desc/right → description/actions.
+- PROTOKOL tsc BARU (revisi): `NODE_OPTIONS="--max-old-space-size=3072" node node_modules/typescript/bin/tsc --noEmit` — heap default 2GB OOM meski server mati; 3GB lolos (memori kontainer 4GB). Exit code dicek langsung tanpa pipe.
+- CATATAN lingkungan: watchdog + next-server harus dijalankan via subshell setsid `(setsid bash watch-dev.sh ... &)` agar bertahan lintas tool-call; PWA SW dev flakiness berulang (offline page setelah restart server) → unregister SW.
+
+Stage Summary:
+- P4 SELESAI. Alur 6-7 penuh: bell curve D19 (z-flag pelis/royal + central tendency + histogram + overlay) + sesi/keputusan ter-audit (alasan wajib) + finalisasi berjenjang AS-PERF-STD (L3 ekstrem) + publikasi + acknowledgement ESS & atas nama + banding D6 (submit/withdraw/putus/expire) + penutupan read-only + HALAMAN HASIL & 9-BOX (lensa talenta interaktif).
+- Data demo MII: PER-2026 CLOSED end-to-end (10 peserta: 1 rating-5 final, 1 rating-4 Bintang 9-box, 1 under-performer 45.2→52, 3 low 25-27, ack 2, banding Rejected+Withdrawn ter-audit) — siap dipakai P5 (merit dari peserta Closed §32).
+- Gate: tsc 0 (protokol 3GB); lint 0 error/6 warning baseline; bilingual 149; dev.log bersih; E2E API+UI ID/EN+mobile lulus.
+- Siap P5 (Merit, PA & Surat: MeritRecommendation draft otomatis + approval nominal-tier D12 + toPayroll/toPersonnelAction + surat hasil + usul PIP rating ≤2).

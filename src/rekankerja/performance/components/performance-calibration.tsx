@@ -232,7 +232,7 @@ export function PerformanceCalibrationPage() {
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-slate-100 p-1 dark:bg-slate-900">
           <TabsTrigger value="curve"><LineChart className="mr-1 h-3.5 w-3.5" aria-hidden />{t("Kurva Nilai", "Bell Curve")}</TabsTrigger>
           <TabsTrigger value="sessions"><Gavel className="mr-1 h-3.5 w-3.5" aria-hidden />{t("Sesi & Keputusan", "Sessions & Decisions")}</TabsTrigger>
           <TabsTrigger value="finalize"><Scale className="mr-1 h-3.5 w-3.5" aria-hidden />{t("Finalisasi", "Finalization")}</TabsTrigger>
@@ -285,7 +285,7 @@ export function PerformanceCalibrationPage() {
               </Card>
 
               <div className="grid gap-4 lg:grid-cols-2">
-                <Card>
+                <Card className="min-w-0">
                   <CardContent className="p-4">
                     <h3 className="mb-1 font-semibold">{t("Kewajaran atasan (z-score — D19)", "Manager fairness (z-score — D19)")}</h3>
                     <p className="mb-3 text-xs text-slate-500">{t("z = (rata tim − rata perusahaan) ÷ σ. Lensa diskusi forum — bukan alat hukuman.", "z = (team mean − company mean) ÷ σ. A forum discussion lens — not a punishment tool.")}</p>
@@ -323,7 +323,7 @@ export function PerformanceCalibrationPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="min-w-0">
                   <CardContent className="p-4">
                     <h3 className="mb-1 font-semibold">{t("Distribusi rating per unit", "Rating distribution per unit")}</h3>
                     <p className="mb-3 text-xs text-slate-500">{t("Bahan diskusi forum kalibrasi (rating konversi skor bila belum final).", "Calibration forum material (score-converted ratings until final).")}</p>

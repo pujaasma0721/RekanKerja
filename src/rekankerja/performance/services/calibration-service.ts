@@ -487,6 +487,110 @@ export async function decideAppeal(
   return { appealStatus: input.decision };
 }
 
+// ============ HASIL & 9-BOX (§17 results; §18-6 scatter 3×3) ============
+
+export interface ResultsRow {
+  appraisalId: string; docNo: string; employeeName: string; employeeNo: string;
+  unit: string | null; managerName: string | null;
+  status: string; finalScore: number | null; finalRating: number | null; potentialBand: number | null;
+  acknowledgedAt: string | null; appealStatus: string | null; appealNote: string | null;
+}
+
+/** View hasil siklus: baris per peserta + grid 9-box (potentialBand 1–3 × kinerja
+ *  rendah/tengah/tinggi dari finalRating) + peserta yang belum punya band. */
+export async function resultsView(
+  db: TenantDb,
+  cycleId: string,
+): Promise<{ cycle: { id: string; code: string; status: string; publishAt: string | null }; rows: ResultsRow[]; ninebox: { cells: { pot: number; perf: 1 | 2 | 3; participants: { docNo: string; name: string; unit: string | null; score: number | null; rating: number | null }[] }[] }; unplaced: ResultsRow[] }> {
+  const cycle = await db.performanceCycle.findUnique({ where: { id: cycleId }, select: { id: true, code: true, status: true, publishAt: true } });
+  if (!cycle) bad("Siklus tidak ditemukan");
+  const recs = await db.appraisalRecord.findMany({
+    where: { cycleId, status: { in: SCORED } },
+    include: {
+      employee: { select: { fullName: true, employeeNo: true, orgUnit: { select: { name: true } } } },
+      manager: { select: { fullName: true } },
+    },
+    orderBy: { docNo: "asc" },
+  });
+  const rows: ResultsRow[] = recs.map((r) => ({
+    appraisalId: r.id, docNo: r.docNo, employeeName: r.employee.fullName, employeeNo: r.employee.employeeNo,
+    unit: r.employee.orgUnit?.name ?? null, managerName: r.manager?.fullName ?? null,
+    status: r.status, finalScore: r.finalScore, finalRating: r.finalRating, potentialBand: r.potentialBand,
+    acknowledgedAt: r.acknowledgedAt?.toISOString() ?? null,
+    appealStatus: r.appealStatus ?? null, appealNote: r.appealNote ?? null,
+  }));
+  // 9-box: pot 1..3 (bawah→atas) × perf 1..3 (rendah/tengah/tinggi) — hanya peserta
+  // yang band-nya SUDAH diisi saat kalibrasi (§15 potentialBand; §18-6 klik sel → daftar).
+  const cells: { pot: number; perf: 1 | 2 | 3; participants: { docNo: string; name: string; unit: string | null; score: number | null; rating: number | null }[] }[] = [];
+  for (let pot = 1; pot <= 3; pot++) for (let perf = 1 as 1 | 2 | 3; perf <= 3; perf++) {
+    cells.push({ pot, perf, participants: [] });
+  }
+  const unplaced: ResultsRow[] = [];
+  for (const r of rows) {
+    if (r.potentialBand == null || r.finalRating == null) { unplaced.push(r); continue; }
+    const perf: 1 | 2 | 3 = r.finalRating <= 2 ? 1 : r.finalRating === 3 ? 2 : 3;
+    const cell = cells.find((c) => c.pot === r.potentialBand && c.perf === perf);
+    (cell ?? cells[0]).participants.push({
+      docNo: r.docNo, name: r.employeeName, unit: r.unit,
+      score: r.finalScore == null ? null : Math.round(r.finalScore * 10) / 10, rating: r.finalRating,
+    });
+  }
+  return {
+    cycle: { id: cycle.id, code: cycle.code, status: cycle.status, publishAt: cycle.publishAt?.toISOString() ?? null },
+    rows,
+    ninebox: { cells },
+    unplaced,
+  };
+}
+
+/** Acknowledge atas nama (HR) — hasil dikomunikasikan offline; bukti ter-log. */
+export async function acknowledgeOnBehalf(
+  db: TenantDb,
+  input: { appraisalId: string; reason: string },
+  actor: string,
+): Promise<{ ok: true }> {
+  const a = await db.appraisalRecord.findUnique({ where: { id: input.appraisalId }, include: { cycle: { select: { code: true } } } });
+  if (!a) bad("Peserta tidak ditemukan");
+  if (!["Published", "Appealed", "Closed"].includes(a.status)) bad(`Hasil belum dipublikasikan (${a.status})`);
+  if (a.acknowledgedAt) bad("Sudah acknowledge");
+  const reason = input.reason.trim();
+  if (reason.length < 10) bad("Alasan/catatan komunikasi wajib ≥10 karakter (bukti atas nama ter-audit)");
+  await db.appraisalRecord.update({ where: { id: input.appraisalId }, data: { acknowledgedAt: new Date() } });
+  await db.activityLog.create({
+    data: {
+      action: "Processed", entity: "AppraisalRecord", entityId: input.appraisalId,
+      detail: `ACKNOWLEDGE ATAS NAMA ${a.docNo} oleh ${actor} — hasil dikomunikasikan offline: “${reason}”`,
+    },
+  });
+  return { ok: true };
+}
+
+/** Ajukan banding ATAS NAMA karyawan (HR) — bila karyawan tidak bisa akses ESS. */
+export async function appealOnBehalf(
+  db: TenantDb,
+  input: { appraisalId: string; note: string },
+  actor: string,
+): Promise<{ ok: true }> {
+  const a = await db.appraisalRecord.findUnique({ where: { id: input.appraisalId }, include: { cycle: { select: { code: true, publishAt: true } } } });
+  if (!a) bad("Peserta tidak ditemukan");
+  if (a.status !== "Published") bad(`Hasil berstatus ${a.status} — banding tidak bisa diajukan`);
+  if (a.appealStatus === "Submitted") bad("Banding sudah ada yang aktif");
+  const note = input.note.trim();
+  if (note.length < 20) bad("Alasan banding wajib ≥20 karakter");
+  if (a.cycle.publishAt) {
+    const end = new Date(a.cycle.publishAt.getTime() + APPEAL_WINDOW_DAYS * 24 * 3600 * 1000);
+    if (new Date() > end) bad(`Jendela banding sudah tutup (${end.toLocaleDateString("id-ID")} — D6 7 hari)`);
+  }
+  await db.appraisalRecord.update({ where: { id: input.appraisalId }, data: { appealNote: note, appealStatus: "Submitted", status: "Appealed" } });
+  await db.activityLog.create({
+    data: {
+      action: "Submitted", entity: "AppraisalRecord", entityId: input.appraisalId,
+      detail: `BANDING ATAS NAMA diajukan utk ${a.docNo} oleh ${actor}: "${note.slice(0, 120)}"`,
+    },
+  });
+  return { ok: true };
+}
+
 // ============ STRUKTUR AS-PERF-STD (§11.1 — dijamin ada, idempoten) ============
 
 /** Pastikan struktur finalisasi ada (tenant baru via provisioning; tenant lama

@@ -10,6 +10,7 @@ import { PerformanceGoalsPage } from "./performance-goals";
 import { PerformanceCheckinsPage } from "./performance-checkins";
 import { PerformanceAppraisalsPage } from "./performance-appraisals";
 import { PerformanceCalibrationPage } from "./performance-calibration";
+import { PerformanceResultsPage } from "./performance-results";
 
 export function PerformanceModule({ view }: { view: string }) {
   switch (view) {
@@ -26,7 +27,7 @@ export function PerformanceModule({ view }: { view: string }) {
     case "calibration":
       return <PerformanceCalibrationPage />;
     case "results":
-      return <PerfComingSoon view="results" phase="P4" />;
+      return <PerformanceResultsPage />;
     case "pip":
       return <PerfComingSoon view="pip" phase="P6" />;
     case "probation":
