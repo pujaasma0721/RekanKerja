@@ -12,6 +12,8 @@
 //                   TIDAK pernah mengklaim AI — D7);
 //   • "auto"      — coba AI, gagal/timeout → fallback simulated.
 // Setiap faktor WAJIB punya evidence (kutipan bukti) — tidak ada black-box.
+// BL-REC-3: `lang` ("id" default | "en") — instruksi bahasa di system prompt
+// AI + evidence heuristik simulasi dwibahasa via helper L().
 // ============================================================================
 
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
@@ -200,6 +202,9 @@ async function buildProfile(db: TenantDb, candidateId: string): Promise<{ profil
 
 // ============ heuristik simulated (deterministik, berlabel) ============
 
+/** Pilih varian string evidence sesuai bahasa UI (id default — BL-REC-3). */
+const L = (lang: "id" | "en", id: string, en: string): string => (lang === "en" ? en : id);
+
 /** Token kata ≥ 4 huruf utk ukur relevansi teks. */
 function tokens(text: string | null | undefined): Set<string> {
   const out = new Set<string>();
@@ -215,7 +220,7 @@ function overlapCount(a: Set<string>, b: Set<string>): number {
   return n;
 }
 
-function eduScore(p: CandidateProfile): { score: number; evidence: string } {
+function eduScore(p: CandidateProfile, lang: "id" | "en"): { score: number; evidence: string } {
   const LEVEL: Record<string, number> = { SMP: 30, SMA: 40, SMK: 45, D3: 60, S1: 70, S2: 82, S3: 92, PROF: 85 };
   const posTok = tokens(p.positionTitle);
   const best = p.education[0];
@@ -223,8 +228,8 @@ function eduScore(p: CandidateProfile): { score: number; evidence: string } {
     return {
       score: p.source === "Internal" ? 55 : 35,
       evidence: p.source === "Internal"
-        ? "Kandidat internal — riwayat pendidikan tidak terdata di modul pelamar (dinilai dari data kepegawaian)"
-        : "Riwayat pendidikan belum terisi pada profil pelamar",
+        ? L(lang, "Kandidat internal — riwayat pendidikan tidak terdata di modul pelamar (dinilai dari data kepegawaian)", "Internal candidate — education history is not recorded in the applicant module (assessed from employment data)")
+        : L(lang, "Riwayat pendidikan belum terisi pada profil pelamar", "Education history is not yet filled in on the applicant profile"),
     };
   }
   let score = LEVEL[best.level.toUpperCase()] ?? 50;
@@ -235,14 +240,14 @@ function eduScore(p: CandidateProfile): { score: number; evidence: string } {
   score = Math.min(100, Math.max(0, score));
   const parts = [
     `${best.level}${best.fieldOfStudy ? ` ${best.fieldOfStudy}` : ""}${best.institution ? ` — ${best.institution}` : ""}`,
-    best.graduationYear ? `lulus ${best.graduationYear}` : null,
-    best.gpa != null ? `IPK ${best.gpa.toFixed(2)}` : null,
-    rel > 0 ? `bidang studi relevan dengan posisi ${p.positionTitle ?? "-"}` : null,
+    best.graduationYear ? L(lang, `lulus ${best.graduationYear}`, `graduated ${best.graduationYear}`) : null,
+    best.gpa != null ? L(lang, `IPK ${best.gpa.toFixed(2)}`, `GPA ${best.gpa.toFixed(2)}`) : null,
+    rel > 0 ? L(lang, `bidang studi relevan dengan posisi ${p.positionTitle ?? "-"}`, `field of study relevant to the ${p.positionTitle ?? "-"} position`) : null,
   ].filter(Boolean);
   return { score, evidence: parts.join(" · ") };
 }
 
-function expScore(p: CandidateProfile): { score: number; evidence: string } {
+function expScore(p: CandidateProfile, lang: "id" | "en"): { score: number; evidence: string } {
   const posTok = tokens(p.positionTitle);
   let relevant = 0;
   for (const e of p.experiences) {
@@ -254,61 +259,76 @@ function expScore(p: CandidateProfile): { score: number; evidence: string } {
     return {
       score: p.source === "Internal" ? 55 : 25,
       evidence: p.source === "Internal"
-        ? "Kandidat internal — riwayat di luar kepegawaian tidak terdata (dinilai netral)"
-        : "Belum ada riwayat pengalaman kerja tercatat",
+        ? L(lang, "Kandidat internal — riwayat di luar kepegawaian tidak terdata (dinilai netral)", "Internal candidate — history outside employment is not recorded (assessed as neutral)")
+        : L(lang, "Belum ada riwayat pengalaman kerja tercatat", "No recorded work experience yet"),
     };
   }
   const last = p.experiences[0]!;
-  const evidence = `±${p.totalExpYears} tahun total — terakhir ${last.position ?? "-"}${last.company ? ` (${last.company})` : ""}${relevant > 0 ? ` · ${relevant} pengalaman relevan posisi ${p.positionTitle ?? "-"}` : ""}`;
+  const evidence = L(
+    lang,
+    `±${p.totalExpYears} tahun total — terakhir ${last.position ?? "-"}${last.company ? ` (${last.company})` : ""}${relevant > 0 ? ` · ${relevant} pengalaman relevan posisi ${p.positionTitle ?? "-"}` : ""}`,
+    `~${p.totalExpYears} years total — latest ${last.position ?? "-"}${last.company ? ` (${last.company})` : ""}${relevant > 0 ? ` · ${relevant} experience item${relevant > 1 ? "s" : ""} relevant to the ${p.positionTitle ?? "-"} position` : ""}`,
+  );
   return { score, evidence };
 }
 
-function skillScore(p: CandidateProfile): { score: number; evidence: string } {
+function skillScore(p: CandidateProfile, lang: "id" | "en"): { score: number; evidence: string } {
   const posTok = tokens(`${p.positionTitle ?? ""} ${p.jobDesc ?? ""}`);
   const relevant = p.skills.filter((s) => overlapCount(tokens(s), posTok) > 0);
   if (p.skills.length === 0) {
     return {
       score: p.source === "Internal" ? 55 : 30,
       evidence: p.source === "Internal"
-        ? "Keahlian internal dinilai dari data kepegawaian (belum terdata di profil pelamar)"
-        : "Belum ada keahlian terdaftar pada profil pelamar",
+        ? L(lang, "Keahlian internal dinilai dari data kepegawaian (belum terdata di profil pelamar)", "Internal skills are assessed from employment data (not yet recorded on the applicant profile)")
+        : L(lang, "Belum ada keahlian terdaftar pada profil pelamar", "No skills listed on the applicant profile yet"),
     };
   }
   const score = Math.min(95, 25 + relevant.length * 18 + (p.skills.length - relevant.length) * 6);
   return {
     score,
-    evidence: `${p.skills.length} keahlian terdaftar (${relevant.length} relevan posisi): ${p.skills.slice(0, 6).join(", ")}${p.skills.length > 6 ? "…" : ""}`,
+    evidence: L(
+      lang,
+      `${p.skills.length} keahlian terdaftar (${relevant.length} relevan posisi): ${p.skills.slice(0, 6).join(", ")}${p.skills.length > 6 ? "…" : ""}`,
+      `${p.skills.length} skills listed (${relevant.length} relevant to the position): ${p.skills.slice(0, 6).join(", ")}${p.skills.length > 6 ? "…" : ""}`,
+    ),
   };
 }
 
-function salaryScore(p: CandidateProfile): { score: number; evidence: string } {
+function salaryScore(p: CandidateProfile, lang: "id" | "en"): { score: number; evidence: string } {
   if (p.expectedSalary == null || p.expectedSalary <= 0) {
-    return { score: 70, evidence: "Ekspektasi gaji belum diisi — dinilai netral" };
+    return { score: 70, evidence: L(lang, "Ekspektasi gaji belum diisi — dinilai netral", "Expected salary not filled in — assessed as neutral") };
   }
   const rp = (n: number) => `Rp ${new Intl.NumberFormat("id-ID").format(n)}`;
   if (p.salaryMin != null && p.salaryMax != null && p.salaryMax > 0) {
     if (p.expectedSalary <= p.salaryMax && p.expectedSalary >= p.salaryMin) {
-      return { score: 90, evidence: `Ekspektasi ${rp(p.expectedSalary)} di dalam rentang iklan ${rp(p.salaryMin)}–${rp(p.salaryMax)}` };
+      return { score: 90, evidence: L(lang, `Ekspektasi ${rp(p.expectedSalary)} di dalam rentang iklan ${rp(p.salaryMin)}–${rp(p.salaryMax)}`, `Expected ${rp(p.expectedSalary)} within the advertised range ${rp(p.salaryMin)}–${rp(p.salaryMax)}`) };
     }
     if (p.expectedSalary < p.salaryMin) {
-      return { score: 85, evidence: `Ekspektasi ${rp(p.expectedSalary)} di bawah rentang iklan (mulai ${rp(p.salaryMin)})` };
+      return { score: 85, evidence: L(lang, `Ekspektasi ${rp(p.expectedSalary)} di bawah rentang iklan (mulai ${rp(p.salaryMin)})`, `Expected ${rp(p.expectedSalary)} below the advertised range (starts at ${rp(p.salaryMin)})`) };
     }
     const ratio = p.expectedSalary / p.salaryMax;
-    if (ratio <= 1.25) return { score: 70, evidence: `Ekspektasi ${rp(p.expectedSalary)} +${Math.round((ratio - 1) * 100)}% di atas rentang iklan maks ${rp(p.salaryMax)}` };
-    if (ratio <= 1.5) return { score: 55, evidence: `Ekspektasi ${rp(p.expectedSalary)} +${Math.round((ratio - 1) * 100)}% di atas rentang iklan maks ${rp(p.salaryMax)}` };
-    return { score: 35, evidence: `Ekspektasi ${rp(p.expectedSalary)} jauh di atas rentang iklan maks ${rp(p.salaryMax)} (+${Math.round((ratio - 1) * 100)}%)` };
+    if (ratio <= 1.25) return { score: 70, evidence: L(lang, `Ekspektasi ${rp(p.expectedSalary)} +${Math.round((ratio - 1) * 100)}% di atas rentang iklan maks ${rp(p.salaryMax)}`, `Expected ${rp(p.expectedSalary)} +${Math.round((ratio - 1) * 100)}% above the advertised range max ${rp(p.salaryMax)}`) };
+    if (ratio <= 1.5) return { score: 55, evidence: L(lang, `Ekspektasi ${rp(p.expectedSalary)} +${Math.round((ratio - 1) * 100)}% di atas rentang iklan maks ${rp(p.salaryMax)}`, `Expected ${rp(p.expectedSalary)} +${Math.round((ratio - 1) * 100)}% above the advertised range max ${rp(p.salaryMax)}`) };
+    return { score: 35, evidence: L(lang, `Ekspektasi ${rp(p.expectedSalary)} jauh di atas rentang iklan maks ${rp(p.salaryMax)} (+${Math.round((ratio - 1) * 100)}%)`, `Expected ${rp(p.expectedSalary)} far above the advertised range max ${rp(p.salaryMax)} (+${Math.round((ratio - 1) * 100)}%)`) };
   }
-  return { score: 70, evidence: `Ekspektasi ${rp(p.expectedSalary)} — slot tanpa rentang gaji iklan (dinilai netral)` };
+  return { score: 70, evidence: L(lang, `Ekspektasi ${rp(p.expectedSalary)} — slot tanpa rentang gaji iklan (dinilai netral)`, `Expected ${rp(p.expectedSalary)} — slot without an advertised salary range (assessed as neutral)`) };
 }
 
 /** Skor simulated satu faktor — deteksi kategori dari NAMA faktor (rubrik bebas). */
-function simulateFactor(f: RubricFactor, p: CandidateProfile): { score: number; evidence: string } {
+function simulateFactor(f: RubricFactor, p: CandidateProfile, lang: "id" | "en"): { score: number; evidence: string } {
   const n = f.name.toLowerCase();
-  if (/pendidikan|educat|akadem|sertifik/.test(n)) return eduScore(p);
-  if (/pengalaman|experience|karier|karir|senior/.test(n)) return expScore(p);
-  if (/keahlian|skill|teknis|technical|kompeten/.test(n)) return skillScore(p);
-  if (/gaji|salary|kompensasi|motivas|kesesuaian/.test(n)) return salaryScore(p);
-  return { score: 50, evidence: "Faktor dinilai netral — heuristik simulasi belum memodelkan faktor ini (atur rubrik ke kategori baku: pendidikan/pengalaman/keahlian/gaji)" };
+  if (/pendidikan|educat|akadem|sertifik/.test(n)) return eduScore(p, lang);
+  if (/pengalaman|experience|karier|karir|senior/.test(n)) return expScore(p, lang);
+  if (/keahlian|skill|teknis|technical|kompeten/.test(n)) return skillScore(p, lang);
+  if (/gaji|salary|kompensasi|motivas|kesesuaian/.test(n)) return salaryScore(p, lang);
+  return {
+    score: 50,
+    evidence: L(
+      lang,
+      "Faktor dinilai netral — heuristik simulasi belum memodelkan faktor ini (atur rubrik ke kategori baku: pendidikan/pengalaman/keahlian/gaji)",
+      "Factor assessed as neutral — the simulation heuristics do not model this factor yet (set the rubric to a standard category: education/experience/skills/salary)",
+    ),
+  };
 }
 
 // ============ prompt AI (mode ai) ============
@@ -359,11 +379,12 @@ function factorsFromAiText(raw: string, rubric: RubricFactor[]): { factor: strin
 
 export async function generateAiScore(
   db: TenantDb,
-  input: { candidateId: string; mode?: "auto" | "ai" | "simulated"; generatedById: string; generatedByName?: string | null },
+  input: { candidateId: string; mode?: "auto" | "ai" | "simulated"; lang?: "id" | "en"; generatedById: string; generatedByName?: string | null },
 ): Promise<AiScoreSerializer> {
   const { profile, prId, candidateRow } = await buildProfile(db, input.candidateId);
   const rubric = await getRubric(db, prId);
   const wantAi = (input.mode ?? "auto") !== "simulated";
+  const lang = input.lang === "en" ? "en" : "id"; // BL-REC-3 — bahasa evidence/prompt
 
   let factorScores: { factor: string; score: number; evidence: string }[] | null = null;
   let mode = "simulated";
@@ -372,7 +393,11 @@ export async function generateAiScore(
   if (wantAi) {
     try {
       const ai = await aiComplete(db, {
-        system: SCORE_SYSTEM_PROMPT,
+        system: [
+          SCORE_SYSTEM_PROMPT,
+          // BL-REC-3 — satu baris instruksi bahasa jawaban (evidence mengikuti)
+          L(lang, "Jawab dalam Bahasa Indonesia.", "Answer in English. Write each evidence in English."),
+        ].join("\n"),
         messages: [{
           role: "user",
           content: JSON.stringify({
@@ -405,7 +430,7 @@ export async function generateAiScore(
 
   if (!factorScores) {
     factorScores = rubric.map((r) => {
-      const s = simulateFactor(r, profile);
+      const s = simulateFactor(r, profile, lang);
       return { factor: r.name, score: s.score, evidence: s.evidence };
     });
     mode = "simulated";

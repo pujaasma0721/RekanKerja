@@ -882,7 +882,7 @@ export function AppointFlowDialog({ offerId, onClose, onDone }: {
             {(ctx || appt) && (
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-800 sm:grid-cols-4">
                 <Field label={t("Kandidat", "Candidate")} value={detail.candidateName} />
-                <Field label="No. Pelamar" value={ctx?.candidate.applicantNo ?? "—"} />
+                <Field label={t("No. Pelamar", "Applicant No.")} value={ctx?.candidate.applicantNo ?? "—"} />
                 <Field label={t("Email", "Email")} value={<span className="break-all">{ctx?.candidate.email ?? "—"}</span>} />
                 <Field label={t("Telepon", "Phone")} value={ctx?.candidate.phone ?? "—"} />
               </div>

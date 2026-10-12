@@ -220,7 +220,7 @@ function InfoNote({ icon: Icon, tone, children }: { icon: React.ElementType; ton
 // ============ halaman ============
 
 export function CompliancePage() {
-  const { t, locale } = useI18n();
+  const { t, locale, lang } = useI18n();
   const perms = useMenuPerms();
 
   const [tab, setTab] = useState<string>("dsr");
@@ -875,7 +875,7 @@ export function CompliancePage() {
             </InfoNote>
             {canExport && (
               <DownloadAnchor
-                href={`${COMPLIANCE_API}?export=audit`}
+                href={`${COMPLIANCE_API}?export=audit&lang=${lang}`}
                 label={t("Unduh CSV", "Download CSV")}
                 title={t("Unduh log audit akses PII (CSV)", "Download the PII access audit log (CSV)")}
               />

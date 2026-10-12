@@ -71,7 +71,11 @@ export interface MetricItem {
   labelEn: string;
   value: number | null;
   unit: string;
+  /** padanan EN satuan ("hari"→"days") — BL-REC-CORE. */
+  unitEn: string;
   hint: string;
+  /** padanan EN hint kartu metrik — BL-REC-CORE. */
+  hintEn: string;
   /** breakdown terstruktur (khusus source_effectiveness). */
   breakdown?: { source: string; applicants: number; hires: number; rate: number | null }[];
 }
@@ -446,29 +450,35 @@ export async function getMetricsCatalog(db: TenantDb): Promise<MetricItem[]> {
 
   return [
     {
-      key: "time_to_fill", labelId: "Time to Fill", labelEn: "Time to Fill", value: timeToFill, unit: "hari",
+      key: "time_to_fill", labelId: "Time to Fill", labelEn: "Time to Fill", value: timeToFill, unit: "hari", unitEn: "days",
       hint: "Rata-rata hari dari PR disetujui (decidedAt) sampai Fulfilled (lowongan terpenuhi)",
+      hintEn: "Average days from requisition approval (decidedAt) to Fulfilled (opening filled)",
     },
     {
-      key: "time_to_hire", labelId: "Time to Hire", labelEn: "Time to Hire", value: timeToHire, unit: "hari",
+      key: "time_to_hire", labelId: "Time to Hire", labelEn: "Time to Hire", value: timeToHire, unit: "hari", unitEn: "days",
       hint: "Rata-rata hari pelamar masuk talent pool (dateApplied) sampai diangkat (appointedAt)",
+      hintEn: "Average days from applicant entering the talent pool (dateApplied) to appointment (appointedAt)",
     },
     {
-      key: "offer_acceptance_rate", labelId: "Tingkat Penerimaan Offer", labelEn: "Offer Acceptance Rate", value: acceptance, unit: "%",
+      key: "offer_acceptance_rate", labelId: "Tingkat Penerimaan Offer", labelEn: "Offer Acceptance Rate", value: acceptance, unit: "%", unitEn: "%",
       hint: `Offer diterima / (diterima + ditolak) — ${accepted} diterima, ${declined} ditolak`,
+      hintEn: `Offers accepted / (accepted + declined) — ${accepted} accepted, ${declined} declined`,
     },
     {
-      key: "interview_pass_rate", labelId: "Tingkat Lulus Interview", labelEn: "Interview Pass Rate", value: passRate, unit: "%",
+      key: "interview_pass_rate", labelId: "Tingkat Lulus Interview", labelEn: "Interview Pass Rate", value: passRate, unit: "%", unitEn: "%",
       hint: `Tahap bertipe interview lulus / (lulus + gagal) — ${passed} lulus, ${failed} gagal`,
+      hintEn: `Interview-type stages passed / (passed + failed) — ${passed} passed, ${failed} failed`,
     },
     {
-      key: "source_effectiveness", labelId: "Efektivitas Sumber", labelEn: "Source Effectiveness", value: null, unit: "%",
+      key: "source_effectiveness", labelId: "Efektivitas Sumber", labelEn: "Source Effectiveness", value: null, unit: "%", unitEn: "%",
       hint: "Rasio karyawan ter-hire per sumber pelamar (lihat breakdown)",
+      hintEn: "Hired employees per applicant source ratio (see breakdown)",
       breakdown,
     },
     {
-      key: "requisition_aging", labelId: "Umur PR Terbuka", labelEn: "Requisition Aging", value: aging, unit: "hari",
+      key: "requisition_aging", labelId: "Umur PR Terbuka", labelEn: "Requisition Aging", value: aging, unit: "hari", unitEn: "days",
       hint: "Rata-rata umur PR berstatus Submitted/Approved/OnHold sampai hari ini",
+      hintEn: "Average age of requisitions in Submitted/Approved/OnHold status up to today",
     },
   ];
 }

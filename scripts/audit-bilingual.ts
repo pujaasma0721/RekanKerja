@@ -21,6 +21,25 @@
 //   · Istilah/proper noun netral bahasa (RekanKerja, HR, Payroll, NPWP, XLSX…).
 //   · className, href, key, value data teknis, console.*, test id.
 //   · File design-lab (mockup terisolasi, bukan produksi).
+//   · BL-REC-1 — 4 konvensi pasangan bilingual (sumber terjemahan, BUKAN gap):
+//       R1. Argumen builder adv-search: SEMUA string literal (termasuk di dalam
+//           array bersarang) di dalam panggilan txt/num/dt/sel/filterRowsByAdv
+//           (shared/lib/adv-search) — label selalu pasangan (label, labelEn) dan
+//           opsi selalu triple [value, labelID, labelEN]; di-render
+//           t(o.label, o.labelEn) oleh adv-search.tsx.
+//       R2. Tabel triple mandiri: array yang SEMUA elemennya adalah array ber-3
+//           string literal ([value, labelID, labelEN] — konvensi GENDERS/MARITAL
+//           di applicants.tsx, ADV_STATUSES di actions-module.tsx).
+//       R3. Record 2-tuple bertipe: PropertyAssignment bernilai array 2 string
+//           literal di bawah VariableDeclaration ber-anotasi tipe mengandung
+//           "[string, string]" (RUN_LABEL copilot-panel, LETTER_KIND_LABEL
+//           offer-dialogs, dst.) — dirender via t(x[0], x[1]).
+//       R4. Pasangan array + sibling _EN: const X (array semua-string, atau
+//           objek ber-nilai array semua-string) yang satu file dengannya ada
+//           const X_EN/XEN — termasuk varian nama umum base+_EN (PURPOSE_OPTIONS
+//           +PURPOSE_EN ess-letters, PLANNED+PLANNED_EN module-placeholder,
+//           MARITAL_STATUSES+MARITAL_STATUSES_EN types.ts) — X = sumber ID,
+//           sibling EN; variable bernama *_EN sendiripun kamus EN → bukan gap.
 //
 // Output: laporan per file + ringkasan jumlah gap. Exit code = jumlah gap
 // (maks 100) agar bisa dipakai CI/regresi: 0 gap = LULUS.
@@ -180,6 +199,118 @@ function insideRuntimeTrComponent(node: ts.Node): boolean {
   return false;
 }
 
+// ---------- BL-REC-1: konvensi pasangan bilingual (skip rules) ----------
+
+// R1 — builder field Advance Search (shared/lib/adv-search): txt/num/dt/sel
+// membentuk AdvFieldDef dwibahasa (label+labelEn, opsi triple
+// [value, labelID, labelEN]) & filterRowsByAdv menerimanya — semua string di
+// dalam panggilan-panggilan ini adalah sumber terjemahan, bukan gap.
+const ADV_BUILDERS = new Set(["txt", "num", "dt", "sel", "filterRowsByAdv"]);
+
+/** R1 — true bila node berada di dalam argumen panggilan builder adv-search. */
+function insideAdvCall(node: ts.Node): boolean {
+  let cur: ts.Node | undefined = node.parent;
+  while (cur) {
+    if (ts.isCallExpression(cur) && ts.isIdentifier(cur.expression) && ADV_BUILDERS.has(cur.expression.text)) {
+      return true;
+    }
+    cur = cur.parent;
+  }
+  return false;
+}
+
+/** R2 — true bila array adalah "tabel triple": SEMUA elemennya array ber-3
+ *  string literal ([value, labelID, labelEN] — konvensi GENDERS/MARITAL). */
+function isTripleTable(arr: ts.ArrayLiteralExpression): boolean {
+  return arr.elements.length > 0 && arr.elements.every(
+    (e) => ts.isArrayLiteralExpression(e) && e.elements.length === 3 && e.elements.every((x) => ts.isStringLiteral(x)),
+  );
+}
+
+/** R2 — true bila ada ArrayLiteral leluhur yang merupakan tabel triple. */
+function insideTripleTable(node: ts.Node): boolean {
+  let cur: ts.Node | undefined = node.parent;
+  while (cur) {
+    if (ts.isArrayLiteralExpression(cur) && isTripleTable(cur)) return true;
+    cur = cur.parent;
+  }
+  return false;
+}
+
+/** R3 — true bila node adalah string di dalam nilai PropertyAssignment berupa
+ *  array 2-string, di bawah VariableDeclaration ber-anotasi tipe "[string,
+ *  string]" (Record<X, [string, string]> — dirender via t(x[0], x[1])). */
+function insideTypedTupleRecord(node: ts.Node): boolean {
+  const arr = node.parent;
+  if (!arr || !ts.isArrayLiteralExpression(arr) || arr.elements.length !== 2) return false;
+  if (!arr.elements.every((e) => ts.isStringLiteral(e))) return false;
+  const prop = arr.parent;
+  if (!prop || !ts.isPropertyAssignment(prop) || prop.initializer !== arr) return false;
+  let cur: ts.Node | undefined = prop.parent;
+  while (cur) {
+    if (ts.isVariableDeclaration(cur)) {
+      return cur.type != null && cur.type.getText().includes("[string, string]");
+    }
+    cur = cur.parent;
+  }
+  return false;
+}
+
+/** R4 — buang pembungkus `as const` (mis. PURPOSE_OPTIONS = [...] as const). */
+function unwrapAsConst(e: ts.Node | undefined): ts.Node | undefined {
+  let cur = e;
+  while (cur && (ts.isAsExpression(cur) || ts.isParenthesizedExpression(cur))) cur = cur.expression;
+  return cur;
+}
+
+/** R4 — bentuk yang boleh di-skip: array semua-string, atau objek yang SEMUA
+ *  nilai propertinya array semua-string (pola PURPOSE_OPTIONS / PLANNED). */
+function enSiblingShapeOk(init: ts.Node | undefined): boolean {
+  const e = unwrapAsConst(init);
+  if (!e) return false;
+  if (ts.isArrayLiteralExpression(e)) {
+    return e.elements.length > 0 && e.elements.every((x) => ts.isStringLiteral(x));
+  }
+  if (ts.isObjectLiteralExpression(e)) {
+    return e.properties.length > 0 && e.properties.every(
+      (p) => ts.isPropertyAssignment(p) && ts.isArrayLiteralExpression(p.initializer)
+        && p.initializer.elements.length > 0 && p.initializer.elements.every((x) => ts.isStringLiteral(x)),
+    );
+  }
+  return false;
+}
+
+/** R4 — nama sibling kamus EN untuk variable n: persis `n_EN`/`nEN`, atau
+ *  varian nama umum `<base>_EN` dengan n = base / base + segmen lain
+ *  (PURPOSE_OPTIONS ↔ PURPOSE_EN, PLANNED ↔ PLANNED_EN). */
+function hasEnSiblingName(n: string, enVars: string[]): boolean {
+  if (enVars.some((v) => v === `${n}_EN` || v === `${n}EN`)) return true;
+  for (const v of enVars) {
+    const base = v.slice(0, -3); // PURPOSE_EN → PURPOSE
+    if (base.length > 1 && (n === base || n.startsWith(`${base}_`))) return true;
+  }
+  return false;
+}
+
+/** R4 — true bila array milik variable X yang satu file dengannya dideklarasikan
+ *  const X_EN / XEN (pasangan sumber ID ↔ EN, mis. PLANNED + PLANNED_EN), ATAU
+ *  milik variable yang namanya sendiri berakhiran _EN (mis. PLANNED_EN —
+ *  kamus EN-nya pasangan tsb, isinya terjemahan → bukan gap). */
+function insideEnSiblingArray(node: ts.Node, enVars: string[]): boolean {
+  let cur: ts.Node | undefined = node.parent;
+  while (cur) {
+    if (ts.isVariableDeclaration(cur) && ts.isIdentifier(cur.name)) {
+      const n = cur.name.text;
+      if ((/_EN$/.test(n) || hasEnSiblingName(n, enVars)) && enSiblingShapeOk(cur.initializer)) {
+        return true;
+      }
+      return false; // deklarasi terdekat bukan pasangan _EN → berhenti mencari
+    }
+    cur = cur.parent;
+  }
+  return false;
+}
+
 // ---------- Scanner ----------
 interface Gap { file: string; line: number; kind: string; text: string }
 
@@ -192,6 +323,18 @@ for (const file of files) {
   const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   scanned++;
   const rel = path.relative(process.cwd(), file);
+
+  // R4 — kumpulkan nama semua variable yang dideklarasikan di file ini; yang
+  // berakhiran _EN dipakai utk deteksi pasangan X ↔ X_EN (PURPOSE_OPTIONS ↔
+  // PURPOSE_EN, PLANNED ↔ PLANNED_EN).
+  const enVars: string[] = [];
+  const collectVars = (n: ts.Node): void => {
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && /_EN$/.test(n.name.text)) {
+      enVars.push(n.name.text);
+    }
+    ts.forEachChild(n, collectVars);
+  };
+  sf.forEachChild(collectVars);
 
   const visit = (node: ts.Node): void => {
     // 1) JsxText literal berbahasa Indonesia (bukan bagian {t(...)} — JsxText
@@ -227,9 +370,16 @@ for (const file of files) {
 
     // 4) Array literal string berbahasa Indonesia (opsi dropdown dsb.) — hanya
     //    bila parentnya bukan bagian dari t() dan berada di level komponen UI.
+    //    BL-REC-1: kecuali string di dalam 4 konvensi pasangan bilingual
+    //    (builder adv-search / tabel triple / record 2-tuple bertipe /
+    //    pasangan X + X_EN) — itu sumber terjemahan, bukan gap.
     if (ts.isArrayLiteralExpression(node) && node.elements.length <= 40) {
       for (const el of node.elements) {
-        if (ts.isStringLiteral(el) && looksIndonesian(el.text) && !insideTCall(el)) {
+        if (
+          ts.isStringLiteral(el) && looksIndonesian(el.text) && !insideTCall(el)
+          && !insideAdvCall(el) && !insideTripleTable(el)
+          && !insideTypedTupleRecord(el) && !insideEnSiblingArray(el, enVars)
+        ) {
           gaps.push({ file: rel, line: sf.getLineAndCharacterOfPosition(el.getStart()).line + 1, kind: "array-item", text: el.text.slice(0, 90) });
         }
       }

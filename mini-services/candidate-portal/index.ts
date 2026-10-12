@@ -1103,6 +1103,37 @@ function renderSignPage(info: EsignInfo | null, token: string, tenantSlug: strin
   var KEY = "portal-lang", cur = "id";
   try { cur = localStorage.getItem(KEY) || "id"; } catch (e) {}
   function t(id, en) { return cur === "id" ? id : en; }
+
+  // pesan error server (ID) -> padanan EN (pola SERVER_ERRORS form lamaran).
+  // Sumber string: api/public-sign.ts + services/recruitment-esign-service.ts
+  // (jalur POST /sign/<token>) + respons 502 proxy portal sendiri.
+  var SERVER_ERRORS = {
+    "Terlalu banyak permintaan. Coba lagi nanti.": "Too many requests. Please try again later.",
+    "Terlalu banyak percobaan. Silakan coba lagi nanti.": "Too many attempts. Please try again later.",
+    "Kode OTP salah atau kedaluwarsa": "The OTP code is incorrect or has expired",
+    "Nama wajib diketik sesuai nama pada surat": "The name must be typed exactly as it appears on the letter",
+    "Nama yang diketik tidak sesuai dengan nama kandidat pada surat": "The typed name does not match the candidate name on the letter",
+    "Tautan tanda tangan tidak valid atau kedaluwarsa": "The signature link is invalid or has expired",
+    "Tautan tanda tangan telah kedaluwarsa — minta HR mengirim permintaan baru": "The signature link has expired — ask HR to send a new request",
+    "Surat tidak tersedia — hubungi HR": "The letter is not available — please contact HR",
+    "Surat tidak dapat dibuat — hubungi HR": "The letter could not be generated — please contact HR",
+    "Portal tidak dapat menghubungi layanan rekrutmen. Silakan coba lagi nanti.": "The portal cannot reach the recruitment service. Please try again later."
+  };
+  // pesan dinamis: "Permintaan tanda tangan sudah diproses (Signed|Expired|Cancelled)"
+  var SERVER_ERROR_RULES = [
+    [/^Permintaan tanda tangan sudah diproses \\((.+)\\)$/, "This signing request has already been processed ($1)"]
+  ];
+  function serverMsg(msg) {
+    if (cur === "en") {
+      if (SERVER_ERRORS[msg]) return SERVER_ERRORS[msg];
+      for (var i = 0; i < SERVER_ERROR_RULES.length; i++) {
+        var m = SERVER_ERROR_RULES[i][0].exec(msg);
+        if (m) return SERVER_ERROR_RULES[i][1].replace("$1", m[1]);
+      }
+    }
+    return msg;
+  }
+
   function apply(lang) {
     cur = lang;
     document.documentElement.lang = lang;
@@ -1154,7 +1185,7 @@ function renderSignPage(info: EsignInfo | null, token: string, tenantSlug: strin
       }
       btn.disabled = false;
       btn.textContent = t("Tanda Tangani Sekarang", "Sign Now");
-      errEl.textContent = (res.j && res.j.error) || t("Gagal memproses — coba lagi.", "Failed to process — please try again.");
+      errEl.textContent = serverMsg((res.j && res.j.error) || t("Gagal memproses — coba lagi.", "Failed to process — please try again."));
     }).catch(function () {
       btn.disabled = false;
       btn.textContent = t("Tanda Tangani Sekarang", "Sign Now");

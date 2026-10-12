@@ -1435,4 +1435,7 @@ export const BASE_EN: Record<string, string> = {
   "Tanggal Klaim": "Claim Date",
   "Kode Biaya": "Expense Code",
   "(c) Kembali Perusahaan": "(c) Returned to Company",
+  // recruitment reports export titles (BL-REC-CORE — judul sheet/laporan):
+  "Dashboard Rekrutmen": "Recruitment Dashboard",
+  "Katalog Metrik Rekrutmen": "Recruitment Metrics Catalog",
 };

@@ -49,18 +49,21 @@ export async function GET(req: NextRequest) {
     if (sp.get("export") === "audit") {
       const m = await requireMenuAction(req, "recruitment:compliance", "op:export");
       if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+      // BL-REC-CORE: ekspor bilingual — label per bahasa (pola BL-5 tier-2).
+      const lang = sp.get("lang") === "en" ? "en" : "id";
+      const tt = (id: string, en: string) => (lang === "en" ? en : id);
       const rows = await listPiiAudit(m.db, 500);
       const columns: ExportColumn[] = [
-        { header: "Waktu", width: 22 }, { header: "Karyawan", width: 28 },
-        { header: "Pelamar", width: 16 }, { header: "Aktivitas Akses", width: 30 },
+        { header: tt("Waktu", "Time"), width: 22 }, { header: tt("Karyawan", "Employee"), width: 28 },
+        { header: tt("Pelamar", "Applicant"), width: 16 }, { header: tt("Aktivitas Akses", "Access Activity"), width: 30 },
       ];
       const body: ExportCell[][] = rows.map((r) => [
         r.createdAt.slice(0, 19).replace("T", " "),
-        r.employeeName ?? r.employeeId ?? "(sistem)",
+        r.employeeName ?? r.employeeId ?? tt("(sistem)", "(system)"),
         r.applicantNo ?? "",
         r.what ?? "",
       ]);
-      return csvResponse(toCsv(columns, body, "id"), exportFilename("rekankerja-pii-audit", "csv"));
+      return csvResponse(toCsv(columns, body, lang), exportFilename("rekankerja-pii-audit", "csv"));
     }
     if (sp.get("export")) {
       return NextResponse.json({ error: `Bagian ekspor tidak dikenal: ${sp.get("export")}` }, { status: 400 });

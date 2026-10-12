@@ -27,12 +27,15 @@ import {
 //   POST { action:"score"|"save-rubric"|"latest-scores", … }  (op:score)
 //
 // RECRUITMENT F6c — pencarian NL + Recruiter Copilot + bias check (HRX B4/B5/B6).
-//   GET  ?q=<query natural language>               → { mode, interpreted, rows, total }
-//   POST { action:"copilot", params:{ action, … } }            → { mode, text }
+//   GET  ?q=<query natural language>&lang=<id|en>       → { mode, interpreted, rows, total }
+//   POST { action:"copilot", params:{ action, … }, lang } → { mode, text }
 //   POST { action:"draft-jd"|"summarize-candidate"|"interview-questions"
-//        |"outreach"|"pipeline-qa"|"check-bias", params:{…} } → { mode, text }
+//        |"outreach"|"pipeline-qa"|"check-bias", params:{…}, lang } → { mode, text }
 // Guard menu: recruitment:applicants op:search-ai (GET ?q) /
 //             recruitment:selection  op:copilot   (POST copilot*).
+// BL-REC-3: `lang` ("id" default | "en") — bahasa teks copilot + label
+// interpreted pencarian (parse-cv/save-rubric/latest-scores = data JSON
+// terstruktur — TIDAK memakai lang).
 // ============================================================================
 
 // GET /api/rekankerja/recruitment/ai
@@ -46,11 +49,13 @@ export async function GET(req: NextRequest) {
       const m = await requireMenuAction(req, "recruitment:applicants", "op:search-ai");
       if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
       const mv = await moneyViewForReq(req, m.db);
+      const lang = req.nextUrl.searchParams.get("lang") === "en" ? "en" : "id";
       try {
         const res = await aiSearch(m.db, {
           q: qParam,
           limit: Number(req.nextUrl.searchParams.get("limit") ?? 20),
           moneyVisible: mv.canSee,
+          lang,
         });
         return NextResponse.json(res);
       } catch (e) {
@@ -141,10 +146,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Akun Anda tidak terhubung ke profil karyawan — generate skor butuh identitas karyawan" }, { status: 400 });
       }
       const mode = b.mode === "simulated" ? "simulated" : b.mode === "ai" ? "ai" : "auto";
+      const lang = b.lang === "en" ? "en" : "id";
       try {
         const score = await generateAiScore(m.db, {
           candidateId,
           mode,
+          lang,
           generatedById: m.actor.employeeId,
           generatedByName: m.actor.name,
         });
@@ -205,8 +212,9 @@ export async function POST(req: NextRequest) {
         : null;
       const copAction = wrapParams ? String(wrapParams.action ?? "") : action;
       const copParams = wrapParams ?? (b.params && typeof b.params === "object" ? b.params : {});
+      const lang = b.lang === "en" ? "en" : "id";
       try {
-        const res = await copilotAction(m.db, { action: copAction, params: copParams });
+        const res = await copilotAction(m.db, { action: copAction, params: copParams, lang });
         return NextResponse.json(res);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "unknown";

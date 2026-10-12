@@ -65,7 +65,7 @@ export function AiScorePanel({
   canGenerate: boolean;
   onScored?: (score: AiScore) => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [score, setScore] = useState<AiScore | null>(null);
   const [history, setHistory] = useState<AiScore[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +99,7 @@ export function AiScorePanel({
         action: "score",
         candidateId,
         mode: simulated ? "simulated" : "auto",
+        lang, // BL-REC-3 — evidence & instruksi prompt AI mengikuti bahasa UI
       });
       setScore(res.score);
       setHistory((h) => [res.score, ...h.filter((x) => x.id !== res.score.id)]);

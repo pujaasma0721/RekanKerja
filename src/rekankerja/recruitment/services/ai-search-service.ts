@@ -18,6 +18,13 @@
 //                     TIDAK PERNAH dilempar ke pemanggil (D7 label jujur).
 // 3) check-bias      — daftar statis kata terlarang/berkode + AI kontekstual
 //                     digabung & didedupe → teks terformat per temuan.
+//
+// BL-REC-3: parameter `lang: "id" | "en"` (default "id") end-to-end —
+//   (a) mode AI: satu baris instruksi bahasa jawaban ditambahkan ke system
+//       prompt tiap aksi copilot (LANG_LINE);
+//   (b) mode simulasi: SEMUA template user-visible dwibahasa via helper L()
+//       (frasa deteksi BIAS_RULES.phrases tetap Indonesia BY DESIGN — itu
+//       pola bahasa iklan lowongan yang dideteksi, bukan teks tampilan).
 // ============================================================================
 
 import type { Prisma } from "@/generated/tenant";
@@ -40,7 +47,7 @@ export type AiSearchRow = ApplicantRow & {
 
 export interface AiSearchResult {
   mode: "ai" | "simulated";
-  /** Penjelasan filter yang diterapkan (Bahasa Indonesia) — transparansi P2. */
+  /** Penjelasan filter yang diterapkan (id/en sesuai lang) — transparansi P2. */
   interpreted: string;
   rows: AiSearchRow[];
   total: number;
@@ -89,6 +96,13 @@ const STOPWORDS = new Set([
 ]);
 
 const rp = (n: number) => `Rp ${new Intl.NumberFormat("id-ID").format(n)}`;
+
+/** Pilih varian string template output sesuai bahasa UI (id default — BL-REC-3). */
+const L = (lang: "id" | "en", id: string, en: string): string => (lang === "en" ? en : id);
+
+/** Satu baris instruksi bahasa jawaban model — ditambahkan ke system prompt copilot. */
+const LANG_LINE = (lang: "id" | "en"): string =>
+  L(lang, "Jawab dalam Bahasa Indonesia.", "Answer in English.");
 
 // ============ helper umum ============
 
@@ -390,20 +404,26 @@ function searchRowOf(
   };
 }
 
-/** Deskripsi filter yang diterapkan (ID) — transparansi utk UI. */
-function describeFilter(f: SearchFilter, total: number, scanned: number, q: string, mode: "ai" | "simulated"): string {
+/** Deskripsi filter yang diterapkan (id/en) — transparansi utk UI. */
+function describeFilter(f: SearchFilter, total: number, scanned: number, q: string, mode: "ai" | "simulated", lang: "id" | "en"): string {
   const parts: string[] = [`Query "${q.trim().slice(0, 120)}"`];
   if (f.status) parts.push(`status = ${f.status}`);
-  if (f.source) parts.push(`sumber = ${f.source}`);
-  if (f.educationLevel) parts.push(`pendidikan mengandung "${f.educationLevel}"`);
-  if (f.minExpYears != null) parts.push(`pengalaman ≥ ${f.minExpYears} tahun`);
-  if (f.city) parts.push(`kota mengandung "${f.city}" (filter in-memory — kolom terenkripsi)`);
-  if (f.maxExpectedSalary != null) parts.push(`ekspektasi gaji ≤ ${rp(f.maxExpectedSalary)} (filter in-memory — vault uang)`);
-  if (f.skill) parts.push(`keahlian mengandung "${f.skill}"`);
-  if (f.keyword) parts.push(`kata kunci "${f.keyword}" (nama/posisi/bidang studi)`);
-  if (parts.length === 1) parts.push("tanpa filter spesifik — menampilkan pelamar terbaru");
-  const label = mode === "ai" ? "interpretasi AI" : "interpretasi pola (simulasi — AI tidak tersedia)";
-  return `${parts.join(" · ")} → ${total} pelamar cocok dari ${scanned} terpindai — ${label}.`;
+  if (f.source) parts.push(L(lang, `sumber = ${f.source}`, `source = ${f.source}`));
+  if (f.educationLevel) parts.push(L(lang, `pendidikan mengandung "${f.educationLevel}"`, `education contains "${f.educationLevel}"`));
+  if (f.minExpYears != null) parts.push(L(lang, `pengalaman ≥ ${f.minExpYears} tahun`, `experience ≥ ${f.minExpYears} years`));
+  if (f.city) parts.push(L(lang, `kota mengandung "${f.city}" (filter in-memory — kolom terenkripsi)`, `city contains "${f.city}" (in-memory filter — encrypted column)`));
+  if (f.maxExpectedSalary != null) parts.push(L(lang, `ekspektasi gaji ≤ ${rp(f.maxExpectedSalary)} (filter in-memory — vault uang)`, `expected salary ≤ ${rp(f.maxExpectedSalary)} (in-memory filter — money vault)`));
+  if (f.skill) parts.push(L(lang, `keahlian mengandung "${f.skill}"`, `skill contains "${f.skill}"`));
+  if (f.keyword) parts.push(L(lang, `kata kunci "${f.keyword}" (nama/posisi/bidang studi)`, `keyword "${f.keyword}" (name/position/field of study)`));
+  if (parts.length === 1) parts.push(L(lang, "tanpa filter spesifik — menampilkan pelamar terbaru", "no specific filters — showing the latest applicants"));
+  const label = mode === "ai"
+    ? L(lang, "interpretasi AI", "AI interpretation")
+    : L(lang, "interpretasi pola (simulasi — AI tidak tersedia)", "pattern interpretation (simulated — AI unavailable)");
+  return L(
+    lang,
+    `${parts.join(" · ")} → ${total} pelamar cocok dari ${scanned} terpindai — ${label}.`,
+    `${parts.join(" · ")} → ${total} matching applicants out of ${scanned} scanned — ${label}.`,
+  );
 }
 
 /**
@@ -412,12 +432,13 @@ function describeFilter(f: SearchFilter, total: number, scanned: number, q: stri
  */
 export async function aiSearch(
   db: TenantDb,
-  input: { q: string; limit?: number; moneyVisible?: boolean },
+  input: { q: string; limit?: number; moneyVisible?: boolean; lang?: "id" | "en" },
 ): Promise<AiSearchResult> {
   const q = (input.q ?? "").trim();
   if (!q) throw new Error("Query kosong");
   const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
   const moneyVisible = input.moneyVisible ?? false;
+  const lang = input.lang === "en" ? "en" : "id";
   const tc = tenantCryptoForDb(db);
 
   // ---- interpretasi: AI → fallback simulated ----
@@ -492,7 +513,7 @@ export async function aiSearch(
   const rows = kept.slice(0, limit).map((k) => searchRowOf(k.a, tc, moneyVisible, k.salary));
   return {
     mode,
-    interpreted: describeFilter(filter, kept.length, scanned.length, q, mode),
+    interpreted: describeFilter(filter, kept.length, scanned.length, q, mode, lang),
     rows,
     total: kept.length,
   };
@@ -591,12 +612,16 @@ async function loadCandidateBundle(db: TenantDb, candidateId: string): Promise<C
   };
 }
 
-const fmtDateId = (d: Date | null | undefined): string =>
-  !d ? "—" : `${d.getDate()} ${["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"][d.getMonth()]} ${d.getFullYear()}`;
+const MONTHS_SHORT: Record<"id" | "en", string[]> = {
+  id: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"],
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+};
+const fmtDateId = (d: Date | null | undefined, lang: "id" | "en" = "id"): string =>
+  !d ? "—" : `${d.getDate()} ${MONTHS_SHORT[lang][d.getMonth()]} ${d.getFullYear()}`;
 
 // ---------- draft-jd ----------
 
-async function copilotDraftJd(db: TenantDb, params: Record<string, unknown>): Promise<CopilotResult> {
+async function copilotDraftJd(db: TenantDb, params: Record<string, unknown>, lang: "id" | "en"): Promise<CopilotResult> {
   const prId = String(params.prId ?? "");
   if (!prId) throw new Error("prId wajib");
   const pr = await db.personnelRequisition.findUnique({
@@ -644,7 +669,8 @@ async function copilotDraftJd(db: TenantDb, params: Record<string, unknown>): Pr
 
   const ai = await aiText(
     db,
-    "Kamu copywriter lowongan kerja Indonesia profesional. Buat job description ringkas profesional (judul; tentang peran; tanggung jawab 5-7 bullet; kualifikasi 5-7 bullet; info gaji rentang bila ada; cara melamar via portal karir). Bahasa Indonesia.",
+    "Kamu copywriter lowongan kerja Indonesia profesional. Buat job description ringkas profesional (judul; tentang peran; tanggung jawab 5-7 bullet; kualifikasi 5-7 bullet; info gaji rentang bila ada; cara melamar via portal karir). Bahasa Indonesia."
+      + ` ${LANG_LINE(lang)}`,
     JSON.stringify(data),
     { temperature: 0.4, maxTokens: 1800 },
   );
@@ -654,44 +680,54 @@ async function copilotDraftJd(db: TenantDb, params: Record<string, unknown>): Pr
   const duties = (slot?.jobDescSummary ?? "").split(/\n+|;\s*/).map((s) => s.trim()).filter(Boolean);
   while (duties.length < 5) {
     duties.push([
-      `Menjalankan tanggung jawab utama sesuai deskripsi posisi ${title}.`,
-      "Berkolaborasi lintas tim untuk mencapai target kerja unit.",
-      "Menyusun & melaporkan hasil pekerjaan secara berkala ke atasan.",
-      "Memastikan kepatuhan prosedur & kebijakan perusahaan.",
-      "Berpartisipasi dalam perbaikan proses berkelanjutan.",
-    ][duties.length] ?? "Melaksanakan tugas lain sesuai arahan atasan.");
+      L(lang, `Menjalankan tanggung jawab utama sesuai deskripsi posisi ${title}.`, `Carry out the core responsibilities described for the ${title} position.`),
+      L(lang, "Berkolaborasi lintas tim untuk mencapai target kerja unit.", "Collaborate across teams to meet the work unit's targets."),
+      L(lang, "Menyusun & melaporkan hasil pekerjaan secara berkala ke atasan.", "Prepare & report work results to the supervisor on a regular basis."),
+      L(lang, "Memastikan kepatuhan prosedur & kebijakan perusahaan.", "Ensure compliance with company procedures & policies."),
+      L(lang, "Berpartisipasi dalam perbaikan proses berkelanjutan.", "Participate in continuous process improvement."),
+    ][duties.length] ?? L(lang, "Melaksanakan tugas lain sesuai arahan atasan.", "Carry out other tasks as instructed by the supervisor."));
   }
   const quals = [
     ...(pr.additionalQualification ?? "").split(/\n+|;\s*/).map((s) => s.trim()).filter(Boolean),
     ...(pr.miscSpec ?? "").split(/\n+|;\s*/).map((s) => s.trim()).filter(Boolean),
     ...(slot?.jobSpecSummary ?? "").split(/\n+|;\s*/).map((s) => s.trim()).filter(Boolean),
   ].slice(0, 7);
-  while (quals.length < 5) quals.push("Kualifikasi sesuai kebutuhan posisi (rincian tersedia saat proses).");
+  while (quals.length < 5) quals.push(L(lang, "Kualifikasi sesuai kebutuhan posisi (rincian tersedia saat proses).", "Qualifications per the position's requirements (details available during the process)."));
 
   const lines = [
     `${title}${pr.orgUnit ? ` — ${pr.orgUnit.name}` : ""}`,
-    `${pr.employmentStatus} · kebutuhan ${pr.requiredNo} orang${data.lokasi ? ` · lokasi ${data.lokasi}` : ""} · ref ${pr.prNo}`,
+    L(
+      lang,
+      `${pr.employmentStatus} · kebutuhan ${pr.requiredNo} orang${data.lokasi ? ` · lokasi ${data.lokasi}` : ""} · ref ${pr.prNo}`,
+      `${pr.employmentStatus} · ${pr.requiredNo} ${pr.requiredNo === 1 ? "opening" : "openings"}${data.lokasi ? ` · location ${data.lokasi}` : ""} · ref ${pr.prNo}`,
+    ),
     "",
-    "Tentang Peran",
-    pr.reason ?? `Posisi ${title} dibuka untuk mendukung kebutuhan operasional unit kerja.`,
+    L(lang, "Tentang Peran", "About the Role"),
+    pr.reason ?? L(lang, `Posisi ${title} dibuka untuk mendukung kebutuhan operasional unit kerja.`, `The ${title} position is opened to support the work unit's operational needs.`),
     "",
-    "Tanggung Jawab",
+    L(lang, "Tanggung Jawab", "Responsibilities"),
     ...duties.slice(0, 7).map((d) => `- ${d}`),
     "",
-    "Kualifikasi",
+    L(lang, "Kualifikasi", "Qualifications"),
     ...quals.map((qq) => `- ${qq}`),
     "",
-    data.rentang_gaji_iklan ? `Gaji: ${data.rentang_gaji_iklan} (rentang iklan slot lowongan).` : "Gaji: dibahas saat proses rekrutmen.",
-    "Cara Melamar: kirim lamaran melalui portal karir perusahaan.",
+    data.rentang_gaji_iklan
+      ? L(lang, `Gaji: ${data.rentang_gaji_iklan} (rentang iklan slot lowongan).`, `Salary: ${data.rentang_gaji_iklan} (advertised range for the job slot).`)
+      : L(lang, "Gaji: dibahas saat proses rekrutmen.", "Salary: to be discussed during the recruitment process."),
+    L(lang, "Cara Melamar: kirim lamaran melalui portal karir perusahaan.", "How to Apply: submit your application via the company's careers portal."),
     "",
-    "— Dibuat otomatis (mode simulasi — AI tidak tersedia) dari data PR; silakan sunting sebelum dipublikasikan.",
+    L(
+      lang,
+      "— Dibuat otomatis (mode simulasi — AI tidak tersedia) dari data PR; silakan sunting sebelum dipublikasikan.",
+      "— Auto-generated (simulated mode — AI unavailable) from PR data; please edit before publishing.",
+    ),
   ];
   return { mode: "simulated", text: lines.join("\n") };
 }
 
 // ---------- summarize-candidate ----------
 
-async function copilotSummarize(db: TenantDb, params: Record<string, unknown>): Promise<CopilotResult> {
+async function copilotSummarize(db: TenantDb, params: Record<string, unknown>, lang: "id" | "en"): Promise<CopilotResult> {
   const bundle = await loadCandidateBundle(db, String(params.candidateId ?? ""));
   const { candidate, pr, applicant, currentStep, aiScore, scorecardPanels } = bundle;
 
@@ -714,7 +750,8 @@ async function copilotSummarize(db: TenantDb, params: Record<string, unknown>): 
 
   const ai = await aiText(
     db,
-    "Ringkas profil kandidat rekrutmen jadi 5 poin utama + 1 kalimat rekomendasi. Objektif dari data saja.",
+    "Ringkas profil kandidat rekrutmen jadi 5 poin utama + 1 kalimat rekomendasi. Objektif dari data saja."
+      + ` ${LANG_LINE(lang)}`,
     JSON.stringify(data),
     { temperature: 0.3, maxTokens: 900 },
   );
@@ -725,24 +762,56 @@ async function copilotSummarize(db: TenantDb, params: Record<string, unknown>): 
   const lastExp = applicant?.experiences[0];
   const years = applicant ? Math.round((applicant.totalExpMonths / 12) * 10) / 10 : 0;
   const lines = [
-    `Ringkasan Kandidat — ${candidate.fullName}${applicant?.applicantNo ? ` (${applicant.applicantNo})` : ""}`,
+    L(
+      lang,
+      `Ringkasan Kandidat — ${candidate.fullName}${applicant?.applicantNo ? ` (${applicant.applicantNo})` : ""}`,
+      `Candidate Summary — ${candidate.fullName}${applicant?.applicantNo ? ` (${applicant.applicantNo})` : ""}`,
+    ),
     "",
-    `1. Pendidikan: ${edu ? `${edu.level}${edu.fieldOfStudy ? ` ${edu.fieldOfStudy}` : ""}${edu.institution ? ` — ${edu.institution}` : ""}${edu.gpa != null ? ` (IPK ${edu.gpa.toFixed(2)})` : ""}` : "belum terdata pada profil pelamar"}.`,
-    `2. Pengalaman: ±${years} tahun${lastExp ? ` — terakhir ${lastExp.position ?? "-"}${lastExp.company ? ` di ${lastExp.company}` : ""}` : " — belum ada riwayat tercatat"}.`,
-    `3. Keahlian: ${applicant?.skills.length ? applicant.skills.join(", ") : "belum terdata"}.`,
-    `4. Pipeline: ${candidate.status} di ${pr.prNo}${pr.positionTitle ? ` (${pr.positionTitle})` : ""} — tahap aktif: ${currentStep?.name ?? "—"}${scorecardPanels > 0 ? ` (${scorecardPanels} scorecard panel terisi)` : ""}.`,
-    `5. Skor AI terakhir: ${aiScore ? `${aiScore.total.toFixed(1)}/100 (${aiScore.mode})` : "belum ada skor"}. Ekspektasi gaji: ${applicant?.expectedSalary != null ? rp(applicant.expectedSalary) : "—"}.`,
+    L(
+      lang,
+      `1. Pendidikan: ${edu ? `${edu.level}${edu.fieldOfStudy ? ` ${edu.fieldOfStudy}` : ""}${edu.institution ? ` — ${edu.institution}` : ""}${edu.gpa != null ? ` (IPK ${edu.gpa.toFixed(2)})` : ""}` : "belum terdata pada profil pelamar"}.`,
+      `1. Education: ${edu ? `${edu.level}${edu.fieldOfStudy ? ` ${edu.fieldOfStudy}` : ""}${edu.institution ? ` — ${edu.institution}` : ""}${edu.gpa != null ? ` (GPA ${edu.gpa.toFixed(2)})` : ""}` : "not yet recorded on the applicant profile"}.`,
+    ),
+    L(
+      lang,
+      `2. Pengalaman: ±${years} tahun${lastExp ? ` — terakhir ${lastExp.position ?? "-"}${lastExp.company ? ` di ${lastExp.company}` : ""}` : " — belum ada riwayat tercatat"}.`,
+      `2. Experience: ~${years} years${lastExp ? ` — latest ${lastExp.position ?? "-"}${lastExp.company ? ` at ${lastExp.company}` : ""}` : " — no recorded history yet"}.`,
+    ),
+    L(
+      lang,
+      `3. Keahlian: ${applicant?.skills.length ? applicant.skills.join(", ") : "belum terdata"}.`,
+      `3. Skills: ${applicant?.skills.length ? applicant.skills.join(", ") : "not yet recorded"}.`,
+    ),
+    L(
+      lang,
+      `4. Pipeline: ${candidate.status} di ${pr.prNo}${pr.positionTitle ? ` (${pr.positionTitle})` : ""} — tahap aktif: ${currentStep?.name ?? "—"}${scorecardPanels > 0 ? ` (${scorecardPanels} scorecard panel terisi)` : ""}.`,
+      `4. Pipeline: ${candidate.status} in ${pr.prNo}${pr.positionTitle ? ` (${pr.positionTitle})` : ""} — active stage: ${currentStep?.name ?? "—"}${scorecardPanels > 0 ? ` (${scorecardPanels} scorecard panel${scorecardPanels > 1 ? "s" : ""} submitted)` : ""}.`,
+    ),
+    L(
+      lang,
+      `5. Skor AI terakhir: ${aiScore ? `${aiScore.total.toFixed(1)}/100 (${aiScore.mode})` : "belum ada skor"}. Ekspektasi gaji: ${applicant?.expectedSalary != null ? rp(applicant.expectedSalary) : "—"}.`,
+      `5. Latest AI score: ${aiScore ? `${aiScore.total.toFixed(1)}/100 (${aiScore.mode})` : "no score yet"}. Expected salary: ${applicant?.expectedSalary != null ? rp(applicant.expectedSalary) : "—"}.`,
+    ),
     "",
-    `Rekomendasi: ${aiScore ? (aiScore.total >= 70 ? "diprioritaskan untuk lanjut ke tahap berikutnya." : aiScore.total >= 55 ? "layak dilanjutkan ke tahap berikutnya." : "tinjau kelengkapan data & hasil tahap sebelum lanjut.") : "lengkapi data profil & hasil penilaian sebelum memutuskan."}`,
+    L(
+      lang,
+      `Rekomendasi: ${aiScore ? (aiScore.total >= 70 ? "diprioritaskan untuk lanjut ke tahap berikutnya." : aiScore.total >= 55 ? "layak dilanjutkan ke tahap berikutnya." : "tinjau kelengkapan data & hasil tahap sebelum lanjut.") : "lengkapi data profil & hasil penilaian sebelum memutuskan."}`,
+      `Recommendation: ${aiScore ? (aiScore.total >= 70 ? "prioritize to advance to the next stage." : aiScore.total >= 55 ? "worth advancing to the next stage." : "review data completeness & stage results before advancing.") : "complete the profile data & assessment results before deciding."}`,
+    ),
     "",
-    "— Ringkasan otomatis (mode simulasi — AI tidak tersedia); keputusan tetap pada recruiter.",
+    L(
+      lang,
+      "— Ringkasan otomatis (mode simulasi — AI tidak tersedia); keputusan tetap pada recruiter.",
+      "— Automated summary (simulated mode — AI unavailable); the decision remains with the recruiter.",
+    ),
   ];
   return { mode: "simulated", text: lines.join("\n") };
 }
 
 // ---------- interview-questions ----------
 
-async function copilotInterview(db: TenantDb, params: Record<string, unknown>): Promise<CopilotResult> {
+async function copilotInterview(db: TenantDb, params: Record<string, unknown>, lang: "id" | "en"): Promise<CopilotResult> {
   const candidateId = String(params.candidateId ?? "");
   if (!candidateId) throw new Error("candidateId wajib");
   const c = await db.jobCandidate.findUnique({
@@ -781,7 +850,8 @@ async function copilotInterview(db: TenantDb, params: Record<string, unknown>): 
 
   const ai = await aiText(
     db,
-    "Buat 8 pertanyaan interview terstruktur (campuran behavioral & teknis) berdasarkan rubrik/kompetensi ini, masing-masing 1 baris + indikator jawaban baik singkat.",
+    "Buat 8 pertanyaan interview terstruktur (campuran behavioral & teknis) berdasarkan rubrik/kompetensi ini, masing-masing 1 baris + indikator jawaban baik singkat."
+      + ` ${LANG_LINE(lang)}`,
     JSON.stringify(data),
     { temperature: 0.4, maxTokens: 1500 },
   );
@@ -793,36 +863,52 @@ async function copilotInterview(db: TenantDb, params: Record<string, unknown>): 
     ...templateCompetencies.map((t) => ({ name: t.name, guide: t.description })),
   ].slice(0, 8);
   const generic = [
-    { name: "Pengalaman relevan", guide: null },
-    { name: "Pemecahan masalah", guide: null },
-    { name: "Kolaborasi tim", guide: null },
-    { name: "Motivasi & kecocokan peran", guide: null },
-    { name: "Etos kerja & manajemen waktu", guide: null },
-    { name: "Kommunikasi", guide: null },
-    { name: "Adaptabilitas terhadap perubahan", guide: null },
-    { name: "Rencana pengembangan diri", guide: null },
+    { name: L(lang, "Pengalaman relevan", "Relevant experience"), guide: null },
+    { name: L(lang, "Pemecahan masalah", "Problem solving"), guide: null },
+    { name: L(lang, "Kolaborasi tim", "Team collaboration"), guide: null },
+    { name: L(lang, "Motivasi & kecocokan peran", "Motivation & role fit"), guide: null },
+    { name: L(lang, "Etos kerja & manajemen waktu", "Work ethic & time management"), guide: null },
+    { name: L(lang, "Kommunikasi", "Communication"), guide: null },
+    { name: L(lang, "Adaptabilitas terhadap perubahan", "Adaptability to change"), guide: null },
+    { name: L(lang, "Rencana pengembangan diri", "Self-development plan"), guide: null },
   ];
   while (comps.length < 8) comps.push(generic[comps.length]!);
 
   const lines = [
-    `Pertanyaan Interview Terstruktur — ${c.fullName}${c.pr.position?.title ? ` (${c.pr.position.title})` : ""} · tahap ${cur?.selectionProcess.name ?? "—"}`,
+    L(
+      lang,
+      `Pertanyaan Interview Terstruktur — ${c.fullName}${c.pr.position?.title ? ` (${c.pr.position.title})` : ""} · tahap ${cur?.selectionProcess.name ?? "—"}`,
+      `Structured Interview Questions — ${c.fullName}${c.pr.position?.title ? ` (${c.pr.position.title})` : ""} · stage ${cur?.selectionProcess.name ?? "—"}`,
+    ),
     "",
     ...comps.slice(0, 8).map((comp, i) => {
-      const kind = i % 2 === 0 ? "Behavioral" : "Teknis";
+      const kind = i % 2 === 0 ? "Behavioral" : L(lang, "Teknis", "Technical");
       const q = kind === "Behavioral"
-        ? `Ceritakan situasi nyata yang paling menunjukkan ${comp.name.toLowerCase()} Anda — apa peran Anda dan hasilnya?`
-        : `Bagaimana Anda menerapkan ${comp.name.toLowerCase()} dalam pekerjaan sehari-hari${comp.guide ? ` (${comp.guide})` : ""}?`;
-      return `${i + 1}. [${kind}] ${q}\n   Indikator jawaban baik: menjelaskan contoh spesifik dengan hasil terukur & refleksi.`;
+        ? L(
+          lang,
+          `Ceritakan situasi nyata yang paling menunjukkan ${comp.name.toLowerCase()} Anda — apa peran Anda dan hasilnya?`,
+          `Tell us about a real situation that best demonstrates your ${comp.name.toLowerCase()} — what was your role and the outcome?`,
+        )
+        : L(
+          lang,
+          `Bagaimana Anda menerapkan ${comp.name.toLowerCase()} dalam pekerjaan sehari-hari${comp.guide ? ` (${comp.guide})` : ""}?`,
+          `How do you apply ${comp.name.toLowerCase()} in your day-to-day work${comp.guide ? ` (${comp.guide})` : ""}?`,
+        );
+      return `${i + 1}. [${kind}] ${q}\n   ${L(lang, "Indikator jawaban baik: menjelaskan contoh spesifik dengan hasil terukur & refleksi.", "Good-answer indicator: explains a specific example with measurable results & reflection.")}`;
     }),
     "",
-    "— Disusun otomatis (mode simulasi — AI tidak tersedia) dari rubrik PR & kompetensi scorecard.",
+    L(
+      lang,
+      "— Disusun otomatis (mode simulasi — AI tidak tersedia) dari rubrik PR & kompetensi scorecard.",
+      "— Auto-generated (simulated mode — AI unavailable) from the PR rubric & scorecard competencies.",
+    ),
   ];
   return { mode: "simulated", text: lines.join("\n") };
 }
 
 // ---------- outreach ----------
 
-async function copilotOutreach(db: TenantDb, params: Record<string, unknown>): Promise<CopilotResult> {
+async function copilotOutreach(db: TenantDb, params: Record<string, unknown>, lang: "id" | "en"): Promise<CopilotResult> {
   const channel = String(params.channel ?? "email") === "wa" ? "wa" : "email";
   const bundle = await loadCandidateBundle(db, String(params.candidateId ?? ""));
   const { candidate, pr, applicant, currentStep } = bundle;
@@ -832,7 +918,7 @@ async function copilotOutreach(db: TenantDb, params: Record<string, unknown>): P
     posisi: pr.positionTitle ?? `posisi pada ${pr.prNo}`,
     pr: pr.prNo,
     tahap_selanjutnya: currentStep?.name ?? "tahap seleksi lanjutan",
-    jadwal: currentStep?.planDate ? fmtDateId(currentStep.planDate) : null,
+    jadwal: currentStep?.planDate ? fmtDateId(currentStep.planDate, lang) : null,
     kota: applicant?.city ?? null,
     sumber_kandidat: candidate.source,
   };
@@ -841,51 +927,73 @@ async function copilotOutreach(db: TenantDb, params: Record<string, unknown>): P
     db,
     channel === "wa"
       ? "Kamu recruiter Indonesia profesional. Buat pesan WhatsApp undangan lanjutan proses rekrutmen: SOPAN, maksimal 3 baris, tanpa markdown, tanpa embel-embel berlebihan. Bahasa Indonesia."
-      : "Kamu recruiter Indonesia profesional. Buat email formal undangan lanjutan proses rekrutmen: tepat 3 paragraf (pembuka & apresiasi; undangan tahap berikutnya + jadwal; penutup & cara konfirmasi), sertakan baris subjek. Bahasa Indonesia.",
+        + ` ${LANG_LINE(lang)}`
+      : "Kamu recruiter Indonesia profesional. Buat email formal undangan lanjutan proses rekrutmen: tepat 3 paragraf (pembuka & apresiasi; undangan tahap berikutnya + jadwal; penutup & cara konfirmasi), sertakan baris subjek. Bahasa Indonesia."
+        + ` ${LANG_LINE(lang)}`,
     JSON.stringify(data),
     { temperature: 0.5, maxTokens: 900 },
   );
   if (ai) return { mode: "ai", text: ai };
 
   // fallback template
-  const stage = currentStep?.name ?? "tahap seleksi lanjutan";
-  const when = currentStep?.planDate ? fmtDateId(currentStep.planDate) : "akan dikonfirmasi";
+  const stage = currentStep?.name ?? L(lang, "tahap seleksi lanjutan", "the next selection stage");
+  const when = currentStep?.planDate ? fmtDateId(currentStep.planDate, lang) : L(lang, "akan dikonfirmasi", "to be confirmed");
   if (channel === "wa") {
     return {
       mode: "simulated",
       text: [
-        `Yth. ${candidate.fullName},`,
-        `Kami mengundang Anda mengikuti ${stage} proses rekrutmen ${pr.positionTitle ?? ""} (${pr.prNo}) — jadwal: ${when}.`,
-        `Mohon konfirmasi kehadiran dengan membalas pesan ini. Terima kasih. — Tim Rekrutmen`,
+        L(lang, `Yth. ${candidate.fullName},`, `Dear ${candidate.fullName},`),
+        L(
+          lang,
+          `Kami mengundang Anda mengikuti ${stage} proses rekrutmen ${pr.positionTitle ?? ""} (${pr.prNo}) — jadwal: ${when}.`,
+          `We invite you to attend the ${stage} of the ${pr.positionTitle ?? ""} recruitment process (${pr.prNo}) — scheduled: ${when}.`,
+        ),
+        L(
+          lang,
+          `Mohon konfirmasi kehadiran dengan membalas pesan ini. Terima kasih. — Tim Rekrutmen`,
+          `Please confirm your attendance by replying to this message. Thank you. — Recruitment Team`,
+        ),
         "",
-        "— Draf otomatis (mode simulasi — AI tidak tersedia).",
+        L(lang, "— Draf otomatis (mode simulasi — AI tidak tersedia).", "— Automated draft (simulated mode — AI unavailable)."),
       ].join("\n"),
     };
   }
   return {
     mode: "simulated",
     text: [
-      `Perihal: Undangan Lanjutan Proses Rekrutmen — ${pr.positionTitle ?? pr.prNo}`,
+      L(lang, `Perihal: Undangan Lanjutan Proses Rekrutmen — ${pr.positionTitle ?? pr.prNo}`, `Subject: Recruitment Next-Step Invitation — ${pr.positionTitle ?? pr.prNo}`),
       "",
-      `Yth. ${candidate.fullName},`,
+      L(lang, `Yth. ${candidate.fullName},`, `Dear ${candidate.fullName},`),
       "",
-      `Terima kasih atas ketertarikan Anda pada posisi ${pr.positionTitle ?? "yang dilamar"} (${pr.prNo}). Melalui email ini kami ingin menyampaikan bahwa Anda dinyatakan lolos untuk mengikuti tahap selanjutnya dari proses seleksi kami.`,
+      L(
+        lang,
+        `Terima kasih atas ketertarikan Anda pada posisi ${pr.positionTitle ?? "yang dilamar"} (${pr.prNo}). Melalui email ini kami ingin menyampaikan bahwa Anda dinyatakan lolos untuk mengikuti tahap selanjutnya dari proses seleksi kami.`,
+        `Thank you for your interest in the ${pr.positionTitle ?? "applied"} position (${pr.prNo}). Through this email, we would like to inform you that you have passed to the next stage of our selection process.`,
+      ),
       "",
-      `Tahap berikutnya adalah ${stage}, dijadwalkan pada ${when}. Mohon kesediaan Anda untuk menghadiri sesuai jadwal tersebut; detail teknis akan kami sampaikan lebih lanjut.`,
+      L(
+        lang,
+        `Tahap berikutnya adalah ${stage}, dijadwalkan pada ${when}. Mohon kesediaan Anda untuk menghadiri sesuai jadwal tersebut; detail teknis akan kami sampaikan lebih lanjut.`,
+        `The next stage is ${stage}, scheduled for ${when}. We kindly request your availability to attend as scheduled; technical details will be shared with you shortly.`,
+      ),
       "",
-      "Apabila terdapat kendala jadwal atau pertanyaan, silakan membalas email ini. Kami menantikan kehadiran Anda dan mengucapkan sukses untuk persiapan.",
+      L(
+        lang,
+        "Apabila terdapat kendala jadwal atau pertanyaan, silakan membalas email ini. Kami menantikan kehadiran Anda dan mengucapkan sukses untuk persiapan.",
+        "Should you have scheduling conflicts or questions, please reply to this email. We look forward to your attendance and wish you the best in your preparation.",
+      ),
       "",
-      "Hormat kami,",
-      "Tim Rekrutmen",
+      L(lang, "Hormat kami,", "Sincerely,"),
+      L(lang, "Tim Rekrutmen", "Recruitment Team"),
       "",
-      "— Draf otomatis (mode simulasi — AI tidak tersedia); mohon sunting sebelum dikirim.",
+      L(lang, "— Draf otomatis (mode simulasi — AI tidak tersedia); mohon sunting sebelum dikirim.", "— Automated draft (simulated mode — AI unavailable); please edit before sending."),
     ].join("\n"),
   };
 }
 
 // ---------- pipeline-qa ----------
 
-async function buildPipelineData(db: TenantDb): Promise<Record<string, unknown>> {
+async function buildPipelineData(db: TenantDb, lang: "id" | "en"): Promise<Record<string, unknown>> {
   const [activePrs, groups, activeCands, openSlots, stagingPending, hiredTotal] = await Promise.all([
     db.personnelRequisition.findMany({
       where: { status: { in: ["Submitted", "Approved", "OnHold"] } },
@@ -927,7 +1035,7 @@ async function buildPipelineData(db: TenantDb): Promise<Record<string, unknown>>
   const activeByPr = new Map<string, { stage: string; names: string[] }[]>();
   for (const c of activeCands) {
     const cur = c.selectionSteps.find((s) => !TERMINAL_STEP.includes(s.status));
-    const stage = cur?.selectionProcess.name ?? "Belum ada tahap";
+    const stage = cur?.selectionProcess.name ?? L(lang, "Belum ada tahap", "No stage yet");
     const list = activeByPr.get(c.prId) ?? [];
     const bucket = list.find((x) => x.stage === stage);
     if (bucket) bucket.names.push(c.fullName);
@@ -951,15 +1059,16 @@ async function buildPipelineData(db: TenantDb): Promise<Record<string, unknown>>
   };
 }
 
-async function copilotPipelineQa(db: TenantDb, params: Record<string, unknown>): Promise<CopilotResult> {
+async function copilotPipelineQa(db: TenantDb, params: Record<string, unknown>, lang: "id" | "en"): Promise<CopilotResult> {
   const question = String(params.q ?? "").trim();
   if (!question) throw new Error("q wajib");
 
-  const data = await buildPipelineData(db);
+  const data = await buildPipelineData(db, lang);
 
   const ai = await aiText(
     db,
-    "Jawab pertanyaan recruiter tentang pipeline rekrutmen berdasar DATA berikut. Ringkas, angka akurat, sebutkan nama bila relevan.",
+    "Jawab pertanyaan recruiter tentang pipeline rekrutmen berdasar DATA berikut. Ringkas, angka akurat, sebutkan nama bila relevan."
+      + ` ${LANG_LINE(lang)}`,
     `${JSON.stringify(data)}\n\nPertanyaan: ${question}`,
     { temperature: 0.2, maxTokens: 900 },
   );
@@ -972,16 +1081,32 @@ async function copilotPipelineQa(db: TenantDb, params: Record<string, unknown>):
     kandidat_aktif: { tahap: string; kandidat: string[] }[];
   }[]);
   const lines = [
-    "Ringkasan pipeline rekrutmen (data mentah — mode simulasi, AI tidak tersedia):",
-    `- PR aktif: ${data.pr_aktif_total} · slot lowongan terbuka: ${data.slot_lowongan_terbuka} · lamaran publik menunggu verifikasi: ${data.lamaran_publik_menunggu_verifikasi} · total kandidat hired: ${data.total_kandidat_dihire}`,
+    L(
+      lang,
+      "Ringkasan pipeline rekrutmen (data mentah — mode simulasi, AI tidak tersedia):",
+      "Recruitment pipeline summary (raw data — simulated mode, AI unavailable):",
+    ),
+    L(
+      lang,
+      `- PR aktif: ${data.pr_aktif_total} · slot lowongan terbuka: ${data.slot_lowongan_terbuka} · lamaran publik menunggu verifikasi: ${data.lamaran_publik_menunggu_verifikasi} · total kandidat hired: ${data.total_kandidat_dihire}`,
+      `- Active PRs: ${data.pr_aktif_total} · open job slots: ${data.slot_lowongan_terbuka} · public applications pending verification: ${data.lamaran_publik_menunggu_verifikasi} · total candidates hired: ${data.total_kandidat_dihire}`,
+    ),
     "",
     ...perPr.map((p) => {
-      const status = Object.entries(p.kandidat_per_status).map(([k, v]) => `${v} ${k}`).join(", ") || "belum ada kandidat";
+      const status = Object.entries(p.kandidat_per_status).map(([k, v]) => `${v} ${k}`).join(", ") || L(lang, "belum ada kandidat", "no candidates yet");
       const aktif = p.kandidat_aktif.map((a) => `${a.tahap}: ${a.kandidat.join(", ")}`).join("; ") || "—";
-      return `- ${p.pr_no}${p.posisi ? ` (${p.posisi})` : ""} [${p.status_pr}]: ${status}. Kandidat aktif — ${aktif}`;
+      return L(
+        lang,
+        `- ${p.pr_no}${p.posisi ? ` (${p.posisi})` : ""} [${p.status_pr}]: ${status}. Kandidat aktif — ${aktif}`,
+        `- ${p.pr_no}${p.posisi ? ` (${p.posisi})` : ""} [${p.status_pr}]: ${status}. Active candidates — ${aktif}`,
+      );
     }),
     "",
-    `Pertanyaan Anda: "${question}" — jawaban rinci memerlukan AI; data di atas adalah fakta pipeline saat ini.`,
+    L(
+      lang,
+      `Pertanyaan Anda: "${question}" — jawaban rinci memerlukan AI; data di atas adalah fakta pipeline saat ini.`,
+      `Your question: "${question}" — a detailed answer requires AI; the data above reflects the pipeline as of now.`,
+    ),
   ];
   return { mode: "simulated", text: lines.join("\n") };
 }
@@ -994,10 +1119,11 @@ interface BiasFinding {
   suggestion: string;
 }
 
-const BIAS_RULES: { issue: string; suggestion: string; phrases: string[] }[] = [
+const BIAS_RULES: { issue: string; suggestion: string; suggestionEn: string; phrases: string[] }[] = [
   {
     issue: "gender",
     suggestion: "Hapus referensi gender — cukup tulis 'kandidat' (semua gender dipersilakan melamar)",
+    suggestionEn: "Remove the gender reference — just write 'candidate' (all genders are welcome to apply)",
     phrases: [
       "pria/wanita", "laki-laki/perempuan", "laki laki", "pria", "wanita", "laki-laki",
       "perempuan", "lelaki", "cewek", "cowok", "maskulin", "feminin", "gentleman", "guys",
@@ -1006,6 +1132,7 @@ const BIAS_RULES: { issue: string; suggestion: string; phrases: string[] }[] = [
   {
     issue: "usia",
     suggestion: "Hapus batasan usia — gunakan kriteria kompetensi/kualifikasi (batasan usia berisiko diskriminatif)",
+    suggestionEn: "Remove the age limit — use competency/qualification criteria instead (age limits carry discrimination risk)",
     phrases: [
       "di bawah 30", "dibawah 30", "di bawah 35", "di atas 40", "di atas 30", "usia maks",
       "usia maksimal", "maksimal usia", "umur maks", "max 30 tahun", "max 35 tahun",
@@ -1015,16 +1142,19 @@ const BIAS_RULES: { issue: string; suggestion: string; phrases: string[] }[] = [
   {
     issue: "penampilan",
     suggestion: "Hapus kriteria penampilan fisik — tidak relevan dengan kompetensi kerja",
+    suggestionEn: "Remove the physical appearance criterion — it is not relevant to job competency",
     phrases: ["menarik", "cantik", "tampan", "good looking", "berpenampilan menarik"],
   },
   {
     issue: "status",
     suggestion: "Hapus syarat status pernikahan — masuk ranah privasi & berisiko diskriminatif",
+    suggestionEn: "Remove the marital-status requirement — it is a privacy matter & carries discrimination risk",
     phrases: ["belum menikah", "lajang", "single", "menikah", "berstatus single"],
   },
   {
     issue: "fisik",
     suggestion: "Hapus syarat fisik (tinggi/postur) kecuali benar-benar syarat esensial pekerjaan yang terukur (BFOQ)",
+    suggestionEn: "Remove the physical requirement (height/build) unless it is truly a measurable, essential job requirement (BFOQ)",
     phrases: ["tinggi minimal", "postur", "berpostur", "minimal tb"],
   },
 ];
@@ -1036,20 +1166,26 @@ const BIAS_AGE_REGEXES = [
   /\bmaks(?:imal)?\s*\.?\s*\d{2}\s*(?:tahun|thn|th)\b/gi,
 ];
 
-function staticBiasFindings(text: string): BiasFinding[] {
+function staticBiasFindings(text: string, lang: "id" | "en"): BiasFinding[] {
   const lower = text.toLowerCase();
   const spans: [number, number][] = [];
   const taken = (s: number, e: number) => spans.some(([a, b]) => s < b && e > a);
 
   const candidates: BiasFinding[] = [];
   for (const rule of BIAS_RULES) {
-    for (const phrase of rule.phrases) candidates.push({ phrase, issue: rule.issue, suggestion: rule.suggestion });
+    for (const phrase of rule.phrases) {
+      candidates.push({ phrase, issue: rule.issue, suggestion: L(lang, rule.suggestion, rule.suggestionEn) });
+    }
   }
   for (const re of BIAS_AGE_REGEXES) {
     const rx = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
     let m: RegExpExecArray | null;
     while ((m = rx.exec(lower))) {
-      candidates.push({ phrase: m[0].trim(), issue: "usia", suggestion: BIAS_RULES[1]!.suggestion });
+      candidates.push({
+        phrase: m[0].trim(),
+        issue: "usia",
+        suggestion: L(lang, BIAS_RULES[1]!.suggestion, BIAS_RULES[1]!.suggestionEn),
+      });
     }
   }
 
@@ -1078,11 +1214,16 @@ const BIAS_ISSUE_LABEL: Record<string, string> = {
   status: "status", fisik: "fisik", physical: "fisik", lainnya: "lainnya", other: "lainnya",
 };
 
-async function copilotCheckBias(db: TenantDb, params: Record<string, unknown>): Promise<CopilotResult> {
+/** Label kategori temuan utk tampilan EN (internal tetap key ID — BL-REC-3). */
+const BIAS_ISSUE_LABEL_EN: Record<string, string> = {
+  gender: "gender", usia: "age", penampilan: "appearance", status: "status", fisik: "physical", lainnya: "other",
+};
+
+async function copilotCheckBias(db: TenantDb, params: Record<string, unknown>, lang: "id" | "en"): Promise<CopilotResult> {
   const text = String(params.text ?? "").trim();
   if (!text) throw new Error("text wajib");
 
-  const findings = staticBiasFindings(text);
+  const findings = staticBiasFindings(text, lang);
   const seen = (phrase: string) => findings.some((f) => {
     const a = f.phrase.toLowerCase();
     const b = phrase.toLowerCase();
@@ -1093,7 +1234,8 @@ async function copilotCheckBias(db: TenantDb, params: Record<string, unknown>): 
   let aiParticipated = false;
   const ai = await aiText(
     db,
-    'Deteksi frasa berpotensi diskriminatif/bias dalam teks lowongan. Output HANYA JSON {"findings":[{"phrase":"","issue":"gender|age|appearance|status|fisik|lainnya","suggestion":"pengganti netral"}]}',
+    'Deteksi frasa berpotensi diskriminatif/bias dalam teks lowongan. Output HANYA JSON {"findings":[{"phrase":"","issue":"gender|age|appearance|status|fisik|lainnya","suggestion":"pengganti netral"}]}'
+      + ` ${LANG_LINE(lang)}`,
     text,
     { temperature: 0.1, maxTokens: 900 },
   );
@@ -1107,7 +1249,9 @@ async function copilotCheckBias(db: TenantDb, params: Record<string, unknown>): 
         if (seen(phrase)) continue; // dedupe vs statis
         const rawIssue = typeof f?.issue === "string" ? f.issue.trim().toLowerCase() : "lainnya";
         const issue = BIAS_ISSUE_LABEL[rawIssue] ?? "lainnya";
-        const suggestion = typeof f?.suggestion === "string" && f.suggestion.trim() ? f.suggestion.trim().slice(0, 200) : "Ganti frasa dengan kriteria netral berbasis kompetensi";
+        const suggestion = typeof f?.suggestion === "string" && f.suggestion.trim()
+          ? f.suggestion.trim().slice(0, 200)
+          : L(lang, "Ganti frasa dengan kriteria netral berbasis kompetensi", "Replace the phrase with neutral, competency-based criteria");
         findings.push({ phrase, issue, suggestion });
       }
       if (aiParticipated) mode = "ai";
@@ -1118,23 +1262,44 @@ async function copilotCheckBias(db: TenantDb, params: Record<string, unknown>): 
     return {
       mode,
       text: [
-        "✓ Tidak terdeteksi frasa berpotensi berbias/diskriminatif pada teks.",
+        L(lang, "✓ Tidak terdeteksi frasa berpotensi berbias/diskriminatif pada teks.", "✓ No potentially biased/discriminatory phrases detected in the text."),
         "",
-        "Catatan: deteksi kata berkode (gender/usia/penampilan/status/fisik) bersifat indikatif — tetap tinjau manual konteks keseluruhan lowongan.",
-        mode === "ai" ? "— Diperiksa otomatis (deteksi statis + analisis kontekstual AI)." : "— Diperiksa otomatis (deteksi statis — mode simulasi, AI tidak tersedia).",
+        L(
+          lang,
+          "Catatan: deteksi kata berkode (gender/usia/penampilan/status/fisik) bersifat indikatif — tetap tinjau manual konteks keseluruhan lowongan.",
+          "Note: coded-word detection (gender/age/appearance/status/physical) is indicative — always manually review the posting as a whole.",
+        ),
+        mode === "ai"
+          ? L(lang, "— Diperiksa otomatis (deteksi statis + analisis kontekstual AI).", "— Checked automatically (static detection + AI contextual analysis).")
+          : L(lang, "— Diperiksa otomatis (deteksi statis — mode simulasi, AI tidak tersedia).", "— Checked automatically (static detection — simulated mode, AI unavailable)."),
       ].join("\n"),
     };
   }
 
   const byIssue = new Map<string, number>();
   for (const f of findings) byIssue.set(f.issue, (byIssue.get(f.issue) ?? 0) + 1);
+  const issueLabel = (k: string) => (lang === "en" ? BIAS_ISSUE_LABEL_EN[k] ?? k : k);
   const lines = [
-    `Ditemukan ${findings.length} frasa berpotensi berbias/diskriminatif:`,
+    L(
+      lang,
+      `Ditemukan ${findings.length} frasa berpotensi berbias/diskriminatif:`,
+      `Found ${findings.length} potentially biased/discriminatory phrase${findings.length > 1 ? "s" : ""}:`,
+    ),
     "",
-    ...findings.map((f) => `⚠ Frasa: "${f.phrase}" — masalah: ${f.issue} — saran: ${f.suggestion}`),
+    ...findings.map((f) => L(
+      lang,
+      `⚠ Frasa: "${f.phrase}" — masalah: ${f.issue} — saran: ${f.suggestion}`,
+      `⚠ Phrase: "${f.phrase}" — issue: ${issueLabel(f.issue)} — suggestion: ${f.suggestion}`,
+    )),
     "",
-    `Ringkasan: ${[...byIssue.entries()].map(([k, v]) => `${v} ${k}`).join(", ")}. Lowongan yang baik menilai kandidat dari kompetensi & kualifikasi — hindari syarat yang merujuk identitas pribadi (gender/usia/penampilan/status/kondisi fisik non-esensial).`,
-    mode === "ai" ? "— Deteksi statis + analisis kontekstual AI." : "— Deteksi statis (mode simulasi — AI tidak tersedia).",
+    L(
+      lang,
+      `Ringkasan: ${[...byIssue.entries()].map(([k, v]) => `${v} ${k}`).join(", ")}. Lowongan yang baik menilai kandidat dari kompetensi & kualifikasi — hindari syarat yang merujuk identitas pribadi (gender/usia/penampilan/status/kondisi fisik non-esensial).`,
+      `Summary: ${[...byIssue.entries()].map(([k, v]) => `${v} ${issueLabel(k)}`).join(", ")}. Good job postings assess candidates on competencies & qualifications — avoid requirements that reference personal identity (gender/age/appearance/status/non-essential physical condition).`,
+    ),
+    mode === "ai"
+      ? L(lang, "— Deteksi statis + analisis kontekstual AI.", "— Static detection + AI contextual analysis.")
+      : L(lang, "— Deteksi statis (mode simulasi — AI tidak tersedia).", "— Static detection (simulated mode — AI unavailable)."),
   ];
   return { mode, text: lines.join("\n") };
 }
@@ -1148,16 +1313,17 @@ async function copilotCheckBias(db: TenantDb, params: Record<string, unknown>): 
  */
 export async function copilotAction(
   db: TenantDb,
-  input: { action: string; params?: unknown },
+  input: { action: string; params?: unknown; lang?: "id" | "en" },
 ): Promise<CopilotResult> {
   const params = (input.params && typeof input.params === "object" ? input.params : {}) as Record<string, unknown>;
+  const lang = input.lang === "en" ? "en" : "id";
   switch (input.action) {
-    case "draft-jd": return copilotDraftJd(db, params);
-    case "summarize-candidate": return copilotSummarize(db, params);
-    case "interview-questions": return copilotInterview(db, params);
-    case "outreach": return copilotOutreach(db, params);
-    case "pipeline-qa": return copilotPipelineQa(db, params);
-    case "check-bias": return copilotCheckBias(db, params);
+    case "draft-jd": return copilotDraftJd(db, params, lang);
+    case "summarize-candidate": return copilotSummarize(db, params, lang);
+    case "interview-questions": return copilotInterview(db, params, lang);
+    case "outreach": return copilotOutreach(db, params, lang);
+    case "pipeline-qa": return copilotPipelineQa(db, params, lang);
+    case "check-bias": return copilotCheckBias(db, params, lang);
     default:
       throw new Error(`Aksi copilot tidak dikenal: ${input.action || "(kosong)"}`);
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { toCsv, csvResponse, xlsxResponse, exportFilename, toXlsx, type ExportCell, type ExportColumn } from "@/rekankerja/shared/lib/export";
+import { trFor } from "@/rekankerja/shared/lib/i18n-core";
 import { PDFDocument, StandardFonts, rgb } from "@cantoo/pdf-lib";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import {
@@ -62,58 +63,74 @@ async function listMyViews(db: TenantDb, ownerId: string): Promise<SavedViewRow[
 }
 
 // ============ CSV builders (data sama dengan section JSON) ============
+// BL-REC-CORE: builder bilingual — label dibangun per bahasa (pola BL-5 tier-2,
+// eksplisit di dalam builder) supaya CSV/XLSX/PDF tiga format sama-sama ikut
+// ?lang= tanpa bergantung exact-match kamus global (aman dari konteks ganda
+// mis. "Jumlah"=Amount vs Count, "Masuk"=In vs Entered).
 
-function dashboardCsv(d: Awaited<ReturnType<typeof getRecruitmentDashboard>>): { columns: ExportColumn[]; rows: ExportCell[][] } {
+/** Helper bilingual lokal builder ekspor rekrutmen. */
+function tt(lang: "id" | "en", id: string, en: string): string {
+  return lang === "en" ? en : id;
+}
+
+function dashboardCsv(d: Awaited<ReturnType<typeof getRecruitmentDashboard>>, lang: "id" | "en" = "id"): { columns: ExportColumn[]; rows: ExportCell[][] } {
   const columns: ExportColumn[] = [
-    { header: "Seksi", width: 22 }, { header: "Item", width: 34 }, { header: "Nilai 1", width: 18 },
-    { header: "Nilai 2", width: 18 }, { header: "Nilai 3", width: 18 }, { header: "Keterangan", width: 42 },
+    { header: tt(lang, "Seksi", "Section"), width: 22 }, { header: tt(lang, "Item", "Item"), width: 34 }, { header: tt(lang, "Nilai 1", "Value 1"), width: 18 },
+    { header: tt(lang, "Nilai 2", "Value 2"), width: 18 }, { header: tt(lang, "Nilai 3", "Value 3"), width: 18 }, { header: tt(lang, "Keterangan", "Notes"), width: 42 },
   ];
   const rows: ExportCell[][] = [];
-  rows.push(["Kesehatan PR", "PR terbuka", d.prHealth.open, "", "", `Umur rata-rata ${d.prHealth.avgAgeDays ?? "—"} hari`]);
-  rows.push(["Kesehatan PR", "PR tertua", d.prHealth.oldest?.prNo ?? "—", d.prHealth.oldest?.days ?? "—", "", "hari sejak requestDate"]);
-  rows.push(["Kesehatan PR", "Ditutup bulan ini", d.prHealth.closedThisPeriod, "", "", "Fulfilled/Closed/Cancelled"]);
-  rows.push(["Kesehatan PR", "PR at-risk (lebih dari SLA target)", d.prHealth.atRisk.length, "", "", "slaTargetDays terisi & umur > target"]);
+  rows.push([tt(lang, "Kesehatan PR", "PR Health"), tt(lang, "PR terbuka", "Open requisitions"), d.prHealth.open, "", "", tt(lang, `Umur rata-rata ${d.prHealth.avgAgeDays ?? "—"} hari`, `Average age ${d.prHealth.avgAgeDays ?? "—"} days`)]);
+  rows.push([tt(lang, "Kesehatan PR", "PR Health"), tt(lang, "PR tertua", "Oldest requisition"), d.prHealth.oldest?.prNo ?? "—", d.prHealth.oldest?.days ?? "—", "", tt(lang, "hari sejak requestDate", "days since requestDate")]);
+  rows.push([tt(lang, "Kesehatan PR", "PR Health"), tt(lang, "Ditutup bulan ini", "Closed this month"), d.prHealth.closedThisPeriod, "", "", "Fulfilled/Closed/Cancelled"]);
+  rows.push([tt(lang, "Kesehatan PR", "PR Health"), tt(lang, "PR at-risk (lebih dari SLA target)", "At-risk requisitions (over SLA target)"), d.prHealth.atRisk.length, "", "", tt(lang, "slaTargetDays terisi & umur > target", "slaTargetDays set & age > target")]);
   for (const r of d.prHealth.atRisk.slice(0, 20)) {
-    rows.push(["Kesehatan PR — at-risk", r.prNo, r.positionTitle ?? "—", r.ageDays, r.targetDays, "umur / target (hari)"]);
+    rows.push([tt(lang, "Kesehatan PR — at-risk", "PR Health — at-risk"), r.prNo, r.positionTitle ?? "—", r.ageDays, r.targetDays, tt(lang, "umur / target (hari)", "age / target (days)")]);
   }
   for (const r of d.recruiterLoad) {
-    rows.push(["Beban recruiter", r.name, r.activeCandidates, r.activePrs, "", "kandidat aktif / PR aktif"]);
+    rows.push([tt(lang, "Beban recruiter", "Recruiter Load"), r.name, r.activeCandidates, r.activePrs, "", tt(lang, "kandidat aktif / PR aktif", "active candidates / active requisitions")]);
   }
-  rows.push(["Kepatuhan SLA", "Tahap tepat waktu", d.slaCompliance.onTime, d.slaCompliance.late, d.slaCompliance.rate ?? "—", "onTime / late / rate %"]);
+  rows.push([tt(lang, "Kepatuhan SLA", "SLA Compliance"), tt(lang, "Tahap tepat waktu", "On-time stages"), d.slaCompliance.onTime, d.slaCompliance.late, d.slaCompliance.rate ?? "—", "onTime / late / rate %"]);
   if (d.slaCompliance.latestStage) {
-    rows.push(["Kepatuhan SLA", "Tahap terlambat terbanyak", d.slaCompliance.latestStage.name, d.slaCompliance.latestStage.late, "", "jumlah terlambat"]);
+    rows.push([tt(lang, "Kepatuhan SLA", "SLA Compliance"), tt(lang, "Tahap terlambat terbanyak", "Stage with the most late"), d.slaCompliance.latestStage.name, d.slaCompliance.latestStage.late, "", tt(lang, "jumlah terlambat", "late count")]);
   }
-  rows.push(["ROI sumber", "Sumber", "Belanja (IDR)", "Hire", "Cost per hire (IDR)", ""]);
+  rows.push([tt(lang, "ROI sumber", "Source ROI"), tt(lang, "Sumber", "Source"), tt(lang, "Belanja (IDR)", "Spend (IDR)"), tt(lang, "Hire", "Hires"), tt(lang, "Cost per hire (IDR)", "Cost per hire (IDR)"), ""]);
   for (const r of d.sourceRoi) {
-    rows.push(["ROI sumber", r.source, r.spend ?? 0, r.hires, r.costPerHire ?? "—", ""]);
+    rows.push([tt(lang, "ROI sumber", "Source ROI"), r.source, r.spend ?? 0, r.hires, r.costPerHire ?? "—", ""]);
   }
-  rows.push(["Funnel", "Tahap", "Jumlah", "", "", ""]);
+  rows.push([tt(lang, "Funnel", "Funnel"), tt(lang, "Tahap", "Stage"), tt(lang, "Jumlah", "Count"), "", "", ""]);
   for (const s of d.funnel.stages) {
-    rows.push(["Funnel", s.label, s.count, "", "", ""]);
+    rows.push([tt(lang, "Funnel", "Funnel"), s.label, s.count, "", "", ""]);
   }
-  rows.push(["Funnel", "Tingkat penerimaan offer", `${d.funnel.offerAcceptanceRate ?? "—"}%`, "", "", ""]);
+  rows.push([tt(lang, "Funnel", "Funnel"), tt(lang, "Tingkat penerimaan offer", "Offer acceptance rate"), `${d.funnel.offerAcceptanceRate ?? "—"}%`, "", "", ""]);
   return { columns, rows };
 }
 
-function metricsCsv(m: Awaited<ReturnType<typeof getMetricsCatalog>>): { columns: ExportColumn[]; rows: ExportCell[][] } {
+function metricsCsv(m: Awaited<ReturnType<typeof getMetricsCatalog>>, lang: "id" | "en" = "id"): { columns: ExportColumn[]; rows: ExportCell[][] } {
   const columns: ExportColumn[] = [
-    { header: "Metrik", width: 28 }, { header: "Label", width: 30 }, { header: "Nilai", width: 14 },
-    { header: "Satuan", width: 8 }, { header: "Keterangan", width: 60 },
+    { header: tt(lang, "Metrik", "Metric"), width: 28 }, { header: tt(lang, "Label", "Label"), width: 30 }, { header: tt(lang, "Nilai", "Value"), width: 14 },
+    { header: tt(lang, "Satuan", "Unit"), width: 8 }, { header: tt(lang, "Keterangan", "Notes"), width: 60 },
   ];
-  const rows: ExportCell[][] = m.map((x) => [x.key, x.labelId, x.value ?? "—", x.unit, x.hint]);
+  const rows: ExportCell[][] = m.map((x) => [
+    x.key,
+    lang === "en" ? x.labelEn : x.labelId,
+    x.value ?? "—",
+    lang === "en" ? x.unitEn : x.unit,
+    lang === "en" ? (x.hintEn ?? x.hint) : x.hint,
+  ]);
   for (const x of m) {
+    const label = lang === "en" ? x.labelEn : x.labelId;
     for (const b of x.breakdown ?? []) {
-      rows.push([x.key, `${x.labelId} — ${b.source}`, b.rate ?? "—", "%", `${b.hires} hire dari ${b.applicants} pelamar`]);
+      rows.push([x.key, `${label} — ${b.source}`, b.rate ?? "—", "%", tt(lang, `${b.hires} hire dari ${b.applicants} pelamar`, `${b.hires} hire(s) from ${b.applicants} applicants`)]);
     }
   }
   return { columns, rows };
 }
 
-function adverseCsv(a: Awaited<ReturnType<typeof getAdverseImpact>>): { columns: ExportColumn[]; rows: ExportCell[][] } {
+function adverseCsv(a: Awaited<ReturnType<typeof getAdverseImpact>>, lang: "id" | "en" = "id"): { columns: ExportColumn[]; rows: ExportCell[][] } {
   const columns: ExportColumn[] = [
-    { header: "Tahap", width: 24 }, { header: "Dimensi", width: 12 }, { header: "Kelompok", width: 16 },
-    { header: "Masuk", width: 8 }, { header: "Lulus", width: 8 }, { header: "Rate %", width: 10 },
-    { header: "4/5ths", width: 10 }, { header: "n kecil", width: 8 },
+    { header: tt(lang, "Tahap", "Stage"), width: 24 }, { header: tt(lang, "Dimensi", "Dimension"), width: 12 }, { header: tt(lang, "Kelompok", "Group"), width: 16 },
+    { header: tt(lang, "Masuk", "Entered"), width: 8 }, { header: tt(lang, "Lulus", "Passed"), width: 8 }, { header: tt(lang, "Rate %", "Rate %"), width: 10 },
+    { header: tt(lang, "4/5ths", "4/5ths"), width: 10 }, { header: tt(lang, "n kecil", "small n"), width: 8 },
   ];
   const rows: ExportCell[][] = [];
   for (const st of a.stages) {
@@ -121,10 +138,10 @@ function adverseCsv(a: Awaited<ReturnType<typeof getAdverseImpact>>): { columns:
       for (const g of dim.groups) {
         rows.push([
           st.stage, dim.dim, g.label, g.entered, g.passed, g.rate ?? "—",
-          g.flag ? "FLAG" : "", g.small ? "ya" : "",
+          g.flag ? "FLAG" : "", g.small ? tt(lang, "ya", "yes") : "",
         ]);
       }
-      rows.push([st.stage, dim.dim, `(impact ratio: ${dim.impactRatio ?? "—"}${dim.flagged ? " — FLAG < 0,8" : ""})`, "", "", "", "", ""]);
+      rows.push([st.stage, dim.dim, tt(lang, `(impact ratio: ${dim.impactRatio ?? "—"}${dim.flagged ? " — FLAG < 0,8" : ""})`, `(impact ratio: ${dim.impactRatio ?? "—"}${dim.flagged ? " — FLAG < 0.8" : ""})`), "", "", "", "", ""]);
     }
   }
   return { columns, rows };
@@ -270,22 +287,25 @@ export async function GET(req: NextRequest) {
       if (format !== "csv" && format !== "xlsx" && format !== "pdf") {
         return NextResponse.json({ error: `Format ekspor tidak dikenal: ${format} (csv|xlsx|pdf)` }, { status: 400 });
       }
-      let built: { columns: ExportColumn[]; rows: ExportCell[][] } | null = null;
-      let name = "";
-      let titleId = "";
-      if (exportSection === "dashboard") { built = dashboardCsv(await getRecruitmentDashboard(db)); name = "rekankerja-reports-dashboard"; titleId = "Dashboard Rekrutmen"; }
-      else if (exportSection === "metrics") { built = metricsCsv(await getMetricsCatalog(db)); name = "rekankerja-reports-metrics"; titleId = "Katalog Metrik Rekrutmen"; }
-      else if (exportSection === "adverse-impact") { built = adverseCsv(await getAdverseImpact(db)); name = "rekankerja-reports-adverse-impact"; titleId = "Adverse Impact 4/5ths"; }
-      else return NextResponse.json({ error: `Bagian ekspor tidak dikenal: ${exportSection}` }, { status: 400 });
       const lang = sp.get("lang") === "en" ? "en" : "id";
+      let built: { columns: ExportColumn[]; rows: ExportCell[][] };
+      let name: string;
+      let titleId: string;
+      if (exportSection === "dashboard") { built = dashboardCsv(await getRecruitmentDashboard(db), lang); name = "rekankerja-reports-dashboard"; titleId = "Dashboard Rekrutmen"; }
+      else if (exportSection === "metrics") { built = metricsCsv(await getMetricsCatalog(db), lang); name = "rekankerja-reports-metrics"; titleId = "Katalog Metrik Rekrutmen"; }
+      else if (exportSection === "adverse-impact") { built = adverseCsv(await getAdverseImpact(db), lang); name = "rekankerja-reports-adverse-impact"; titleId = "Adverse Impact 4/5ths"; }
+      else return NextResponse.json({ error: `Bagian ekspor tidak dikenal: ${exportSection}` }, { status: 400 });
+      // judul ikut bahasa (kamus BASE_EN; "Adverse Impact 4/5ths" netral)
+      const title = trFor(lang, titleId);
       if (format === "xlsx") {
         // nama sheet Excel tak boleh mengandung * ? : \ / [ ] — sanitasi ringan
-        const sheetName = titleId.replace(/[*?:\\/\[\]]/g, "-").slice(0, 31);
-        const buf = await toXlsx(sheetName, built.columns, built.rows, { title: titleId, lang });
+        const sheetName = title.replace(/[*?:\\/\[\]]/g, "-").slice(0, 31);
+        const buf = await toXlsx(sheetName, built.columns, built.rows, { title, lang });
         return xlsxResponse(buf, exportFilename(name, "xlsx"));
       }
       if (format === "pdf") {
-        const bytes = await tablePdf(titleId, built.columns, built.rows);
+        // builder sudah bilingual → kolom/baris tinggal dirender; judul diterjemahkan
+        const bytes = await tablePdf(title, built.columns, built.rows);
         return pdfResponse(bytes, exportFilename(name, "pdf"));
       }
       return csvResponse(toCsv(built.columns, built.rows, lang), exportFilename(name, "csv"));

@@ -92,7 +92,7 @@ function CopilotBody({
   prs: { id: string; prNo: string; positionTitle: string | null }[];
   candidates: { id: string; name: string; sub: string | null }[];
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [tab, setTab] = useState<CopilotKey>("draft-jd");
   const [prId, setPrId] = useState<string | null>(null);
   const [candId, setCandId] = useState<string | null>(null);
@@ -151,6 +151,7 @@ function CopilotBody({
     try {
       const res = await apiSend<{ mode: string; text: string }>(AI_API, "POST", {
         action: "copilot",
+        lang, // BL-REC-3 — teks hasil mengikuti bahasa UI (default id di server)
         params: { action: tab, ...params },
       });
       setResult(res);

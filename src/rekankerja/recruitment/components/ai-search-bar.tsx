@@ -97,7 +97,7 @@ export function ResultModeBadge({ mode }: { mode: string }) {
  * detail pelamar yang sama dengan baris tabel biasa.
  */
 export function AiSearchBar({ onOpenDetail }: { onOpenDetail: (r: AiSearchRowUI) => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const perms = useMenuPerms();
   const canSearch = perms.canOp("recruitment", "applicants", "search-ai");
 
@@ -115,7 +115,7 @@ export function AiSearchBar({ onOpenDetail }: { onOpenDetail: (r: AiSearchRowUI)
     setSearching(true);
     setError(null);
     try {
-      const res = await apiSend<AiSearchResp>(`${AI_API}?q=${encodeURIComponent(query)}`, "GET");
+      const res = await apiSend<AiSearchResp>(`${AI_API}?q=${encodeURIComponent(query)}&lang=${lang}`, "GET");
       setResult(res);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "unknown";

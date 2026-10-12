@@ -665,9 +665,9 @@ export function ReportsPage() {
                         <span className="text-3xl font-black text-slate-900 dark:text-slate-100">
                           {m.value != null ? m.value : "—"}
                         </span>
-                        <span className="text-xs font-semibold text-slate-400">{m.unit}</span>
+                        <span className="text-xs font-semibold text-slate-400">{lang === "en" ? (m.unitEn ?? m.unit) : m.unit}</span>
                       </p>
-                      <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{m.hint}</p>
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{lang === "en" ? (m.hintEn ?? m.hint) : m.hint}</p>
 
                       {/* breakdown efektivitas sumber */}
                       {m.key === "source_effectiveness" && (m.breakdown?.length ?? 0) > 0 && (
