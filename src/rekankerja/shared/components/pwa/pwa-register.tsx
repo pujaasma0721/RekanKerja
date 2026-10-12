@@ -27,6 +27,12 @@ export function PwaRegister() {
 
   // --- 1) Registrasi service worker (sekali, setelah window load) ---
   useEffect(() => {
+    // DEV-SAFE: di development, register ulang sw.js tiap load + clients.claim()
+    // memicu controllerchange → reload loop yang mereset state UI (tab/form) tiap
+    // beberapa detik (terdokumentasi P3–P5 browser-test). SW hanya dipasang di
+    // build produksi; navigasi & chunk memang network-first jadi dev tidak
+    // membutuhkan SW sama sekali.
+    if (process.env.NODE_ENV === "development") return;
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
     let cancelled = false;
 

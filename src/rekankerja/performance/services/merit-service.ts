@@ -20,12 +20,8 @@ function bad(msg: string): never { throw new Error(msg); }
 /** Nominal > Rp 10 jt → jenjang L2 Direktur aktif (AS-MERIT-STD — D12). */
 const DIRECTOR_TIER_MIN = 10_000_001;
 
-/** Status usulan merit yang masih bisa diubah/diajukan ulang (kamus EN R4 — nilai identik). */
-const MERIT_EDITABLE = ["Draft", "Rejected"];
-const MERIT_EDITABLE_EN = ["Draft", "Rejected"];
-/** Status PIP yang masih berjalan (kamus EN R4 — nilai identik). */
-const PIP_OPEN_STATUSES = ["Draft", "Active", "Extended"];
-const PIP_OPEN_STATUSES_EN = ["Draft", "Active", "Extended"];
+/** Status usulan yang masih bisa diubah/diajukan ulang (Draft/Rejected — §32-2). */
+function meritEditable(s: string): boolean { return s === "Draft" || s === "Rejected"; }
 
 // ============ STRUKTUR AS-MERIT-STD + TEMPLATE SURAT (idempoten) ============
 
@@ -126,6 +122,13 @@ export async function listMerit(
     const c = await db.performanceCycle.findUnique({ where: { id: cid }, select: { code: true } });
     if (c) cycleCodes.set(cid, c.code);
   }
+  // kode matriks di-query langsung per panggilan (bukan cache proses — cache
+  // akan kosong/stale setelah restart / rename matriks di Master Kinerja).
+  const matrixIds = [...new Set(recs.map((r) => r.matrixId).filter((x): x is string => x != null))];
+  const matrices = matrixIds.length
+    ? await db.meritMatrix.findMany({ where: { id: { in: matrixIds } }, select: { id: true, code: true } })
+    : [];
+  const matrixBy = new Map(matrices.map((m) => [m.id, m.code]));
   // surat hasil terbit per appraisal — refNo terakhir (metaJson appraisalRef)
   const letters = await db.letterDocument.findMany({
     where: { templateKey: "PERF_RESULT" },
@@ -149,7 +152,7 @@ export async function listMerit(
       employeeName: r.appraisal.employee.fullName, employeeNo: r.appraisal.employee.employeeNo,
       unit: r.appraisal.employee.orgUnit?.name ?? null,
       finalScore: r.appraisal.finalScore, finalRating: r.appraisal.finalRating, potentialBand: r.appraisal.potentialBand,
-      matrixCode: r.matrixId ? (matrixCodeCache.get(r.matrixId) ?? null) : null,
+      matrixCode: r.matrixId ? (matrixBy.get(r.matrixId) ?? null) : null,
       bonusMonths: r.bonusMonths, bonusAmount: r.bonusAmount ? tc.decryptMoney(r.bonusAmount) : null,
       raisePct: r.raisePct, raiseAmount: r.raiseAmount ? tc.decryptMoney(r.raiseAmount) : null,
       note: r.note, status: r.status, personnelActionId: r.personnelActionId, appliedRunNo: r.appliedRunNo,
@@ -158,7 +161,6 @@ export async function listMerit(
     })),
   };
 }
-const matrixCodeCache = new Map<string, string>();
 
 /** Draf usulan otomatis utk peserta Closed yang belum punya usulan (§32-1). */
 export async function recommendAll(
@@ -170,9 +172,6 @@ export async function recommendAll(
   if (!["Published", "Closed"].includes(cycle.status)) bad(`Usulan merit hanya utk siklus yang hasilnya sudah dipublikasi/ditutup (${cycle.code} = ${cycle.status})`);
   const matrix = await db.meritMatrix.findFirst({ where: { active: true }, orderBy: { createdAt: "desc" } });
   if (!matrix) bad("Belum ada MeritMatrix aktif — buat di Master Kinerja → Merit Matrix");
-  matrixCodeCache.clear();
-  const allMatrices = await db.meritMatrix.findMany({ select: { id: true, code: true } });
-  for (const m of allMatrices) matrixCodeCache.set(m.id, m.code);
   let grid: Record<string, { bonusMonths?: number; raisePct?: [number, number] }> = {};
   try { grid = JSON.parse(matrix.gridJson) as typeof grid; } catch { bad("gridJson MeritMatrix aktif tidak valid"); }
 
@@ -236,7 +235,7 @@ export async function updateMerit(
 ): Promise<{ ok: true }> {
   const r = await db.meritRecommendation.findUnique({ where: { id: input.id } });
   if (!r) bad("Usulan merit tidak ditemukan");
-  if (!MERIT_EDITABLE.includes(r.status)) bad(`Hanya draf yang bisa diubah (status ${r.status})`);
+  if (!meritEditable(r.status)) bad(`Hanya draf yang bisa diubah (status ${r.status})`);
   const tc = tenantCryptoForDb(db as unknown as object);
   await db.meritRecommendation.update({
     where: { id: input.id },
@@ -268,9 +267,24 @@ export async function submitMerit(
     include: { appraisal: { select: { employeeId: true, docNo: true, employee: { select: { fullName: true } } } } },
   });
   if (!r) bad("Usulan merit tidak ditemukan");
-  if (!MERIT_EDITABLE.includes(r.status)) bad(`Usulan sudah diajukan/diproses (status ${r.status})`);
-  const existing = await db.approvalChain.findFirst({ where: { docType: "MeritRecommendation", docId: r.id, status: "InProgress" } });
-  if (existing) bad("Usulan ini sudah dalam persetujuan");
+  if (!meritEditable(r.status)) bad(`Usulan sudah diajukan/diproses (status ${r.status})`);
+  const existing = await db.approvalChain.findUnique({
+    where: { docType_docId: { docType: "MeritRecommendation", docId: r.id } },
+    select: { id: true, status: true, currentLevel: true, totalLevels: true },
+  });
+  if (existing && existing.status === "InProgress") bad("Usulan ini sudah dalam persetujuan");
+  if (existing) {
+    // pengajuan ulang pasca-ditolak (§32-2 "dapat disunting dan diajukan ulang"):
+    // chain lama terminal → arsipkan jejaknya di ActivityLog lalu ganti chain baru
+    // (steps ikut cascade). Chain InProgress sudah ditolak di atas.
+    await db.activityLog.create({
+      data: {
+        action: "Updated", entity: "ApprovalChain", entityId: existing.id,
+        detail: `Jalur persetujuan lama ${r.docNo} (status ${existing.status}, jenjang ${existing.currentLevel}/${existing.totalLevels}) dihapus utk pengajuan ulang oleh ${input.actor}`,
+      },
+    });
+    await db.approvalChain.delete({ where: { id: existing.id } });
+  }
   const tc = tenantCryptoForDb(db as unknown as object);
   const bonus = r.bonusAmount ? tc.decryptMoney(r.bonusAmount) ?? 0 : 0;
   const raise = r.raiseAmount ? tc.decryptMoney(r.raiseAmount) ?? 0 : 0;
@@ -297,7 +311,7 @@ export async function submitMerit(
       data: {
         appUserId: u.id,
         title: `Usulan merit ${r.docNo} menunggu persetujuan`,
-        body: `Usulan merit ${r.appraisal.employee.fullName} (rating ${r.bonusMonths ?? "—"} bln bonus) menunggu keputusan Anda. Buka menu Performance → Hasil & 9-Box → tab Merit.`,
+        body: `Usulan merit ${r.appraisal.employee.fullName} (bonus ${r.bonusMonths ?? "—"} bln, kenaikan ${r.raisePct ?? "—"}%) menunggu keputusan Anda. Buka menu Performance → Hasil & 9-Box → tab Merit.`,
         kind: "performance",
         link: "performance:results",
       },
@@ -550,10 +564,24 @@ export async function cancelMerit(
 
 export async function issueResultLetter(
   db: TenantDb,
-  input: { meritId?: string; appraisalId?: string; actorId?: string | null; actor: string },
-): Promise<{ issued: { id: string; refNo: string; employeeName: string }[] }> {
+  input: { meritId?: string; appraisalId?: string; cycleId?: string; actorId?: string | null; actor: string },
+): Promise<{ issued: { id: string; refNo: string; employeeName: string }[]; skipped: number }> {
   const targets = [] as { appraisalId: string; employeeId: string; docNo: string }[];
-  if (input.meritId) {
+  if (input.cycleId) {
+    // MODE MASSAL (§32-4): seluruh peserta siklus yang sudah punya hasil final
+    // (rating terisi) — issueLetter idempoten per sourceRef, yang sudah bersurat dilewati.
+    const cycle = await db.performanceCycle.findUnique({ where: { id: input.cycleId }, select: { code: true, status: true } });
+    if (!cycle) bad("Siklus tidak ditemukan");
+    if (!["Published", "Appealed", "Closed"].includes(cycle.status)) {
+      bad(`Surat hasil hanya utk siklus yang sudah dipublikasi (${cycle.code} = ${cycle.status})`);
+    }
+    const rows = await db.appraisalRecord.findMany({
+      where: { cycleId: input.cycleId, finalRating: { not: null } },
+      select: { id: true, employeeId: true, docNo: true },
+      orderBy: { docNo: "asc" },
+    });
+    for (const a of rows) targets.push({ appraisalId: a.id, employeeId: a.employeeId, docNo: a.docNo });
+  } else if (input.meritId) {
     const r = await db.meritRecommendation.findUnique({ where: { id: input.meritId }, include: { appraisal: { select: { id: true, employeeId: true, docNo: true } } } });
     if (!r) bad("Usulan merit tidak ditemukan");
     targets.push({ appraisalId: r.appraisal.id, employeeId: r.appraisal.employeeId, docNo: r.appraisal.docNo });
@@ -562,10 +590,11 @@ export async function issueResultLetter(
     if (!a) bad("Peserta tidak ditemukan");
     targets.push({ appraisalId: a.id, employeeId: a.employeeId, docNo: a.docNo });
   } else {
-    bad("meritId atau appraisalId wajib");
+    bad("meritId, appraisalId, atau cycleId wajib");
   }
   await ensureMeritInfrastructure(db);
   const issued: { id: string; refNo: string; employeeName: string }[] = [];
+  let skipped = 0;
   for (const t of targets) {
     const a = await db.appraisalRecord.findUnique({
       where: { id: t.appraisalId },
@@ -576,6 +605,12 @@ export async function issueResultLetter(
       ? await db.ratingScale.findFirst({ where: { value: a.finalRating }, select: { labelId: true } })
       : null;
     const periodLabel = `${a.cycle.periodStart.getFullYear()}–${a.cycle.periodEnd.getFullYear()}`.replace(/^(\d{4})–\1$/, "$1");
+    // idempoten massal: yang sudah bersurat tidak diterbitkan ulang (hitung skip)
+    const already = await db.letterDocument.findFirst({
+      where: { templateKey: "PERF_RESULT", metaJson: { contains: `"sourceRef":"${t.docNo}"` } },
+      select: { id: true },
+    });
+    if (already) { skipped++; continue; }
     const letter = await issueLetter(db, {
       category: "Performance",
       templateKey: "PERF_RESULT",
@@ -594,11 +629,11 @@ export async function issueResultLetter(
   }
   await db.activityLog.create({
     data: {
-      action: "Created", entity: "LetterDocument", entityId: issued[0]?.id ?? input.meritId ?? "",
-      detail: `Surat hasil penilaian diterbitkan (${issued.length} karyawan: ${issued.map((i) => i.refNo).join(", ")}) oleh ${input.actor}`,
+      action: "Created", entity: "LetterDocument", entityId: issued[0]?.id ?? input.meritId ?? input.cycleId ?? "",
+      detail: `Surat hasil penilaian diterbitkan (${issued.length} karyawan${skipped ? `, ${skipped} dilewati — sudah bersurat` : ""}: ${issued.map((i) => i.refNo).join(", ")}) oleh ${input.actor}`,
     },
   });
-  return { issued };
+  return { issued, skipped };
 }
 
 // ============ USUL PIP (§32-5 — rating ≤2 pasca-penutupan) ============
@@ -607,7 +642,7 @@ export async function pipProposals(
   db: TenantDb,
   opts: { cycleId?: string },
 ): Promise<{
-  proposals: { appraisalId: string; docNo: string; employeeName: string; employeeNo: string; unit: string | null; finalScore: number | null; finalRating: number | null; existingPipStatus: string | null }[];
+  proposals: { appraisalId: string; docNo: string; employeeName: string; employeeNo: string; unit: string | null; finalScore: number | null; finalRating: number | null; existingPipStatus: string | null; dismissedAt: string | null }[];
 }> {
   const where = {
     status: "Closed" as const,
@@ -623,12 +658,20 @@ export async function pipProposals(
   });
   const proposals = [] as {
     appraisalId: string; docNo: string; employeeName: string; employeeNo: string; unit: string | null;
-    finalScore: number | null; finalRating: number | null; existingPipStatus: string | null;
+    finalScore: number | null; finalRating: number | null; existingPipStatus: string | null; dismissedAt: string | null;
   }[];
   for (const r of rows) {
     const pip = await db.pipPlan.findFirst({
-      where: { employeeId: r.employee.id, status: { in: PIP_OPEN_STATUSES } },
+      // PIP yang masih berjalan = semua KECUALI terminal (Recovered/NotRecovered/Cancelled)
+      where: { employeeId: r.employee.id, status: { notIn: ["Recovered", "NotRecovered", "Cancelled"] } },
       orderBy: { createdAt: "desc" }, select: { status: true },
+    });
+    // keputusan "tidak menjalankan PIP" ter-audit di ActivityLog — agar tombol
+    // tidak menggoda ulang, tandai proposal yang sudah diputus (dismissedAt).
+    const dismissed = await db.activityLog.findFirst({
+      where: { entity: "AppraisalRecord", entityId: r.id, action: "Processed", detail: { startsWith: `USUL PIP DITUNDA/DITOLAK utk ${r.docNo}` } },
+      select: { createdAt: true },
+      orderBy: { createdAt: "desc" },
     });
     proposals.push({
       appraisalId: r.id, docNo: r.docNo,
@@ -636,6 +679,7 @@ export async function pipProposals(
       unit: r.employee.orgUnit?.name ?? null,
       finalScore: r.finalScore, finalRating: r.finalRating,
       existingPipStatus: pip?.status ?? null,
+      dismissedAt: dismissed ? dismissed.createdAt.toISOString() : null,
     });
   }
   return { proposals };

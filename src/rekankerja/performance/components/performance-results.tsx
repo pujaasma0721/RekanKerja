@@ -55,6 +55,7 @@ interface MeritRow {
 interface PipProposal {
   appraisalId: string; docNo: string; employeeName: string; employeeNo: string;
   unit: string | null; finalScore: number | null; finalRating: number | null; existingPipStatus: string | null;
+  dismissedAt: string | null;
 }
 
 /** Label 9-box per (pot × perf) — dwibahasa, ringan (§443 "9-box ringan"). */
@@ -72,9 +73,10 @@ const CELL_META: Record<string, { id: string; en: string; tone: string }> = {
 
 const fmtRp = (n: number | null | undefined) => n == null ? "—" : `Rp ${n.toLocaleString("id-ID")}`;
 
-/** Status usulan yang masih bisa diubah/diajukan ulang (kamus EN R4 — nilai identik). */
-const MERIT_EDITABLE = ["Draft", "Rejected"];
-const MERIT_EDITABLE_EN = ["Draft", "Rejected"];
+/** Usulan yang masih bisa diubah/diajukan ulang (Draft/Rejected — §32-2). */
+const meritEditable = (s: string) => s === "Draft" || s === "Rejected";
+/** Usulan yang sudah lewat persetujuan — payroll/PA/surat masih jalan (§32-3c keduanya). */
+const meritActionable = (s: string) => s === "Approved" || s === "Applied";
 
 export function PerformanceResultsPage() {
   const { t, lang } = useI18n();
@@ -367,9 +369,14 @@ export function PerformanceResultsPage() {
                       {t("Draf otomatis dari MeritMatrix aktif × rating final peserta Closed. Nominal dienkripsi vault; approval L2 Direktur bila > Rp 10 jt (D12).", "Auto-drafted from the active MeritMatrix × final rating of Closed participants. Nominals vault-encrypted; Director L2 approval when > Rp 10M (D12).")}
                     </p>
                   </div>
-                  <Button size="sm" disabled={busyFlag} onClick={() => meritAction({ action: "recommend", cycleId }, t("Usulan dibuat", "Recommendations created"))}>
-                    <Sparkles className="h-4 w-4" aria-hidden /> {t("Buat usulan otomatis", "Auto-draft")}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" disabled={busyFlag} onClick={() => meritAction({ action: "recommend", cycleId }, t("Usulan dibuat", "Recommendations created"))}>
+                      <Sparkles className="h-4 w-4" aria-hidden /> {t("Buat usulan otomatis", "Auto-draft")}
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={busyFlag || (meritApi.data?.rows ?? []).length === 0} onClick={() => meritAction({ action: "issueLetter", cycleId }, t("Surat hasil terbit (massal, yang belum bersurat)", "Result letters issued (bulk, only those without one)"))}>
+                      <FileText className="h-4 w-4" aria-hidden /> {t("Terbitkan semua surat", "Issue all letters")}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -417,7 +424,7 @@ export function PerformanceResultsPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1">
-                                  {MERIT_EDITABLE.includes(r.status) && (
+                                  {meritEditable(r.status) && (
                                     <>
                                       <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={busyFlag} onClick={() => { setEditMerit(r); setEditForm({ bonusMonths: String(r.bonusMonths ?? ""), bonusAmount: r.bonusAmount != null ? String(r.bonusAmount) : "", raisePct: r.raisePct != null ? String(r.raisePct) : "", raiseAmount: r.raiseAmount != null ? String(r.raiseAmount) : "", note: r.note ?? "" }); }}>
                                         {t("Ubah", "Edit")}
@@ -440,7 +447,7 @@ export function PerformanceResultsPage() {
                                       </Button>
                                     </>
                                   )}
-                                  {r.status === "Approved" && (
+                                  {meritActionable(r.status) && (
                                     <>
                                       {r.bonusAmount != null && !r.appliedRunNo && (
                                         <Button size="sm" className="h-7 px-2 text-xs" disabled={busyFlag} onClick={() => meritAction({ action: "toPayroll", id: r.id }, t("Bonus diserap ke payroll", "Bonus absorbed into payroll"))}>
@@ -454,7 +461,7 @@ export function PerformanceResultsPage() {
                                       )}
                                     </>
                                   )}
-                                  {r.status === "Approved" && !r.letterRefNo && (
+                                  {meritActionable(r.status) && !r.letterRefNo && (
                                     <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={busyFlag} onClick={() => meritAction({ action: "issueLetter", meritId: r.id }, t("Surat hasil terbit", "Result letter issued"))}>
                                       <FileText className="h-3 w-3" aria-hidden /> {t("Surat", "Letter")}
                                     </Button>
@@ -502,10 +509,12 @@ export function PerformanceResultsPage() {
                               <TableCell className="text-xs">
                                 {p.existingPipStatus
                                   ? <Badge variant="secondary">{p.existingPipStatus}</Badge>
-                                  : <span className="text-slate-400">{t("belum ada", "none yet")}</span>}
+                                  : p.dismissedAt
+                                    ? <span className="text-slate-400">{t("ditunda — alasan tercatat", "deferred — reason recorded")}</span>
+                                    : <span className="text-slate-400">{t("belum ada", "none yet")}</span>}
                               </TableCell>
                               <TableCell>
-                                {!p.existingPipStatus && (
+                                {!p.existingPipStatus && !p.dismissedAt && (
                                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={busyFlag} onClick={() => { setDismissTarget(p); setDismissReason(""); }}>
                                     {t("Catat alasan tidak", "Record reason not to")}
                                   </Button>

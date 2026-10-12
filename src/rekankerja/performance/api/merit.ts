@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
         const res = await issueResultLetter(db, {
           meritId: b.meritId != null && b.meritId !== "" ? String(b.meritId) : undefined,
           appraisalId: b.appraisalId != null && b.appraisalId !== "" ? String(b.appraisalId) : undefined,
+          cycleId: b.cycleId != null && b.cycleId !== "" ? String(b.cycleId) : undefined,
           actorId: m.actor.appUserId ?? null,
           actor: m.actor.name,
         });
