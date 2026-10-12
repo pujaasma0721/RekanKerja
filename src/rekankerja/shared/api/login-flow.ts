@@ -24,7 +24,7 @@ import { passwordStatusOfSession, touchLastLogin } from "@/rekankerja/shared/ser
 export async function finishLogin(userId: string, req?: NextRequest): Promise<NextResponse> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true, name: true, isSuperadmin: true },
   });
   if (!user) return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 500 });
 
@@ -62,10 +62,20 @@ export async function finishLogin(userId: string, req?: NextRequest): Promise<Ne
   }
 
   if (!tid) {
-    // perilaku lama: bila user hanya punya 1 workspace aktif → langsung pilih
+    // Perilaku lama + ATURAN MULTI-TENANT (default non-superadmin = 1 tenant):
+    // bila user hanya punya 1 workspace aktif → langsung pilih (auto-pick).
+    // Bila >1 → non-superadmin DIJANGKAN hanya workspace pertama (terlama, role
+    // OWNER bila ada) — UI workspace picker tidak perlu muncul; superadmin
+    // tetap bebas memakai workspace picker (workspaces array utuh).
     const info = await buildSessionInfo(user.id, null);
     if (!info) return NextResponse.json({ error: "Sesi gagal dibangun" }, { status: 500 });
-    tid = info.workspaces.length === 1 ? info.workspaces[0]!.id : null;
+    if (info.workspaces.length === 1) {
+      tid = info.workspaces[0]!.id;
+    } else if (info.workspaces.length > 1 && !user.isSuperadmin) {
+      // Prioritas: role OWNER → workspace pertama yang dia punya itu.
+      const ownerWs = info.workspaces.find((w) => w.role === "OWNER");
+      tid = (ownerWs ?? info.workspaces[0])!.id;
+    }
   }
   const finalInfo = tid ? (await buildSessionInfo(user.id, tid))! : (await buildSessionInfo(user.id, null))!;
 
