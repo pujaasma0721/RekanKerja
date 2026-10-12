@@ -6432,3 +6432,32 @@ Stage Summary:
 - Backlog 9 item di-AUDIT status nyatanya vs alasan planning: 3 masih sah tergantung eksternal, 2 sudah "matang oleh waktu" (WA wiring + konsolidasi test), 2 menunggu keputusan bisnis, 2 kompromi mikro tersedia.
 - TIDAK ADA file runtime yang diubah — entri keputusan murni (dokumentasi strategis di worklog).
 - Prioritas rekomendasi + trigger pembuka tercatat; eksekusi menunggu perintah eksplisit user.
+
+---
+Task ID: E2E-MPP-HIRE
+Agent: main (Z.ai Code)
+Task: Permintaan user 5 poin untuk modul Rekrutmen: (1) jelaskan E2E bisnis proses detail MPP→hire; (2) gambarkan flow aliran MPP→hire; (3) test E2E nyata dari hasil penjelasan; (4) bila stag/gagal → ulangi & pahami poin 1&2; (5) dokumen lengkap poin 1&2.
+
+Work Log:
+- RISET: baca README modul + 9 service (planning/pr/opening/applicant/candidate/selection/offer/appointment + approval-engine) — ekstrak formula a–h MPP, seluruh state machine (PR/JO/slot/pelamar/kandidat/tahap/offer/pengangkatan), guard, dan efek samping per aksi.
+- POIN 1&2 (draf): tulis E2E-BUSINESS-PROCESS-RECRUITMENT.md — 16 seksi: aktor, peta proses, 8 tahap (MPP→PR→JO→sourcing 3 jalur→nominasi→seleksi→offer/e-sign→pengangkatan→pasca-hire), 5 diagram Mermaid (flowchart utama + state PR + state kandidat/tahap + state offer + swimlane), matriks guard 18 baris, kepatuhan PDP per tahap, matriks aktor×menu×endpoint, tabel jejak test.
+- POIN 3 (test E2E NYATA — rantai penuh via API, tenant MII, sesi hrd OWNER):
+  · MPP: plan GA Staff periode 2026-12 dibuat → formula terverifikasi (a=2,b=0→c=2 · d=1,e=0,f=0→g=1 · h=c−g=1) → Applied → guard edit pasca-Applied ditolak ✓.
+  · PR: PR-2026-0010 dibuat (salaryBudget vault, slaTargetDays 30) + submit → ApprovalChain 1 jenjang (approver Hartono CEO) → approve via OWNER (jalur sah approval-engine) → Approved ✓.
+  · JO: autoPostOpening=true → JO-2026-0005 DIBUAT & POSTED OTOMATIS (stats 4→5) + slot PR-0010 ✓ · rekonsiliasi MPP live: requested=1 ✓.
+  · Sourcing jalur A: GET captcha (soal aritmetika diselesaikan) → POST /api/public/recruitment/apply (multipart: 18 field + consent=true) → 201 {ok:true} anti-enumeration → staging Pending (PII terenkripsi, ipHash) ✓ → PATCH verify → APP-26-00011 "Eka Putri Wijaya" dibuat + lamaran slot + consent dipindah ✓.
+  · Nominasi: POST candidates → JobCandidate + 5 tahap otomatis (Interview HR→Psikotes→Interview User→Offering Salary→Medical Check Up) ✓.
+  · POIN 4 TERPICU #1: advance ditolak "Feedback scorecard wajib sebelum naik tahap" (template "Interview HR — Screening Awal" terikat tahap) → PEMAHAMAN ULANG: gate HRX D2 — tahap dgn template scorecard aktif WAJIB ≥1 scorecard submitted + overallComment sebelum naik → submit scorecard (3 kompetensi skor 4-5 + feedback + rekomendasi Hire/StrongHire) utk Interview HR & Interview User → advance 5/5 lolos → kandidat Passed ✓ → dokumen dikoreksi (seksi 8 + matriks guard 11b).
+  · Offer: OFF-2026-0004 dibuat (Rp 5.5jt vault, start 2026-12-01, expiry 2026-11-20) → send → PendingApproval (struktur approval offer 1 jenjang) → approve → Sent + surat REC_OFFER 006/HR-RC/X/2026 terbit OTOMATIS ✓ → viewed → accept → Accepted ✓.
+  · Guard e-sign timing terverifikasi: request e-sign pd offer Accepted DITOLAK dgn pesan aturan (hanya Sent/Viewed utk surat offer; Accepted → menunggu surat pengangkatan) ✓.
+  · POIN 4 TERPICU #2 (verifikasi DB pasca-appoint): PR Fulfilled ✓ TAPI kandidat masih Passed, pelamar masih Active, employeeId null, slot tetap Open → PEMAHAMAN ULANG: HIRE = DUA LANGKAH — ① appoint (administratif: CandidateAppointment Appointed + surat REC_APPOINT 007/HR-RC/X/2026 + PR Fulfilled saat appointed≥requiredNo + surat tolak batch) ≠ ② to-onboarding (penciptaan Employee + Onboarding + status terminal Hired/Employed + auto-close lamaran PR lain + webhook candidate.hired) → eksekusi to-onboarding → EMPLOYEE MII00046 "Eka Putri Wijaya" DIBUAT (Active, joinDate 2026-12-01) + assignment GA Staff @Finance & Accounting Permanent + Onboarding 8 tugas + 5 email bagian ✓ → dokumen §10 ditulis ulang penuh (2 sub-langkah + 2 tabel efek).
+  · Verifikasi terminal via SQL tenant schema: kandidat Hired · pelamar Employed · lamaran Hired · appointment Onboarded + backlink employeeId/onboardingId · surat Offer+Appointment · ActivityLog "Karyawan MII00046 dibuat dari rekrutmen (offer OFF-2026-0004, PR PR-2026-0010) + onboarding 8 tugas" ✓.
+  · MPP TERTUTUP: recon akhir requested=1 · fulfilled=1 · unfulfilled=0 ✓ (siklus MPP→Hire penuh terbukti konsisten).
+- TEMUAN IMPLEMENTASI (dicatat di dokumen §16, TIDAK diubah kode — bukan bug fungsional): (a) status slot "Fulfilled" ada di enum domain tapi TIDAK PERNAH di-set otomatis (slot tetap Open; sumber kebenaran = PR Fulfilled; guard nominasi/offer tetap tolak PR Fulfilled); (b) e-sign offer-stage hanya Sent/Viewed; (c) approval PR bisa diputuskan OWNER/ADMIN/HR selain approver jenjang/delegasi.
+- POIN 5: dokumen final 750+ baris E2E-BUSINESS-PROCESS-RECRUITMENT.md — dikoreksi 2× oleh hasil test (pola: test → pahami ulang → perbaiki dokumen → lanjut), tabel jejak 15 baris semua ✅ + 3 catatan implementasi.
+
+Stage Summary:
+- SIKLUS MPP→HIRE TERBUKTI END-TO-END NYATA: rencana a–h → PR-2026-0010 (approve berjenjang) → JO-2026-0005 auto-post → lamaran publik (captcha+consent) → verifikasi staging APP-26-00011 → nominasi 5 tahap → scorecard gate → offer OFF-2026-0004 (approval+surat) → accept → appoint (PR Fulfilled) → to-onboarding → EMPLOYEE MII00046 + onboarding 8 tugas. Rekonsiliasi MPP menutup 1/1.
+- Test menemukan & mengoreksi 2 miskonsepsi dokumen: gate scorecard HRX D2 sebelum naik tahap; HIRE = dua langkah (appoint ≠ to-onboarding — Employee hanya lahir di to-onboarding).
+- File BARU: E2E-BUSINESS-PROCESS-RECRUITMENT.md (dokumen bisnis lengkap — poin 1&2 user, 5 diagram Mermaid, matriks guard 19 baris, jejak test 15 ✅). TIDAK ada kode runtime diubah — murni dokumentasi + test.
+- Data demo tambahan sah hasil test: plan 2026-12 GA Staff (Applied), PR-2026-0010 (Fulfilled), JO-2026-0005 (Posted), APP-26-00011 Eka Putri Wijaya (Employed), MII00046 (Active, onboarding 8 tugas), OFF-2026-0004 (Accepted), surat 006+007/HR-RC/X/2026 — bahan demo alur penuh MPP→hire.
