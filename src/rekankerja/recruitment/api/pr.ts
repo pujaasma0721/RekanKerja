@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
       autoPostOpening: b.autoPostOpening === true,
       slaTargetDays: b.slaTargetDays == null || b.slaTargetDays === "" ? null : Number(b.slaTargetDays),
       replacedEmployeeId: b.replacedEmployeeId || null,
+      planId: b.planId || null,
     };
 
     const submit = b.submit === true;
@@ -152,6 +153,7 @@ export async function PATCH(req: NextRequest) {
         autoPostOpening: b.autoPostOpening === true,
         slaTargetDays: b.slaTargetDays == null || b.slaTargetDays === "" ? null : Number(b.slaTargetDays),
         replacedEmployeeId: b.replacedEmployeeId || null,
+        planId: b.planId || null,
       };
       const res = await updatePr(db, String(b.id), input, m.actor.name);
       return NextResponse.json(res);

@@ -109,12 +109,40 @@ c/g/h **dihitung saat baca**, bukan disimpan:
 | (g) `resultedG` | Hasil | **(d) + (e) − (f)** |
 | (h) `toRecruitH` | **Kebutuhan rekrut** | **(c) − (g)** |
 
-**Rekonsiliasi ke PR** (derivatif — PR **tidak punya FK** ke plan; matching
-via posisi + kantor):
+**Rekonsiliasi ke PR** (PLAN-LINK — dua jalur, eksplisit menang):
 
-- `requested` = Σ `requiredNo` PR berstatus `Submitted | Approved | OnHold | Fulfilled` yang match posisi (+kantor)
+1. **Tautan eksplisit** — kolom `PersonnelRequisition.planId` dipilih
+   saat membuat/mengubah PR (field *Melayani Rencana MPP*, hanya rencana
+   `Applied`). Tautan ini otoritatif: kapan pun posisi/kantor PR diubah,
+   rencana yang dilayani tidak bergeser.
+2. **Fallback otomatis** (PR `planId` kosong) — dicocokkan dari **posisi
+   (id master ATAU judul, case-insensitive) + kantor kompatibel + tahun
+   `requestDate` == tahun periode rencana** (scope tahun mencegah PR lama
+   ikut terhitung ke rencana periode baru).
+
+- `requested` = Σ `requiredNo` PR berstatus `Submitted | Approved | OnHold | Fulfilled` yang melayani rencana (eksplisit ∪ fallback)
 - `fulfilled` = Σ pengangkatan (`CandidateAppointment`) pada PR match
 - `unfulfilled` = requested − fulfilled
+
+**Monitoring capaian MPP (dilihat dari requisition):** kolom *Rekonsiliasi
+PR* kini menampilkan baris kedua — **capaian vs (h)** dengan semantika warna:
+
+| Kondisi | Indikator |
+|---|---|
+| `fulfilled ≥ h > 0` | hijau “capaian {ful}/{h} h ✓” — **target tercapai** |
+| `0 < fulfilled < h` | amber “capaian {ful}/{h} h” — berjalan ( + “PR {req}/{h}” bila PR belum menutup h) |
+| `requested > h` (termasuk h=0) | **merah “melampaui rencana · PR {req} > h {h}”** — hiring over-plan |
+| `h > 0, requested = 0` | “belum ada PR (h)” — kebutuhan belum diajukan |
+
+Klik sel rekon = **drill-down daftar PR penyumbang** (badge `eksplisit` /
+`otomatis` per PR). Halaman juga menampilkan **banner “PR di luar rencana”**
+(PR aktif tanpa tautan eksplisit maupun match fallback — tidak terhitung
+dalam capaian MPP mana pun), dan Overview modul menampilkan KPI agregat
+**Capaian MPP (Σ fulfilled / Σ h, dedupe per PR)** + jumlah PR di luar
+rencana. Di sisi PR: form menampilkan konteks kuota rencana (h, requested,
+fulfilled, sisa) + **peringatan lembut** bila `requiredNo` > sisa (tetap
+bisa disimpan — ditandai over-plan); daftar PR & kotak approval menampilkan
+chip rencana / “di luar rencana”.
 
 **Anggaran** per periode: `totalBudget` + `adjust` (uang vault-encrypted)
 vs `used` = Σ `actualCost` metode iklan JO pada periode tsb — dua level
@@ -138,7 +166,8 @@ PR = dokumen formal kebutuhan rekrutmen: posisi/job, org-unit, kantor,
 Outsourcing), `preferredSource` (Internal|External|Any), jendela waktu
 (`earliestDate`–`latestDate`), `salaryBudget` (vault), `replacedEmployeeId`
 (PR penggantian karena attrition), `slaTargetDays`, `autoPostOpening`,
-`rubricJson` (rubrik skor AI per PR — F6b).
+`rubricJson` (rubrik skor AI per PR — F6b), `planId` (tautan eksplisit
+rencana MPP yang dilayani — PLAN-LINK, hanya rencana Applied).
 
 **State machine PR:**
 
@@ -742,3 +771,10 @@ flowchart LR
   appointment terbit).
 - Approval PR dapat diputuskan oleh approver jenjang, **delegate aktif**,
   atau **OWNER/ADMIN/HR workspace** (jalur yang dipakai test).
+- **PLAN-LINK (pasca-rilis dokumen ini):** hubungan MPP↔PR awalnya murni
+  implisit (match posisi tanpa scope periode). Sejak task PLAN-LINK:
+  kolom `planId` eksplisit (hanya rencana Applied) + fallback dengan
+  scope tahun + capaian vs h + drill-down + banner PR di luar rencana —
+  lihat Tahap 0. Duplikat PR mewarisi `planId` (bisa diubah). Rencana
+  `Applied` tidak bisa dihapus, jadi tautan eksplisit tidak pernah
+  dangling.

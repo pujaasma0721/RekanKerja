@@ -17,7 +17,7 @@ import {
   UserRoundSearch, Boxes, ListChecks, CheckCircle2, Circle, ArrowRight, Megaphone, BadgeCheck,
   Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList, UsersRound, Inbox, Layers3,
   UserRoundCheck, FileText, Handshake, UserRoundPlus, Clock, Calculator, Target, Coins, Award,
-  Webhook, FileSignature,
+  Webhook, FileSignature, Unlink,
 } from "lucide-react";
 
 const TYPE_ICON: Record<string, React.ElementType> = {
@@ -116,10 +116,12 @@ export function RecruitmentOverview() {
   const hiredCount = funnelStages.find((s) => s.key === "hired")?.count ?? null;
 
   // F5: rencana & anggaran rekrutmen + demografi (silver medalist) — 403 →
-  // null "—" (pola kartu F3/F4)
-  const planApi = useApi<{ stats: { applied: number }; rows: { toRecruitH: number }[] }>(
-    "/api/rekankerja/recruitment/plan?list=1",
-  );
+  // null "—" (pola kartu F3/F4). PLAN-LINK: + capaian MPP (fulfilled/h) + PR
+  // di luar rencana (monitoring "target tercapai atau tidak" dari PR).
+  const planApi = useApi<{
+    stats: { applied: number; sumH: number; sumFulfilled: number; outsideCount: number };
+    rows: { toRecruitH: number }[];
+  }>("/api/rekankerja/recruitment/plan?list=1");
   const planStats = planApi.data?.stats;
   const planRows = planApi.data?.rows ?? [];
   const budgetApi = useApi<{ row: { used: number } | null }>("/api/rekankerja/recruitment/budget");
@@ -402,16 +404,33 @@ export function RecruitmentOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               {([
                 { icon: Calculator, label: t("Rencana Applied", "Applied Plans"), value: planApi.data ? (planStats?.applied ?? 0) : null },
                 { icon: Target, label: t("Kebutuhan Rekrut (h)", "To Recruit (h)"), value: planApi.data ? planRows.reduce((a, r) => a + (r.toRecruitH ?? 0), 0) : null },
+                {
+                  icon: CheckCircle2, label: t("Capaian MPP (terpenuhi/h)", "MPP Achievement (fulfilled/h)"),
+                  value: planApi.data ? (planStats ? `${planStats.sumFulfilled}/${planStats.sumH}` : null) : null,
+                  tone: planStats && planStats.sumH > 0 && planStats.sumFulfilled >= planStats.sumH ? "emerald" : planStats && planStats.sumFulfilled > 0 ? "amber" : undefined,
+                },
+                {
+                  icon: Unlink, label: t("PR di Luar Rencana", "PRs Outside Plan"),
+                  value: planApi.data ? (planStats?.outsideCount ?? 0) : null,
+                  tone: (planStats?.outsideCount ?? 0) > 0 ? "amber" : undefined,
+                },
                 { icon: Coins, label: t("Realisasi Anggaran", "Budget Actuals"), value: budgetApi.data ? budgetUsed : null, money: true },
                 { icon: Award, label: t("Silver Medalist", "Silver Medalists"), value: demogApi.data ? silverCount : null },
-              ] as { icon: React.ElementType; label: string; value: number | null; money?: boolean }[]).map((s, i) => {
+              ] as { icon: React.ElementType; label: string; value: number | string | null; money?: boolean; tone?: "emerald" | "amber" }[]).map((s, i) => {
                 const Icon = s.icon;
                 return (
-                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
+                  <div key={i} className={cn(
+                    "flex items-center gap-2.5 rounded-xl border px-3 py-2.5",
+                    s.tone === "emerald"
+                      ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-500/10"
+                      : s.tone === "amber"
+                        ? "border-amber-200 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10"
+                        : "border-slate-200 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-800/40",
+                  )}
                     title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
                       <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
@@ -419,7 +438,7 @@ export function RecruitmentOverview() {
                     <div className="min-w-0">
                       <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
                       <p className="text-lg font-semibold tabular-nums">
-                        {s.value == null ? "—" : s.money ? fmtIDRShort(s.value) : String(s.value)}
+                        {s.value == null ? "—" : s.money ? fmtIDRShort(Number(s.value)) : String(s.value)}
                       </p>
                     </div>
                   </div>

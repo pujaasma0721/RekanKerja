@@ -71,6 +71,8 @@ const PR_INCLUDE = {
   companyOffice: { select: { id: true, name: true, code: true } },
   recruitmentOfficer: { select: { id: true, fullName: true, employeeNo: true } },
   replacedEmployee: { select: { id: true, fullName: true, employeeNo: true } },
+  // PLAN-LINK — tautan eksplisit PR→rencana MPP (RecruitmentPlan)
+  plan: { select: { id: true, period: true, seqNo: true, positionTitle: true, targetA: true, adjustB: true, empD: true, inE: true, outF: true } },
 } satisfies Prisma.PersonnelRequisitionInclude;
 
 // ============ tipe baris (bentuk JSON API — angka tetap angka) ============
@@ -112,6 +114,11 @@ export interface PrRow {
   submittedAt: string | null;
   decidedAt: string | null;
   approval: ChainSummary | null;
+  // PLAN-LINK — rencana MPP yang dilayani PR ini (null = di luar rencana):
+  // match "explicit" (planId) | "auto" (fallback posisi+kantor+tahun di
+  // planning-service — cermin aturan recon) | null.
+  planId: string | null;
+  plan: { id: string; period: string; seqNo: number; positionTitle: string; toRecruitH: number; match: "explicit" | "auto" } | null;
 }
 
 export interface PrStats {
@@ -143,11 +150,71 @@ export async function nextPrNo(db: TenantDb): Promise<string> {
   return `${start}${String(max + 1).padStart(4, "0")}`;
 }
 
+// ============ PLAN-LINK — pencocokan rencana utk chip PR ============
+
+/** Bentuk ringkas rencana Applied (cache per pemanggilan list). */
+interface PlanLite {
+  id: string;
+  period: string;
+  seqNo: number;
+  positionTitle: string;
+  positionId: string | null;
+  companyOfficeId: string | null;
+  toRecruitH: number;
+}
+
+async function appliedPlansLite(db: TenantDb): Promise<PlanLite[]> {
+  const plans = await db.recruitmentPlan.findMany({
+    where: { status: "Applied" },
+    select: { id: true, period: true, seqNo: true, positionTitle: true, positionId: true, companyOfficeId: true, targetA: true, adjustB: true, empD: true, inE: true, outF: true },
+    orderBy: [{ period: "desc" }, { seqNo: "asc" }],
+    take: 300,
+  });
+  return plans.map((p) => ({
+    id: p.id, period: p.period, seqNo: p.seqNo, positionTitle: p.positionTitle,
+    positionId: p.positionId, companyOfficeId: p.companyOfficeId,
+    toRecruitH: (p.targetA + p.adjustB) - (p.empD + p.inE - p.outF),
+  }));
+}
+
+/** Cermin aturan fallback planning-service prAutoServesPlan: PR tanpa tautan
+ *  eksplisit melayani rencana Applied bila posisi (id master ATAU judul) +
+ *  kantor kompatibel + tahun requestDate == tahun periode rencana. */
+function autoPlanOf(
+  pr: { positionId: string | null; companyOfficeId: string | null; requestDate: Date; positionTitle: string | null },
+  plans: PlanLite[],
+): PlanLite | null {
+  const year = pr.requestDate.getUTCFullYear();
+  return plans.find((pl) => {
+    const posOk = pl.positionId
+      ? pl.positionId === pr.positionId
+      : !!pr.positionTitle && pl.positionTitle.toLowerCase() === pr.positionTitle.toLowerCase();
+    if (!posOk) return false;
+    if (pl.companyOfficeId && pl.companyOfficeId !== pr.companyOfficeId) return false;
+    const m = /^(\d{4})/.exec(pl.period.trim());
+    if (m && Number(m[1]) !== year) return false;
+    return true;
+  }) ?? null;
+}
+
 function rowOf(
   p: Prisma.PersonnelRequisitionGetPayload<{ include: typeof PR_INCLUDE }>,
   salaryBudget: number | null,
   approval: ChainSummary | null,
+  appliedPlans?: PlanLite[],
 ): PrRow {
+  // PLAN-LINK — chip rencana: eksplisit (plan include) → auto (fallback) → null
+  let plan: PrRow["plan"] = null;
+  if (p.planId && p.plan) {
+    plan = {
+      id: p.plan.id, period: p.plan.period, seqNo: p.plan.seqNo, positionTitle: p.plan.positionTitle,
+      toRecruitH: (p.plan.targetA + p.plan.adjustB) - (p.plan.empD + p.plan.inE - p.plan.outF),
+      match: "explicit",
+    };
+  } else if (!p.planId && appliedPlans) {
+    const auto = autoPlanOf({ positionId: p.positionId, companyOfficeId: p.companyOfficeId, requestDate: p.requestDate, positionTitle: p.position?.title ?? null }, appliedPlans);
+    if (auto) plan = { id: auto.id, period: auto.period, seqNo: auto.seqNo, positionTitle: auto.positionTitle, toRecruitH: auto.toRecruitH, match: "auto" };
+  }
   return {
     id: p.id, prNo: p.prNo, requestDate: p.requestDate.toISOString(), status: p.status as PrStatus,
     requestedById: p.requestedById, requesterName: p.requestedBy.fullName, requesterNo: p.requestedBy.employeeNo,
@@ -163,6 +230,8 @@ function rowOf(
     replacedEmployeeId: p.replacedEmployeeId, replacedEmployeeName: p.replacedEmployee?.fullName ?? null,
     decisionNote: p.decisionNote, submittedAt: iso(p.submittedAt), decidedAt: iso(p.decidedAt),
     approval,
+    planId: p.planId,
+    plan,
   };
 }
 
@@ -188,6 +257,8 @@ export interface PrInput {
   autoPostOpening?: boolean;
   slaTargetDays?: number | null;
   replacedEmployeeId?: string | null;
+  // PLAN-LINK — rencana MPP yang dilayani PR (wajib berstatus Applied)
+  planId?: string | null;
 }
 
 function parseDate(v: string | null | undefined): Date | null {
@@ -206,6 +277,7 @@ async function validatePrInput(db: TenantDb, input: PrInput, forApply: boolean):
   earliestDate: Date | null; latestDate: Date | null; recruitmentOfficerId: string | null;
   reason: string | null; miscSpec: string | null; additionalQualification: string | null;
   autoPostOpening: boolean; slaTargetDays: number | null; replacedEmployeeId: string | null;
+  planId: string | null; planLabel: string | null;
 }> {
   if (!input.requestedById) throw new Error("Pengaju (karyawan) wajib dipilih");
   const requester = await db.employee.findUnique({
@@ -238,6 +310,20 @@ async function validatePrInput(db: TenantDb, input: PrInput, forApply: boolean):
   if (input.replacedEmployeeId) {
     const rep = await db.employee.findUnique({ where: { id: input.replacedEmployeeId }, select: { id: true } });
     if (!rep) throw new Error("Karyawan yang digantikan tidak ditemukan");
+  }
+
+  // PLAN-LINK — validasi tautan eksplisit ke rencana MPP (hanya Applied)
+  let planId: string | null = null;
+  let planLabel: string | null = null;
+  if (input.planId) {
+    const plan = await db.recruitmentPlan.findUnique({
+      where: { id: input.planId },
+      select: { id: true, period: true, seqNo: true, positionTitle: true, status: true },
+    });
+    if (!plan) throw new Error("Rencana tidak ditemukan");
+    if (plan.status !== "Applied") throw new Error("PR hanya boleh ditautkan ke rencana berstatus Applied");
+    planId = plan.id;
+    planLabel = `${plan.period} #${plan.seqNo} ${plan.positionTitle}`;
   }
 
   const requiredNo = Math.trunc(Number(input.requiredNo ?? 1));
@@ -282,6 +368,8 @@ async function validatePrInput(db: TenantDb, input: PrInput, forApply: boolean):
     autoPostOpening: input.autoPostOpening === true,
     slaTargetDays,
     replacedEmployeeId: input.replacedEmployeeId ?? null,
+    planId,
+    planLabel,
   };
 }
 
@@ -345,7 +433,8 @@ export async function listPrs(db: TenantDb, p: ListPrsParams): Promise<{ rows: P
   const chainMap = await attachChainSummaries(db, PR_DOC_TYPE, pageRows);
   const tc = tenantCryptoForDb(db);
   const moneyVisible = p.moneyVisible !== false;
-  const rows = pageRows.map((r) => rowOf(r, moneyVisible ? tc.decryptMoney(r.salaryBudget) : null, chainMap.get(r.id) ?? null));
+  const appliedPlans = await appliedPlansLite(db); // PLAN-LINK — chip rencana
+  const rows = pageRows.map((r) => rowOf(r, moneyVisible ? tc.decryptMoney(r.salaryBudget) : null, chainMap.get(r.id) ?? null, appliedPlans));
   return { rows, total, stats };
 }
 
@@ -381,7 +470,7 @@ export async function getPr(db: TenantDb, id: string, moneyVisible = true): Prom
     ? { status: chain.status, currentLevel: chain.currentLevel, totalLevels: chain.totalLevels, currentApprover: currentApproverOf(chain.steps) }
     : null;
   const tc = tenantCryptoForDb(db);
-  return rowOf(p, moneyVisible ? tc.decryptMoney(p.salaryBudget) : null, approval);
+  return rowOf(p, moneyVisible ? tc.decryptMoney(p.salaryBudget) : null, approval, await appliedPlansLite(db));
 }
 
 function currentApproverOf(steps: { status: string; approverLabel: string }[]): string | null {
@@ -419,13 +508,14 @@ export async function createPr(
       salaryBudget: input.salaryBudget != null ? tc.encryptMoney(Number(input.salaryBudget)) : null,
       autoPostOpening: v.autoPostOpening, slaTargetDays: v.slaTargetDays,
       replacedEmployeeId: v.replacedEmployeeId,
+      planId: v.planId,
       status: "Draft",
     },
   });
   await db.activityLog.create({
     data: {
       action: "Created", entity: "PersonnelRequisition", entityId: prNo,
-      detail: `PR rekrutmen ${prNo} dibuat${opts.actorName ? ` oleh ${opts.actorName}` : ""} (Draft)`,
+      detail: `PR rekrutmen ${prNo} dibuat${opts.actorName ? ` oleh ${opts.actorName}` : ""} (Draft)${v.planLabel ? ` — melayani rencana ${v.planLabel}` : ""}`,
     },
   });
 
@@ -456,12 +546,13 @@ export async function updatePr(db: TenantDb, id: string, input: PrInput, actorNa
       salaryBudget: input.salaryBudget != null ? tc.encryptMoney(Number(input.salaryBudget)) : null,
       autoPostOpening: v.autoPostOpening, slaTargetDays: v.slaTargetDays,
       replacedEmployeeId: v.replacedEmployeeId,
+      planId: v.planId,
     },
   });
   await db.activityLog.create({
     data: {
       action: "Updated", entity: "PersonnelRequisition", entityId: p.prNo,
-      detail: `PR rekrutmen ${p.prNo} diperbarui${actorName ? ` oleh ${actorName}` : ""}`,
+      detail: `PR rekrutmen ${p.prNo} diperbarui${actorName ? ` oleh ${actorName}` : ""}${v.planLabel ? ` — melayani rencana ${v.planLabel}` : ""}`,
     },
   });
   return { prNo: p.prNo };
@@ -486,6 +577,7 @@ export async function duplicatePr(db: TenantDb, id: string, actorName?: string |
       salaryBudget: src.salaryBudget, // sudah terenkripsi — salin apa adanya
       autoPostOpening: src.autoPostOpening, slaTargetDays: src.slaTargetDays,
       replacedEmployeeId: src.replacedEmployeeId,
+      planId: src.planId, // PLAN-LINK — duplikat mewarisi rencana (bisa diubah)
       status: "Draft",
     },
   });
@@ -747,11 +839,12 @@ export async function listPrsToApprove(
   const rows = await db.personnelRequisition.findMany({ where: { id: { in: ids }, status: "Submitted" }, include: PR_INCLUDE });
   const chainById = new Map(chains.map((ch) => [ch.docId, ch]));
   const tc = tenantCryptoForDb(db);
+  const appliedPlans = await appliedPlansLite(db); // PLAN-LINK — chip rencana
   return rows.map((r) => {
     const ch = chainById.get(r.id);
     const step = ch?.steps[0];
     return rowOf(r, moneyVisible ? tc.decryptMoney(r.salaryBudget) : null, ch
       ? { status: ch.status, currentLevel: ch.currentLevel, totalLevels: ch.totalLevels, currentApprover: step ? "Anda" : null }
-      : null);
+      : null, appliedPlans);
   });
 }

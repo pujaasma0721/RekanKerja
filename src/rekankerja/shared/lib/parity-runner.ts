@@ -389,6 +389,9 @@ const STEPS: Step[] = [
   { key: "recruitment-f8", label: "F8 Rekrutmen — tabel analitik + snapshot metrik awal", run: (s) => import("../../../../scripts/migrate-recruitment-f8").then((m) => m.main(s)) },
   // F9-REC (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F9) — tabel DSR UU PDP + demo.
   { key: "recruitment-f9", label: "F9 Rekrutmen — tabel DSR (UU PDP) + demo", run: (s) => import("../../../../scripts/migrate-recruitment-f9").then((m) => m.main(s)) },
+  // PLAN-LINK — tautan eksplisit MPP (RecruitmentPlan) ↔ PR: kolom
+  // PersonnelRequisition.planId + index + FK (monitoring capaian MPP dari PR).
+  { key: "plan-link", label: "PLAN-LINK — kolom PersonnelRequisition.planId (tautan eksplisit MPP↔PR)", run: (s) => import("../../../../scripts/migrate-plan-link").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -701,7 +704,15 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (recF9Ok < schemas.length)
       reasons.push(`${schemas.length - recF9Ok} tenant tanpa tabel DataSubjectRequest (F9 — modul Recruitment)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk, recCandOk, recOfferOk, recPlanOk, recAiOk, recF7Ok, recF8Ok, recF9Ok) };
+    // PLAN-LINK — kolom PersonnelRequisition.planId belum ada = gap
+    // (tautan eksplisit MPP↔PR; tanpa kolom → picker rencana & recon v2 gagal).
+    const planLinkOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'PersonnelRequisition' AND column_name = 'planId' AND table_schema = ANY($1::text[])`,
+    );
+    if (planLinkOk < schemas.length)
+      reasons.push(`${schemas.length - planLinkOk} tenant tanpa kolom PersonnelRequisition.planId (PLAN-LINK — tautan MPP↔PR)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk, recCandOk, recOfferOk, recPlanOk, recAiOk, recF7Ok, recF8Ok, recF9Ok, planLinkOk) };
   } finally {
     await c.end();
   }

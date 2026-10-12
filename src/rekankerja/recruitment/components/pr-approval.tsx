@@ -19,7 +19,7 @@ import {
   PR_EMPLOYMENT_LABEL, PR_EMPLOYMENT_LABEL_EN,
   type PrRowUI,
 } from "./recruitment-types";
-import { CheckCircle2, XCircle, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, XCircle, Inbox, ChevronLeft, ChevronRight, Link2, Unlink } from "lucide-react";
 
 const PAGE_SIZE = 10;
 
@@ -140,6 +140,21 @@ export function PrApprovalPage() {
                           {t("{n} orang", "{n} headcount", { n: String(r.requiredNo) })} · {t(PR_EMPLOYMENT_LABEL[r.employmentStatus] ?? r.employmentStatus, PR_EMPLOYMENT_LABEL_EN[r.employmentStatus] ?? r.employmentStatus)}
                           {r.replacedEmployeeName ? ` · ${t("pengganti {n}", "replacing {n}", { n: r.replacedEmployeeName })}` : ""}
                         </div>
+                        {/* PLAN-LINK — konteks MPP utk approver */}
+                        {r.plan ? (
+                          <div className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                            <Link2 className="h-3 w-3 shrink-0" aria-hidden />
+                            <span className="truncate" title={`${r.plan.period} #${r.plan.seqNo} · ${r.plan.positionTitle}`}>
+                              {r.plan.period} #{r.plan.seqNo} · {r.plan.positionTitle}
+                              {r.plan.match === "auto" ? t(" (otomatis)", " (auto)") : ""}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                            <Unlink className="h-3 w-3 shrink-0" aria-hidden />
+                            {t("di luar rencana MPP", "outside manpower plan")}
+                          </div>
+                        )}
                         {r.reason && <div className="mt-1 max-w-xs truncate text-[11px] italic text-slate-400" title={r.reason}>{r.reason}</div>}
                       </TableCell>
                       <TableCell className="hidden text-xs md:table-cell">
@@ -215,6 +230,25 @@ export function PrApprovalPage() {
                 <div className="text-xs text-slate-500 dark:text-slate-400">
                   {t("{n} orang", "{n} headcount", { n: String(decide.row.requiredNo) })} · {t(PR_EMPLOYMENT_LABEL[decide.row.employmentStatus] ?? decide.row.employmentStatus, PR_EMPLOYMENT_LABEL_EN[decide.row.employmentStatus] ?? decide.row.employmentStatus)}
                   {decide.row.approval ? ` · ${t("jenjang", "tier")} ${decide.row.approval.currentLevel}/${decide.row.approval.totalLevels}` : ""}
+                </div>
+                {/* PLAN-LINK — konteks rencana MPP bagi approver */}
+                <div className={cn("mt-2 rounded-md border px-2.5 py-1.5 text-xs", decide.row.plan
+                  ? "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/60"
+                  : "border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10")}>
+                  {decide.row.plan ? (
+                    <span className="text-slate-600 dark:text-slate-300">
+                      <Link2 className="mr-1 inline h-3 w-3" aria-hidden />
+                      {t("Melayani rencana", "Serves plan")}{" "}
+                      <b>{decide.row.plan.period} #{decide.row.plan.seqNo} · {decide.row.plan.positionTitle}</b>
+                      {decide.row.plan.match === "auto" ? t(" (otomatis)", " (auto)") : ""}{" "}
+                      — {t("kebutuhan (h)", "need (h)")} {decide.row.plan.toRecruitH}
+                    </span>
+                  ) : (
+                    <span className="font-medium text-amber-700 dark:text-amber-400">
+                      <Unlink className="mr-1 inline h-3 w-3" aria-hidden />
+                      {t("Di luar rencana MPP — tidak dihitung dalam capaian perencanaan", "Outside the manpower plan — not counted in planning achievement")}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="space-y-1.5">

@@ -191,6 +191,21 @@ export interface PrRowUI {
   submittedAt: string | null;
   decidedAt: string | null;
   approval: { status: string; currentLevel: number; totalLevels: number; currentApprover: string | null } | null;
+  // PLAN-LINK — rencana MPP yang dilayani PR (null = di luar rencana)
+  planId: string | null;
+  plan: { id: string; period: string; seqNo: number; positionTitle: string; toRecruitH: number; match: "explicit" | "auto" } | null;
+}
+
+/** Baris rencana ringkas untuk picker form PR (dari /recruitment/plan?list=1). */
+export interface PlanPickRow {
+  id: string;
+  period: string;
+  seqNo: number;
+  positionTitle: string;
+  officeName: string | null;
+  status: string;
+  toRecruitH: number;
+  recon: { requested: number; fulfilled: number; unfulfilled: number; prCount: number; explicitCount: number };
 }
 
 /** Opsi dropdown form PR (dari /recruitment/pr-options — SELECT sempit). */

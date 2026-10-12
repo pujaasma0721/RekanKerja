@@ -25,14 +25,14 @@ import { encodeAdvParam, type AdvSearch, type AdvFieldDef, txt, dt, num, sel } f
 import {
   PR_STATUSES, PR_STATUS_LABEL, PR_STATUS_LABEL_EN, PR_STATUS_TONE,
   PR_EMPLOYMENT_STATUSES, PR_EMPLOYMENT_LABEL, PR_EMPLOYMENT_LABEL_EN, PR_SOURCES,
-  type PrRowUI, type PrOptions,
+  type PrRowUI, type PrOptions, type PlanPickRow,
 } from "./recruitment-types";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
   UserPlus, Search, Send, Ban, PauseCircle, PlayCircle, XCircle, Copy, MoreHorizontal,
   Pencil, Trash2, Eye, ChevronLeft, ChevronRight, FileSpreadsheet, Wallet, Clock3, CalendarRange,
-  AlertTriangle, Info,
+  AlertTriangle, Info, Link2, Unlink,
 } from "lucide-react";
 
 const PAGE_SIZE = 10;
@@ -122,6 +122,7 @@ interface FormState {
   autoPostOpening: boolean;
   slaTargetDays: string;
   replacedEmployeeId: string;
+  planId: string; // PLAN-LINK — rencana MPP yang dilayani ("" = tanpa tautan)
 }
 
 const emptyForm = (): FormState => ({
@@ -131,7 +132,32 @@ const emptyForm = (): FormState => ({
   earliestDate: "", latestDate: "", recruitmentOfficerId: "",
   reason: "", miscSpec: "", additionalQualification: "",
   salaryBudget: "", autoPostOpening: false, slaTargetDays: "", replacedEmployeeId: "",
+  planId: "",
 });
+
+/** Chip rencana MPP di bawah posisi (PLAN-LINK) — dwibahasa. */
+function PlanChip({ row: r }: { row: PrRowUI }) {
+  const { t } = useI18n();
+  if (r.plan) {
+    return (
+      <div className="mt-0.5 inline-flex max-w-full items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+        <Link2 className="h-3 w-3 shrink-0" aria-hidden />
+        <span className="truncate" title={`${r.plan.period} #${r.plan.seqNo} · ${r.plan.positionTitle}`}>
+          {r.plan.period} #{r.plan.seqNo} · {r.plan.positionTitle}
+          {r.plan.match === "auto" ? t(" (otomatis)", " (auto)") : ""}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+      <Unlink className="h-3 w-3 shrink-0" aria-hidden />
+      <span title={t("PR tidak terhubung ke rencana MPP mana pun — tidak dihitung dalam capaian MPP", "The requisition is not linked to any manpower plan — not counted in MPP achievement")}>
+        {t("di luar rencana", "outside plan")}
+      </span>
+    </div>
+  );
+}
 
 export function PrListPage() {
   const { t, locale } = useI18n();
@@ -174,6 +200,11 @@ export function PrListPage() {
   const api = useApi<ListResp>(url, [url]);
   const optionsApi = useApi<PrOptions>("/api/rekankerja/recruitment/pr-options");
   const opts = optionsApi.data;
+
+  // PLAN-LINK — rencana Applied utk picker (view plan diizinkan utk pemegang menu PR)
+  const planApi = useApi<{ rows: PlanPickRow[] }>("/api/rekankerja/recruitment/plan?list=1");
+  const appliedPlans = (planApi.data?.rows ?? []).filter((p) => p.status === "Applied");
+  const selPlan = appliedPlans.find((p) => p.id === form.planId) ?? null;
 
   // F8 — proyeksi time-to-fill per posisi (endpoint reports; bila aktor tanpa
   // menu Laporan → 403 → kolom turun menjadi "—" — degradasi angun, tak error).
@@ -227,6 +258,7 @@ export function PrListPage() {
       autoPostOpening: r.autoPostOpening,
       slaTargetDays: r.slaTargetDays != null ? String(r.slaTargetDays) : "",
       replacedEmployeeId: r.replacedEmployeeId ?? "",
+      planId: r.planId ?? "",
     });
     setSubmitNow(false);
     setDialog("edit");
@@ -431,6 +463,7 @@ export function PrListPage() {
                           {t("{n} orang", "{n} headcount", { n: String(r.requiredNo) })}
                           {r.replacedEmployeeName ? ` · ${t("pengganti {n}", "replacing {n}", { n: r.replacedEmployeeName })}` : ""}
                         </div>
+                        <PlanChip row={r} />
                       </TableCell>
                       <TableCell className="hidden md:table-cell">{t(PR_EMPLOYMENT_LABEL[r.employmentStatus] ?? r.employmentStatus, PR_EMPLOYMENT_LABEL_EN[r.employmentStatus] ?? r.employmentStatus)}</TableCell>
                       <TableCell><PrStatusPill status={r.status} /></TableCell>
@@ -597,6 +630,55 @@ export function PrListPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                {/* PLAN-LINK — picker rencana MPP + konteks kuota */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="flex items-center gap-1">
+                    <Link2 className="h-3 w-3" aria-hidden /> {t("Melayani Rencana MPP (opsional)", "Serves Manpower Plan (optional)")}
+                  </Label>
+                  <Select value={form.planId || "none"} onValueChange={(v) => setForm({ ...form, planId: v === "none" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder={t("Pilih rencana Applied…", "Select an applied plan…")} /></SelectTrigger>
+                    <SelectContent className="max-h-64">
+                      <SelectItem value="none">{t("Tanpa tautan (ad-hoc / di luar rencana)", "No link (ad-hoc / outside plan)")}</SelectItem>
+                      {appliedPlans.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.period} #{p.seqNo} · {p.positionTitle} — h {p.toRecruitH} · {t("PR {n}", "PR {n}", { n: String(p.recon.prCount) })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selPlan && (() => {
+                    const remaining = selPlan.toRecruitH - selPlan.recon.requested;
+                    const req = Math.max(1, Number(form.requiredNo || 1));
+                    const over = req > remaining;
+                    return (
+                      <div className={cn(
+                        "rounded-lg border p-2.5 text-xs",
+                        over
+                          ? "border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10"
+                          : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60",
+                      )}>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="text-slate-500 dark:text-slate-400">{t("Kebutuhan rencana (h)", "Plan need (h)")}:</span> <b className="tabular-nums">{selPlan.toRecruitH}</b>
+                          <span className="text-slate-500 dark:text-slate-400">{t("PR diajukan", "PRs requested")}:</span> <b className="tabular-nums">{selPlan.recon.requested}</b>
+                          <span className="text-slate-500 dark:text-slate-400">{t("Terpenuhi", "Fulfilled")}:</span> <b className="tabular-nums">{selPlan.recon.fulfilled}</b>
+                          <span className="text-slate-500 dark:text-slate-400">{t("Sisa kuota", "Remaining quota")}:</span>{" "}
+                          <b className={cn("tabular-nums", remaining < 0 ? "text-rose-600 dark:text-rose-400" : over ? "text-amber-600 dark:text-amber-400" : "text-emerald-700 dark:text-emerald-400")}>{remaining}</b>
+                        </div>
+                        {over && (
+                          <div className="mt-1.5 flex items-start gap-1.5 text-amber-700 dark:text-amber-400">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                            <span>
+                              {t(
+                                `Jumlah diminta (${req}) melampaui sisa kuota rencana (${remaining}) — PR tetap bisa disimpan dan akan menandai rencana ini over-plan.`,
+                                `Requested headcount (${req}) exceeds the plan's remaining quota (${remaining}) — the PR can still be saved and will mark this plan as over-plan.`,
+                              )}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t("Unit Organisasi", "Org Unit")}</Label>
@@ -771,6 +853,9 @@ export function PrListPage() {
                   [t("Anggaran Gaji", "Salary Budget"), viewRow.salaryBudget != null ? `Rp ${viewRow.salaryBudget.toLocaleString("id-ID")}` : t("disembunyikan / kosong", "hidden / empty")],
                   [t("Pengganti", "Replacing"), viewRow.replacedEmployeeName ?? "—"],
                   [t("Auto-post Lowongan", "Auto-post Opening"), viewRow.autoPostOpening ? t("Ya (aktif di F2)", "Yes (active in F2)") : t("Tidak", "No")],
+                  [t("Melayani Rencana", "Serves Plan"), viewRow.plan
+                    ? `${viewRow.plan.period} #${viewRow.plan.seqNo} · ${viewRow.plan.positionTitle}${viewRow.plan.match === "auto" ? t(" (otomatis)", " (auto)") : ""} — h ${viewRow.plan.toRecruitH}`
+                    : t("Di luar rencana MPP", "Outside the manpower plan")],
                 ] as [string, string][]).map(([k, v]) => (
                   <div key={k}>
                     <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{k}</div>

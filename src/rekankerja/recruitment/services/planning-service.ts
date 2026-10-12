@@ -12,9 +12,14 @@
 //   (f) outF     turnover/keluar              (input)
 //   (g)          hasil             = (d)+(e)−(f)
 //   (h)          kebutuhan rekrut  = (c)−(g)
-// Rekonsiliasi PR: requested = Σ requiredNo PR [Submitted|Approved|OnHold|
-// Fulfilled] yang match posisi (+kantor); fulfilled = Σ CandidateAppointment
-// pada PR match; unfulfilled = requested − fulfilled.
+// Rekonsiliasi PR v2 (PLAN-LINK): PR dihitung melayani rencana bila
+// (a) tautan EKSPLISIT pr.planId = rencana tsb, ATAU (b) fallback otomatis:
+// planId null + posisi match (master id ATAU judul) + kantor kompatibel +
+// tahun requestDate == tahun periode rencana.
+// requested = Σ requiredNo PR [Submitted|Approved|OnHold|Fulfilled] match;
+// fulfilled = Σ CandidateAppointment pada PR match; unfulfilled = selisih.
+// Capaian vs h + daftar PR penyumbang (drill-down) + PR di luar rencana —
+// monitoring "target MPP tercapai atau tidak" dari sisi requisition.
 //
 // RecruitmentBudget: per periode (vault uang: totalBudget + adjust); realisasi
 // (used) dihitung agregat dari actualCost JobOpeningMethod JO periode tsb —
@@ -41,6 +46,29 @@ export interface PlanRecon {
   fulfilled: number; // Σ pengangkatan pada PR match
   unfulfilled: number;
   prCount: number;
+  explicitCount: number; // PLAN-LINK — PR yang ditautkan eksplisit (planId)
+}
+
+/** Baris PR penyumbang recon rencana (drill-down PLAN-LINK). */
+export interface PlanPrLine {
+  prId: string;
+  prNo: string;
+  status: string;
+  requiredNo: number;
+  appointed: number; // Σ pengangkatan pada PR ini
+  matchType: "explicit" | "auto"; // tautan eksplisit vs fallback posisi
+  positionTitle: string | null;
+  requestDate: string; // ISO
+}
+
+/** PR aktif yang tidak melayani rencana Applied mana pun. */
+export interface OutsidePrLine {
+  prId: string;
+  prNo: string;
+  positionTitle: string | null;
+  status: string;
+  requiredNo: number;
+  requestDate: string; // ISO
 }
 
 export interface PlanRow {
@@ -73,6 +101,10 @@ export interface PlanStats {
   total: number; draft: number; applied: number;
   periods: string[]; // daftar periode unik (urut desc)
   headcountLive: number | null; // headcount Employee aktif saat ini (opsional — ?positionId=)
+  // PLAN-LINK — capaian MPP agregat (hanya rencana Applied):
+  sumH: number; // Σ kebutuhan rekrut (h)
+  sumFulfilled: number; // Σ pengangkatan pada PR yang melayani rencana Applied (dedupe per PR)
+  outsideCount: number; // PR aktif di luar rencana mana pun
 }
 
 export interface BudgetMethodLine {
@@ -156,25 +188,65 @@ export async function headcountOf(
   return db.employee.count({ where: w });
 }
 
-/** PR yang cocok dengan baris plan (posisi via id ATAU judul; +kantor ops). */
-function planPrWhere(p: { positionId: string | null; positionTitle: string; companyOfficeId: string | null }): Prisma.PersonnelRequisitionWhereInput {
-  const posMatch: Prisma.PersonnelRequisitionWhereInput[] = p.positionId
-    ? [{ positionId: p.positionId }]
-    : [{ position: { title: { equals: p.positionTitle, mode: "insensitive" } } }];
-  if (p.companyOfficeId) posMatch.push({ companyOfficeId: p.companyOfficeId });
-  return { status: { in: [...RECON_PR_STATUSES] }, AND: posMatch };
+/** Tahun periode rencana ("2026" / "2026-Q1" / "2026-12" → 2026; null = bebas). */
+function yearOfPeriod(period: string): number | null {
+  const m = /^(\d{4})/.exec(period.trim());
+  return m ? Number(m[1]) : null;
+}
+
+/** Bentuk ringkas rencana utk pencocokan PR (PLAN-LINK). */
+interface PlanMatchLite {
+  id: string;
+  period: string;
+  positionId: string | null;
+  positionTitle: string;
+  companyOfficeId: string | null;
+}
+
+/** Apakah PR (tanpa tautan eksplisit) otomatis melayani rencana ini?
+ *  Aturan fallback = cermin planPrWhere: posisi (id master ATAU judul,
+ *  insensitive) + kantor kompatibel + tahun requestDate == tahun periode. */
+function prAutoServesPlan(
+  pr: { positionId: string | null; companyOfficeId: string | null; requestDate: Date; positionTitle: string | null },
+  plan: PlanMatchLite,
+): boolean {
+  const posOk = plan.positionId
+    ? plan.positionId === pr.positionId
+    : !!pr.positionTitle && plan.positionTitle.toLowerCase() === pr.positionTitle.toLowerCase();
+  if (!posOk) return false;
+  if (plan.companyOfficeId && plan.companyOfficeId !== pr.companyOfficeId) return false;
+  const year = yearOfPeriod(plan.period);
+  if (year != null && year !== pr.requestDate.getUTCFullYear()) return false;
+  return true;
+}
+
+/** PR yang melayani baris plan (PLAN-LINK): tautan EKSPLISIT planId ATAU
+ *  fallback otomatis (posisi via id ATAU judul + kantor + scope tahun). */
+function planPrWhere(p: PlanMatchLite): Prisma.PersonnelRequisitionWhereInput {
+  const legacy: Prisma.PersonnelRequisitionWhereInput[] = [{ planId: null }];
+  legacy.push(
+    p.positionId
+      ? { positionId: p.positionId }
+      : { position: { title: { equals: p.positionTitle, mode: "insensitive" } } },
+  );
+  if (p.companyOfficeId) legacy.push({ companyOfficeId: p.companyOfficeId });
+  const year = yearOfPeriod(p.period);
+  if (year != null) {
+    legacy.push({ requestDate: { gte: new Date(Date.UTC(year, 0, 1)), lt: new Date(Date.UTC(year + 1, 0, 1)) } });
+  }
+  return {
+    status: { in: [...RECON_PR_STATUSES] },
+    OR: [{ planId: p.id }, { AND: legacy }],
+  };
 }
 
 /** Rekonsiliasi PR untuk satu baris plan (requested/fulfilled/unfulfilled). */
-async function reconOf(
-  db: TenantDb,
-  p: { positionId: string | null; positionTitle: string; companyOfficeId: string | null },
-): Promise<PlanRecon> {
+async function reconOf(db: TenantDb, p: PlanMatchLite): Promise<PlanRecon> {
   const prs = await db.personnelRequisition.findMany({
     where: planPrWhere(p),
-    select: { id: true, requiredNo: true },
+    select: { id: true, requiredNo: true, planId: true },
   });
-  if (prs.length === 0) return { requested: 0, fulfilled: 0, unfulfilled: 0, prCount: 0 };
+  if (prs.length === 0) return { requested: 0, fulfilled: 0, unfulfilled: 0, prCount: 0, explicitCount: 0 };
   const appts = await db.candidateAppointment.groupBy({
     by: ["prId"],
     _count: { _all: true },
@@ -182,7 +254,103 @@ async function reconOf(
   });
   const fulfilled = appts.reduce((a, g) => a + g._count._all, 0);
   const requested = prs.reduce((a, x) => a + x.requiredNo, 0);
-  return { requested, fulfilled, unfulfilled: requested - fulfilled, prCount: prs.length };
+  return {
+    requested, fulfilled, unfulfilled: requested - fulfilled, prCount: prs.length,
+    explicitCount: prs.filter((x) => x.planId === p.id).length,
+  };
+}
+
+/** Drill-down PLAN-LINK: daftar PR penyumbang rekonsiliasi satu rencana. */
+export async function listPlanPrs(db: TenantDb, id: string): Promise<PlanPrLine[] | null> {
+  const p = await db.recruitmentPlan.findUnique({
+    where: { id },
+    select: { id: true, period: true, positionId: true, positionTitle: true, companyOfficeId: true },
+  });
+  if (!p) return null;
+  const prs = await db.personnelRequisition.findMany({
+    where: planPrWhere(p),
+    select: { id: true, prNo: true, status: true, requiredNo: true, planId: true, requestDate: true, position: { select: { title: true } } },
+    orderBy: { prNo: "asc" },
+  });
+  if (prs.length === 0) return [];
+  const appts = await db.candidateAppointment.groupBy({
+    by: ["prId"],
+    _count: { _all: true },
+    where: { prId: { in: prs.map((x) => x.id) } },
+  });
+  const apptBy = new Map(appts.map((g) => [g.prId, g._count._all]));
+  return prs.map((x) => ({
+    prId: x.id,
+    prNo: x.prNo,
+    status: x.status,
+    requiredNo: x.requiredNo,
+    appointed: apptBy.get(x.id) ?? 0,
+    matchType: x.planId === p.id ? ("explicit" as const) : ("auto" as const),
+    positionTitle: x.position?.title ?? null,
+    requestDate: x.requestDate.toISOString(),
+  }));
+}
+
+/** PR aktif (RECON_PR_STATUSES) yang tidak melayani rencana Applied mana pun. */
+export async function outsidePlanPrs(db: TenantDb): Promise<OutsidePrLine[]> {
+  const plans = await db.recruitmentPlan.findMany({
+    where: { status: "Applied" },
+    select: { id: true, period: true, positionId: true, positionTitle: true, companyOfficeId: true },
+  });
+  const prs = await db.personnelRequisition.findMany({
+    where: { status: { in: [...RECON_PR_STATUSES] } },
+    select: { id: true, prNo: true, status: true, requiredNo: true, requestDate: true, planId: true, positionId: true, companyOfficeId: true, position: { select: { title: true } } },
+    orderBy: { prNo: "asc" },
+  });
+  const out: OutsidePrLine[] = [];
+  for (const pr of prs) {
+    // tautan eksplisit valid = planId menunjuk rencana Applied yang ada
+    if (pr.planId && plans.some((pl) => pl.id === pr.planId)) continue;
+    if (plans.some((pl) => prAutoServesPlan(pr, pl))) continue;
+    out.push({
+      prId: pr.id,
+      prNo: pr.prNo,
+      positionTitle: pr.position?.title ?? null,
+      status: pr.status,
+      requiredNo: pr.requiredNo,
+      requestDate: pr.requestDate.toISOString(),
+    });
+  }
+  return out;
+}
+
+/** Capaian MPP agregat (overview): Σ h dan Σ pengangkatan pada PR yang
+ *  melayani rencana Applied — DEDUPE per PR (eksplisit menang, lalu rencana
+ *  pertama yang match otomatis) supaya dua rencana Applied berposisi sama
+ *  tidak menghitung ganda satu PR. */
+async function mppAchievement(db: TenantDb): Promise<{ sumH: number; sumFulfilled: number }> {
+  const plans = await db.recruitmentPlan.findMany({
+    where: { status: "Applied" },
+    select: {
+      id: true, period: true, positionId: true, positionTitle: true, companyOfficeId: true,
+      targetA: true, adjustB: true, empD: true, inE: true, outF: true,
+    },
+  });
+  if (plans.length === 0) return { sumH: 0, sumFulfilled: 0 };
+  const prs = await db.personnelRequisition.findMany({
+    where: { status: { in: [...RECON_PR_STATUSES] } },
+    select: { id: true, planId: true, positionId: true, companyOfficeId: true, requestDate: true, position: { select: { title: true } } },
+  });
+  const appts = await db.candidateAppointment.findMany({ select: { prId: true } });
+  const apptBy = new Map<string, number>();
+  for (const a of appts) apptBy.set(a.prId, (apptBy.get(a.prId) ?? 0) + 1);
+
+  let sumH = 0;
+  for (const pl of plans) sumH += (pl.targetA + pl.adjustB) - (pl.empD + pl.inE - pl.outF);
+
+  const served = new Set<string>();
+  for (const pr of prs) {
+    if (pr.planId && plans.some((pl) => pl.id === pr.planId)) { served.add(pr.id); continue; }
+    if (plans.some((pl) => prAutoServesPlan(pr, pl))) served.add(pr.id);
+  }
+  let sumFulfilled = 0;
+  for (const prId of served) sumFulfilled += apptBy.get(prId) ?? 0;
+  return { sumH, sumFulfilled };
 }
 
 const PLAN_INCLUDE = {
@@ -231,17 +399,19 @@ function planRow(
 export async function listPlans(
   db: TenantDb,
   opts: { period?: string | null; status?: string | null; moneyVisible?: boolean },
-): Promise<{ rows: PlanRow[]; stats: PlanStats }> {
+): Promise<{ rows: PlanRow[]; stats: PlanStats; outside: OutsidePrLine[] }> {
   const moneyVisible = opts.moneyVisible ?? false;
   const where: Prisma.RecruitmentPlanWhereInput = {};
   if (opts.period) where.period = opts.period;
   if (opts.status && PLAN_STATUSES.includes(opts.status as PlanStatus)) where.status = opts.status;
 
-  const [rows, total, groupStatus, periods] = await Promise.all([
+  const [rows, total, groupStatus, periods, mpp, outside] = await Promise.all([
     db.recruitmentPlan.findMany({ where, include: PLAN_INCLUDE, orderBy: [{ period: "desc" }, { seqNo: "asc" }], take: 200 }),
     db.recruitmentPlan.count({ where }),
     db.recruitmentPlan.groupBy({ by: ["status"], _count: { _all: true } }),
     db.recruitmentPlan.groupBy({ by: ["period"], _count: { _all: true }, orderBy: { period: "desc" } }),
+    mppAchievement(db),
+    outsidePlanPrs(db),
   ]);
 
   const out: PlanRow[] = [];
@@ -257,7 +427,11 @@ export async function listPlans(
       applied: st("Applied"),
       periods: periods.map((g) => g.period),
       headcountLive: null,
+      sumH: mpp.sumH,
+      sumFulfilled: mpp.sumFulfilled,
+      outsideCount: outside.length,
     },
+    outside,
   };
 }
 

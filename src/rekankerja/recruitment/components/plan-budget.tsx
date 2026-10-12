@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
   Calculator, ChevronDown, ChevronRight, Coins, Filter, Pencil, Plus, RefreshCw,
-  Send, Sigma, Trash2, Wallet,
+  Send, Sigma, Trash2, Wallet, AlertTriangle, Unlink, ListTree, CheckCircle2,
 } from "lucide-react";
 
 const PLAN_API = "/api/rekankerja/recruitment/plan";
@@ -55,12 +55,25 @@ interface PlanRow {
   appliedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  recon: { requested: number; fulfilled: number; unfulfilled: number; prCount: number };
+  recon: { requested: number; fulfilled: number; unfulfilled: number; prCount: number; explicitCount: number };
 }
 
 interface PlanListResp {
   rows: PlanRow[];
-  stats: { total: number; draft: number; applied: number; periods: string[]; headcountLive: number | null };
+  stats: { total: number; draft: number; applied: number; periods: string[]; headcountLive: number | null; sumH: number; sumFulfilled: number; outsideCount: number };
+  outside: { prId: string; prNo: string; positionTitle: string | null; status: string; requiredNo: number; requestDate: string }[];
+}
+
+/** Baris drill-down PR penyumbang recon (PLAN-LINK — mirror service). */
+interface PlanPrLine {
+  prId: string;
+  prNo: string;
+  status: string;
+  requiredNo: number;
+  appointed: number;
+  matchType: "explicit" | "auto";
+  positionTitle: string | null;
+  requestDate: string;
 }
 
 interface PlanOptionsResp {
@@ -150,7 +163,7 @@ const FORMULA_COLS: { key: keyof PlanRow; short: string; shortEn: string; tip: s
 // =====================================================================
 
 function PlanSection() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const perms = useMenuPerms();
 
   const [periodFilter, setPeriodFilter] = useState<string>(""); // "" = semua
@@ -172,6 +185,12 @@ function PlanSection() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<PlanForm>(emptyPlanForm(String(new Date().getFullYear())));
   const [busy, setBusy] = useState(false);
+
+  // PLAN-LINK — drill-down PR penyumbang recon + dialog PR di luar rencana
+  const [prsTarget, setPrsTarget] = useState<PlanRow | null>(null);
+  const [outsideOpen, setOutsideOpen] = useState(false);
+  const prsApi = useApi<{ prs: PlanPrLine[] }>(prsTarget ? `${PLAN_API}?prs=${prsTarget.id}` : null, [prsTarget?.id]);
+  const prsLines = prsApi.data?.prs ?? null;
 
   const refresh = () => { listApi.refresh(); optionsApi.refresh(); };
 
@@ -282,6 +301,7 @@ function PlanSection() {
   };
 
   const periodOptions = stats?.periods?.length ? stats.periods : [String(new Date().getFullYear())];
+  const outsideLines = listApi.data?.outside ?? [];
 
   return (
     <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
@@ -335,6 +355,21 @@ function PlanSection() {
             <span className="font-mono tabular-nums">c=(a)+(b) · g=(d)+(e)−(f) · h=(c)−(g)</span>
           </div>
         </div>
+
+        {/* PLAN-LINK — banner PR di luar rencana (hanya bila ada) */}
+        {(listApi.data?.stats?.outsideCount ?? 0) > 0 && (
+          <button
+            type="button"
+            onClick={() => setOutsideOpen(true)}
+            className="mb-4 flex w-full items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-left text-xs text-amber-800 transition-colors hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <span>
+              <b className="tabular-nums">{listApi.data?.stats?.outsideCount}</b>{" "}
+              {t("PR aktif tidak terhubung ke rencana MPP mana pun — tidak terhitung dalam capaian perencanaan (klik untuk detail).", "active requisitions are not linked to any manpower plan — not counted in planning achievement (click for details).")}
+            </span>
+          </button>
+        )}
 
         {listApi.loading && !listApi.data ? (
           <LoadingRows rows={4} />
@@ -397,13 +432,62 @@ function PlanSection() {
                         );
                       })}
                       <TableCell className="text-center">
-                        <span className={cn(
-                          "font-mono text-xs font-semibold tabular-nums",
-                          r.recon.unfulfilled > 0 ? "text-amber-700 dark:text-amber-400" : "text-slate-600 dark:text-slate-300",
-                        )}>
-                          {r.recon.requested}/{r.recon.fulfilled}/{r.recon.unfulfilled}
-                        </span>
-                        <div className="text-[10px] text-slate-400">{t("PR {n}", "PR {n}", { n: String(r.recon.prCount) })}</div>
+                        {/* PLAN-LINK — recon v2: klik utk drill-down PR penyumbang */}
+                        <button
+                          type="button"
+                          onClick={() => setPrsTarget(r)}
+                          title={t("Lihat PR yang melayani rencana ini", "View the requisitions serving this plan")}
+                          className="rounded-md px-1 py-0.5 font-mono text-xs font-semibold tabular-nums underline-offset-2 hover:underline"
+                        >
+                          <span className={cn(
+                            r.recon.unfulfilled > 0 ? "text-amber-700 dark:text-amber-400" : "text-slate-600 dark:text-slate-300",
+                          )}>
+                            {r.recon.requested}/{r.recon.fulfilled}/{r.recon.unfulfilled}
+                          </span>
+                          <span className="ml-1 inline-flex items-center gap-0.5 align-middle text-[10px] font-normal text-slate-400">
+                            <ListTree className="h-3 w-3" aria-hidden />
+                            {t("PR {n}", "PR {n}", { n: String(r.recon.prCount) })}
+                          </span>
+                        </button>
+                        {/* capaian vs h — hijau tercapai / amber berjalan / rose melampaui */}
+                        {(() => {
+                          const h = r.toRecruitH;
+                          const req = r.recon.requested;
+                          const ful = r.recon.fulfilled;
+                          if (h <= 0 && req > 0) {
+                            return (
+                              <div className="mt-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400"
+                                title={t(`PR diajukan ${req} orang padahal kebutuhan rencana h=0 — hiring di luar rencana`, `${req} headcount requested although the plan's need is h=0 — hiring beyond the plan`)}>
+                                {t("melampaui rencana", "over plan")} · PR {req} &gt; h {h}
+                              </div>
+                            );
+                          }
+                          if (h > 0 && ful >= h) {
+                            return (
+                              <div className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400"
+                                title={t("Target MPP tercapai dari sisi requisition", "Manpower plan target achieved from the requisition side")}>
+                                <CheckCircle2 className="h-3 w-3" aria-hidden /> {t("capaian", "achieved")} {ful}/{h} h
+                              </div>
+                            );
+                          }
+                          if (h > 0 && req === 0) {
+                            return (
+                              <div className="mt-0.5 text-[10px] text-slate-400"
+                                title={t("Kebutuhan (h) belum diajukan sebagai PR", "The need (h) has not been requested as a PR yet")}>
+                                {t("belum ada PR", "no PRs yet")} (h {h})
+                              </div>
+                            );
+                          }
+                          if (h > 0) {
+                            return (
+                              <div className="mt-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400"
+                                title={t(`Capaian ${ful}/${h} — PR diajukan ${req} dari h ${h}`, `Achieved ${ful}/${h} — ${req} of h ${h} requested`)}>
+                                {t("capaian", "achieved")} {ful}/{h} h{req < h ? t(" · PR {r}/{h}", " · PRs {r}/{h}", { r: String(req), h: String(h) }) : ""}
+                              </div>
+                            );
+                          }
+                          return <div className="mt-0.5 text-[10px] text-slate-400">—</div>;
+                        })()}
                       </TableCell>
                       <TableCell className="hidden tabular-nums lg:table-cell">
                         {r.salaryBudget != null ? (
@@ -574,6 +658,127 @@ function PlanSection() {
                 {busy ? t("Menyimpan…", "Saving…") : editId ? t("Simpan Perubahan", "Save Changes") : t("Simpan", "Save")}
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== PLAN-LINK — dialog drill-down PR penyumbang recon ===== */}
+      <Dialog open={prsTarget != null} onOpenChange={(o) => { if (!o) setPrsTarget(null); }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
+              <ListTree className="h-4 w-4 ov-text-accent" aria-hidden />
+              {prsTarget && t(
+                `PR melayani rencana ${prsTarget.period} #${prsTarget.seqNo} — ${prsTarget.positionTitle}`,
+                `PRs serving plan ${prsTarget.period} #${prsTarget.seqNo} — ${prsTarget.positionTitle}`,
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {prsTarget && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800/60">
+                  <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{t("Kebutuhan (h)", "Need (h)")}</div>
+                  <div className="text-lg font-bold tabular-nums">{prsTarget.toRecruitH}</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800/60">
+                  <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{t("PR diajukan", "PRs requested")}</div>
+                  <div className="text-lg font-bold tabular-nums">{prsTarget.recon.requested}</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800/60">
+                  <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{t("Terpenuhi", "Fulfilled")}</div>
+                  <div className={cn("text-lg font-bold tabular-nums", prsTarget.recon.fulfilled >= prsTarget.toRecruitH && prsTarget.toRecruitH > 0 ? "text-emerald-600 dark:text-emerald-400" : prsTarget.recon.fulfilled > 0 ? "text-amber-600 dark:text-amber-400" : "")}>{prsTarget.recon.fulfilled}</div>
+                </div>
+              </div>
+              {prsApi.loading && !prsLines ? (
+                <div className="py-6 text-center text-xs text-slate-500">{t("Memuat daftar PR…", "Loading requisitions…")}</div>
+              ) : (prsLines?.length ?? 0) === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-500">{t("Belum ada PR yang melayani rencana ini.", "No requisitions serve this plan yet.")}</div>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("No. PR", "PR No.")}</TableHead>
+                        <TableHead>{t("Status", "Status")}</TableHead>
+                        <TableHead className="text-center">{t("Jumlah", "Headcount")}</TableHead>
+                        <TableHead className="text-center">{t("Diangkat", "Appointed")}</TableHead>
+                        <TableHead className="text-center">{t("Tautan", "Link")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(prsLines ?? []).map((l) => (
+                        <TableRow key={l.prId}>
+                          <TableCell className="font-mono text-xs font-semibold">{l.prNo}
+                            <div className="font-sans text-[10px] font-normal text-slate-500">{new Date(l.requestDate).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" })}</div>
+                          </TableCell>
+                          <TableCell className="text-xs">{l.status}</TableCell>
+                          <TableCell className="text-center tabular-nums">{l.requiredNo}</TableCell>
+                          <TableCell className="text-center tabular-nums">{l.appointed > 0 ? <b className="text-emerald-700 dark:text-emerald-400">{l.appointed}</b> : "0"}</TableCell>
+                          <TableCell className="text-center">
+                            {l.matchType === "explicit"
+                              ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">{t("eksplisit", "explicit")}</Badge>
+                              : <Badge variant="secondary">{t("otomatis", "auto")}</Badge>}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                {t(
+                  "Tautan \"eksplisit\" dipilih saat membuat PR (kolom Melayani Rencana MPP); \"otomatis\" dicocokkan dari posisi + kantor + tahun periode. Atur di menu Permintaan Karyawan → form PR.",
+                  "An \"explicit\" link is chosen when creating the PR (Serves Manpower Plan field); \"auto\" is matched from position + office + period year. Manage it in the Personnel Requisitions menu → PR form.",
+                )}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrsTarget(null)}>{t("Tutup", "Close")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== PLAN-LINK — dialog PR di luar rencana ===== */}
+      <Dialog open={outsideOpen} onOpenChange={setOutsideOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Unlink className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+              {t("PR di Luar Rencana MPP", "Requisitions Outside the Manpower Plan")}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {t(
+              "PR berikut berjalan tanpa terhubung ke rencana (tautan eksplisit maupun pencocokan posisi/kantor/tahun) — pengeluarannya tidak tercakup capaian MPP mana pun.",
+              "The requisitions below run without any plan link (neither explicit nor position/office/year matching) — their spending is not covered by any MPP achievement.",
+            )}
+          </p>
+          <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("No. PR", "PR No.")}</TableHead>
+                  <TableHead>{t("Posisi", "Position")}</TableHead>
+                  <TableHead className="text-center">{t("Jumlah", "Headcount")}</TableHead>
+                  <TableHead>{t("Status", "Status")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {outsideLines.map((l) => (
+                  <TableRow key={l.prId}>
+                    <TableCell className="font-mono text-xs font-semibold">{l.prNo}</TableCell>
+                    <TableCell className="text-xs">{l.positionTitle ?? "—"}</TableCell>
+                    <TableCell className="text-center tabular-nums">{l.requiredNo}</TableCell>
+                    <TableCell className="text-xs">{l.status}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOutsideOpen(false)}>{t("Tutup", "Close")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

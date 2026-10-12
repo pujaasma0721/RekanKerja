@@ -3388,6 +3388,10 @@ model PersonnelRequisition {
   // [{name, weight, guide}] — snapshot disalin ke CandidateAiScore.rubricJson
   // saat generate; bobot dinormalisasi service. Null = pakai rubrik default.
   rubricJson              String? // [{name, weight, guide}] — bobot 0–1 relatif
+  // PLAN-LINK — tautan EKSPLISIT PR→rencana MPP (RecruitmentPlan) yang dilayaninya.
+  // Null = PR ad-hoc / akan di-match otomatis oleh rekonsiliasi (posisi+kantor+
+  // scope tahun) di planning-service. Validasi: hanya rencana berstatus Applied.
+  planId                   String?
   status                  String    @default("Draft") // Draft|Submitted|Approved|Rejected|OnHold|Fulfilled|Closed|Cancelled
   decisionNote            String? // catatan keputusan approver (reject/close)
   submittedAt             DateTime?
@@ -3396,6 +3400,7 @@ model PersonnelRequisition {
   updatedAt               DateTime  @updatedAt
 
   requestedBy        Employee       @relation("PrRequester", fields: [requestedById], references: [id])
+  plan               RecruitmentPlan? @relation("PlanPrs", fields: [planId], references: [id])
   position           Position?      @relation("PrPosition", fields: [positionId], references: [id])
   job                Job?           @relation("PrJob", fields: [jobId], references: [id])
   orgUnit            OrgUnit?       @relation("PrOrgUnit", fields: [orgUnitId], references: [id])
@@ -3415,6 +3420,7 @@ model PersonnelRequisition {
 
   @@index([status, requestDate])
   @@index([requestedById])
+  @@index([planId])
 }
 
 // ============================================================================
@@ -4075,6 +4081,9 @@ model RecruitmentPlan {
 
   position      Position?      @relation("PlanPosition", fields: [positionId], references: [id])
   companyOffice CompanyOffice? @relation("PlanOffice", fields: [companyOfficeId], references: [id])
+
+  // PLAN-LINK — PR yang secara eksplisit melayani rencana ini
+  prs           PersonnelRequisition[] @relation("PlanPrs")
 
   @@index([period])
   @@index([status])

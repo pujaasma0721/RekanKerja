@@ -2539,6 +2539,7 @@ CREATE TABLE "PersonnelRequisition" (
     "slaTargetDays" INTEGER,
     "replacedEmployeeId" TEXT,
     "rubricJson" TEXT,
+    "planId" TEXT,
     "status" TEXT NOT NULL DEFAULT 'Draft',
     "decisionNote" TEXT,
     "submittedAt" TIMESTAMP(3),
@@ -3760,6 +3761,9 @@ CREATE INDEX "PersonnelRequisition_status_requestDate_idx" ON "PersonnelRequisit
 CREATE INDEX "PersonnelRequisition_requestedById_idx" ON "PersonnelRequisition"("requestedById");
 
 -- CreateIndex
+CREATE INDEX "PersonnelRequisition_planId_idx" ON "PersonnelRequisition"("planId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "JobOpportunity_refNo_key" ON "JobOpportunity"("refNo");
 
 -- CreateIndex
@@ -4382,6 +4386,9 @@ ALTER TABLE "NonEmployeePayment" ADD CONSTRAINT "NonEmployeePayment_partnerId_fk
 
 -- AddForeignKey
 ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_planId_fkey" FOREIGN KEY ("planId") REFERENCES "RecruitmentPlan"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;

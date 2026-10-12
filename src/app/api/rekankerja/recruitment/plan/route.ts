@@ -3,12 +3,14 @@ import { requireMenuAction, requireMenuViewAny, type MenuActionRef } from "@/rek
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import {
   PLAN_STATUSES, listPlans, getPlan, planOptions, createPlan, updatePlan, applyPlan, deletePlan, syncPlanHeadcount,
+  listPlanPrs, outsidePlanPrs,
   type PlanInput,
 } from "@/rekankerja/recruitment/services/planning-service";
 
 // ============================================================================
 // RECRUITMENT F5 — API Rencana Rekrutmen (RecruitmentPlan oranHR §2.1).
-//   GET    ?options=1 | ?id= | ?list=1&period=&status=     → rows + stats
+//   GET    ?options=1 | ?id= | ?prs= (drill-down PLAN-LINK)
+//         | ?outside=1 | ?list=1&period=&status=          → rows + stats + outside
 //   POST   { period, positionTitle, targetA, … }           → buat baris plan
 //   PATCH  { action: update|apply|delete|sync-headcount, … }
 // Guard menu: recruitment:plan (view/create/update/delete + op:apply).
@@ -33,6 +35,17 @@ export async function GET(req: NextRequest) {
       const row = await getPlan(db, id, mv.canSee);
       if (!row) return NextResponse.json({ error: "Rencana rekrutmen tidak ditemukan" }, { status: 404 });
       return NextResponse.json({ row });
+    }
+    // PLAN-LINK — drill-down: daftar PR penyumbang recon satu rencana
+    const prsOf = sp.get("prs");
+    if (prsOf) {
+      const prs = await listPlanPrs(db, prsOf);
+      if (prs == null) return NextResponse.json({ error: "Rencana rekrutmen tidak ditemukan" }, { status: 404 });
+      return NextResponse.json({ prs });
+    }
+    // PLAN-LINK — daftar PR aktif di luar rencana mana pun
+    if (sp.get("outside")) {
+      return NextResponse.json({ outside: await outsidePlanPrs(db) });
     }
     const res = await listPlans(db, {
       period: sp.get("period"),
