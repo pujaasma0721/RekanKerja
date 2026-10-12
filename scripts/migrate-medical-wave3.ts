@@ -1,7 +1,7 @@
 // Migrasi Wave 3 Medical (fix 92) — kolom baru modul medical:
 //   1. MedicalBenefitType.needLetter BOOLEAN NOT NULL DEFAULT false —
 //      G-2 (audit BPA-medical): jenis benefit yang mewajibkan nomor surat
-//      rujukan dokter/RS pada pengajuan klaim (pad RekanKerja letter_no —
+// rujukan dokter/RS pada pengajuan klaim (pad letter_no —
 //      praktik rawat inap). Enforce di submitClaim/updateClaim (jalur admin
 //      & ESS memakai service yang sama).
 // Idempoten — ADD COLUMN IF NOT EXISTS. Schema tanpa tabel medical DILEWATI

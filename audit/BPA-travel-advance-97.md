@@ -3,7 +3,7 @@
 **Task 97** · 2 Oktober 2026 · RekanKerja (workspace demo: PT Mitra Industri Internasional)
 Mandat user: *"Audit menyeluruh module travel, explore advance module travel di pasaran dan temukan gap dengan aplikasi ini — saya ingin module travel ini lebih advance dan smart."*
 
-Dokumen ini penerus `audit/BPA-travel.md` (audit bisnis proses lama, mayoritas temuan K/M sudah ditutup oleh 24-FIX-TRAVEL / T3-TRAVEL / T15 / T16) dan `ANALISA-TRAVEL.md` (spesifikasi padanan RekanKerja).
+Dokumen ini penerus `audit/BPA-travel.md` (audit bisnis proses lama, mayoritas temuan K/M sudah ditutup oleh 24-FIX-TRAVEL / T3-TRAVEL / T15 / T16) dan `ANALISA-TRAVEL.md` (spesifikasi padanan).
 
 ---
 

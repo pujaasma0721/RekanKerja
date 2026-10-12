@@ -1,6 +1,6 @@
 // ============================================================================
 // RECRUITMENT F2 — Applicant (talent pool) + PublicApplication staging service
-// Sumber: DEVELOPMENT-PLAN-RECRUITMENT.md §7 F2 + §4.2/§4.3 (RekanKerja §2.5,
+// Sumber: DEVELOPMENT-PLAN-RECRUITMENT.md §7 F2 + §4.2/§4.3 (§2.5,
 // ApplicantEngine versi aman + HRX I1 consent).
 //
 // PII: email/phone/address/city/placeOfBirth/identityNo TERENKRIPSI

@@ -254,7 +254,7 @@ const MEDICAL_NAV: NavGroup[] = [
     { id: "medical-claim", label: "Klaim Medis", icon: Activity },
     { id: "medical-approval", label: "Persetujuan & Settlement", icon: CheckCircle2 },
     { id: "medical-adjustment", label: "Penyesuaian Saldo", icon: ArrowLeftRight },
-    // W4-1 (fix G-3) — piutang asuransi (padanan RekanKerja Paid By Insurance %).
+    // W4-1 (fix G-3) — piutang asuransi (padanan Paid By Insurance %).
     { id: "medical-insurance", label: "Piutang Asuransi", icon: Coins },
   ] },
   { section: "medical", label: "Master & Laporan", children: [
@@ -303,7 +303,7 @@ const RECRUITMENT_NAV: NavGroup[] = [
     { id: "offers", label: "Offer & Pengangkatan", icon: Handshake },
   ] },
   { section: "recruitment", label: "Perencanaan", children: [
-    // F5 — rencana & anggaran + demografi/segmen (RekanKerja RecruitmentPlanning
+    // F5 — rencana & anggaran + demografi/segmen (RecruitmentPlanning
     // + RecruitmentBudget + ApplicantDemography)
     { id: "plan", label: "Rencana & Anggaran", icon: Calculator },
     { id: "demographics", label: "Demografi & Segmen", icon: PieChart },

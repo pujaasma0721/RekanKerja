@@ -342,7 +342,7 @@ model Employee {
   // F4-REC — offer yang dibuat karyawan ini (jejak pembuat)
   offersCreated       CandidateOffer[]          @relation("OfferCreator")
 
-  // F5-REC — lamaran lowongan internal via ESS (MyJobOpportunity RekanKerja §2.10)
+  // F5-REC — lamaran lowongan internal via ESS (MyJobOpportunity §2.10)
   empJobApplications  EmpJobApplication[]       @relation("EmpJobApplied")
 
   // F6-REC — AI: verifikator hasil parsing CV / pemicu skor AI kandidat
@@ -2316,7 +2316,7 @@ model MedicalBenefitType {
   active           Boolean  @default(true)
   needReceipt      Boolean  @default(true)
   // W3-1 (fix G-2 BPA-medical): nomor surat rujukan dokter/RS wajib pada
-  // pengajuan klaim jenis ini (pad RekanKerja letter_no — praktik rawat inap).
+  // pengajuan klaim jenis ini (pad letter_no — praktik rawat inap).
   needLetter       Boolean  @default(false)
   // limit benefit karyawan
   limitRule        String   @default("NOMINAL") // UNLIMITED|NOMINAL|FACTOR|WAGE_COMPONENT
@@ -2324,7 +2324,7 @@ model MedicalBenefitType {
   wageCode         String? // komponen upah dasar hitungan (WAGE_COMPONENT / info)
   // frekuensi klaim per period — W1-8 (fix M-5): EVERY_X_YEARS = freqValue tahun
   // berjalan (klaim diterima hanya bila tidak ada klaim dalam X tahun terakhir;
-  // pad RekanKerja "Max Claim sekali dalam setiap X tahun" — Year Period).
+  // pad "Max Claim sekali dalam setiap X tahun" — Year Period).
   freqUnlimited    Boolean  @default(false)
   freqValue        Int      @default(0)
   freqPeriod       String   @default("YEAR") // MEDICAL|WORK|YEAR|EVERY_X_YEARS
@@ -2449,7 +2449,7 @@ model MedicalClaim {
   decidedAt      DateTime?
   decisionNote   String?
   settledById    String?
-  // W4-1 (fix G-3 BPA-medical) — pelacakan piutang asuransi (padanan RekanKerja
+  // W4-1 (fix G-3 BPA-medical) — pelacakan piutang asuransi (padanan
   // "Paid By Insurance %"): jurnal settle memecah bagian asuransi ke piutang
   // 13xx; kolom ini mengelola siklusnya NONE → SUBMITTED → PAID / WRITTEN_OFF.
   insState       String    @default("NONE") // NONE|SUBMITTED|PAID|WRITTEN_OFF
@@ -3187,10 +3187,10 @@ model NonEmployeePayment {
 // Master rekrutmen per tenant — konvensi proyek: cuid PK, code unik, tanpa
 // tipe list primitif, active + sortOrder untuk pengurutan stabil.
 // SelectionProcess = katalog tahap seleksi (padanan Standard Selection
-// Process RekanKerja §2.6) — per-tenant, dapat diedit (config-over-code P6).
+// Process §2.6) — per-tenant, dapat diedit (config-over-code P6).
 // ============================================================================
 
-// Metode rekrutmen (padanan RecruitmentMethodDesc RekanKerja: Internal Job
+// Metode rekrutmen (padanan RecruitmentMethodDesc: Internal Job
 // Posting, Matching Recommendation [Internal]; advertensi/agency [Eksternal]).
 model RecruitmentMethod {
   id          String   @id @default(cuid())
@@ -3207,7 +3207,7 @@ model RecruitmentMethod {
   joMethods   JobOpeningMethod[] @relation("MethodJoOpening")
 }
 
-// Media advertensi lowongan (padanan AdMediaType RekanKerja: Koran, Portal…).
+// Media advertensi lowongan (padanan AdMediaType: Koran, Portal…).
 model AdMediaType {
   id        String   @id @default(cuid())
   code      String   @unique
@@ -3222,7 +3222,7 @@ model AdMediaType {
   applicants Applicant[]        @relation("ApplicantAdMedia")
 }
 
-// Vendor agency/tenaga eksternal (padanan EmpAgency RekanKerja: nama+alamat+note).
+// Vendor agency/tenaga eksternal (padanan EmpAgency: nama+alamat+note).
 model EmploymentAgency {
   id      String   @id @default(cuid())
   code    String   @unique
@@ -3240,7 +3240,7 @@ model EmploymentAgency {
   applicants Applicant[]        @relation("ApplicantAgency")
 }
 
-// Pos biaya rekrutmen (padanan RecruitmentCostItem RekanKerja: Advertisment,
+// Pos biaya rekrutmen (padanan RecruitmentCostItem: Advertisment,
 // General (non-budget), …) — dipakai JobOpeningMethod (F2) → budget (F5).
 model RecruitmentCostItem {
   id          String   @id @default(cuid())
@@ -3256,7 +3256,7 @@ model RecruitmentCostItem {
   joMethods   JobOpeningMethod[] @relation("CostItemJoOpening")
 }
 
-// Skill/kemampuan kandidat (padanan Skill RekanKerja: "Bahasa Inggris (menulis)"…).
+// Skill/kemampuan kandidat (padanan Skill: "Bahasa Inggris (menulis)"…).
 model Skill {
   id       String   @id @default(cuid())
   code     String   @unique
@@ -3271,7 +3271,7 @@ model Skill {
   applicantSkills ApplicantSkill[] @relation("ApplicantSkillMaster")
 }
 
-// Dokumen wajib pelamar (padanan RequirementDocument RekanKerja: CV & KTP mandatory).
+// Dokumen wajib pelamar (padanan RequirementDocument: CV & KTP mandatory).
 model RequiredDocument {
   id        String   @id @default(cuid())
   code      String   @unique
@@ -3287,7 +3287,7 @@ model RequiredDocument {
   applicantDocuments ApplicantDocument[] @relation("ApplicantRequiredDoc")
 }
 
-// Kategori penilaian (padanan ApplicantEvalCategory RekanKerja) — basis scorecard F3.
+// Kategori penilaian (padanan ApplicantEvalCategory) — basis scorecard F3.
 model EvaluationCategory {
   id          String   @id @default(cuid())
   code        String   @unique
@@ -3299,7 +3299,7 @@ model EvaluationCategory {
   updatedAt   DateTime @updatedAt
 }
 
-// Skala penilaian + ranking (padanan Applicant Evaluation Scale RekanKerja: Low(1)…).
+// Skala penilaian + ranking (padanan Applicant Evaluation Scale: Low(1)…).
 model EvaluationScale {
   id       String   @id @default(cuid())
   code     String   @unique
@@ -3311,7 +3311,7 @@ model EvaluationScale {
   updatedAt DateTime @updatedAt
 }
 
-// Grup SLA seleksi (padanan SLA Group RekanKerja: "Interview" 30 hari).
+// Grup SLA seleksi (padanan SLA Group: "Interview" 30 hari).
 model SlaGroup {
   id       String   @id @default(cuid())
   code     String   @unique
@@ -3323,7 +3323,7 @@ model SlaGroup {
   updatedAt DateTime @updatedAt
 }
 
-// Tahap seleksi standar (padanan Standard Selection Process RekanKerja §2.6):
+// Tahap seleksi standar (padanan Standard Selection Process §2.6):
 // katalog per-tenant — urutan (processOrder), SLA (slaDays), tipe hasil
 // (Quantitative/Qualitative), nilai minimal lulus, berlaku utk kandidat
 // internal/eksternal, perlu acknowledgement. Seed default F0: Interview HR
@@ -3353,7 +3353,7 @@ model SelectionProcess {
 
 // ============ RECRUITMENT — F1: PERMINTAAN KARYAWAN (PR) ============
 // DEVELOPMENT-PLAN-RECRUITMENT.md §7 F1 + §4.3 — state machine EKSPLISIT
-// (padanan PersonnelRequisition.jsp RekanKerja, diperkaya HRX A3):
+// (padanan PersonnelRequisition.jsp, diperkaya HRX A3):
 //   Draft ──apply──► Submitted ──approval──► Approved | Rejected
 //   Draft ──cancel──► Cancelled
 //   Submitted ──cancel──► Cancelled (chain ikut dibatalkan)
@@ -3446,7 +3446,7 @@ model PersonnelRequisition {
 //     server-side tanpa membongkar enkripsi.
 // ============================================================================
 
-// Iklan lowongan (padanan JobOpportunity RekanKerja §2.4): refNo JO-YYYY-NNNN,
+// Iklan lowongan (padanan JobOpportunity §2.4): refNo JO-YYYY-NNNN,
 // status Draft|Posted|Closed|Obsolete; berisi N slot (per PR) + kanal biaya.
 model JobOpportunity {
   id             String    @id @default(cuid())
@@ -3475,7 +3475,7 @@ model JobOpportunity {
   @@index([datePosted])
 }
 
-// Slot lowongan per PR (padanan JobOpening RekanKerja): satu PR bisa dilayani
+// Slot lowongan per PR (padanan JobOpening): satu PR bisa dilayani
 // banyak JO, satu JO bisa menampung banyak slot PR (unik per pasangan).
 model JobOpening {
   id                String    @id @default(cuid())
@@ -3515,7 +3515,7 @@ model JobOpening {
   @@index([status])
 }
 
-// Kanal publikasi + biaya per JO (padanan JobOpeningMethod RekanKerja): metode,
+// Kanal publikasi + biaya per JO (padanan JobOpeningMethod): metode,
 // media iklan, agency, pos biaya, planned/actual (vault uang).
 model JobOpeningMethod {
   id                String    @id @default(cuid())
@@ -3540,7 +3540,7 @@ model JobOpeningMethod {
   @@index([jobOpportunityId])
 }
 
-// Pelamar / talent pool (padanan Applicant RekanKerja §2.5 + HRX C4-lite).
+// Pelamar / talent pool (padanan Applicant §2.5 + HRX C4-lite).
 // PII (email/phone/address/city/placeOfBirth/identityNo) TERENKRIPSI
 // field-crypto; expectedSalary vault uang — decrypt di batas serializer API.
 // Kolom turunan (highestEduLevel/highestGpa/totalExpMonths) dihitung ulang
@@ -3612,7 +3612,7 @@ model Applicant {
   @@index([source])
 }
 
-// Riwayat pendidikan pelamar (padanan ApplicantEducation RekanKerja).
+// Riwayat pendidikan pelamar (padanan ApplicantEducation).
 model ApplicantEducation {
   id             String   @id @default(cuid())
   applicantId    String
@@ -3629,7 +3629,7 @@ model ApplicantEducation {
   @@index([applicantId])
 }
 
-// Riwayat pengalaman kerja pelamar (padanan ApplicantExperience RekanKerja).
+// Riwayat pengalaman kerja pelamar (padanan ApplicantExperience).
 model ApplicantExperience {
   id          String   @id @default(cuid())
   applicantId String
@@ -3663,7 +3663,7 @@ model ApplicantSkill {
   @@index([skillId])
 }
 
-// Checklist dokumen pelamar (padanan ApplicantDocument RekanKerja — pattern
+// Checklist dokumen pelamar (padanan ApplicantDocument — pattern
 // EmployeeDocument: file via Attachment + MIME whitelist + magic number).
 model ApplicantDocument {
   id                 String   @id @default(cuid())
@@ -3683,7 +3683,7 @@ model ApplicantDocument {
 }
 
 // Multi-lamaran: satu pelamar bisa melamar banyak slot (padanan
-// ApplicantApplication RekanKerja — unik per pasangan [pelamar, slot]).
+// ApplicantApplication — unik per pasangan [pelamar, slot]).
 model ApplicantApplication {
   id                String   @id @default(cuid())
   applicantId       String
@@ -3705,7 +3705,7 @@ model ApplicantApplication {
   @@index([jobOpeningId])
 }
 
-// Staging form publik anonim (HRX I1/C1-lite — padanan ApplicantWeb RekanKerja;
+// Staging form publik anonim (HRX I1/C1-lite — padanan ApplicantWeb;
 // keputusan D1: form minimal → verifikasi manual HR "Upload" ke talent pool).
 // payloadJson = JSON isian form dengan field PII TERENKRIPSI per-field.
 model PublicApplication {
@@ -3753,7 +3753,7 @@ model ApplicantConsent {
 
 // ============================================================================
 // RECRUITMENT — F3: KANDIDAT & PROSES SELEKSI TERSTRUKTUR
-// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3 + §4.2/§4.3 — RekanKerja §2.6
+// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3 + §4.2/§4.3 — §2.6
 //  EvaluationProcess/EvaluationProcessPerCandidate + HRX D1/D2/D3/D6)
 //
 // Rantai: JobCandidate (per PR; Applicant eksternal ATAU Employee internal)
@@ -3813,7 +3813,7 @@ model JobCandidate {
 }
 
 // Satu tahap seleksi per kandidat (padanan EvaluationProcessPerCandidate
-// RekanKerja — plan/due + ack + performed + hasil Quantitative|Qualitative +
+// — plan/due + ack + performed + hasil Quantitative|Qualitative +
 // pass/fail + continueProcess). dueDate = batas SLA (plan + slaDays master,
 // boleh di-override manual).
 model CandidateSelectionStep {
@@ -4046,17 +4046,17 @@ model CandidateAppointment {
 
 // ============================================================================
 // RECRUITMENT — F5: ESS, RENCANA & ANGGARAN, DEMOGRAFI
-// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F5 + analisa RekanKerja §2.1/§2.2/§2.10)
+// (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F5 + analisa §2.1/§2.2/§2.10)
 //
 // RecruitmentPlan (ringkas): baris per [period, seqNo, posisi, kantor] dengan
-// formula a–h RekanKerja — (a) target awal, (b) penyesuaian, (c)=(a)+(b) total
+// formula a–h — (a) target awal, (b) penyesuaian, (c)=(a)+(b) total
 // target, (d) jumlah karyawan awal (bisa di-sync headcount Employee aktif),
 // (e) rekrut/masuk, (f) turnover/keluar, (g)=(d)+(e)−(f) hasil, (h)=(c)−(g)
 // kebutuhan rekrut — c/g/h dihitung SERVICE saat baca (bukan kolom).
 // Rekonsiliasi PR: requested/fulfilled/unfulfilled dari PersonnelRequisition
 // + CandidateAppointment yang match posisi (+kantor). salaryBudget = uang
 // TERENKRIPSI vault (enc:v1:n:…) — decrypt di serializer (moneyVisible).
-// Status Draft|Applied (tombol Apply RekanKerja — Applied = dasar justifikasi PR).
+// Status Draft|Applied (tombol Apply — Applied = dasar justifikasi PR).
 // ============================================================================
 
 model RecruitmentPlan {
@@ -4089,7 +4089,7 @@ model RecruitmentPlan {
   @@index([status])
 }
 
-// Anggaran rekrutmen per periode (RekanKerja §2.2): total + penyesuaian (vault);
+// Anggaran rekrutmen per periode (§2.2): total + penyesuaian (vault);
 // realisasi (used) TIDAK disimpan — dihitung agregat dari actualCost
 // JobOpeningMethod pada JO periode tsb (ringkas dua level: per JO + per PR
 // di dalam JO — lihat planning-service getBudget).
@@ -4104,7 +4104,7 @@ model RecruitmentBudget {
   updatedAt   DateTime @updatedAt
 }
 
-// Lamaran karyawan internal ke slot lowongan (RekanKerja MyEmpAppliedJob-
+// Lamaran karyawan internal ke slot lowongan (MyEmpAppliedJob-
 // Opportunity §2.10): jejak ESS apply → JobCandidate source Internal (jalur
 // F3 — steps otomatis); withdraw menandai tarik diri + kandidat Withdrawn.
 model EmpJobApplication {

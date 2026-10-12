@@ -1,8 +1,8 @@
 // ============================================================================
 // RECRUITMENT F5 — Rencana (RecruitmentPlan) & Anggaran (RecruitmentBudget)
-// service (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F5 + analisa RekanKerja §2.1/§2.2).
+// service (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F5 + analisa §2.1/§2.2).
 //
-// RecruitmentPlan ringkas — formula RekanKerja a–h (SEMUA dihitung saat baca,
+// RecruitmentPlan ringkas — Formula sistem referensi a–h (SEMUA dihitung saat baca,
 // bukan kolom tersimpan):
 //   (a) targetA  target headcount awal        (input)
 //   (b) adjustB  penyesuaian (+/−)             (input)
@@ -23,7 +23,7 @@
 //
 // RecruitmentBudget: per periode (vault uang: totalBudget + adjust); realisasi
 // (used) dihitung agregat dari actualCost JobOpeningMethod JO periode tsb —
-// ringkas DUA LEVEL RekanKerja: per Job Opportunity + per Advertised PR di JO.
+// ringkas DUA LEVEL: per Job Opportunity + per Advertised PR di JO.
 //
 // Uang vault: decrypt HANYA di serializer (moneyVisible) — W28.
 // ============================================================================
@@ -137,7 +137,7 @@ export interface BudgetPrLine {
   actual: number; // Σ actual method JO dialokasikan proporsional per slot? — TIDAK:
   // method melekat pada JO (bukan slot); per-PR = Σ method JO yang MEMUAT slot
   // PR tsb (JO dengan N slot "membebankan" biaya ke tiap PR-nya penuh —
-  // padanan dua level RekanKerja: cost item per advertised PR).
+  // padanan dua level: cost item per advertised PR).
 }
 
 export interface BudgetRow {
@@ -177,7 +177,7 @@ function iso(d: Date | null | undefined): string | null {
   return d ? d.toISOString() : null;
 }
 
-/** Headcount Employee aktif pada posisi (+kantor ops) — sinkron (d) RekanKerja. */
+/** Headcount Employee aktif pada posisi (+kantor ops) — sinkron (d). */
 export async function headcountOf(
   db: TenantDb,
   where: { positionId?: string | null; companyOfficeId?: string | null },
@@ -565,7 +565,7 @@ export async function updatePlan(db: TenantDb, id: string, input: Partial<PlanIn
   return planRow(fresh!, true, db, await reconOf(db, fresh!));
 }
 
-/** Terapkan rencana (Draft → Applied — padanan tombol Apply RekanKerja). */
+/** Terapkan rencana (Draft → Applied — padanan tombol Apply). */
 export async function applyPlan(db: TenantDb, id: string, actorName?: string | null): Promise<PlanRow> {
   const p = await db.recruitmentPlan.findUnique({ where: { id }, include: PLAN_INCLUDE });
   if (!p) throw new Error("Rencana rekrutmen tidak ditemukan");
@@ -637,7 +637,7 @@ const BUDGET_JO_INCLUDE = {
 } satisfies Prisma.JobOpportunityInclude;
 
 /**
- * Anggaran satu periode + realisasi dua level RekanKerja:
+ * Anggaran satu periode + realisasi dua level:
  * per Job Opportunity (header) + per Advertised PR (slot di dalam JO).
  * used = Σ actualCost method pada JO yang disiapkan di periode tsb
  * (match tahun datePrepared; bila period bukan tahun — semua JO dihitung).
@@ -684,7 +684,7 @@ export async function getBudget(db: TenantDb, period: string, moneyVisible: bool
     }
     used += joActual;
     // level kedua: tiap PR yang diiklankan JO ini "memegang" biaya JO penuh
-    // (RekanKerja Advertised PR cost — pelacakan dua level, bukan alokasi proporsional)
+    // (Advertised PR cost — pelacakan dua level, bukan alokasi proporsional)
     const prs: BudgetPrLine[] = jo.openings.map((o) => ({
       prId: o.pr.id,
       prNo: o.pr.prNo,

@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — W3-2 (fix G-10 BPA-medical): input migrasi saldo awal EKSPLISIT
-// (pad RekanKerja InitialMedicalBenefit.jsp). HR mengisi initialUsed = pemakaian
+// (pad InitialMedicalBenefit.jsp). HR mengisi initialUsed = pemakaian
 // medis karyawan SEBELUM sistem berjalan; sisa dihitung ulang otomatis
 // (kolom TERENKRIPSI — dekripsi → validasi → re-encrypt). initialUsed < 0
 // ditolak; hasil sisa negatif ditolak (mirror floor W2-5 adjustment).

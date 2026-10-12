@@ -24,14 +24,14 @@ export type EssView =
   | "whistleblow"
   // Task 100 F1 (G19) — marketplace open shift utk karyawan
   | "open-shift"
-  // F1-REC — modul Rekrutmen: PR saya + kotak approval PR (RekanKerja
+  // F1-REC — modul Rekrutmen: PR saya + kotak approval PR (
   // MyPersonnelRequisition / MyPersonnelRequisitionToApprove)
   | "my-pr"
   | "pr-approval"
-  // F3 — modul Rekrutmen: seleksi saya (RekanKerja MySelectionProcess §2.10)
+  // F3 — modul Rekrutmen: seleksi saya (MySelectionProcess §2.10)
   | "my-selection"
   // F5-REC — lowongan internal (MyJobOpportunity) + rencana rekrutmen
-  // (MysRecruitmentPlanning) RekanKerja §2.10
+  // (MysRecruitmentPlanning) §2.10
   | "my-jobs"
   | "my-plan";
 

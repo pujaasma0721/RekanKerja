@@ -10,7 +10,7 @@
 //        (Internal), Advertensi, Agency, Kampus, Referal, Portal Web.
 //      · AdMediaType: Koran, Portal, LinkedIn, Media Sosial, Lainnya.
 //      · RecruitmentCostItem: Iklan, Fee Agency, Psikotes, Medical Check-Up,
-//        Bonus Referal, General (non-budget) — padanan RekanKerja.
+//        Bonus Referal, General (non-budget).
 //      · Skill: B. Inggris lisan/tulis, Komputer, Others.
 //      · RequiredDocument: CV (wajib), KTP (wajib), Ijazah, Transkrip, NPWP,
 //        SKCK, Pas Foto, Surat Lamaran, Paklaring.
@@ -184,7 +184,7 @@ const AFTER_TABLE: string[] = [
 type SeedRow = { table: string; code: string; cols: string[]; vals: (string | number | boolean | null)[] };
 
 const MASTER_SEED: SeedRow[] = [
-  // RecruitmentMethod (padanan RekanKerja Recruitment Method Desc)
+  // RecruitmentMethod (padanan Recruitment Method Desc)
   { table: "RecruitmentMethod", code: "IJP", cols: ["name", "scope", "sortOrder"], vals: ["Internal Job Posting", "Internal", 1] },
   { table: "RecruitmentMethod", code: "MATCHING", cols: ["name", "scope", "sortOrder"], vals: ["Matching Recommendation", "Internal", 2] },
   { table: "RecruitmentMethod", code: "ADVERT", cols: ["name", "scope", "sortOrder"], vals: ["Advertensi", "External", 3] },
@@ -192,7 +192,7 @@ const MASTER_SEED: SeedRow[] = [
   { table: "RecruitmentMethod", code: "CAMPUS", cols: ["name", "scope", "sortOrder"], vals: ["Rekrutmen Kampus", "External", 5] },
   { table: "RecruitmentMethod", code: "REFERRAL", cols: ["name", "scope", "sortOrder"], vals: ["Referal Karyawan", "Both", 6] },
   { table: "RecruitmentMethod", code: "WEBPORTAL", cols: ["name", "scope", "sortOrder"], vals: ["Portal Web Perusahaan", "External", 7] },
-  // AdMediaType (padanan RekanKerja Ad Media Type: Newspaper, Portal News…)
+  // AdMediaType (padanan Ad Media Type: Newspaper, Portal News…)
   { table: "AdMediaType", code: "KORAN", cols: ["name", "sortOrder"], vals: ["Koran", 1] },
   { table: "AdMediaType", code: "PORTAL", cols: ["name", "sortOrder"], vals: ["Portal Lowongan", 2] },
   { table: "AdMediaType", code: "LINKEDIN", cols: ["name", "sortOrder"], vals: ["LinkedIn", 3] },
@@ -200,19 +200,19 @@ const MASTER_SEED: SeedRow[] = [
   { table: "AdMediaType", code: "LAINNYA", cols: ["name", "sortOrder"], vals: ["Lainnya", 5] },
   // EmploymentAgency — contoh demo (tenant bebas mengubah/hapus)
   { table: "EmploymentAgency", code: "AGENCY-DEMO", cols: ["name", "address", "contact", "note", "sortOrder"], vals: ["PT Solusi Talenta Nusantara", "Jl. Gatot Subroto Kav. 21, Jakarta", "021-5550-889", "Vendor rekrutmen contoh (dapat diubah)", 1] },
-  // RecruitmentCostItem (padanan RekanKerja Recruitment Cost Item)
+  // RecruitmentCostItem (padanan Recruitment Cost Item)
   { table: "RecruitmentCostItem", code: "IKLAN", cols: ["name", "description", "sortOrder"], vals: ["Biaya Iklan", "Advertensi lowongan (media/portal)", 1] },
   { table: "RecruitmentCostItem", code: "FEE_AGENCY", cols: ["name", "description", "sortOrder"], vals: ["Fee Agency", "Fee konsultansi/penempatan vendor", 2] },
   { table: "RecruitmentCostItem", code: "PSIKOTES", cols: ["name", "description", "sortOrder"], vals: ["Psikotes", "Tes psikologi kandidat (vendor/manual)", 3] },
   { table: "RecruitmentCostItem", code: "MEDICAL", cols: ["name", "description", "sortOrder"], vals: ["Medical Check-Up", "Pemeriksaan kesehatan pra-kerja", 4] },
   { table: "RecruitmentCostItem", code: "BONUS_REFERRAL", cols: ["name", "description", "sortOrder"], vals: ["Bonus Referal", "Insentif karyawan perujuk", 5] },
   { table: "RecruitmentCostItem", code: "GENERAL", cols: ["name", "description", "sortOrder"], vals: ["General (non-budget)", "Biaya umum di luar anggaran rekrutmen", 6] },
-  // Skill (padanan RekanKerja Skill: "Bahasa Inggris (menulis)", "Others")
+  // Skill (padanan Skill: "Bahasa Inggris (menulis)", "Others")
   { table: "Skill", code: "INGGRIS_LISAN", cols: ["name", "sortOrder"], vals: ["Bahasa Inggris (lisan)", 1] },
   { table: "Skill", code: "INGGRIS_TULIS", cols: ["name", "sortOrder"], vals: ["Bahasa Inggris (menulis)", 2] },
   { table: "Skill", code: "KOMPUTER", cols: ["name", "sortOrder"], vals: ["Operasional Komputer", 3] },
   { table: "Skill", code: "OTHERS", cols: ["name", "sortOrder"], vals: ["Others", 4] },
-  // RequiredDocument (padanan RekanKerja Requirement Document: CV & KTP mandatory)
+  // RequiredDocument (padanan Requirement Document: CV & KTP mandatory)
   { table: "RequiredDocument", code: "CV", cols: ["title", "fileType", "mandatory", "sortOrder"], vals: ["Curriculum Vitae (CV)", "pdf,doc,docx", true, 1] },
   { table: "RequiredDocument", code: "KTP", cols: ["title", "fileType", "mandatory", "sortOrder"], vals: ["Kartu Tanda Penduduk (KTP)", "jpg,jpeg,png,pdf", true, 2] },
   { table: "RequiredDocument", code: "IJAZAH", cols: ["title", "fileType", "mandatory", "sortOrder"], vals: ["Ijazah Terakhir", "jpg,pdf", false, 3] },
@@ -228,13 +228,13 @@ const MASTER_SEED: SeedRow[] = [
   { table: "EvaluationCategory", code: "KERJASAMA", cols: ["name", "description", "sortOrder"], vals: ["Kerja Sama Tim", "Kolaborasi dalam tim", 3] },
   { table: "EvaluationCategory", code: "ANALITIS", cols: ["name", "description", "sortOrder"], vals: ["Berpikir Analitis", "Penalaran & pemecahan masalah", 4] },
   { table: "EvaluationCategory", code: "KEPEMIMPINAN", cols: ["name", "description", "sortOrder"], vals: ["Kepemimpinan", "Inisiatif & memimpin (untuk posisi supervisory)", 5] },
-  // EvaluationScale (padanan RekanKerja Applicant Evaluation Scale: Low(1)…)
+  // EvaluationScale (padanan Applicant Evaluation Scale: Low(1)…)
   { table: "EvaluationScale", code: "SK1", cols: ["name", "ranking", "sortOrder"], vals: ["Rendah", 1, 1] },
   { table: "EvaluationScale", code: "SK2", cols: ["name", "ranking", "sortOrder"], vals: ["Di Bawah Rata-rata", 2, 2] },
   { table: "EvaluationScale", code: "SK3", cols: ["name", "ranking", "sortOrder"], vals: ["Cukup", 3, 3] },
   { table: "EvaluationScale", code: "SK4", cols: ["name", "ranking", "sortOrder"], vals: ["Baik", 4, 4] },
   { table: "EvaluationScale", code: "SK5", cols: ["name", "ranking", "sortOrder"], vals: ["Sangat Baik", 5, 5] },
-  // SlaGroup (padanan RekanKerja SLA Group: "Interview" 30 hari)
+  // SlaGroup (padanan SLA Group: "Interview" 30 hari)
   { table: "SlaGroup", code: "ADMIN", cols: ["name", "days", "sortOrder"], vals: ["Administrasi", 7, 1] },
   { table: "SlaGroup", code: "PSIKOTES", cols: ["name", "days", "sortOrder"], vals: ["Psikotes", 14, 2] },
   { table: "SlaGroup", code: "OFFERING", cols: ["name", "days", "sortOrder"], vals: ["Offering", 14, 3] },
@@ -242,7 +242,7 @@ const MASTER_SEED: SeedRow[] = [
   { table: "SlaGroup", code: "INTERVIEW", cols: ["name", "days", "sortOrder"], vals: ["Interview", 30, 5] },
 ];
 
-// SelectionProcess — rantai default F0 (padanan RekanKerja sample MII:
+// SelectionProcess — rantai default F0 (padanan sample MII:
 // Psikotes / Interview HR / Interview User / Offering Salary / Medical Check Up).
 const SELECTION_SEED: { code: string; name: string; description: string; resultType: string; processOrder: number; slaDays: number; needAck: boolean; minPass: number | null }[] = [
   { code: "INTERVIEW_HR", name: "Interview HR", description: "Wawancara awal oleh HR (penyaringan umum, kesesuaian ekspektasi)", resultType: "Qualitative", processOrder: 1, slaDays: 30, needAck: true, minPass: null },

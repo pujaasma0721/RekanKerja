@@ -1,4 +1,4 @@
-// GET /api/rekankerja/ess/pr — PR saya (padanan RekanKerja MyPersonnelRequisition).
+// GET /api/rekankerja/ess/pr — PR saya (padanan MyPersonnelRequisition).
 // POST — ajukan PR UNTUK DIRI SENDIRI (langsung submit ke jalur approval).
 // PATCH — tarik PR sendiri (Draft|Submitted).
 // Reuse pr-service (validasi identik jalur admin — kontrak T8-ESS-FRONTEND).

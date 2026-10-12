@@ -1,6 +1,6 @@
 "use client";
 // RekanKerja Recruitment F5 — view "Rencana & Anggaran": dua seksi padanan
-// RekanKerja RecruitmentPlanning §2.1 (formula a–h: c=(a)+(b), g=(d)+(e)−(f),
+// RecruitmentPlanning §2.1 (formula a–h: c=(a)+(b), g=(d)+(e)−(f),
 // h=(c)−(g) + rekonsiliasi PR requested/fulfilled/unfulfilled) dan
 // RecruitmentBudget §2.2 (anggaran per periode vs realisasi biaya kanal
 // lowongan — ringkasan DUA LEVEL per Job Opportunity + per Advertised PR).
@@ -318,8 +318,8 @@ function PlanSection() {
         </CardTitle>
         <CardDescription className="text-xs">
           {t(
-            "Padanan RecruitmentPlanning RekanKerja §2.1 — (a) target awal + (b) penyesuaian → (c) total kebutuhan; (d) karyawan awal + (e) masuk − (f) keluar → (g) hasil tersedia; (h) = (c)−(g) yang harus direkrut, direkonsiliasi dengan PR berjalan.",
-            "RekanKerja RecruitmentPlanning §2.1 equivalent — (a) initial target + (b) adjustment → (c) total need; (d) starting headcount + (e) in − (f) out → (g) available; (h) = (c)−(g) to recruit, reconciled with running PRs.",
+            "Padanan RecruitmentPlanning §2.1 — (a) target awal + (b) penyesuaian → (c) total kebutuhan; (d) karyawan awal + (e) masuk − (f) keluar → (g) hasil tersedia; (h) = (c)−(g) yang harus direkrut, direkonsiliasi dengan PR berjalan.",
+            "RecruitmentPlanning §2.1 equivalent — (a) initial target + (b) adjustment → (c) total need; (d) starting headcount + (e) in − (f) out → (g) available; (h) = (c)−(g) to recruit, reconciled with running PRs.",
           )}
         </CardDescription>
       </CardHeader>
@@ -923,8 +923,8 @@ function BudgetSection() {
         </CardTitle>
         <CardDescription className="text-xs">
           {t(
-            "Padanan RecruitmentBudget RekanKerja §2.2 — anggaran per periode (brankas uang) vs realisasi = Σ biaya aktual kanal lowongan pada periode tsb, diringkas dua level (per Job Opportunity + per Advertised PR).",
-            "RekanKerja RecruitmentBudget §2.2 equivalent — per-period budget (money vault) vs actuals = Σ actual channel costs of job openings in that period, summarized two levels (per Job Opportunity + per Advertised PR).",
+            "Padanan RecruitmentBudget §2.2 — anggaran per periode (brankas uang) vs realisasi = Σ biaya aktual kanal lowongan pada periode tsb, diringkas dua level (per Job Opportunity + per Advertised PR).",
+            "RecruitmentBudget §2.2 equivalent — per-period budget (money vault) vs actuals = Σ actual channel costs of job openings in that period, summarized two levels (per Job Opportunity + per Advertised PR).",
           )}
         </CardDescription>
       </CardHeader>
@@ -1130,8 +1130,8 @@ export function PlanBudgetPage() {
         eyebrow={t("Recruitment · F5")}
         title={t("Rencana & Anggaran Rekrutmen", "Recruitment Plan & Budget")}
         description={t(
-          "Rencana kebutuhan per periode dengan formula a–h RekanKerja (target → total → hasil tersedia → harus direkrut) + rekonsiliasi PR berjalan, serta anggaran rekrutmen vs realisasi biaya kanal lowongan.",
-          "Per-period headcount planning with the RekanKerja a–h formula (target → total → available → to recruit) + running PR reconciliation, and the recruitment budget vs actual channel costs.",
+          "Rencana kebutuhan per periode dengan formula a–h (target → total → hasil tersedia → harus direkrut) + rekonsiliasi PR berjalan, serta anggaran rekrutmen vs realisasi biaya kanal lowongan.",
+          "Per-period headcount planning with the a–h formula (target → total → available → to recruit) + running PR reconciliation, and the recruitment budget vs actual channel costs.",
         )}
       />
       <PlanSection />

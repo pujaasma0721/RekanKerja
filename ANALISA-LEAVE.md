@@ -1,6 +1,6 @@
-# ANALISA DEEP-DIVE: Modul Leave Administration RekanKerja → Rencana Implementasi Cuti RekanKerja
+# ANALISA DEEP-DIVE: Modul Leave Administration → Rencana Implementasi Cuti RekanKerja
 
-> Dokumen analisa murni. Basis: eksplorasi langsung demo.RekanKerja.com (login MII000001,
+> Dokumen analisa murni. Basis: eksplorasi langsung sistem demo referensi (login MII000001,
 > PT Mitra Industri Internasional / "MII", versi 11.08.00) — seluruh 14 halaman modul
 > Leave Administration dipetakan via navigasi tree (ExtJS) & data nyata dibaca dari
 > grid + form + handler JS, ditambah interface payroll (Employee Leave Cashable) dan
@@ -8,7 +8,7 @@
 
 ---
 
-## 1. PETA MODUL LEAVE ADMINISTRATION ORekanKerja (14 HALAMAN, 5 GRUP)
+## 1. PETA MODUL LEAVE ADMINISTRATION (14 HALAMAN, 5 GRUP)
 
 ```
 LEAVE ADMINISTRATION
@@ -195,7 +195,7 @@ Filter: From/To + employee + leave type + working date → siapa cuti pada renta
 
 ---
 
-## 3. ALUR KERJA END-TO-END ORekanKerja
+## 3. ALUR KERJA END-TO-END
 
 ```
 [TAHUNAN] Generate Leave Information (year → saldo per karyawan per jenis)
@@ -214,7 +214,7 @@ Filter: From/To + employee + leave type + working date → siapa cuti pada renta
 
 ---
 
-## 4. KETENTUAN REGULASI INDONESIA (konteks, tidak diubah RekanKerja)
+## 4. KETENTUAN REGULASI INDONESIA (konteks, tidak diubah)
 
 - UU 13/2003: cuti tahunan 12 hari kerja setelah 12 bulan kerja berlanjut (pasal 79),
   izin berbayar: menikah 3 hr, khitan/baptis anak 2, istri melahirkan/keguguran 2,
@@ -244,7 +244,7 @@ Filter: From/To + employee + leave type + working date → siapa cuti pada renta
   **dari jadwal modul Attendance** (resolveDayType — OS/PH tidak dihitung; ½ hari bila
   From/To beda sesi), saldo saat itu, remaining, HP-kembali-kerja, alasan, catatan,
   status (Submitted → Approved/Rejected/Cancelled; MassLeave untuk massal).
-- Approval list + Operation setara RekanKerja: Approve / Reject / Cancel + catatan keputusan.
+- Approval list + Operation setara: Approve / Reject / Cancel + catatan keputusan.
 - Validasi: waiting period 6 bulan, max/request, saldo (advance bila diizinkan jenis),
   bentrok tanggal dengan request existing.
 
@@ -277,7 +277,7 @@ Filter: From/To + employee + leave type + working date → siapa cuti pada renta
 
 ## 6. PEMETAAN VIEW UI REKANKERJA (8 VIEW, BAHASA INDONESIA)
 
-| View RekanKerja | View RekanKerja | Isi |
+| View | View RekanKerja | Isi |
 |---|---|---|
 | Employee Leave Information | **Saldo Cuti** | grid a–g + saldo + dialog generate & adjust |
 | Leave Type (+Query) | **Jenis Cuti** | master CRUD + seed Indonesia |

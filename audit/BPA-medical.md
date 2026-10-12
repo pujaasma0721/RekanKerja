@@ -6,7 +6,7 @@
 
 ## 1. Ringkasan
 
-Modul Medical mengimplementasikan alur inti RekanKerja 12 halaman → 8 view secara cukup lengkap: master jenis benefit (limit UNLIMITED/NOMINAL/FACTOR×gaji/frekuensi/unused CASH-CARRY-FORFEITED/dependent), generate saldo per tahun (idempoten + Benefit Limit Correction + carry-over), klaim multi-baris perawatan dengan snapshot saldo, approval state machine RekanKerja (Submit/Return/Approve/Reject/Cancel/Settle + StatusLog), settle = jurnal otomatis **Debit 5106 Beban Kesejahteraan Medis / Credit 1101 Kas** + saldo used bertambah, adjustment ± dengan approval, transfer sisa saldo CASH → komponen payroll **UMC** (konsumsi saldo = anti double-pay antar period), KPI/laporan.
+Modul Medical mengimplementasikan alur inti 12 halaman → 8 view secara cukup lengkap: master jenis benefit (limit UNLIMITED/NOMINAL/FACTOR×gaji/frekuensi/unused CASH-CARRY-FORFEITED/dependent), generate saldo per tahun (idempoten + Benefit Limit Correction + carry-over), klaim multi-baris perawatan dengan snapshot saldo, approval state machine (Submit/Return/Approve/Reject/Cancel/Settle + StatusLog), settle = jurnal otomatis **Debit 5106 Beban Kesejahteraan Medis / Credit 1101 Kas** + saldo used bertambah, adjustment ± dengan approval, transfer sisa saldo CASH → komponen payroll **UMC** (konsumsi saldo = anti double-pay antar period), KPI/laporan.
 
 **Namun audit proses bisnis menemukan 4 KRITIS, 7 MAJOR, 9 MINOR, 10 GAP.** Pokok masalah: (1) **formula plafon salah** untuk jenis CASH/CARRY saat generate tahun baru — dengan data live MII hari ini, generate 2027 akan memberi seluruh 42 karyawan sisa rawat jalan **Rp 0**; (2) **settle membayar penuh tanpa re-check saldo** → klaim over-limit dan klaim atas saldo yang sudah dicairkan via UMC tetap dibayar jurnal (double pay); (3) **klaim dependent pada jenis SHARED tidak mengurangi plafon bersama** (bukti live: saldo dependent −1.750.000); (4) **transfer UMC bisa dilakukan kapan saja** (live: saldo 2026 dicairkan 2 Sep 2026 → karyawan kehilangan benefit rawat jalan Sep–Des 2026).
 
@@ -94,18 +94,18 @@ remaining(dep)  = depBenefitAmount + depAdjustment − depUsed        (carry/ini
 sisa_carry(th-1) = ben + adj + carry − used − initialUsed
 ```
 
-| Kebijakan | As-implemented | Seharusnya (RekanKerja/analisa) | Verdict |
+| Kebijakan | As-implemented | Seharusnya (analisa) | Verdict |
 |---|---|---|---|
 | UNLIMITED | `benefitLimitFor` = MAX_SAFE_INTEGER/1000 = 9.007.199.254.740,99 **disimpan sebagai benefitAmount & snapshot maxBenefitAt** (L208; bukti MC-2026-010) | representasi ∞ (0/null + flag) | ⚠ MINOR-1 |
 | NOMINAL | limitValue | limitValue | ✓ |
-| FACTOR × gaji | `round2(limitValue × baseSalary)`, gaji aktif saat generate (L209); kenaikan gaji hanya via Benefit Limit Correction | idem RekanKerja (generate + koreksi) | ✓ |
-| WAGE_COMPONENT | fallback `baseSalary`, **wageCode diabaikan** (L210) | limit = komponen upah (RekanKerja MEDICAL_KL) | ⚠ MINOR-6 |
+| FACTOR × gaji | `round2(limitValue × baseSalary)`, gaji aktif saat generate (L209); kenaikan gaji hanya via Benefit Limit Correction | idem (generate + koreksi) | ✓ |
+| WAGE_COMPONENT | fallback `baseSalary`, **wageCode diabaikan** (L210) | limit = komponen upah (MEDICAL_KL) | ⚠ MINOR-6 |
 | FORFEITED tahun baru | ben baru, initialUsed 0, carry 0 | reset penuh | ✓ |
 | **CASH tahun baru** | `initialUsed = prev.usedAmount` (L271) → remaining = limit_baru − used_th_lalu | limit baru penuh (sisa th lalu sudah dicairkan via UMC — used th lalu tidak relevan) | ✗ **KRITIS-4** |
 | **CARRY tahun baru** | carried = min(sisa_th_lalu, maxCarryOver) **DAN** initialUsed = prev.usedAmount → sisa_th_lalu dikurangkan dua kali | remaining = limit_baru + carried (initialUsed hanya untuk migrasi awal) | ✗ **KRITIS-4** |
 | Dependent SHARED | depBenefitAmount = 0; klaim dependent masuk depUsed → **plafon bersama tidak pernah berkurang** (L272–273 + L774–776) | klaim dependent memotong limit karyawan (Included in Employee's) | ✗ **KRITIS-3** |
 | Dependent EACH vs TOTAL_SEPARATE | keduanya → depBenefit = limit (satu bucket agregat, L272–273); tidak per-dependen | EACH = limit per dependent; TOTAL = satu pool | ⚠ GAP |
-| Transfer UMC | `used += remaining` (employee pool saja); pool dependent tidak dicairkan | RekanKerja: cash-out saldo tak terpakai (emp+dep) di akhir period | ✗ MAJOR-1/GAP |
+| Transfer UMC | `used += remaining` (employee pool saja); pool dependent tidak dicairkan |: cash-out saldo tak terpakai (emp+dep) di akhir period | ✗ MAJOR-1/GAP |
 | Settle | `used/depUsed += totalApproved` tanpa batas → **saldo boleh negatif**, bagian over-limit 100% beban perusahaan | potong gaji karyawan utk kelebihan plafon atau cap approved | ✗ KRITIS-1 |
 
 **Bukti live KRITIS-4 (CASH)**: semua 42 saldo RAWAT_JALAN (CASH) 2026 kini `usedAmount = 25.000.000` (konsumsi transfer UMC 2 Sep 2026). `generateBalances(2027)` → `initialUsed = 25.000.000` → `remaining = 25.000.000 − 25.000.000 = 0` → **seluruh karyawan tidak punya plafon rawat jalan 2027 sebelum klaim apa pun**. Contoh numerik CARRY: th-1 limit 10jt terpakai 4jt → carried 6jt + initialUsed 4jt → sisa baru = 10+6−4 = **12jt** (seharusnya 16jt).
@@ -135,14 +135,14 @@ Saran fix: untuk SHARED, settle klaim dependent menambah `usedAmount` (bukan `de
 
 **K-4 · Formula initialUsed salah untuk CASH/CARRY — plafon tahun baru hangus / double-count**
 `medical-service.ts:271` — `initialUsed = prev && unusedRule==="FORFEITED" ? 0 : prev ? prev.usedAmount : 0`.
-Dampak: (a) CASH: tahun baru dikurangi pemakaian tahun lalu padahal sisa sudah dicairkan tunai → dengan data live, **generate 2027 memberi seluruh 42 karyawan sisa RAWAT_JALAN Rp 0** (provable: used 2026 = 25jt); (b) CARRY: sisa tahun lalu dihitung dalam `carriedOver` LALU dikurangi lagi via initialUsed → double-count (contoh §4). Konsep RekanKerja "Initial Medical Benefit" adalah **migrasi manual saldo awal**, bukan auto-carry.
+Dampak: (a) CASH: tahun baru dikurangi pemakaian tahun lalu padahal sisa sudah dicairkan tunai → dengan data live, **generate 2027 memberi seluruh 42 karyawan sisa RAWAT_JALAN Rp 0** (provable: used 2026 = 25jt); (b) CARRY: sisa tahun lalu dihitung dalam `carriedOver` LALU dikurangi lagi via initialUsed → double-count (contoh §4). Konsep "Initial Medical Benefit" adalah **migrasi manual saldo awal**, bukan auto-carry.
 Saran fix: hapus auto-carry initialUsed (set 0 untuk semua unusedRule); sediakan input migrasi eksplisit (padanan halaman InitialMedicalBenefit.jsp) bila diperlukan.
 
 ### MAJOR
 
 **M-1 · Transfer UMC tanpa guard akhir tahun — bisa kapan saja & mematikan benefit sisa tahun**
 `medical-service.ts:913–947` (guard hanya period Locked/Closed; UI label "Akhir Tahun" tanpa validasi).
-Dampak: live — transfer saldo 2026 dieksekusi 2 Sep 2026 → seluruh karyawan kehilangan plafon rawat jalan Sep–Des 2026; klaim baru RAWAT_JALAN ditolak (remaining 0 → guard 2× nol). RekanKerja: "Paid to employee in cash **at end of period**".
+Dampak: live — transfer saldo 2026 dieksekusi 2 Sep 2026 → seluruh karyawan kehilangan plafon rawat jalan Sep–Des 2026; klaim baru RAWAT_JALAN ditolak (remaining 0 → guard 2× nol).: "Paid to employee in cash **at end of period**".
 Saran fix: validasi period target ≥ akhir tahun saldo (endDate period ≥ 31-12-tahun) atau konfirmasi ganda + blokir bila ada klaim pending.
 
 **M-2 · Guard tanggal hilang total (masa depan / lintas tahun / sebelum joinDate)**
@@ -152,7 +152,7 @@ Saran fix: validasi `claimDate ≤ hari ini`, `treatmentDate ≤ hari ini`, `get
 
 **M-3 · Provider (RS/asuransi) tidak terhubung ke klaim — tidak ada guard provider aktif**
 `MedicalClaimLine.hospital` free text (schema:1480; service:523); `previewClaim` L453–455 hanya menampilkan daftar provider aktif sebagai info.
-Dampak: klaim bisa diajukan atas RS yang sudah dinonaktifkan (active=false) atau nama RS fiktif; master MedicalProvider praktis dekoratif untuk klaim (padanan RekanKerja: hospital_name di baris + master Hospital/Insurance).
+Dampak: klaim bisa diajukan atas RS yang sudah dinonaktifkan (active=false) atau nama RS fiktif; master MedicalProvider praktis dekoratif untuk klaim (padanan: hospital_name di baris + master Hospital/Insurance).
 Saran fix: relasi `providerId` di MedicalClaimLine + validasi provider aktif saat submit (atau minimal autocomplete dari daftar aktif).
 
 **M-4 · Tidak ada pencegahan klaim ganda (dedupe kwitansi)**
@@ -162,7 +162,7 @@ Saran fix: cek unik (employeeId + receiptNo) lintas klaim non-Cancelled/Rejected
 
 **M-5 · Frekuensi hanya per tahun kalender — MEDICAL/WORK & multi-tahun tidak diimplementasi**
 `medical-service.ts:447–452` (count per `year`), `:488–492` (guard), master `freqPeriod` MEDICAL|WORK|YEAR hanya jadi teks.
-Dampak: "Max Claim sekali dalam setiap X tahun" RekanKerja tak bisa dijalankan — **KACAMATA deskripsinya "1× setiap 2 tahun" tapi dikonfigurasi freq 1/YEAR → dijalankan 1×/tahun** (klaim 2026 + 2027 keduanya lolos, seharusnya 2027 ditolak).
+Dampak: "Max Claim sekali dalam setiap X tahun" sistem referensi tak bisa dijalankan — **KACAMATA deskripsinya "1× setiap 2 tahun" tapi dikonfigurasi freq 1/YEAR → dijalankan 1×/tahun** (klaim 2026 + 2027 keduanya lolos, seharusnya 2027 ditolak).
 Saran fix: rentang frekuensi mengikuti freqPeriod + freqValue tahun (hitung klaim dari tanggal klaim mundur X tahun); implementasi MEDICAL/WORK period.
 
 **M-6 · markMedicalPaidForRun no-op — periodCode klaim medis tidak pernah diisi**
@@ -182,25 +182,25 @@ Saran fix: split baris jurnal (beban perusahaan × pctCompany; piutang-asuransi/
 **m-3 · KPI overview sisa plafon hanya pool karyawan** — `medicalStats` L1039–1043; pool dependent 420jt tak terlihat, label tidak menjelaskan. Fix: tambah baris KPI dependent atau label eksplisit.
 **m-4 · Preview vs submit beda basis tahun** — UI preview default tahun berjalan (`medical-claims.tsx:79–92`, api `claims.ts:20–21`) sedangkan `submitClaim` L484 memakai tahun `claimDate` → angka snapshot yang dipratinjau bisa berbeda dengan yang divalidasi bila claimDate diganti tahun lain. Fix: kirim `year` dari form.
 **m-5 · Settle saat saldo tahun belum digenerate tetap bayar jurnal tanpa catatan used** — `decideClaim` L770–778 `if (bal)` diam-diam skip; `previewClaim` L445 fallback hitung limit untuk tahun tanpa saldo (verified live: preview 2027 = 25jt padahal belum generate). Fix: wajib saldo ada untuk submit klaim tahun itu.
-**m-6 · WAGE_COMPONENT fallback gaji pokok, wageCode diabaikan** — `benefitLimitFor` L210 (RekanKerja: komponen MEDICAL_KL).
+**m-6 · WAGE_COMPONENT fallback gaji pokok, wageCode diabaikan** — `benefitLimitFor` L210 (: komponen MEDICAL_KL).
 **m-7 · Tanpa `$transaction`** — settle = 3 tulisan terpisah (jurnal L689–701, saldo L772–777, klaim L781–793); `nextDocNo` L21–33 rawan race (unique docNo menyelamatkan sebagian). Crash mid-flight → jurnal tanpa used dsb. Fix: bungkus dalam transaksi.
 **m-8 · Adjustment negatif tanpa floor** — `decideAdjustment` L858–868 bisa membuat remaining negatif tanpa peringatan; tidak ada batas/cap. Fix: validasi hasil remaining ≥ 0 atau wajib alasan kuat.
 **m-9 · Dead code penghapusan jurnal saat cancel** — `medical-service.ts:754–758` (throw L754 membuat blok L756 tak terjangkau). Hapus.
 
 ### GAP (proses standar medical benefit yang belum ada)
 
-| # | Gap | Referensi RekanKerja/analisa | Catatan |
+| # | Gap | Referensi analisa | Catatan |
 |---|---|---|---|
 | G-1 | **Dependents tidak terintegrasi EmployeeFamily** — treatedName free text; `maxDependents`/`maxChildAge`/`depLimitRule` tidak divalidasi saat klaim/adjustment; EACH ≡ TOTAL_SEPARATE (satu bucket) | analisa §2 (dependent 2, max 21 th, SHARED/TOTAL/EACH); modul HR punya data family | disarankan relasi familyId |
-| G-2 | **Pre-authorization / surat rujukan RS** — letterNo opsional, tidak divalidasi | RekanKerja letter_no + praktik rujukan rawat inap | — |
-| G-3 | **Copay/asuransi** — tidak ada proses klaim ke asuransi (lihat M-7) | RekanKerja Reimbursement Employee: Paid By Insurance % | — |
+| G-2 | **Pre-authorization / surat rujukan RS** — letterNo opsional, tidak divalidasi | letter_no + praktik rujukan rawat inap | — |
+| G-3 | **Copay/asuransi** — tidak ada proses klaim ke asuransi (lihat M-7) | Reimbursement Employee: Paid By Insurance % | — |
 | G-4 | **Prorata karyawan baru** — karyawan masuk pertengahan tahun dapat plafon penuh | analisa §4 roadmap "prorata opsional" | — |
 | G-5 | **Potong gaji bagian over-limit** — tidak ada (lihat K-1) | praktik reimbursement Indonesia | — |
-| G-6 | **Lampiran bukti (file kwitansi)** — hanya nomor kwitansi teks | RekanKerja file_name; backlog analisa | — |
-| G-7 | **ESS MyMedical wizard** — klaim hanya via HR | RekanKerja MyMedicalExpenseClaim | — |
+| G-6 | **Lampiran bukti (file kwitansi)** — hanya nomor kwitansi teks | file_name; backlog analisa | — |
+| G-7 | **ESS MyMedical wizard** — klaim hanya via HR | MyMedicalExpenseClaim | — |
 | G-8 | **Segmentasi penerima benefit** (employment type/status/grade/umur/masa kerja ×10) | analisa §2 Base on Employee Characteristics | — |
-| G-9 | **Laporan SummaryType drill-down + Adjustment per Employee** — reports hanya byType + rentang klaim | RekanKerja 3 laporan (§1 #6–8) | — |
-| G-10 | **Initial Medical Benefit migrasi eksplisit** — diganti auto-carry buggy (lihat K-4) | RekanKerja InitialMedicalBenefit.jsp | — |
+| G-9 | **Laporan SummaryType drill-down + Adjustment per Employee** — reports hanya byType + rentang klaim | 3 laporan (§1 #6–8) | — |
+| G-10 | **Initial Medical Benefit migrasi eksplisit** — diganti auto-carry buggy (lihat K-4) | InitialMedicalBenefit.jsp | — |
 
 ---
 

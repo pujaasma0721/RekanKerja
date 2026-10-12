@@ -1,6 +1,6 @@
 "use client";
 // RekanKerja Medical — Piutang Asuransi (W4-1, fix G-3 BPA-medical)
-// Padanan RekanKerja "Reimbursement Employee: Paid By Insurance %": jurnal settle
+// Padanan "Reimbursement Employee: Paid By Insurance %": jurnal settle
 // memecah bagian asuransi ke piutang 13xx (wave 1); halaman ini mengelola
 // siklusnya — kirim ke asuransi → terima pembayaran (jurnal kas/piutang) →
 // atau hapus buku (write-off, jurnal beban/piutang).

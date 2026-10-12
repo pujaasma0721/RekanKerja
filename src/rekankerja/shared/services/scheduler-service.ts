@@ -424,7 +424,7 @@ async function jobScheduledResignations(db: TenantDb): Promise<number> {
   return done;
 }
 
-// F2-REC — pelamar talent pool melewati masa keep-on-file (RekanKerja auto
+// F2-REC — pelamar talent pool melewati masa keep-on-file (auto
 // Outdated): status Active → Outdated saat keepOnFileUntil < hari ini.
 // Idempoten by filter status Active; jejak ActivityLog per pelamar (system).
 async function jobApplicantOutdated(db: TenantDb): Promise<number> {

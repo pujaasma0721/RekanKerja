@@ -1,5 +1,5 @@
 // ============================================================================
-// RECRUITMENT F5 — ESS: Rencana Rekrutmen milik sendiri (RekanKerja §2.10
+// RECRUITMENT F5 — ESS: Rencana Rekrutmen milik sendiri (§2.10
 // MysRecruitmentPlanning). Baris plan berstatus Applied — TANPA anggaran
 // gaji (salaryBudget disembunyikan di ESS; hanya formula a–h + rekonsiliasi
 // PR ringkas). Guard: requireEss.

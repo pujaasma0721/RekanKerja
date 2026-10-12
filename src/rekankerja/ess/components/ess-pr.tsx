@@ -1,5 +1,5 @@
 "use client";
-// RekanKerja ESS F1-REC — PR Saya (padanan RekanKerja MyPersonnelRequisition):
+// RekanKerja ESS F1-REC — PR Saya (padanan MyPersonnelRequisition):
 // ajukan permintaan karyawan untuk unit/posisi yang dibutuhkan + riwayat PR
 // sendiri + tarik pengajuan yang masih menunggu.
 import { useState } from "react";

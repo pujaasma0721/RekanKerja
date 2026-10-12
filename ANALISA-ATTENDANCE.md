@@ -1,14 +1,14 @@
-# ANALISA DEEP-DIVE: Modul Time Attendance RekanKerja → Rencana Implementasi Attendance RekanKerja
+# ANALISA DEEP-DIVE: Modul Time Attendance → Rencana Implementasi Attendance RekanKerja
 
-> Dokumen analisa murni. Basis: eksplorasi langsung demo.RekanKerja.com (login MII000001,
+> Dokumen analisa murni. Basis: eksplorasi langsung sistem demo referensi (login MII000001,
 > PT Mitra Industri Internasional / "MII", versi 11.08.00) — seluruh 28 halaman modul
 > Time Attendance dipetakan via navigasi tree & data nyata dibaca via endpoint OrangeWS
-> (JSONP), ditambah halaman fitur RekanKerja.com. Tanggal: sesi analisa attendance.
+> (JSONP), ditambah halaman fitur.com. Tanggal: sesi analisa attendance.
 > Penulis: agent RekanKerja.
 
 ---
 
-## 1. PETA MODUL TIME ATTENDANCE ORekanKerja (28 HALAMAN, 7 GRUP)
+## 1. PETA MODUL TIME ATTENDANCE (28 HALAMAN, 7 GRUP)
 
 ```
 TIME ATTENDANCE
@@ -85,7 +85,7 @@ before/after, time_out_tolerance before/after** (4 toleransi!), **late_in_wage**
 wage, **allow_flexible_in/out (+ with tolerance)**, calculation_for, **overtime_rounding
 (type, value jam, minimum threshold, after rounding)**, **need_overtime_work_order**.
 
-→ **Insight kunci:** RekanKerja TIDAK menyimpan status kehadiran sebagai enum — melainkan
+→ **Insight kunci:** sistem referensi TIDAK menyimpan status kehadiran sebagai enum — melainkan
 **JAM per kategori** (hour buckets) yang masing-masing dipetakan ke komponen upah.
 Potongan/insentif = jam × komponen upah, sehingga bebas formula perusahaan.
 
@@ -172,18 +172,18 @@ duplicate/override).
   pembulatan menit (mis. 0-5' → 0, 6-15' → 15) untuk clocking.
 - **Absence Wage Rules**: **Wage Code | Wage Name | Need Supporting Documents | Deduct Leave**.
 - **Mark Location** + **Employee Check Location Exception**: geofence absensi mobile ESS
-  (GPS) — RekanKerja.com/news artikel ESS: clock in/out mobile, GPS-based attendance, foto, OTP.
+  (GPS) — artikel ESS: clock in/out mobile, GPS-based attendance, foto, OTP.
 
 ### 2.9 PayrollPeriod ↔ jendela TA
 
-Modul payroll RekanKerja sudah punya `ta_start_date/ta_end_date` di PayrollPeriod (jendela
+Modul payroll sistem referensi sudah punya `ta_start_date/ta_end_date` di PayrollPeriod (jendela
 kehadiran ≠ jendela payroll — mis. gaji Oktober dihitung dari absensi 25 Sep-24 Okt).
 Transfer mengambil window tersendiri (default 01-30 bulan period) — jadi window TA
 ditentukan operator saat transfer, period hanya target penulisan.
 
 ---
 
-## 3. ALUR KERJA END-TO-END ORekanKerja (distilasi)
+## 3. ALUR KERJA END-TO-END (distilasi)
 
 ```
 1. SETUP (sekali)
@@ -209,7 +209,7 @@ ditentukan operator saat transfer, period hanya target penulisan.
 
 ## 4. GAP & KEPUTUSAN DESAIN REKANKERJA
 
-| Aspek RekanKerja | Keputusan RekanKerja | Alasan |
+| Aspek | Keputusan RekanKerja | Alasan |
 |---|---|---|
 | 28 halaman terpisah, ExtJS | 8 view dalam 1 modul attendance (nav sudah tersedia) | UX modern, nav RekanKerja sudah ada: Ringkasan, Template Jadwal, Assign Jadwal, Matriks Jadwal, Data Clocking, Absensi & Izin, Lembur, Work Off |
 | Day Type 40+ atribut | `WorkDayType` dipangkas: in/out/nextDay, break menit + paid, normal menit, toleransi late/early, flexible, needOvertimeOrder, pembulatan OT | Menyimpan esensi (hour bucket + toleransi); wage mapping dipindah ke `AttendanceRule` global (lebih sederhana daripada per-day-type, tetap bisa dikembang) |
@@ -227,8 +227,7 @@ ditentukan operator saat transfer, period hanya target penulisan.
 
 **Perhitungan upah lembur (regulasi Indonesia, PP 35/2021 + KEP-102):**
 upah sejam = 1/173 × upah bulanan; hari kerja 1,5× (jam ke-1) lalu 2×; hari istirahat
-mingguan 2× (8 jam pertama) lalu 3×; hari libur nasional 2×/3×/4× bertingkat. RekanKerja
-menyimpan konfigurasi multiplier implisit di komponen; RekanKerja menghitung di service
+mingguan 2× (8 jam pertama) lalu 3×; hari libur nasional 2×/3×/4× bertingkat. Sistem referensi menyimpan konfigurasi multiplier implisit di komponen; RekanKerja menghitung di service
 `overtimePayFor()` berdasarkan kategori hari (weekday/weekend/holiday dari day type + hari
 libur), tetap divisualisasikan transparan di UI.
 
@@ -265,8 +264,8 @@ Work Off (izin + approval).
 Seed MII: 8 day type, 3 jadwal (OFFICE/SHIFT3/SHIFT2), penugasan 44 karyawan (produksi
 shift, kantor office), log + rekap harian 2 bulan (deterministik: hadir/telat/absen/izin),
 lembur approved+pending, izin, `AttendanceRule` default. `buildRunRows`: run SALARY juga
-memproses Specific assignments (period × process type) — selaras Transfer ke "Salary"
-RekanKerja. `confirmRun` → tandai lembur dalam window sebagai Paid (paidRunNo) — pola
+memproses Specific assignments (period × process type) — selaras Transfer ke "Salary".
+`confirmRun` → tandai lembur dalam window sebagai Paid (paidRunNo) — pola
 `markClaimsPaidForRun`.
 
 ### Backlog (tidak dikerjakan sekarang)

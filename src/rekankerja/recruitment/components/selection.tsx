@@ -3,7 +3,7 @@
 // (kolom tahap seleksi + kolom terminal Lulus / Gagal-Ditarik), drag & drop
 // naik satu tahap (Catat Hasil), bulk advance, navigasi keyboard J/K/Enter,
 // kalender seleksi bulanan + transfer kandidat + manager rubrik scorecard.
-// Padanan RekanKerja EvaluationProcess/PerCandidate + HRX D1/D2/D3 (lihat
+// Padanan EvaluationProcess/PerCandidate + HRX D1/D2/D3 (lihat
 // DEVELOPMENT-PLAN-RECRUITMENT.md §7 F3). Dialog di selection-dialogs.tsx.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";

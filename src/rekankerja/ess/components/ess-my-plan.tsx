@@ -1,5 +1,5 @@
 "use client";
-// RekanKerja ESS F5 — Rencana Rekrutmen Perusahaan (padanan RekanKerja §2.10
+// RekanKerja ESS F5 — Rencana Rekrutmen Perusahaan (padanan §2.10
 // MysRecruitmentPlanning): baris plan berstatus Applied yang dipublikasikan
 // HR — formula a–h ringkas + rekonsiliasi PR, TANPA anggaran gaji
 // (salaryBudget disembunyikan di ESS by design).
@@ -67,8 +67,8 @@ export function EssMyPlanPage() {
         eyebrow={t("ESS · Rekrutmen")}
         title={t("Rencana Rekrutmen Perusahaan", "Company Recruitment Plan")}
         description={t(
-          "Rencana kebutuhan karyawan per periode yang dipublikasikan HR — padanan My Recruitment Planning RekanKerja (formula a–h, tanpa anggaran gaji).",
-          "Per-period headcount plans published by HR — the RekanKerja My Recruitment Planning equivalent (a–h formula, without salary budget).",
+          "Rencana kebutuhan karyawan per periode yang dipublikasikan HR — padanan My Recruitment Planning (formula a–h, tanpa anggaran gaji).",
+          "Per-period headcount plans published by HR — the My Recruitment Planning equivalent (a–h formula, without salary budget).",
         )}
       />
 

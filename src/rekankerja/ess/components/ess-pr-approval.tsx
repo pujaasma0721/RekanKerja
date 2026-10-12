@@ -1,5 +1,5 @@
 "use client";
-// RekanKerja ESS F1-REC — Approval PR (padanan RekanKerja
+// RekanKerja ESS F1-REC — Approval PR (padanan
 // MyPersonnelRequisitionToApprove): kotak keputusan PR yang menunggu aktor.
 import { useState } from "react";
 import { toast } from "sonner";

@@ -2,7 +2,7 @@
 // RekanKerja Recruitment F2 — view "Talent Pool / Pelamar" (Applicant):
 // list + query builder advance search server-side + detail multi-tab
 // (profil/pendidikan/dokumen/lamaran/consent) + form panjang 2 kolom dgn
-// 3 sub-form array dinamis (padanan Applicant RekanKerja §2.5; UU PDP consent).
+// 3 sub-form array dinamis (padanan Applicant §2.5; UU PDP consent).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi, apiSend, apiUpload, fmtIDR } from "@/rekankerja/shared/lib/api";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
@@ -558,8 +558,8 @@ export function ApplicantsPage() {
         eyebrow={t("Recruitment · Talent Pool")}
         title={t("Talent Pool (Pelamar)", "Talent Pool (Applicants)")}
         description={t(
-          "Basis data pelamar — profil terenkripsi (UU PDP), pendidikan/pengalaman/skill, dokumen & riwayat lamaran multi-lowongan. Query builder pencarian di Advance Search. Padanan Applicant RekanKerja.",
-          "Applicant database — encrypted profiles (Indonesian PDP law), education/experience/skills, documents & multi-opening application history. Search query builder in Advance Search. RekanKerja Applicant equivalent.",
+          "Basis data pelamar — profil terenkripsi (UU PDP), pendidikan/pengalaman/skill, dokumen & riwayat lamaran multi-lowongan. Query builder pencarian di Advance Search. Padanan Applicant.",
+          "Applicant database — encrypted profiles (Indonesian PDP law), education/experience/skills, documents & multi-opening application history. Search query builder in Advance Search. Applicant equivalent.",
         )}
         actions={canCreate && (
           <Button onClick={openNew} className="ov-fill ov-glow gap-2" disabled={busy}>

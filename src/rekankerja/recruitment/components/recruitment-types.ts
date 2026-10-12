@@ -38,8 +38,8 @@ export const MASTER_DEFS: MasterTypeDef[] = [
   {
     type: "method",
     label: "Metode Rekrutmen", labelEn: "Recruitment Method",
-    desc: "Kanal pencarian kandidat (internal/eksternal) — padanan Recruitment Method RekanKerja",
-    descEn: "Candidate sourcing channel (internal/external) — RekanKerja Recruitment Method",
+    desc: "Kanal pencarian kandidat (internal/eksternal) — padanan Recruitment Method",
+    descEn: "Candidate sourcing channel (internal/external) — Recruitment Method",
     fields: ["scope", "description"],
   },
   {
@@ -52,8 +52,8 @@ export const MASTER_DEFS: MasterTypeDef[] = [
   {
     type: "agency",
     label: "Agency Tenaga Kerja", labelEn: "Employment Agency",
-    desc: "Vendor penempatan/outsourcing — padanan EmpAgency RekanKerja",
-    descEn: "Placement/outsourcing vendor — RekanKerja EmpAgency",
+    desc: "Vendor penempatan/outsourcing — padanan EmpAgency",
+    descEn: "Placement/outsourcing vendor — EmpAgency",
     fields: ["address", "contact", "note"],
   },
   {
@@ -66,8 +66,8 @@ export const MASTER_DEFS: MasterTypeDef[] = [
   {
     type: "skill",
     label: "Skill / Kemampuan", labelEn: "Skills",
-    desc: "Kemampuan kandidat (padanan Skill RekanKerja)",
-    descEn: "Candidate skills (RekanKerja Skill)",
+    desc: "Kemampuan kandidat (padanan Skill)",
+    descEn: "Candidate skills (Skill)",
     fields: ["description"],
   },
   {
@@ -87,22 +87,22 @@ export const MASTER_DEFS: MasterTypeDef[] = [
   {
     type: "eval-scale",
     label: "Skala Penilaian", labelEn: "Evaluation Scale",
-    desc: "Skala + ranking (padanan Applicant Evaluation Scale RekanKerja)",
-    descEn: "Scale + ranking (RekanKerja Applicant Evaluation Scale)",
+    desc: "Skala + ranking (padanan Applicant Evaluation Scale)",
+    descEn: "Scale + ranking (Applicant Evaluation Scale)",
     fields: ["ranking"],
   },
   {
     type: "sla-group",
     label: "Grup SLA", labelEn: "SLA Group",
-    desc: "Target hari penyelesaian per kelompok tahap (padanan SLA Group RekanKerja)",
-    descEn: "Days target per stage group (RekanKerja SLA Group)",
+    desc: "Target hari penyelesaian per kelompok tahap (padanan SLA Group)",
+    descEn: "Days target per stage group (SLA Group)",
     fields: ["days"],
   },
   {
     type: "selection-process",
     label: "Tahap Seleksi", labelEn: "Selection Process",
-    desc: "Katalog tahap seleksi berurutan — padanan Standard Selection Process RekanKerja (config-over-code)",
-    descEn: "Ordered selection stage catalog — RekanKerja Standard Selection Process (config over code)",
+    desc: "Katalog tahap seleksi berurutan — padanan Standard Selection Process (config-over-code)",
+    descEn: "Ordered selection stage catalog — Standard Selection Process (config over code)",
     fields: ["description", "resultType", "processOrder", "slaDays", "minResultPass", "needAcknowledgement", "appliesInternal", "appliesExternal", "mandatoryStep"],
   },
 ];

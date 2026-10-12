@@ -4,7 +4,7 @@ import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { listBudgetPeriods, getBudget, upsertBudget, deleteBudget } from "@/rekankerja/recruitment/services/planning-service";
 
 // ============================================================================
-// RECRUITMENT F5 — API Anggaran Rekrutmen (RecruitmentBudget RekanKerja §2.2 —
+// RECRUITMENT F5 — API Anggaran Rekrutmen (RecruitmentBudget §2.2 —
 // dua level ringkasan: per Job Opportunity + per Advertised PR).
 //   GET    ?periods=1            → { periods, suggest }
 //   GET    ?period=2026          → { row } (budget + used + perJO + prs)

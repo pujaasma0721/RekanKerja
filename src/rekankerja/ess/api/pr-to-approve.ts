@@ -1,5 +1,5 @@
 // GET  /api/rekankerja/ess/pr-to-approve — PR yang menunggu keputusan aktor
-//       (padanan RekanKerja MyPersonnelRequisitionToApprove).
+// (padanan MyPersonnelRequisitionToApprove).
 // PATCH — putuskan (approve|reject) via engine (otorisasi decide-time sama
 //       dengan jalur admin: approver jenjang / delegasi aktif / admin).
 import { NextResponse } from "next/server";

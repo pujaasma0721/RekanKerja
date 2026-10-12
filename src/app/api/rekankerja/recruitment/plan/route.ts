@@ -8,7 +8,7 @@ import {
 } from "@/rekankerja/recruitment/services/planning-service";
 
 // ============================================================================
-// RECRUITMENT F5 — API Rencana Rekrutmen (RecruitmentPlan RekanKerja §2.1).
+// RECRUITMENT F5 — API Rencana Rekrutmen (RecruitmentPlan §2.1).
 //   GET    ?options=1 | ?id= | ?prs= (drill-down PLAN-LINK)
 //         | ?outside=1 | ?list=1&period=&status=          → rows + stats + outside
 //   POST   { period, positionTitle, targetA, … }           → buat baris plan

@@ -1,5 +1,5 @@
 "use client";
-// RekanKerja ESS F3 — Seleksi Saya (padanan RekanKerja MySelectionProcess §2.10):
+// RekanKerja ESS F3 — Seleksi Saya (padanan MySelectionProcess §2.10):
 // tahapan seleksi yang sedang/akan dijalani karyawan sebagai kandidat INTERNAL
 // modul Rekrutmen. Tiap proses = kartu PR: header (prNo + posisi + badge status
 // kandidat) + blok "Tahap Aktif" (jadwal, SLA overdue, evaluator, tipe hasil,
@@ -207,8 +207,8 @@ export function EssMySelectionPage() {
         eyebrow={t("ESS · Rekrutmen")}
         title={t("Seleksi Saya", "My Selection")}
         description={t(
-          "Tahapan seleksi yang sedang/akan Anda jalani sebagai kandidat internal — padanan My Selection Process RekanKerja.",
-          "The selection stages you are currently/scheduled to go through as an internal candidate — the RekanKerja My Selection Process counterpart.",
+          "Tahapan seleksi yang sedang/akan Anda jalani sebagai kandidat internal — padanan My Selection Process.",
+          "The selection stages you are currently/scheduled to go through as an internal candidate — the My Selection Process counterpart.",
         )}
       />
 

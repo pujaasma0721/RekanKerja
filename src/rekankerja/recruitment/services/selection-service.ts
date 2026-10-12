@@ -1,6 +1,6 @@
 // ============================================================================
 // RECRUITMENT F3 — Proses seleksi terstruktur (DEVELOPMENT-PLAN-RECRUITMENT.md
-// §7 F3 + §4.2/§4.3 — RekanKerja §2.6 EvaluationProcess/PerCandidate + HRX D1/D3):
+// §7 F3 + §4.2/§4.3 — §2.6 EvaluationProcess/PerCandidate + HRX D1/D3):
 //   · rantai CandidateSelectionStep per kandidat (dibuat dari katalog master
 //     saat nominasi — difilter appliesInternal/appliesExternal);
 //   · lifecycle tahap: Planned → [Acknowledged] → Performed → Passed|Failed
@@ -590,7 +590,7 @@ export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Prom
   }
 }
 
-/** Acknowledgement kandidat/peserta (RekanKerja RequestAcknowledge — HRX D3). */
+/** Acknowledgement kandidat/peserta (RequestAcknowledge — HRX D3). */
 export async function acknowledgeStep(db: TenantDb, input: { stepId: string; actorName?: string | null; onBehalf?: boolean }): Promise<void> {
   const step = await stepCtx(db, input.stepId);
   if (step.status !== "Planned") throw new Error("Hanya tahap berstatus Planned yang bisa di-acknowledge");

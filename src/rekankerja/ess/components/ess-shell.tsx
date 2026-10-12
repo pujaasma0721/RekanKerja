@@ -70,14 +70,14 @@ const ESS_NAV: EssNavItem[] = [
   { id: "claims", label: "Klaim Saya", en: "My Claims", short: "Klaim", shortEn: "Claims", icon: HeartPulse },
   { id: "requests", label: "Pengajuan", en: "Requests", short: "Ajukan", shortEn: "Requests", icon: ClipboardList },
   // F1-REC — Rekrutmen: PR saya (MyPersonnelRequisition) + approval
-  // (MyPersonnelRequisitionToApprove) — padanan ESS RekanKerja.
+  // (MyPersonnelRequisitionToApprove) — padanan ESS.
   { id: "my-pr", label: "PR Saya", en: "My Requisitions", short: "PR", shortEn: "PR", icon: ClipboardList },
   { id: "pr-approval", label: "Approval PR", en: "PR Approval", short: "Approval PR", shortEn: "Approve PR", icon: ClipboardCheck },
-  // F3 — Seleksi Saya (MySelectionProcess RekanKerja §2.10): tahapan seleksi
+  // F3 — Seleksi Saya (MySelectionProcess §2.10): tahapan seleksi
   // karyawan sebagai kandidat internal (ack jadwal + timeline).
   { id: "my-selection", label: "Seleksi Saya", en: "My Selection", short: "Seleksi", shortEn: "Selection", icon: ListChecks },
-  // F5 — Lowongan Internal (MyJobOpportunity RekanKerja §2.10) + Rencana
-  // Rekrutmen (MysRecruitmentPlanning RekanKerja §2.10).
+  // F5 — Lowongan Internal (MyJobOpportunity §2.10) + Rencana
+  // Rekrutmen (MysRecruitmentPlanning §2.10).
   { id: "my-jobs", label: "Lowongan Internal", en: "Internal Jobs", short: "Lowongan", shortEn: "Jobs", icon: Megaphone },
   { id: "my-plan", label: "Rencana Rekrutmen", en: "Recruitment Plan", short: "Rencana", shortEn: "Plan", icon: Target },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)

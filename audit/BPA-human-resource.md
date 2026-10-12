@@ -7,7 +7,7 @@
 
 ## 1. RINGKASAN
 
-Modul HR RekanKerja merekonstruksi 4 proses inti RekanKerja: (1) onboarding 4-langkah, (2) master organisasi/posisi, (3) Personnel Action multi-layer approval, (4) catatan disiplin. Fondasi data **baik**: seluruh data pekerjaan hidup di `EmployeeAssignment` berperiode (`validTo null` = aktif), perubahan tercatat sebagai riwayat dengan `changeReason` + `sourceDocNo` — pola ini sehat.
+Modul HR RekanKerja merekonstruksi 4 proses inti: (1) onboarding 4-langkah, (2) master organisasi/posisi, (3) Personnel Action multi-layer approval, (4) catatan disiplin. Fondasi data **baik**: seluruh data pekerjaan hidup di `EmployeeAssignment` berperiode (`validTo null` = aktif), perubahan tercatat sebagai riwayat dengan `changeReason` + `sourceDocNo` — pola ini sehat.
 
 Namun audit proses menemukan **3 temuan KRITIS**:
 

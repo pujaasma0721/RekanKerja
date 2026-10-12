@@ -1,7 +1,7 @@
 "use client";
 // RekanKerja Recruitment F2 — view "Lowongan": JobOpportunity (JO) master-detail
 // + slot (JobOpening per PR) + kanal & biaya (JobOpeningMethod).
-// Padanan JobOpportunity.jsp RekanKerja §2.4 analisa; server-side pagination +
+// Padanan JobOpportunity.jsp §2.4 analisa; server-side pagination +
 // advance search `&` + filter status + sort (pola pr-list.tsx).
 import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR } from "@/rekankerja/shared/lib/api";
@@ -646,8 +646,8 @@ export function OpeningsPage() {
         eyebrow={t("Recruitment · Lowongan")}
         title={t("Lowongan (Job Opportunity)", "Job Openings (Job Opportunity)")}
         description={t(
-          "Iklan rekrutmen per PR yang disetujui — kelola slot per PR, kanal publikasi & biayanya. Publikasikan agar tampil di portal karir publik (F2). Padanan JobOpportunity RekanKerja.",
-          "Recruitment ads per approved PR — manage slots per PR, publication channels & their costs. Publish to make them visible on the public career portal (F2). RekanKerja JobOpportunity equivalent.",
+          "Iklan rekrutmen per PR yang disetujui — kelola slot per PR, kanal publikasi & biayanya. Publikasikan agar tampil di portal karir publik (F2). Padanan JobOpportunity.",
+          "Recruitment ads per approved PR — manage slots per PR, publication channels & their costs. Publish to make them visible on the public career portal (F2). JobOpportunity equivalent.",
         )}
         actions={canCreate && (
           <Button onClick={openNew} className="ov-fill ov-glow gap-2">

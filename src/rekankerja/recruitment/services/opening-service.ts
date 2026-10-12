@@ -1,6 +1,6 @@
 // ============================================================================
 // RECRUITMENT F2 — JobOpportunity (JO) + JobOpening (slot per PR) service
-// Sumber: DEVELOPMENT-PLAN-RECRUITMENT.md §7 F2 + §4.2 analisa (RekanKerja §2.4).
+// Sumber: DEVELOPMENT-PLAN-RECRUITMENT.md §7 F2 + §4.2 analisa (§2.4).
 //
 // Rantai: PR Approved (+autoPostOpening) → JO otomatis dibuat (status
 // Posted + slot per PR + kanal WEBPORTAL) → tampil di portal publik →

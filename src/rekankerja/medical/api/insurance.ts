@@ -3,7 +3,7 @@ import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/servi
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { listInsuranceReceivables, decideInsurance } from "@/rekankerja/medical/services/medical-service";
 
-// W4-1 (fix G-3 BPA-medical) — piutang asuransi (padanan RekanKerja
+// W4-1 (fix G-3 BPA-medical) — piutang asuransi (padanan
 // "Reimbursement Employee: Paid By Insurance %").
 //
 // GET /api/rekankerja/medical/insurance — daftar piutang klaim Settled pada

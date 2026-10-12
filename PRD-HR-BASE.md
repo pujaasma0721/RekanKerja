@@ -1,7 +1,7 @@
-# PRD — Human Resource Base Module (RekanKerja Rebuild)
+# PRD — Human Resource Base Module (Rebuild)
 
-> **Dokumen ini adalah Product Requirements Document (PRD) yang ditujukan untuk AI Agent** yang akan membangun ulang aplikasi web HRIS "RekanKerja" dengan **fokus scope: module `Human Resource Base`**.
-> Referensi studi: `https://demo.RekanKerja.com/` (akun demo: `MII000001` / `MII1`, company: `MII - Mitra Industri Internasional`, aplikasi versi `11.08.00`).
+> **Dokumen ini adalah Product Requirements Document (PRD) yang ditujukan untuk AI Agent** yang akan membangun ulang aplikasi web HRIS dengan **fokus scope: module `Human Resource Base`**.
+> Referensi studi: `sistem demo referensi` (akun demo: `MII000001` / `MII1`, company: `MII - Mitra Industri Internasional`, aplikasi versi `11.08.00`).
 > Aplikasi aslinya berbasis JSP + ExtJS; rebuild disarankan dengan stack modern (lihat §2).
 
 ---
@@ -51,7 +51,7 @@ RekanKerja adalah aplikasi Human Resource Information System (HRIS) enterprise m
 | Export | DOCX/PDF via template engine | Letter Generator, Preview grid |
 | Arsitektur API | REST `/api/*` (route handlers) | Bukan server action |
 
-**Prinsip:** setiap "page" RekanKerja = 1 route CRUD generik; pertimbangkan **DataGrid Page Engine** (komponen grid+toolbar generik terkonfigurasi) karena 90% halaman memakai pola identik (lihat §5.1).
+**Prinsip:** setiap "page" = 1 route CRUD generik; pertimbangkan **DataGrid Page Engine** (komponen grid+toolbar generik terkonfigurasi) karena 90% halaman memakai pola identik (lihat §5.1).
 
 ---
 
@@ -243,7 +243,7 @@ Form detail dengan field bertanda `*` (mandatory), tombol `Save/Cancel`, lookup 
 **QueryPositionVacant** (computed) — per position: `noOfEmployee`, `noOfRequired`, `noOfVacant`, `baseOnDate`
 
 ### 5.3 Core Employee (paling penting)
-**Employee** (gabungan Personal + Working; di RekanKerja ditampilkan sebagai 2 grid berbeda)
+**Employee** (gabungan Personal + Working; di sistem referensi ditampilkan sebagai 2 grid berbeda)
 Personal fields: `employeeId`* (PK, pattern `MII000001`), `personId`*, `firstName`*, `lastName`, `middleName`, `birthName`, `salutation`, `alias`, `preNameTitle`, `postNameTitle`, `citizenship`, `tkCode`, `socialInsuranceNo` (BPJS TK), `socialInsuranceJoinDate`, `gender`* (Male/Female), `maritalStatus`* (Single/Married/...), `placeOfBirth`, `dateOfBirth`, `religion`, `bloodType`, `picture` (upload), `userId`, `employeeCategory`, `bpjsKesehatanNo`, `bpjsKesehatanJoinDate`, `careClass`, `healthFacilityCode` (FasKes), `healthFacilityName`, `firstJoinDate`, `entriedBy`, `entriedDate`, `blacklist` (bool)
 Working fields: `supervisorCompanyId`*, `supervisorEmployeeId`*, `supervisorName`, `employeeStatus`* (Active/Non-Active), `probation` (months), `employmentType`* (Permanent/Contract/Temporary), `contractCategoryId`, `contractPeriodMonths`, `remunerationType`* (Monthly/Daily/Hourly), `absenceCardNo`, `joinDate`*, `organizationId`*, `organizationName`, `positionId`*, `positionTitle`, `grade`, `companyOffice`*, `workLocation`, `note`, `yearsInService`, `yearsInGroup` (computed)
 
@@ -518,4 +518,4 @@ Modul selain HR Base: Payroll Administration, Leave Administration, Time Attenda
 - **NPWP** — Nomor Pokok Wajib Pajak; **KTP** — Kartu Tanda Penduduk; **TKU/ID TKU** — ID tenaga kerja unik (Coretax).
 - **SPT** — Surat Pemberitahuan pajak; **SC** — Service Charge; **SPV** — Supervisor; **DIRUT** — Direktur Utama.
 - **Personnel Action (PA)** — dokumen transaksi perubahan status karyawan.
-- **golid/golversion** — PK & optimistic-lock version kolom sistem RekanKerja (rebuild: `id`+`version`).
+- **golid/golversion** — PK & optimistic-lock version kolom sistem (rebuild: `id`+`version`).

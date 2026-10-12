@@ -1,5 +1,5 @@
 // ============================================================================
-// RECRUITMENT F5 — ESS: Lowongan Internal (RekanKerja §2.10 MyJobOpportunity +
+// RECRUITMENT F5 — ESS: Lowongan Internal (§2.10 MyJobOpportunity +
 // MyEmpAppliedJobOpportunity).
 //   GET  → { openings, stats, myApplications } — slot Posted+Open aktif +
 //          riwayat lamaran sendiri + status kandidat.

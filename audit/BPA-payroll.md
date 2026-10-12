@@ -57,7 +57,7 @@ Guard lain: POST run ganda per (period × processType) ditolak bila ada run stat
 
 ### 2.5 Mekanisme input ke engine (jawaban pertanyaan audit)
 - **Absensi/kehadiran**: engine **tidak membaca AttendanceDaily sama sekali**. Kehadiran memengaruhi gaji hanya lewat **transfer manual modul TA** → Specific assignment `TABS/TLATE/TKEHADIRAN/LEMBUR` (period × SALARY). Tidak ada prorate gaji pokok /25 atau /hari-kerja (prorate hanya untuk komponen ber-flag `prorated`, yang tidak disetel pada seed — M-9).
-- **Lembur**: masuk run via transfer endpoint TA (assignment LEMBUR), bukan query engine langsung ✅ (pola RekanKerja).
+- **Lembur**: masuk run via transfer endpoint TA (assignment LEMBUR), bukan query engine langsung ✅ (pola).
 - **Leave encashment / travel / medical UMC**: masuk via transfer masing-masing modul → Specific assignment (UCT/UTRP/TRVSTLIN/UMC, processType default SALARY) ✅; dibayar saat run dikonfirmasi.
 - **Loan**: buildRunRows memilih 1 installment `Pending` tertua per loan dengan `dueDate ≤ period.endDate` (payroll-service.ts:199-207); ditandai `Deducted` saat confirm.
 - **THR**: hanya komponen template/Specific (`THR` formula BASE_SALARY, Irregular); tidak ada engine aturan THR (G-2).
@@ -139,7 +139,7 @@ Dampak: over-withholding (contoh live MII00002 +171rb/bln; N2G diperbesar gross-
 
 **M-5 · Tutup period tidak memeriksa kewajiban belum terbayar; klaim Scheduled terjebak** — `payroll-periods.ts:74-79` hanya cek run Draft/Calculated. Klaim benefit `Scheduled`, assignment Specific (BENEFIT/THR dsb.), transfer modul lain pada period ber-status Processed tidak diperiksa; period bisa ditutup → tertutup permanen. Bukti live: 3 klaim `Scheduled` (BC-2026-007/008/009, period 2026-09 Processed) belum dibayar — masih recoverable via run BENEFIT, tapi alurnya tanpa prompt UI dan rentan ditutup. Fix: cek klaim Scheduled / assignment Specific aktif pada period sebelum Closed/Locked; tambahkan prompt "buat run BENEFIT" di UI klaim.
 
-**M-6 · Bank export tanpa penandaan pembayaran & cakupan bank** — `payroll-run-export.ts:13-89`. (a) Ekspor boleh berulang tanpa flag "sudah diekspor" (hanya ActivityLog) dan tidak memicu/memeriksa status Paid → tidak ada penyatuan "file bank ↔ run dibayar" (digabung risiko K-2: file lama tetap sah saat run dibatalkan/di-recreate). (b) Rekening tanpa validasi nomor/format panjang; karyawan bank BRI (10 dari 44 live) tidak match format manapun → hanya masuk CSV "umum" (RekanKerja 12 bank). Fix minimal: tandai `exportedAt` pada run + dedupe file per run×bank; validasi nomor rekening non-kosong pada file per bank.
+**M-6 · Bank export tanpa penandaan pembayaran & cakupan bank** — `payroll-run-export.ts:13-89`. (a) Ekspor boleh berulang tanpa flag "sudah diekspor" (hanya ActivityLog) dan tidak memicu/memeriksa status Paid → tidak ada penyatuan "file bank ↔ run dibayar" (digabung risiko K-2: file lama tetap sah saat run dibatalkan/di-recreate). (b) Rekening tanpa validasi nomor/format panjang; karyawan bank BRI (10 dari 44 live) tidak match format manapun → hanya masuk CSV "umum" (12 bank). Fix minimal: tandai `exportedAt` pada run + dedupe file per run×bank; validasi nomor rekening non-kosong pada file per bank.
 
 **M-7 · confirmRun & posting jurnal multi-langkah tanpa $transaction** — `payroll-service.ts:302-397` (cicilan N-loan + status run + period + 5 callback + jurnal), `payroll-journal.ts:174-210` (create jurnal + N update saldo akun berurutan). Kegagalan di tengah → partial write (mis. sebagian cicilan Deducted, jurnal Posted tanpa saldo termutasi semua). Callback markPaid memang sengaja non-fatal (try/catch — wajar), tetapi inti (loan + run + jurnal) sebaiknya atomik. Fix: bungkus loan-apply + status run + jurnal dalam `db.$transaction`.
 
@@ -173,11 +173,11 @@ Dampak: over-withholding (contoh live MII00002 +171rb/bln; N2G diperbesar gross-
 4. **G-4 Final settlement / pesangon** — processType TERMINATION ada nama saja: TaxBracket Severance/Pension tidak pernah dipakai; formula pesangon (1×/2×/UPMK) & PPh21 final pesangon (Pasal 17 khusus) tidak ada; karyawan berhenti mid-month tidak diproses sama sekali (di-exclude dari run, tanpa final pay/prorate).
 5. **G-5 Laporan/iuran BPJS** — tidak ada file laporan bulanan (bpjskuota), kontrol karyawan tanpa BPJS (template FREELANCE tanpa komponen Jamsostek — tidak terdeteksi sebagai exception).
 6. **G-6 Approval maker-checker payroll** — confirm run/parameter pajak/loan tanpa layer approval (engine ApprovalLayer milik PA tidak dipakai payroll).
-7. **G-7 Dimensi akuntansi** — jurnal flat tanpa cost center/segmen (RekanKerja: COA per wage code + cost center + 10 dimensi analisis + per office); tidak ada jurnal per unit/outlet.
-8. **G-8 Format bank resmi & multi-outlet** — CSV generik; format fixed-width per bank & pemisahan per office belum (RekanKerja 12 bank × 33 outlet); BRI tidak tersedia.
-9. **G-9 Keamanan data payroll** — tanpa enkripsi field gaji/pembatasan tampilan per role (RekanKerja Encryption User Assignment); AccessGroup tidak enforce (M-06 lintas-modul).
+7. **G-7 Dimensi akuntansi** — jurnal flat tanpa cost center/segmen (: COA per wage code + cost center + 10 dimensi analisis + per office); tidak ada jurnal per unit/outlet.
+8. **G-8 Format bank resmi & multi-outlet** — CSV generik; format fixed-width per bank & pemisahan per office belum (12 bank × 33 outlet); BRI tidak tersedia.
+9. **G-9 Keamanan data payroll** — tanpa enkripsi field gaji/pembatasan tampilan per role (Encryption User Assignment); AccessGroup tidak enforce (M-06 lintas-modul).
 10. **G-10 Natura PP 68/2024** — `naturaType` tersimpan tetapi tidak dipakai; pembayaran UMC medical via payroll ditaxable `Regular` tanpa pertimbangan natura kesehatan/kenikmatan.
-11. **G-11 Loan approval flow** — pinjaman langsung `Active` tanpa approval (RekanKerja EmployeeLoanToApprove) dan tanpa integrasi kasbon travel (TRVLOAN).
+11. **G-11 Loan approval flow** — pinjaman langsung `Active` tanpa approval (EmployeeLoanToApprove) dan tanpa integrasi kasbon travel (TRVLOAN).
 12. **G-12 Master process type & regulasi ber-dating** — ProcessType tanpa CRUD (fixed seed 7 jenis); PayrollRegulation versi per tahun tidak dipilih berdasarkan tanggal proses (multi-tahun regulasi tidak didukung runtime).
 
 ---
