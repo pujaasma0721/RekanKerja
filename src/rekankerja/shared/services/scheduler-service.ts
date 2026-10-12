@@ -56,6 +56,8 @@ import { notifyEvent, pushNotification } from "@/rekankerja/shared/services/noti
 import { retryFailedWebhookDeliveries } from "@/rekankerja/shared/services/webhook-service";
 import { jobSelectionReminders } from "@/rekankerja/recruitment/services/selection-service";
 import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service";
+// P2-PERF — reminder check-in terlewat (§27-1)
+import { jobPerfCheckInReminders } from "@/rekankerja/performance/services/checkin-service";
 import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webhook-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
@@ -1642,6 +1644,8 @@ export interface SchedulerJobCounts {
   attendanceOtAging: number;
   /** Task 100 (G4) — period dengan jendela TA berakhir yang diingatkan utk transfer. */
   attendanceTransferReminders: number;
+  /** P2-PERF — check-in terlewat yang diingatkan job perf-checkin-reminder. */
+  perfCheckInReminded: number;
   /** F2-REC — pelamar talent pool yang otomatis jadi Outdated oleh job
    *  applicant-outdated (keepOnFileUntil lewat; idempoten by filter Active). */
   applicantOutdatedRows: number;
@@ -1740,7 +1744,8 @@ export async function runAllJobs(
     retentionScanned: 0,
     retentionAnonymized: 0,
     retentionSkippedConsent: 0,
-  };
+    perfCheckInReminded: 0,
+};
   let notificationsSent = 0;
   let templatesSeeded = 0;
   let mutexSkipped = 0;
@@ -1833,6 +1838,14 @@ export async function runAllJobs(
     jobs.attendanceTransferReminders = r.periods;
     notificationsSent += r.notif;
   });
+  // P2-PERF — check-in Planned lewat tenggat tanpa Held → ingatkan atasan
+  // (sekali per check-in — dedupe ActivityLog claimReminder).
+  await guarded("perf-checkin-reminder", async () => {
+    const r = await jobPerfCheckInReminders(db);
+    jobs.perfCheckInReminded = r.reminded;
+    notificationsSent += r.notified;
+  });
+
   // F2-REC — talent pool: pelamar keep-on-file lewat → Outdated otomatis.
   await guarded("applicant-outdated", async () => {
     jobs.applicantOutdatedRows = await jobApplicantOutdated(db);

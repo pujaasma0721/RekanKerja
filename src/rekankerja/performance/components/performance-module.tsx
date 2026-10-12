@@ -7,6 +7,7 @@ import { PerformanceSettingsPage } from "./performance-settings";
 import { PerfComingSoon } from "./perf-coming-soon";
 import { PerformanceCyclesPage } from "./performance-cycles";
 import { PerformanceGoalsPage } from "./performance-goals";
+import { PerformanceCheckinsPage } from "./performance-checkins";
 
 export function PerformanceModule({ view }: { view: string }) {
   switch (view) {
@@ -17,7 +18,7 @@ export function PerformanceModule({ view }: { view: string }) {
     case "goals":
       return <PerformanceGoalsPage />;
     case "checkins":
-      return <PerfComingSoon view="checkins" phase="P2" />;
+      return <PerformanceCheckinsPage />;
     case "appraisals":
       return <PerfComingSoon view="appraisals" phase="P3" />;
     case "calibration":

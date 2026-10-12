@@ -50,7 +50,21 @@ export async function GET(req: Request) {
       orderBy: { docNo: "desc" },
     });
     const canPropose = me.cycle.status === "GoalSetting" && !["GoalApproved", "Ongoing", "SelfDone", "ManagerDone", "Calibrating", "Finalized", "Published", "Appealed", "Closed"].includes(me.status);
+    const checkins = await db.checkIn.findMany({
+      where: { appraisalId: me.id },
+      orderBy: { heldAt: "desc" },
+      take: 20,
+    });
     return NextResponse.json({
+      checkins: checkins.map((c) => ({
+        id: c.id,
+        heldAt: c.heldAt.toISOString(),
+        agenda: c.agenda,
+        status: c.status,
+        notesJson: c.notesJson,
+        managerComment: c.managerComment,
+        nextCheckInAt: c.nextCheckInAt?.toISOString() ?? null,
+      })),
       active: {
         appraisalId: me.id,
         docNo: me.docNo,

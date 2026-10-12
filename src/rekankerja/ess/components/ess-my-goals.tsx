@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
-import { Target, Zap, Copy, Plus, Trash2, Send, History, Info } from "lucide-react";
+import { Target, Zap, Copy, Plus, Trash2, Send, History, Info, MessagesSquare } from "lucide-react";
 
 const API = "/api/rekankerja/ess/my-goals";
 
@@ -31,6 +31,7 @@ interface GoalsData {
   past: { cycleCode: string; finalScore: number | null; finalRating: number | null; kpis: { id: string; title: string; target: number; weight: number; finalActual: number | null }[] } | null;
   canPropose: boolean;
   note?: string;
+  checkins?: { id: string; heldAt: string; agenda: string | null; status: string; notesJson: string; managerComment: string | null; nextCheckInAt: string | null }[];
 }
 
 type Draft = { kpiDefId?: string | null; title: string; polarity: string; unit: string; thresholdMin: number | null; target: number; stretchValue?: number | null; weight: number; isCritical?: boolean };
@@ -204,6 +205,40 @@ export function EssMyGoalsPage() {
             </TabsContent>
           )}
         </Tabs>
+      )}
+
+      {/* riwayat check-in 1-on-1 (ESS my-checkins §17) */}
+      {(data?.checkins ?? []).length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><MessagesSquare className="h-4 w-4 ov-text-accent" aria-hidden /> {t("Riwayat Check-in 1-on-1", "1-on-1 Check-in History")}</h3>
+            <div className="grid gap-2">
+              {(data?.checkins ?? []).map((c) => {
+                let notes: { wins?: string[]; blockers?: string[]; next?: string[] } = {};
+                try { notes = JSON.parse(c.notesJson); } catch { /* */ }
+                return (
+                  <div key={c.id} className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-800">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span className="font-medium">{new Date(c.heldAt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}{c.agenda ? ` — ${c.agenda}` : ""}</span>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                        c.status === "Held" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+                        : c.status === "Missed" ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
+                        : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300")}>{c.status}</span>
+                    </div>
+                    {(notes.wins?.length || notes.blockers?.length || notes.next?.length) && (
+                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {notes.wins?.length ? <p>✅ {t("Capaian", "Wins")}: {notes.wins.join("; ")}</p> : null}
+                        {notes.blockers?.length ? <p>⛔ {t("Hambatan", "Blockers")}: {notes.blockers.join("; ")}</p> : null}
+                        {notes.next?.length ? <p>➡ {t("Rencana", "Next")}: {notes.next.join("; ")}</p> : null}
+                      </div>
+                    )}
+                    {c.managerComment && <p className="mt-1 text-xs italic text-slate-400">“{c.managerComment}”</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

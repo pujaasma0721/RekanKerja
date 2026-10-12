@@ -6670,3 +6670,23 @@ Stage Summary:
 - Gate §21-7 AMANDEMEN 2 terpenuhi eksplisit: impor (baris kotor ditolak ✓), nudge (rate-limit + ActivityLog ✓); autosave server-side via saveRow ✓ (pemulihan draf lokal UI ada).
 - Catatan: klik Radix menu di headless butuh pointer events / find-role — interaksi UI nyata OK.
 - Siap P2 (Check-in & Monitoring: CheckIn CRUD + scheduler reminder + midActual + revisi mid-year).
+
+---
+Task ID: PERF-P2
+Agent: main (Z.ai Code)
+Task: P2 Performance — Check-in & Monitoring (§20 P2; §27 alur 3): CheckIn CRUD + scheduler reminder + progress midActual + revisi target mid-year (atasan propose / L2-HR apply) — eksekusi → test → perbaiki → audit → selesai
+
+Work Log:
+- checkin-service.ts: listCheckIns (riwayat lintas tim + filter siklus/tanggal), scheduleCheckIn (Planned + nextCheckInAt), logCheckIn (notesJson wins/blockers/next + managerComment → Held), markMissed, midCheckpointView (per peserta: KPI + midActual + midPct), saveMidActual (guard fase Ongoing + jendela mid §35-5; HR force ter-log), reviseTarget (propose oleh atasan / apply oleh atasan-berjenjang-L2 atau HR dgn guard Σbobot tetap 100 + alasan wajib ter-audit), jobPerfCheckInReminders (scheduler: Planned >3 hari lewat → ingatkan atasan via notification; dedupe claimReminder ActivityLog).
+- API checkins.ts (GET list/midCheckpoint; POST schedule/log/markMissed/saveMidActual/reviseTarget) + route re-export; HR dicek via akses menu performance:settings.
+- UI performance-checkins.tsx: tab Riwayat 1-on-1 (status pill, notes terstruktur, mark missed/log actions) + tab Checkpoint Tengah Tahun (input midActual per KPI + progress bar + tombol simpan) + dialog jadwal (picker peserta) + dialog catat (textarea per kategori); module switcher wired.
+- ESS: my-goals GET diperluas dgn riwayat check-in (ESS my-checkins §17) + kartu riwayat di halaman Target Saya (status pill + catatan atasan).
+- Scheduler: job perf-checkin-reminder terdaftar (guarded + SchedulerJobCounts.perfCheckInReminded) — TERBUKTI LIVE: reminder check-in terlewat Joko ter-log otomatis oleh siklus scheduler.
+- TEST API E2E (curl): startOngoing (GoalSetting→Ongoing) ✓; schedule (Planned) → log (Held, 1/1/1 poin + komentar) ✓; markMissed ✓; midCheckpoint (Joko midPct 33% setelah 1/3 KPI) → saveMidActual (96, HR force) ✓; reviseTarget propose (diajukan) + apply (target 90→95, ambang 80→75, Σ tetap 100) ✓; ActivityLog lengkap (Created/Processed/Reminder/REVISI TARGET diajukan+diterapkan).
+- TEST UI (agent-browser): halaman Check-ins render — riwayat 2 baris dgn notes lengkap + tab Mid-Year Checkpoint tampil.
+- AUDIT: tsc 0 error; lint 0 error/baseline; bilingual TOTAL_GAP=149 = baseline; dev.log bersih.
+
+Stage Summary:
+- P2 SELESAI. Alur 3 penuh: jadwal → catat → reminder otomatis scheduler → checkpoint tengah tahun per KPI (progress dua arah ESS/admin) → revisi mid-year ter-audit (propose/apply).
+- Guard §35-5/6 dijaga (fase Ongoing + jendela mid; HR force ter-log; siklus Published/Closed read-only).
+- Siap P3 (Penilaian & 360: self/manager form + pullAutoSources 6 binding + AI assist §18.11 + estimasi dampak §18.12 + impor realisasi §18.5).
