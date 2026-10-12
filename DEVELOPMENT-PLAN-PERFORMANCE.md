@@ -26,6 +26,17 @@
 > §18.4 (anti-stale) + API §17 + 3 kolom provenance §15 + alur §25–§26 + guard §35
 > baris 24–25 + register D13–D15 + wireframe Lampiran G. Tetap DOKUMEN MURNI — belum
 > ada perubahan kode aplikasi.
+> **AMANDEMEN 2 (12 Okt 2026)** — arahan user, 7 fitur kemudahan: **Sisi pengguna**
+> (karyawan & atasan): ① impor target KPI / realisasi akhir tahun massal via template
+> Excel → §18.5; ② tarikan otomatis modul lain (mis. % kehadiran dari Attendance)
+> langsung mengisi KPI → §18.6 (perkuat §16 yang sudah ada); ③ autosave berkala ke
+> draf DB — anti hilang data saat koneksi putus/browser tertutup → §18.7; ④ progress
+> tracker bar "Formulir Anda selesai 60%" → §18.7. **Sisi admin (HR)**: ⑤ HR Command
+> Center + nudge "Remind All"/WA/Email alert → §18.8; ⑥ version control pustaka
+> KPI/kompetensi (ubah tahun ini tanpa merusak data tahun lalu) → §18.9. **Lainnya**:
+> ⑦ kurva Bell (bell curve) di menu Kalibrasi untuk HR/Direksi mendeteksi atasan
+> "terlalu pelis/royal" → §18.10; pengingat multi-kanal WA/Slack dengan tautan
+> langsung ke formulir → §18.8 + §19. Semua tetap DOKUMEN MURNI.
 
 ---
 
@@ -54,7 +65,10 @@
   - §16 Formula perhitungan final
   - §17 API blueprint
   - §18 Standar UI/UX (+ 18.1 KPI Builder · 18.2 Salin dari periode sebelumnya ·
-    18.3 ESS periode lalu · 18.4 Anti-stale — AMANDEMEN 1)
+    18.3 ESS periode lalu · 18.4 Anti-stale — AMANDEMEN 1 · 18.5 Impor Excel massal ·
+    18.6 Tarikan otomatis antar-modul · 18.7 Autosave & progress tracker ·
+    18.8 HR Command Center & nudge · 18.9 Versioning pustaka · 18.10 Bell curve —
+    AMANDEMEN 2)
   - §19 Integrasi lintas modul
   - §20 Rencana eksekusi fase P0–P9 + backlog
   - §21 Quality gates & Definition of Done
@@ -76,7 +90,8 @@
   - §36 Matriks aktor × menu × endpoint
   - §37 Kepatuhan UU PDP sepanjang siklus
 - Lampiran A–G (matriks metodologi, KPI library contoh, skala rating, formulir contoh,
-  glossary, asumsi, wireframe KPI Builder & salin periode lalu — AMANDEMEN 1)
+  glossary, asumsi, wireframe KPI Builder · salin periode lalu · impor Excel ·
+  command center · bell curve · progress bar — AMANDEMEN 1+2)
 
 ---
 ---
@@ -141,6 +156,10 @@ admin + 4 layar ESS, 10 fase eksekusi (P0–P9), 3 di antaranya tergolong L/L–
 (lihat §20). Estimasi total ± 60–75 hari kerja efektif bila dieksekusi penuh.
 (AMANDEMEN 1 hemat arsitektur: 0 tabel/endpoint/halaman baru — hanya 3 kolom
 provenance + 3 action verbs + 1 query param pada endpoint `goals` yang sudah ada.)
+(AMANDEMEN 2 hemat arsitektur: 0 tabel/endpoint/halaman baru — 8 action verbs +
+3 query param pada endpoint yang sudah ada + kolom versioning di 2 model pustaka;
+Command Center = tab baru di halaman Siklus; bell curve = tampilan data distribusi
+yang sudah dikembalikan endpoint kalibrasi.)
 
 ---
 ---
@@ -536,6 +555,9 @@ Prinsip desain yang mengikat semua fase (pewaris prinsip modul Rekrutmen):
 | Surat | jenis surat baru di `LetterTemplate`: SURAT HASIL PENILAIAN (PER), SK PERPANJANGAN MASA COBA (PRB-E), SK PROGRAM PERBAIKAN KINERJA (PIP) | `letter-defaults.ts` |
 | Uang | nominal merit/bonus disimpan **terenkripsi vault** (pola field-crypto `enc:v1:t:…`) | RecruitmentOffer salary |
 | Jadwal/reminder | scheduler existing untuk: jatuh tempo fase, check-in terlewat, PIP checkpoint, prob jatuh tempo H-14/H-3 | `scheduler-service.ts` |
+| **Nudge multi-kanal** (AMANDEMEN 2) | Command Center "Remind"/"Remind All" → in-app + email + **WhatsApp adapter** dengan **deep-link token langsung ke formulir**; Slack = backlog (adapter webhook generik); rate-limit per peserta per kanal | notification-service + pola WA existing |
+| **Impor Excel** (AMANDEMEN 2) | target KPI & realisasi akhir massal: template .xlsx dwibahasa → unggah → pratinjau validasi per sel → commit hanya baris valid; parse server-side, MIME whitelist + magic number (pola attachment), hasil = laporan baris + ActivityLog | attachment security + export.ts |
+| **Versioning pustaka** (AMANDEMEN 2) | KpiDefinition & Competency ber-versi (versionNo/effectiveYear/status) — edit minor inline, perubahan definisi = versi baru; data historis TETAP aman karena baris penilaian sudah snapshot (defense in depth §18.9) | snapshot AppraisalKpi |
 | Ekspor | `export.ts` localizeSheet + kamus BASE_EN per tambahan; katalog laporan dokumen `pf11..pf44` (§11.2) | medical/travel reports |
 | AI | **Tidak di fase P0–P9** (backlog; infra `AiProviderConfig` siap) | — |
 
@@ -551,20 +573,24 @@ Prinsip desain yang mengikat semua fase (pewaris prinsip modul Rekrutmen):
 MODULE: performance (admin)
 ├─ Ringkasan (overview) .................... performance:overview
 ├─ SIKLUS
-│  ├─ Siklus Penilaian ................... performance:cycles     (CRUD siklus + fase + enroll peserta)
+│  ├─ Siklus Penilaian ................... performance:cycles     (CRUD siklus + fase + enroll peserta
+│                                                                     + TAB COMMAND CENTER §18.8: status formulir
+│                                                                     seluruh perusahaan + Remind/nudge)
 │  ├─ Target & KPI ....................... performance:goals        (KPI Builder §18.1: penetapan/approval
 │                                                                     per peserta + template bobot + SALIN
 │                                                                     DARI PERIODE SEBELUMNYA §18.2)
 │  └─ Check-in ........................... performance:checkins     (jadwal & catatan 1-on-1 semua tim + progress)
 ├─ PENILAIAN
 │  ├─ Penilaian .......................... performance:appraisals  (self/atasan/360 + finalisasi per peserta)
-│  ├─ Kalibrasi .......................... performance:calibration  (sesi, distribusi, keputusan ter-audit)
+│  ├─ Kalibrasi .......................... performance:calibration  (sesi, distribusi, keputusan ter-audit,
+│                                                                     BELL CURVE ±deteksi atasan pelis/royal §18.10)
 │  └─ Hasil & 9-Box ...................... performance:results      (publikasi, acknowledgement, 9-box, merit)
 ├─ TINDAK LANJUT
 │  ├─ PIP ................................ performance:pip          (register & checkpoint)
 │  └─ Evaluasi Masa Percobaan ............ performance:probation   (jatuh tempo, keputusan, PA)
 ├─ Master Kinerja ........................ performance:masters      (KPI library, kompetensi+level, skala rating,
-│                                                                     template bobot, merit matrix)
+│                                                                     template bobot, merit matrix, VERSIONING
+│                                                                     pustaka §18.9 + IMPOR Excel §18.5)
 ├─ Laporan ............................... performance:reports       (dashboard + tab Dokumen Laporan pf11–pf44)
 └─ Pengaturan ........................... performance:settings      (penomoran, default bobot, jendela banding, retensi)
 ```
@@ -597,7 +623,7 @@ model PerformanceSetting {
 
 model KpiDefinition {                 // pustaka KPI (per tenant, bisa dari starter pack)
   id          String  @id @default(cuid())
-  code        String  @unique
+  code        String                  // AMANDEMEN 2: unique per (code, versionNo) — lihat bawah
   name        String
   category    String  // Financial|Customer|InternalProcess|LearningGrowth (BSC §3.4)
   polarity    String  // Higher|Lower|Boolean
@@ -606,19 +632,34 @@ model KpiDefinition {                 // pustaka KPI (per tenant, bisa dari star
   sourceKey   String? // binding data otomatis, mis. "attendance_presence_pct"
   description String?
   active      Boolean @default(true)
+  // AMANDEMEN 2 — versioning pustaka (§18.9): ubah definisi tahun ini tanpa
+  // merusak data tahun lalu (baris penilaian memang sudah snapshot — ini lapis kedua)
+  versionNo    Int     @default(1)    // 1, 2, 3 … per code
+  effectiveYear Int                   // tahun mulai berlaku versi ini
+  status       String  @default("Active") // Active|Superseded|Archived
+  supersededById String?               // id versi pengganti (untuk jejak)
+  changeNote   String?                 // catatan apa yang berubah (audit HR)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  @@unique([code, versionNo])         // code tidak lagi unique tunggal
 }
 
 model Competency {                   // kompetensi + deskriptor 5 level (anchor anti-halo §8)
   id          String   @id @default(cuid())
-  code        String   @unique
+  code        String                 // AMANDEMEN 2: unique per (code, versionNo) — lihat bawah
   name        String
   kind        String   // CoreValue|Managerial|Technical
   levelsJson  String   // [{level:1..5, label, descriptor}] — deskriptor perilaku per level
   active      Boolean  @default(true)
+  // AMANDEMEN 2 — versioning pustaka (§18.9), sama seperti KpiDefinition
+  versionNo    Int     @default(1)
+  effectiveYear Int
+  status       String  @default("Active") // Active|Superseded|Archived
+  supersededById String?
+  changeNote   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  @@unique([code, versionNo])
 }
 
 model RatingScale {                  // skala konversi skor→rating (dapat dikustom)
@@ -940,19 +981,27 @@ Konvensi proyek (kebab-case, action via POST body, `?q=` pencarian, offset/limit
 ```
 # P0 — master & setting
 /api/rekankerja/performance/masters      GET (list by kind) · POST create · PATCH update
+                                         POST {action:newVersion|archive} — versioning pustaka
+                                         (AMANDEMEN 2 §18.9; kpi|competency saja; arsip ≠ hapus)
                                          kind=kpi|competency|scale|template|meritMatrix
 /api/rekankerja/performance/settings    GET · PATCH
 
 # P1 — siklus, peserta, KPI
-/api/rekankerja/performance/cycles      GET list (status, tahun) · POST {action:create|
-                                         enroll|openGoal|startOngoing|startAssessment|
-                                         startCalibration|publish|close}
-                                         PATCH {id, patch} (hanya status Draft)
+/api/rekankerja/performance/cycles      GET list (status, tahun) · GET ?commandCenter=1
+                                         (matrix status formulir seluruh perusahaan + agregat
+                                         per atasan + progres % — AMANDEMEN 2 §18.8) · POST {action:
+                                         create|enroll|openGoal|startOngoing|startAssessment|
+                                         startCalibration|publish|close|nudge|nudgeAll}
+                                         (nudge = kirim pengingat 1 peserta; nudgeAll = semua
+                                         yang tertinggal di fase aktif — multi-kanal + deep-link;
+                                         rate-limit D17) · PATCH {id, patch} (hanya status Draft)
 /api/rekankerja/performance/goals       GET ?cycleId&employeeId&q · GET ?cycleId&employeeId&
                                          copySources=1 (daftar siklus sumber utk salin §18.2) ·
                                          POST {action:assignBatch|propose|approveProposal|
                                          reviseTarget|lockGoals|copyPreview|copyFromCycle|
                                          copyTeam} — 3 action salin AMANDEMEN 1 §18.2 ·
+                                         {action:importTargetsPreview|importTargetsCommit} + GET
+                                         ?importTemplate=targets (unduh .xlsx — AMANDEMEN 2 §18.5) ·
                                          PATCH {id, patch} (bobot/target — fase GoalSetting)
 
 # P2 — check-in
@@ -960,14 +1009,19 @@ Konvensi proyek (kebab-case, action via POST body, `?q=` pencarian, offset/limit
                                          log|markMissed} · PATCH {id, patch}
 
 # P3 — penilaian & 360
-/api/rekankerja/performance/appraisals  GET ?cycleId&q&status&mine (detail ?id=)
+/api/rekankerja/performance/appraisals  GET ?cycleId&q&status&mine (detail ?id=) · GET
+                                         ?importTemplate=actuals (unduh .xlsx — AMANDEMEN 2 §18.5)
                                          POST {action:submitSelf|saveManagerScore|submitManager|
-                                         pullAutoSources|finalize}  (finalize → approval chain)
+                                         pullAutoSources|finalize|importActualsPreview|
+                                         importActualsCommit}  (finalize → approval chain;
+                                         pullAutoSources → pratinjau + terapkan §18.6)
 /api/rekankerja/performance/feedback360 GET ?cycleId|mine · POST {action:invite|remind|decline|
                                          submit} (submit anonim; agregasi di service)
 
 # P4 — kalibrasi & hasil
-/api/rekankerja/performance/calibration  GET ?cycleId&unitId (distribusi) · POST {action:openSession|
+/api/rekankerja/performance/calibration  GET ?cycleId&unitId (distribusi) · GET ?curve=1
+                                         (histogram Bell Curve + overlay normal + z-score
+                                         per atasan — AMANDEMEN 2 §18.10) · POST {action:openSession|
                                          decide|closeSession}  (decide = CalibrationDecision audit)
 /api/rekankerja/performance/results      GET ?cycleId (hasil + 9box + acknowledgement status)
                                          POST {action:acknowledge|appeal|decideAppeal}
@@ -1026,6 +1080,24 @@ menempel ke halaman "Pengajuan" (pola PR Approval ESS).
     §18.2 (4 titik masuk sisi admin/atasan) · §18.3 (ESS) · §18.4 (anti-stale).
     Pola UX-nya meniru "duplicate PR" rekrutmen: bawa struktur + nilai lama →
     user menyesuaikan → submit tetap tindakan eksplisit.
+12. **Impor Excel massal** (AMANDEMEN 2): unggah target KPI / realisasi akhir tahun
+    sekaligus lewat template .xlsx dwibahasa — unduh → unggah → pratinjau validasi
+    → commit hanya baris valid (§18.5).
+13. **Tarikan otomatis antar-modul** (AMANDEMEN 2): tombol "Tarik semua data
+    otomatis" + dialog pratinjau sebelum diterapkan; setiap nilai AUTO menyimpan
+    bukti sumber+periode+waktu (§18.6; binding §16).
+14. **Autosave berkala** (AMANDEMEN 2): debounce 3 detik + interval maks 10 detik +
+    mirror lokal + pemulihan draf eksplisit — data tidak hilang saat koneksi
+    terputus / browser tidak sengaja tertutup (§18.7).
+15. **Progress tracker bar** (AMANDEMEN 2): indikator persentase live di atas
+    formulir — "Formulir Anda selesai 60%" — di semua formulir panjang (§18.7).
+16. **HR Command Center & nudge** (AMANDEMEN 2): matriks status formulir seluruh
+    perusahaan + tombol Remind / Remind All multi-kanal (WA/email) dengan deep-link
+    langsung ke formulir (§18.8).
+17. **Versioning pustaka KPI & kompetensi** (AMANDEMEN 2): HR mengubah indikator
+    tahun ini tanpa merusak data penilaian tahun-tahun sebelumnya (§18.9).
+18. **Bell curve kalibrasi** (AMANDEMEN 2): sebaran nilai kurva lonceng untuk
+    HR/Direksi + deteksi atasan "terlalu pelis/royal" (§18.10).
 
 ### 18.1 KPI Builder — "mudah mengisi KPI" sebagai fitur kelas satu (AMANDEMEN 1)
 
@@ -1048,6 +1120,8 @@ memecah pengisian menjadi keputusan kecil berurutan:
    banner "Lanjutkan draf terakhir (disimpan 12:04)". Tidak ada pekerjaan hilang;
    prinsip §12-1 tetap: dokumen sah hanya pasca submit; draf hanya terlihat
    atasan+HR (karyawan melihat target setelah GoalApproved — §26-6).
+   (AMANDEMEN 2 memperinci interval + mirror lokal + pemulihan draf + progress
+   bar — §18.7.)
 6. **Picker pustaka KPI**: search + filter perspektif BSC + filter sumber (AUTO/
    manual) + urutan "terakhir dipakai di unit saya" (dihitung query — tanpa kolom
    baru); tiap opsi menampilkan unit, polaritas, badge **AUTO** (nilai ditarik
@@ -1136,6 +1210,145 @@ Salin mempercepat pengetikan, bukan menggantikan penilaian kewajaran target:
 - **Copy ≠ submit** (guard §35-24): tidak ada jalur otomatis dari salin ke kunci
   target; submit selalu eksplisit oleh atasan.
 
+### 18.5 Impor Excel Massal — target KPI & realisasi akhir tahun (AMANDEMEN 2)
+
+"Mengisi 44 peserta satu per satu itu bukan pekerjaan HR, itu hukuman" — impor
+massal untuk kedua momen paling padat ketikan:
+
+- **Dua jenis template** (satu tombol "Unduh Template" per jenis, .xlsx dwibahasa —
+  header ID+EN, sheet instruksi + sheet data + baris contoh + dropdown validasi):
+  ① **Target** (fase GoalSetting): employeeNo · nama · judul/kode KPI · polaritas ·
+  unit · ambang · target · stretch · bobot · kritis; ② **Realisasi** (jendela
+  manager): employeeNo · judul/kode KPI · finalActual. (midActual §27 memakai
+  jenis ② dengan kolom mid — ekstensi murah.)
+- **Alur 3 langkah**: Unduh → Unggah (drag-drop, .xlsx ≤2 MB, ≤500 baris — D16;
+  MIME whitelist + magic number pola attachment) → **Pratinjau validasi**: tabel
+  seluruh baris, baris valid hijau, error merah **per sel dengan alasan** (karyawan
+  tidak ditemukan / bukan peserta siklus / bobot bukan angka / duplikat / target
+  sudah terkunci / fase salah) + counter "478 valid · 22 error".
+- **Commit hanya baris valid** (default D16): baris error TIDAK membatalkan baris
+  lain; hasil = laporan (N draf dibuat · M diperbarui · K dilewati + alasannya) +
+  **ActivityLog** + unduh laporan error untuk perbaikan & unggah ulang.
+- **Impor ≠ submit** (simetri §18.2): hasil impor target = baris **draf** — tiap
+  peserta tetap menunggu review + submit atasan; hasil impor realisasi mengisi
+  `finalActual` tanpa mengubah status — `submitManager` tetap tindakan terpisah.
+- **Aktor & guard**: HR (semua peserta) / atasan (hanya timnya — row-level visibility
+  §11.3); peserta yang sudah punya baris ditandai "lompati" (default) — menimpa
+  harus eksplisit per baris di pratinjau.
+- File diproses lalu dibuang (tidak disimpan permanen); bukti = laporan + log.
+
+### 18.6 Tarikan Otomatis Antar-Modul — pratinjau sebelum diterapkan (AMANDEMEN 2)
+
+Binding §16 sudah ada (contoh persis dari user: **% kehadiran dari modul
+Attendance → KPI disiplin** = `attendance_presence_pct`). AMANDEMEN 2 memperkuat
+UX-nya agar atasan percaya angka yang masuk:
+
+1. **Saat fase dibuka** (§29-1): job latar menarik semua KPI ber-sumber →
+   `finalActual` terisi + bukti `autoValueJson` (sumber + periode + nilai +
+   timestamp); KPI manual dibiarkan kosong menunggu input.
+2. **Tarik ulang massal**: tombol **"Tarik semua data otomatis"** di form atasan
+   & checkpoint mid-year → **dialog pratinjau** (nilai baru vs nilai terisi — bila
+   sudah ada input manual, konfirmasi timpa ditanya per baris) → Terapkan.
+3. **Per baris**: tombol tarik kecil di tiap KPI ber-sumber + tooltip bukti
+   ("Sumber: Attendance · periode Jan–Des 2026 · ditarik 12:01 · 98,2%") —
+   angka AUTO selalu bisa ditelusuri asalnya (prinsip §12-6).
+4. **KPI gagal ditarik / tanpa sumber** → ditandai jelas "perlu input manual",
+   bukan dibiarkan diam.
+
+### 18.7 Ketahanan Pengisian — autosave berkala + progress tracker bar (AMANDEMEN 2)
+
+**Latar kebutuhan user**: koneksi internet terputus / browser tidak sengaja
+tertutup TIDAK BOLEH memakan pekerjaan pengisian.
+
+- **Interval autosave**: setelah jeda ketik 3 detik (debounce) DAN paling lambat
+  tiap 10 detik selama pengguna aktif mengetik → PATCH draf ke server (status
+  Enrolled/GoalProposed, §18.1-5). Indikator halus pojok form: "Menyimpan…" →
+  "Tersimpan otomatis 14:32:07" (silent success — tanpa dialog).
+- **Mirror lokal**: setiap perubahan juga disalin ke localStorage — bila server
+  tidak terjangkau (offline), form TETAP bisa diketik; saat online kembali,
+  banner **"Pemulihan draf lokal (14:31:58) — Pulihkan / Buang"**. Server tetap
+  sumber kebenaran; pemulihan = usulan merge yang disetujui pengguna.
+- **Anti tutup tak sengaja**: dialog peringatan browser (beforeunload) bila ada
+  perubahan yang belum tersimpan.
+- **Cakupan**: SEMUA formulir panjang — builder KPI, self-assessment ESS, form
+  penilaian atasan, isian 360, catatan check-in, evaluasi prob, PIP.
+- **Progress tracker bar**: bar persentase + teks **"Formulir Anda selesai 60%"**
+  di bagian ATAS setiap formulir — dihitung dari field wajib terisi ÷ total field
+  wajib (target: tiap KPI punya target+ambang+bobot & Σbobot=100; penilaian:
+  finalActual tiap KPI + skor kompetensi + komentar ekstrem). Update live per
+  ketikan; hijau saat 100%; breakdown kecil "5/8 KPI · 6/12 kompetensi".
+- Angka progres yang sama dipakai di daftar peserta & Command Center (§18.8) —
+  atasan/HR melihat "rata-rata tim 60%" tanpa membuka tiap form.
+
+### 18.8 HR Command Center & Nudge Multi-Kanal (AMANDEMEN 2)
+
+"Siapa yang belum mengisi?" — satu layar menjawab, satu tombol mengejar:
+
+- **Lokasi**: TAB **Command Center** di halaman Siklus Penilaian (performance:
+  cycles — 0 halaman baru).
+- **Isi**: pilih siklus aktif → matriks status seluruh perusahaan — baris peserta ×
+  kolom fase (Target ✓/✗ + progres %, Self, Manager, Kalibrasi, Acknowledge) —
+  filter unit/atasan/status, pencarian, dan agregat per atasan ("Sri Wahyuni: 5/6
+  target — 86%") + sortir "paling tertinggal".
+- **Nudge**: tombol **Remind** per baris (dropdown kanal) + **Remind All** untuk
+  semua peserta tertinggal di fase aktif — dialog konfirmasi menampilkan jumlah
+  penerima + pratinjau pesan + pilihan kanal (default in-app + email; WhatsApp
+  opsional per penerima).
+- **Multi-kanal + deep-link** (D17): in-app + email (infra existing) + WhatsApp
+  (adapter WA); **Slack = backlog** (adapter webhook generik). Pesan memuat
+  **tautan langsung ke formulir** (token deep-link ke ESS "Target Saya" / form
+  terkait) — penerima 1 klik sampai ke form yang harus diisi.
+- **Rate limit** (D17): maks 1 nudge per peserta per kanal per 6 jam; kirim hanya
+  pada jam kerja (antre otomatis bila malam).
+- **Bukti**: setiap kirim ter-ActivityLog + laporan kirim (berhasil/gagal per
+  kanal); tile ringkasan di overview modul: "Belum mengisi target: 12/44".
+- **Pengingat terjadwal otomatis** (scheduler existing): H-7 & H-1 sebelum jendela
+  fase tutup → nudge otomatis kanal default (opt-out per siklus di settings).
+
+### 18.9 Versioning Pustaka KPI & Kompetensi (AMANDEMEN 2)
+
+**Masalah yang diselesaikan**: HR mengubah definisi indikator tahun ini (mis.
+satuan % → hari, deskriptor level baru) TANPA merusak data penilaian tahun-tahun
+sebelumnya.
+
+- **Lapis 1 (sudah ada sejak desain awal)**: baris penilaian adalah SNAPSHOT —
+  `AppraisalKpi` menyimpan salinan definisi (title/polarity/unit/ambang/target/
+  bobot); `AppraisalCompetencyScore` terikat competencyId baris penilaian.
+  Mengubah pustaka TIDAK PERNAH menulis ulang baris penilaian lama.
+- **Lapis 2 (AMANDEMEN 2)**: pustaka ber-versi — `KpiDefinition` & `Competency`
+  punya `versionNo/effectiveYear/status/supersededById/changeNote` (§15),
+  `@@unique([code, versionNo])`.
+- **Perilaku edit** (UX Master Kinerja): perubahan **minor** (nama tampilan,
+  deskripsi tanpa mengubah makna) → inline; perubahan **definitif** (satuan,
+  polaritas, deskriptor level) → wajib **"Simpan sebagai versi baru (tahun
+  berlaku)"** + catatan perubahan; versi lama otomatis **Superseded** — tidak
+  bisa dipilih untuk assignment baru, tetap terbaca di riwayat.
+- **Arsip ≠ hapus**: Archived = hilang dari picker; hard-delete DILARANG bila
+  dirujuk baris penilaian (guard §35-28).
+- **UI Master**: chip versi "v2 · berlaku 2027"; dialog riwayat versi (diff field
+  demi field); salin antar-periode (§18.2) menandai definisi versi sumber yang
+  sudah Superseded → flag amber + tawaran upgrade ke versi aktif.
+
+### 18.10 Bell Curve Kalibrasi — deteksi atasan "pelis/royal" (AMANDEMEN 2)
+
+- **Lokasi**: menu Kalibrasi (performance:calibration) — panel **"Kurva Nilai
+  (Bell Curve)"**; akses HR + Direksi (matriks §11.3; atasan hanya kurva timnya).
+- **Visual**: histogram sebaran skor (bin per 5 poin) + **overlay kurva normal**
+  (μ, σ dihitung dari data) + pilihan lingkup (perusahaan / unit / atasan) +
+  toggle sebelum/sesudah kalibrasi.
+- **Deteksi bias atasan** (D19): tabel per atasan — mean tim vs mean perusahaan,
+  z = (mean_tim − mean_perusahaan) / σ_perusahaan: z ≤ −1 → amber "**terlalu
+  pelis**"; z ≥ +1 → amber "**terlalu royal**"; |z| ≥ 2 → merah. Bonus deteksi
+  **central tendency**: σ tim < ½ σ perusahaan = semua nilai "aman" di tengah
+  (antipola §8).
+- **Interaksi**: klik bin → daftar peserta di bin; klik atasan → kurva timnya
+  di-overlay di grafik yang sama.
+- **Kurva adalah lensa, bukan palu** (konsisten D2 forced-distribution OFF):
+  penyesuaian nilai TETAP hanya lewat `CalibrationDecision` (dari → ke + alasan
+  wajib — ter-audit §30-3); bell curve dipakai untuk KEWAJARAN antar-unit,
+  bukan memaksa bentuk distribusi tertentu. Tooltip edukatif menjelaskan cara
+  membaca kurva & z-score (anti salah tafsir).
+
 ## 19. Integrasi Lintas Modul (kontrak yang diumumkan)
 
 | Modul | Titik sambung | Arah | Mekanisme |
@@ -1148,7 +1361,7 @@ Salin mempercepat pengetikan, bukan menggantikan penilaian kewajaran target:
 | **Disciplinary** | PIP gagal → SP | performance → disciplinary | outcome NotRecovered menyarankan `DisciplinaryRecord` (warningLevel sesuai riwayat) — keputusan tetap manual HR |
 | **Letters** | surat hasil/PIP/prob | performance → letters | 3 jenis template surat baru di LetterTemplate; terbit saat keputusan (pola surat offer/appointment) |
 | **Approval engine** | 4 docType baru | performance ↔ engine | `PerformanceAppraisal`, `ProbationDecision`, `PipPlan`, `MeritRecommendation` (§11.1) |
-| **Notifikasi/Email/WA** | semua milestone | performance → notif | `performance.*` events (goal approved, fase buka/tutup, hasil terpublikasi, PIP jatuh tempo, prob jatuh tempo H-14/H-3) |
+| **Notifikasi/Email/WA** | semua milestone + nudge | performance → notif | `performance.*` events (goal approved, fase buka/tutup, hasil terpublikasi, PIP jatuh tempo, prob jatuh tempo H-14/H-3); **AMANDEMEN 2**: nudge Command Center multi-kanal — in-app + email + WhatsApp dengan deep-link token ke formulir (§18.8); Slack = backlog adapter webhook generik (D17) |
 | **eSign** | surat keputusan | performance → esign | request e-sign surat PIP/percobaan bila perusahaan mau (opsional) |
 | **MetricSnapshot** | analitik modul | performance → snapshot | metric baru: perf_completion, rating_distribution, pip_recovery_rate |
 
@@ -1162,11 +1375,11 @@ Ukuran: M ≈ 2–4 hari, L ≈ 5–8 hari, XL ≈ 9–14 hari (agent-assisted, 
 
 | Fase | Isi | Ukuran | Keluaran terverifikasi per fase |
 |---|---|---|---|
-| **P0 Fondasi & Master** | 17 model schema + DDL + parity step; masters (KPI library starter-pack ±40 KPI 4 perspektif BSC, 12 kompetensi ber-level, skala rating, template, merit matrix default); menu & rail grup; settings; penomoran | **M** | migrasi idempoten 3 tenant; halaman Master CRUD; tsc/lint/audit gate |
-| **P1 Siklus & Target** | cycle CRUD + gerbang fase + enroll peserta (auto: karyawan Active, snapshot manager); **KPI Builder §18.1 + salin dari periode sebelumnya §18.2** (copyPreview/copyFromCycle/copyTeam + prefill siklus); penetapan KPI (assign batch + self-propose MBO + approval) + lock; validasi Σbobot | **L** | alur 1–2 E2E termasuk salin PER-2025→PER-2026 + bulk tim; guard §35 baris 1–7 + 24–25 |
+| **P0 Fondasi & Master** | 17 model schema + DDL + parity step; masters (KPI library starter-pack ±40 KPI 4 perspektif BSC, 12 kompetensi ber-level, skala rating, template, merit matrix default) + **versioning pustaka §18.9 (AMANDEMEN 2: kolom versi KpiDefinition & Competency + perilaku minor/definitif)**; menu & rail grup; settings; penomoran | **M** | migrasi idempoten 3 tenant; halaman Master CRUD + riwayat versi; tsc/lint/audit gate |
+| **P1 Siklus & Target** | cycle CRUD + gerbang fase + enroll peserta (auto: karyawan Active, snapshot manager); **KPI Builder §18.1 + salin dari periode sebelumnya §18.2** (copyPreview/copyFromCycle/copyTeam + prefill siklus); penetapan KPI (assign batch + self-propose MBO + approval) + lock; validasi Σbobot; **AMANDEMEN 2: impor Excel target §18.5 + TAB Command Center & nudge multi-kanal §18.8 + autosave/progress bar infra formulir §18.7** | **L–XL** | alur 1–2 E2E termasuk salin PER-2025→PER-2026 + bulk tim + impor target (baris kotor ditolak, hanya baris valid) + nudge ter-log & rate-limit + pemulihan draf; guard §35 baris 1–7 + 24–26 + 29 |
 | **P2 Check-in & Monitoring** | CheckIn CRUD + scheduler reminder + progress midActual + revisi target mid-year (approval ringan atasan-atas) | **M** | alur 3 E2E |
-| **P3 Penilaian & 360** | fase self + manager (form §18-4) + pullAutoSources (6 binding) + feedback360 (undang/isian/anonim ≥3) | **L** | alur 5 E2E + bukti tarikan otomatis |
-| **P4 Kalibrasi & Finalisasi** | dashboard distribusi + CalibrationSession/Decision (audit) + docType PerformanceAppraisal di engine + struktur AS-PERF-STD + finalisasi & publikasi + acknowledgement + banding ESS | **L–XL** | alur 6–7 E2E; audit trail lengkap |
+| **P3 Penilaian & 360** | fase self + manager (form §18-4) + pullAutoSources (6 binding) + feedback360 (undang/isian/anonim ≥3); **AMANDEMEN 2: impor Excel realisasi §18.5 + pratinjau tarikan §18.6 + autosave/progress bar di semua form penilaian §18.7** | **L** | alur 5 E2E + bukti tarikan otomatis + impor realisasi (baris kotor ditolak) + autosave recovery |
+| **P4 Kalibrasi & Finalisasi** | dashboard distribusi + **BELL CURVE §18.10 (AMANDEMEN 2: histogram + overlay normal + z-flag pelis/royal + central tendency)** + CalibrationSession/Decision (audit) + docType PerformanceAppraisal di engine + struktur AS-PERF-STD + finalisasi & publikasi + acknowledgement + banding ESS | **L–XL** | alur 6–7 E2E + bell curve flag sesuai D19; audit trail lengkap |
 | **P5 Merit, PA & Surat** | MeritMatrix → MeritRecommendation (docType nominal + vault) → toPayroll/toPersonnelAction; surat PER/PIP/PRB; notifikasi milestone | **L–XL** | alur 8 E2E + jurnal payroll menyerap |
 | **P6 PIP End-to-End** | create/activate/checkpoint/extend/outcome + sambungan disciplinary + scheduler jatuh tempo | **L** | alur 9 E2E |
 | **P7 Evaluasi Masa Percobaan** | trigger dari onboarding + form + keputusan 3 arah + PA + surat + scheduler H-14/H-3 | **M** | alur 4 E2E dari hire rekrutmen |
@@ -1188,6 +1401,11 @@ Sama dengan standar proyek (per fase, tanpa kecuali):
    → PIP, 1 probation dari hire E2E-MPP-HIRE) — dipakai ulang rantai bukti hidup.
 6. Dokumen bisnis proses (Bagian E) diperbarui bila test menemukan miskonsepsi
    (pola rekruitment: test → pahami ulang → koreksi dokumen).
+7. **Fitur AMANDEMEN 2 teruji eksplisit di fase terkait** (P1/P3/P4): impor Excel
+   (file valid + baris kotor ditolak — hanya baris valid yang commit); autosave
+   (simulasi putus koneksi → pemulihan draf lokal); nudge (rate-limit 6 jam &
+   ActivityLog); bell curve (z-flag atasan pelis/royal sesuai D19); versioning
+   (ubah definisi definitif → versi baru → data penilaian tahun lama UTUH).
 
 **Definition of Done modul (keseluruhan)**: siklus penuh dapat dijalankan di data MII
 dari pembuatan siklus hingga merit diterapkan payroll + surat terbit + PIP selesai,
@@ -1199,6 +1417,10 @@ seluruhnya ter-ActivityLog, dwibahasa, mobile, dan 3 tenant ter-isolasi.
 |---|---|---|
 | Adopsi rendah (formulir dianggap beban) | tinggi | ESS-first + auto-source KPI + check-in ringan; atasan tidak mengetik ulang data yang sistem punya |
 | Salinan periode lalu dipakai mentah (target basi dari tahun sebelumnya) | sedang | salin ≠ submit (wajib review + submit manual) + banner "periksa" + flag KPI non-aktif + laporan rot-stagnasi P8 (§18.4) |
+| Impor Excel data kotor / salah format | sedang | pratinjau validasi per sel + commit hanya baris valid (D16) + laporan error dapat diunduh untuk perbaikan + batas ≤500 baris (§18.5) |
+| Nudge menjadi spam / mengganggu | rendah | rate-limit 1 per peserta per kanal per 6 jam + konfirmasi jumlah penerima + kirim hanya jam kerja + ActivityLog semua kirim (D17) |
+| Bell curve disalahartikan jadi kuota paksa | sedang | kurva = lensa kewajaran; forced distribution tetap OFF (D2); penyesuaian hanya via CalibrationDecision beralasan + tooltip edukatif (§18.10) |
+| Versioning membingungkan HR | rendah | default sederhana: minor inline / definitif versi baru + catatan; data historis aman otomatis (snapshot baris penilaian — §18.9 lapis 1) |
 | Sengketa ketenagakerjaan atas hasil | tinggi | audit trail (CalibrationDecision + ActivityLog) + jendela banding + bukti KPI ter-lampir + ekspor riwayat (PP 35/2021) |
 | Penilaian bias atasan | sedang | distribusi + panduan + kalibrasi wajib + komentar wajib skor ekstrem |
 | Overlap dengan payroll cycle (bonus telat) | sedang | `apply` mengecek jendela PayrollRun terbuka; fallback draft PA SalaryAdjustment bila run tertutup |
@@ -1226,6 +1448,10 @@ seluruhnya ter-ActivityLog, dwibahasa, mobile, dan 3 tenant ter-isolasi.
 | D13 | Isi yang disalin antar-periode | definisi+target+bobot+ambang+stretch+kritis; **capaian & bukti selalu reset** (§18.2) | ikut menyalin capaian (tidak disarankan) |
 | D14 | Titik masuk salin | 4 titik: empty state · toolbar · bulk tim · prefill siklus (§18.2 a–d) | hanya toolbar form |
 | D15 | Resolusi sumber salin otomatis | siklus terdahulu peserta sama (periodEnd < awal siklus baru, KPI terkunci ≥ GoalApproved); fallback template jabatan | selalu pilih manual |
+| D16 | Impor Excel: batas & perilaku commit | .xlsx ≤2 MB · ≤500 baris/file; commit hanya baris valid, error dilaporkan per sel (baris lain tidak ikut gagal); impor ≠ submit | commit transaksional all-or-nothing |
+| D17 | Kanal & frekuensi nudge | in-app + email + WhatsApp (deep-link token ke formulir); Slack = backlog (adapter webhook generik); maks 1 per peserta per kanal per 6 jam; kirim hanya jam kerja | tanpa rate-limit / tanpa WA |
+| D18 | Autosave | debounce 3 s + interval maks 10 s + mirror localStorage + pemulihan draf eksplisit (server = sumber kebenaran) | hanya simpan manual |
+| D19 | Ambang flag atasan di bell curve | z ≤ −1 "pelis" / z ≥ +1 "royal" (amber); |z| ≥ 2 merah; + deteksi central tendency σ tim < ½ σ perusahaan | ambang selisih mean saja |
 
 ---
 ---
@@ -1306,8 +1532,10 @@ atasan → ditandai "butuh penunjukan atasan" (HR bisa override manual).
    menerima/mengubah/menolak — diterima masuk daftar resmi.
 5. Atasan **submit** → target terkunci (status GoalApproved). Perubahan setelahnya
    hanya lewat Alur 3 revisi mid-year. (Bulk: atasan/HR boleh "salin tim dari
-   PER-2025" — §18.2-c — tiap peserta tetap menunggu submit per orang; laporan
-   hasil N/M/K ditampilkan.)
+   PER-2025" — §18.2-c — ATAU **mengimpor Excel target** — §18.5 AMANDEMEN 2:
+   unduh template → unggah → pratinjau validasi → commit hanya baris valid →
+   hasil = baris draf; tiap peserta tetap menunggu review + submit per orang;
+   laporan hasil N/M/K ditampilkan.)
 6. Sistem mengirim ringkasan target ke karyawan (ESS "Target Saya" terisi).
 **Guard**: submit ditolak bila Σbobot ≠ 100 atau KPI Boolean tanpa definisi gagal/sukses;
 kunci setelah lockGoals / lewatnya goalEnd; salin hanya sah saat fase GoalSetting &
@@ -1349,6 +1577,8 @@ tempo — lewat jatuh tempo tanpa keputusan → eskalasi direksi + tanda merah d
 
 1. **Tarik data otomatis** (sistem, saat fase dibuka): semua KPI ber-sumber diisi
    `finalActual` otomatis + bukti `autoValueJson`; KPI manual kosong menunggu input.
+   (AMANDEMEN 2 §18.6: atasan bisa menarik ulang massal dengan dialog pratinjau
+   sebelum diterapkan — konfirmasi timpa bila sudah ada input manual.)
 2. **Karyawan (ESS)** mengisi: aktual KPI manual + bukti + self-assessment kompetensi
    (selfScore per kompetensi) → `submitSelf` (status SelfDone).
 3. **360 (bila aktif)**: atasan/HR mengundang reviewer (peer/subordinate/cross);
@@ -1356,7 +1586,9 @@ tempo — lewat jatuh tempo tanpa keputusan → eskalasi direksi + tanda merah d
 4. **Atasan** menilai: verifikasi aktual KPI manual, skor kompetensi per deskriptor
    (komentar WAJIB bila skor ekstrem ≤2/=5), melihat ringkasan 360 ter-agregasi
    (≥3 reviewer per kategori) → `submitManager` → `managerScore` dihitung server (§16)
-   → status ManagerDone.
+   → status ManagerDone. (AMANDEMEN 2 §18.5: atasan/HR bisa **impor realisasi
+   massal via Excel** — mengisi `finalActual` tanpa mengubah status; §18.7: form
+   dilengkapi autosave berkala + progress bar "Formulir Anda selesai X%".)
 **Guard**: submitManager ditolak bila masih ada KPI aktual null atau Σbobot menyimpang;
 fase self wajib lewat (atau dilewati resmi via null window) sebelum manager aktif.
 
@@ -1365,7 +1597,10 @@ fase self wajib lewat (atau dilewati resmi via null window) sebelum manager akti
 **Pemicu**: jendela managerEnd lewat / HR memaksa mulai (ter-ActivityLog).
 
 1. HR membuka **dashboard distribusi**: bar rating per unit/atasan, rata-rata skor,
-   flag anomali (leniency/strictness/central tendency §8).
+   flag anomali (leniency/strictness/central tendency §8) + **panel KURVA BELL
+   (AMANDEMEN 2 §18.10)**: histogram skor + overlay kurva normal + tabel z-score
+   per atasan ("terlalu pelis"/"terlalu royal" — D19) — bahan diskusi forum,
+   bukan alat paksa (D2 tetap OFF).
 2. HR menjadwalkan **CalibrationSession** per unit (peserta atasan-atasan + ketua);
    forum membahas karyawan pada ekor distribusi (rating 5 & 1–2 terutama).
 3. Setiap penyesuaian = `CalibrationDecision` (dari → ke; alasan WAJIB; aktor;
@@ -1605,15 +1840,19 @@ flowchart LR
 | 23 | prob decide | atasan+HR+approval | sebelum/saat dueDate | dueDate > 3 bln dari join (input sudah diblokir) |
 | 24 | copyPreview / copyFromCycle (salin KPI periode lalu, per peserta) | atasan peserta/HR | fase GoalSetting & appraisal belum GoalApproved; sumber valid (periodEnd < awal siklus aktif, peserta sama, ≥1 KPI terkunci) | target sudah dikunci / fase GoalSetting sudah tutup |
 | 25 | copyTeam (salin massal tim / prefill siklus) | atasan/HR | fase GoalSetting; hanya peserta tanpa baris KPI (sisanya dilaporkan "dilewati", bukan error) | — |
+| 26 | importTargets (preview/commit Excel — §18.5) | HR / atasan (timnya) | fase GoalSetting; template resmi; .xlsx ≤2 MB ≤500 baris; hanya baris valid commit (D16) | fase salah / MIME ditolak / peserta bukan bawahannya |
+| 27 | importActuals (preview/commit Excel — §18.5) | HR / atasan (timnya) | jendela manager terbuka; hanya kolom finalActual; target sudah GoalApproved | fase sudah Kalibrasi / KPI tak ditemukan |
+| 28 | newVersion / archive pustaka (§18.9) | HR | newVersion: tahun berlaku + catatan perubahan wajib; arsip = soft (data tetap terbaca) | hard-delete definisi yang dirujuk baris penilaian (DILARANG) |
+| 29 | nudge / nudgeAll (§18.8) | HR / atasan (timnya) | fase aktif terkait; rate-limit 1 per peserta per kanal per 6 jam; ActivityLog | melebihi rate-limit / di luar jam kerja (antre otomatis) |
 
 ## 36. Matriks Aktor × Menu × Endpoint (utama)
 
 | Aktor | Menu admin | Endpoint inti yang dipakai |
 |---|---|---|
-| HR Admin | semua `performance:*` | masters, cycles(action), goals, checkins, appraisals, feedback360, calibration, results, merit, pip, probation, reports |
-| Atasan | Target & KPI · Check-in · Penilaian · (Hasil tim) | goals(assign/submit/copyFromCycle/copyTeam), checkins, appraisals(submitManager), calibration(ikut), results(read tim) |
+| HR Admin | semua `performance:*` | masters(create/newVersion/archive), cycles(action+nudge), goals(assign/submit/copy/importTargets), checkins, appraisals(submitManager/pullAutoSources/importActuals), feedback360, calibration(distribusi+curve), results, merit, pip, probation, reports |
+| Atasan | Target & KPI · Check-in · Penilaian · (Hasil tim) | goals(assign/submit/copyFromCycle/copyTeam/importTargets tim), cycles(commandCenter+nudge tim), checkins, appraisals(submitManager/pullAutoSources/importActuals), calibration(ikut, curve tim sendiri), results(read tim) |
 | Atasan L2 | read-only + approval revisi | goals(reviseTarget approval), approval inbox (PerformanceAppraisal/PipPlan) |
-| Direksi | Hasil & 9-Box (agregat) | results(9box), approval inbox (jenjang 3) |
+| Direksi | Hasil & 9-Box (agregat) | results(9box), calibration(curve perusahaan — §18.10), approval inbox (jenjang 3) |
 | Karyawan ESS | Target Saya · Penilaian Saya · 360 Saya | ess/my-goals, ess/my-appraisal, ess/my-360, ess/my-checkins |
 | Reviewer 360 (bukan peserta pun boleh) | 360 Saya | ess/my-360 |
 
@@ -1723,7 +1962,7 @@ Atasan penilai: Sri Wahyuni — HR Director · Bobot: KPI 70 / Kompetensi 20 / N
    Eka Putri (MII00046) untuk alur probation.
 6. Bahasa dokumen: Indonesia; UI aplikasi dwibahasa penuh ID/EN.
 
-## Lampiran G — Wireframe KPI Builder & "Salin dari Periode Sebelumnya" (AMANDEMEN 1)
+## Lampiran G — Wireframe: KPI Builder, Salin Periode, Impor Excel, Command Center, Bell Curve & Progress Bar (AMANDEMEN 1+2)
 
 ### G.1 Titik awal builder (peserta tanpa KPI — §18.1-2)
 
@@ -1779,11 +2018,94 @@ siklus sumber) → hasil: 31 terisi ⟨disalin⟩ · 4 tanpa sumber → tawar te
 periode lalu — opsional; tiap peserta tetap menunggu review & submit atasan".)
 ```
 
+### G.5 Impor Excel massal — 3 langkah + pratinjau validasi (§18.5 — AMANDEMEN 2)
+
+```
+IMPOR TARGET VIA EXCEL · PER-2026 (fase GoalSetting)
+[1 Unduh template] → [2 Unggah file] → [3 Pratinjau]
+template_target_per2026.xlsx — header dwibahasa (ID+EN), sheet instruksi + data:
+  employeeNo | nama | judul/kode KPI | polaritas | unit | ambang | target | stretch | bobot | kritis
+  (baris contoh terisi; dropdown validasi polaritas & kritis; ≤500 baris, ≤2 MB)
+
+PRATINJAU VALIDASI — 478 baris valid ✓ · 22 error:
+  baris 12: employeeNo "MII00099" bukan peserta siklus ini          [lompati]
+  baris 31: bobot "tiga puluh" bukan angka                          [perbaiki]
+  baris 47: target peserta sudah terkunci (GoalApproved)            [lompati]
+  baris 58: satuan tidak cocok dgn definisi pustaka (% vs hari)     [perbaiki]
+[Unduh laporan error utk perbaikan]
+                       [ Batal ]   [ Commit 478 baris valid → ]
+HASIL: 478 draf dibuat · 22 dilompati · ActivityLog tercatat.
+IMPOR ≠ SUBMIT — tiap peserta tetap menunggu review + submit atasan.
+```
+
+### G.6 HR Command Center & nudge multi-kanal (§18.8 — AMANDEMEN 2)
+
+```
+SIKLUS PENILAIAN · TAB COMMAND CENTER · PER-2026
+Filter: [Unit ▾] [Atasan ▾] [Status: tertinggal ▾]      ⚠ 12 dari 44 belum mengisi target
+
+Atasan             Tim  Target     Self   Mgr    Rata-rata progres
+Sri Wahyuni (HR)    6   6/6 ✓      5/6    4/6    ▓▓▓▓▓▓▓▓░░ 86%
+Hartono (Ops)       8   3/8        1/8    0/8    ▓▓▓░░░░░░░ 34%  ⚠ paling tertinggal
+Eka (Finance)      11   8/11       6/11   2/11   ▓▓▓▓▓░░░░░ 61%
+…
+[Remind per baris ▾ kanal]   [ REMIND ALL — 12 penerima ]
+Dialog kirim: kanal ☑in-app ☑email ☐WhatsApp · pratinjau pesan:
+  "Target KPI PER-2026 Anda belum diisi — tenggat 31 Mar.
+   Buka formulir: {deep-link langsung}"  (rate-limit 1/kanal/6 jam — D17)
+→ terkirim 14:02 · ActivityLog + laporan kirim (berhasil/gagal per kanal)
+```
+
+### G.7 Bell curve kalibrasi (§18.10 — AMANDEMEN 2)
+
+```
+KALIBRASI · KURVA NILAI (skor akhir) · PER-2026 · [sebelum ▾/sesudah kalibrasi]
+
+  # peserta
+  8 ┤                      ▄█▆▄
+  6 ┤                 ▄███▀█▄
+  4 ┤            ▂▄███▀▂▄
+  2 ┤       ▂▄██▀▂▄
+    └──40───50───60───70───80───90──100  skor
+    ┈┈┈ overlay kurva normal (μ = 76 · σ = 9) ┈┈┈
+  [Lingkup: perusahaan ▾ / unit / atasan]
+
+  Atasan             Mean tim  z      Flag
+  Hartono (Ops)       68        −1,8   ⚠ TERLALU PELIS (amber)
+  Sri Wahyuni (HR)    85        +1,2   ⚠ terlalu royal (amber)
+  Eka (Finance)       71        −0,3   —
+  (z = (mean tim − mean perusahaan) / σ perusahaan — D19; |z|≥2 = merah;
+   σ tim < ½ σ perusahaan = central tendency "semua aman di tengah")
+
+Klik bin → daftar peserta · klik atasan → kurva timnya di-overlay.
+Penyesuaian nilai TETAP via CalibrationDecision (alasan wajib — ter-audit).
+```
+
+### G.8 Autosave + progress tracker bar (§18.7 — AMANDEMEN 2)
+
+```
+FORMULIR PENILAIAN ATASAN · PER-2026-0007 · Budi Santoso — GA Staff
+
+  Formulir Anda selesai 60%   ▓▓▓▓▓▓░░░░
+  [5/8 KPI aktual · 6/12 kompetensi · 0/1 komentar ekstrem]        Tersimpan otomatis 14:32:07
+───────────────────────────────────────────────────────────────────
+KPI 1  Ketepatan closing (AUTO — ditarik 12:01 · sumber: Attendance)
+       Aktual: [ 98% ] ✓
+KPI 2  Akurasi data karyawan (manual)
+       Aktual: [     ] ← perlu diisi
+…
+(koneksi terputus → mirror lokal aktif; saat kembali online:
+ "Draf lokal 14:31:58 lebih baru dari server — [Pulihkan] [Buang]")
+[tutup browser dgn perubahan belum tersimpan → peringatan beforeunload]
+```
+
 ---
 
-*Dokumen berstatus **menunggu keputusan user** atas Register Keputusan §23 (D1–D15,
-termasuk 3 keputusan baru AMANDEMEN 1) sebelum fase P0 dieksekusi. Belum ada baris
-kode aplikasi yang berubah — termasuk seluruh isi AMANDEMEN 1 (KPI Builder UX +
-salin dari periode sebelumnya).*
+*Dokumen berstatus **menunggu keputusan user** atas Register Keputusan §23 (D1–D19,
+termasuk 3 keputusan AMANDEMEN 1 dan 4 keputusan AMANDEMEN 2) sebelum fase P0
+dieksekusi. Belum ada baris kode aplikasi yang berubah — termasuk seluruh isi
+AMANDEMEN 1 (KPI Builder UX + salin dari periode sebelumnya) dan AMANDEMEN 2
+(impor Excel, tarikan otomatis berpratinjau, autosave + progress bar, HR Command
+Center + nudge multi-kanal, versioning pustaka, bell curve kalibrasi).*
 
 

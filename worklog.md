@@ -6556,3 +6556,33 @@ Stage Summary:
 - Keputusan desain kunci: salin ≠ submit (human-in-the-loop selalu); capaian/bukti/skor TIDAK PERNAH ikut disalin (periode baru mulai bersih); hemat arsitektur (0 tabel/endpoint/halaman baru); provenance origin+copiedFromId untuk audit & chip UI; laporan rot-stagnasi untuk HR mendeteksi target basi.
 - Tetap DOKUMEN MURNI — menunggu persetujuan/eksekusi user (Register Keputusan kini D1–D15).
 
+---
+Task ID: PLAN-PERF-AM2
+Agent: main (Z.ai Code)
+Task: Arahan user lanjutan atas DEVELOPMENT-PLAN-PERFORMANCE.md — 7 fitur kemudahan: sisi pengguna (impor Excel target/realisasi, tarikan otomatis antar-modul, autosave berkala anti-hilang-data, progress tracker bar), sisi admin HR (HR Command Center + nudge Remind All WA/Email, version control pustaka KPI/kompetensi), lainnya (bell curve kalibrasi deteksi atasan pelis/royal, reminder WA/Slack dengan deep-link) — AMANDEMEN 2, tetap murni dokumen, NOL perubahan kode aplikasi.
+
+Work Log:
+- Tulis AMANDEMEN 2 (47 penanda dalam dokumen) — pemetaan ke seksi:
+  · Header: blok Amandemen 2 (peta 7 fitur → §18.5–§18.10); TOC + Lampiran G diperbarui.
+  · §13 arsitektur +3 baris keputusan: nudge multi-kanal (WA adapter + deep-link token; Slack=backlog webhook generik), impor Excel (parse server-side, MIME whitelist+magic number, laporan per baris), versioning pustaka (kolom versi 2 model + snapshot baris penilaian = defense in depth).
+  · §15 data model: KpiDefinition & Competency + versionNo/effectiveYear/status(Active|Superseded|Archived)/supersededById/changeNote + @@unique([code, versionNo]) (ganti code unique tunggal) — edit Competency dilakukan via python line-editor karena Edit tool menolak old_str (anomali serialisasi); hasil diverifikasi visual.
+  · §17 API: masters +{newVersion|archive}; cycles +GET ?commandCenter=1 +{nudge|nudgeAll}; goals +{importTargetsPreview|importTargetsCommit} +GET ?importTemplate=targets; appraisals +GET ?importTemplate=actuals +{importActualsPreview|importActualsCommit}; calibration +GET ?curve=1 — 0 endpoint/halaman/tabel baru.
+  · §18 daftar +poin 12–18; SUBBAB BARU §18.5 Impor Excel Massal (2 jenis template dwibahasa, alur 3 langkah unduh→unggah→pratinjau validasi per sel, commit hanya baris valid D16, impor≠submit, aktor HR/atasan-tim, file dibuang pasca proses) · §18.6 Tarikan Otomatis berpratinjau (tarik massal + dialog pratinjau + konfirmasi timpa + tooltip bukti sumber/periode/timestamp; contoh user % kehadiran→KPI disiplin = binding attendance_presence_pct §16) · §18.7 Ketahanan Pengisian (autosave debounce 3s + maks 10s + mirror localStorage + pemulihan draf eksplisit + beforeunload + cakupan semua form panjang; progress tracker bar "Formulir Anda selesai 60%" field wajib terisi÷total + breakdown + dipakai ulang di Command Center) · §18.8 HR Command Center & Nudge (TAB di halaman cycles; matriks peserta×fase + filter + agregat per atasan + sort tertinggal; Remind per baris + Remind All dengan konfirmasi jumlah+pratinjau pesan; multi-kanal in-app/email/WA + deep-link token; rate-limit 1/peserta/kanal/6 jam D17; ActivityLog + laporan kirim; reminder terjadwal H-7/H-1) · §18.9 Versioning Pustaka (lapis 1 snapshot baris penilaian sudah ada + lapis 2 kolom versi; minor=inline vs definitif=versi baru wajib catatan; arsip≠hapus; hard-delete dirujuk DILARANG; UI chip versi + dialog diff + integrasi flag salin §18.2) · §18.10 Bell Curve (histogram + overlay normal μ σ + lingkup perusahaan/unit/atasan + toggle sebelum/sesudah kalibrasi; z-flag pelis/royal D19 + central tendency; klik bin→peserta, klik atasan→overlay; kurva=lensa bukan palu, D2 forced-distribution tetap OFF, penyesuaian tetap CalibrationDecision ter-audit).
+  · §19: baris notifikasi diperluas (nudge multi-kanal + deep-link + Slack backlog).
+  · §20 fase: P0 +versioning pustaka; P1 +impor Excel target + Command Center/nudge + autosave/progress infra (ukuran L→L–XL, deliverable E2E diperluas); P3 +impor realisasi + pratinjau tarikan + autosave semua form; P4 +bell curve (deliverable +flag D19).
+  · §21 gates +poin 7: fitur AM2 teruji eksplisit (impor file kotor, autosave recovery, rate-limit nudge, z-flag, versioning data lama utuh).
+  · §22 +4 risiko: impor kotor, nudge spam, bell curve disalahartikan jadi kuota, versioning membingungkan (+mitigasi).
+  · §23 register +D16 (impor: ≤2MB ≤500 baris, hanya baris valid, impor≠submit), D17 (kanal nudge + rate-limit 6 jam + jam kerja), D18 (autosave interval + mirror + pemulihan), D19 (z ≤−1 pelis / ≥+1 royal amber, ≥±2 merah + central tendency).
+  · Alur bisnis: §26-5 +jalur Excel; §29-1 +tarik ulang pratinjau; §29-4 +impor realisasi + autosave/progress bar; §30-1 +panel kurva bell.
+  · §35 guard +baris 26–29 (importTargets, importActuals, newVersion/archive, nudge rate-limit).
+  · §36 matriks: HR + (newVersion/nudge/import/curve); Atasan + (importTargets tim, nudge tim, curve tim); Direksi + calibration(curve).
+  · Lampiran G judul baru + G.5–G.8 wireframe: G.5 impor 3 langkah + pratinjau error per sel · G.6 command center + Remind All + deep-link · G.7 bell curve histogram + tabel z · G.8 progress bar + autosave + pemulihan offline.
+  · Footer: D1–D19 + ringkasan isi Amandemen 1 & 2.
+- Verifikasi integritas: 2.111 baris (+322) · 46 fence seimbang (23 blok) · 6 mermaid utuh · §18.1–§18.10 berurutan · §12–§37 lengkap · hanya file dokumen ini yang berubah (git status).
+- NOL perubahan kode aplikasi: tsc/lint/audit tidak terpengaruh, dev server tidak disentuh. Catatan: 1 edit dilakukan via skrip python (Edit tool anomali serialisasi pada blok model Competency — old_str terverifikasi identik via python repr; solusi line-based + assertion, hasil dicek visual).
+
+Stage Summary:
+- AMANDEMEN 2 selesai: 7 permintaan user terpetakan penuh — ① impor Excel target & realisasi (§18.5, D16) ② tarikan otomatis antar-modul berpratinjau (§18.6, perkuat binding §16) ③ autosave berkala + mirror lokal + pemulihan (§18.7, D18) ④ progress tracker bar (§18.7) ⑤ HR Command Center + Remind All multi-kanal WA/email + deep-link (§18.8, D17) ⑥ versioning pustaka KPI/kompetensi tanpa merusak data historis (§18.9 + kolom §15) ⑦ bell curve kalibrasi + deteksi pelis/royal (§18.10, D19).
+- Prinsip desain dijaga: impor≠submit & salin≠submit (human-in-the-loop); kurva=lensa bukan kuota (D2 OFF); hard-delete pustaka dirujuk DILARANG; server=sumber kebenaran draf; hemat arsitektur (0 tabel/endpoint/halaman baru).
+- Tetap DOKUMEN MURNI — Register Keputusan kini D1–D19; menunggu persetujuan/eksekusi user.
+
