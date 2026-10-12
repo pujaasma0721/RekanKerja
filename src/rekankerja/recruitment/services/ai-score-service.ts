@@ -371,8 +371,8 @@ function factorsFromAiText(raw: string, rubric: RubricFactor[]): { factor: strin
     const hit = byName.get(r.name.toLowerCase());
     if (!hit) return null;
     return { factor: r.name, score: hit.score, evidence: hit.evidence };
-  });
-  return out.every(Boolean) ? out : null;
+  }).filter((x): x is { factor: string; score: number; evidence: string } => x != null);
+  return out.length === rubric.length ? out : null;
 }
 
 // ============ generate skor ============

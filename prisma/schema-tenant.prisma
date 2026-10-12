@@ -4474,6 +4474,8 @@ model Competency {
   supersededById String?
   changeNote     String?
   createdAt      DateTime @default(now())
+  // P3 hotfix — relasi eksplisit (include competency di penilaian §29-4/5)
+  appraisalScores AppraisalCompetencyScore[]
   updatedAt      DateTime @updatedAt
 
   @@unique([code, versionNo])
@@ -4632,6 +4634,7 @@ model AppraisalCompetencyScore {
   appraisalId    String
   appraisal     AppraisalRecord @relation(fields: [appraisalId], references: [id])
   competencyId   String
+  competency     Competency     @relation(fields: [competencyId], references: [id])
   score          Int // 1..5 (dinilai saat fase manager; self saat fase self)
   selfScore      Int?
   comment        String?
@@ -4671,6 +4674,7 @@ model Feedback360 {
   status       String              @default("Invited") // Invited|Submitted|Declined|Expired
   dueAt        DateTime?
   submittedAt  DateTime?
+  createdAt    DateTime            @default(now()) // P3 hotfix — urutan daftar undangan
   reviewer     Employee            @relation("F360Reviewer", fields: [reviewerId], references: [id])
   answers      Feedback360Answer[]
 

@@ -143,7 +143,7 @@ export function PerformanceMastersPage() {
     if (kind === "scale") setScaleForm({ id: "", value: "5", labelId: "", labelEn: "", minScore: "90", color: "emerald", guideline: "" });
     if (kind === "template") setTplForm({ id: "", code: "", name: "", kpi: "70", competency: "20", core: "10", active: true });
     if (kind === "meritMatrix") setMeritForm({ id: "", code: "", name: "", grid: JSON.stringify({ 5: { bonusMonths: 2, raisePct: [8, 12] }, 4: { bonusMonths: 1.5, raisePct: [6, 8] }, 3: { bonusMonths: 1, raisePct: [4, 6] }, 2: { bonusMonths: 0.5, raisePct: [0, 2] }, 1: { bonusMonths: 0, raisePct: [0, 0] } }, null, 2), active: true });
-    setDialog(true);
+    setDialog("edit");
   };
 
   const openEditKpi = (r: KpiRow) => setKpiForm({ id: r.id, code: r.code, name: r.name, category: r.category, polarity: r.polarity, unit: r.unit, dataSource: r.dataSource, sourceKey: r.sourceKey ?? "", description: r.description ?? "", active: r.active });
@@ -174,7 +174,7 @@ export function PerformanceMastersPage() {
     else if (kind === "scale") openEditScale(r as ScaleRow);
     else if (kind === "template") openEditTpl(r as TplRow);
     else openEditMerit(r as MeritRow);
-    setDialog(true);
+    setDialog("edit");
   };
 
   const save = async () => {
@@ -195,7 +195,7 @@ export function PerformanceMastersPage() {
         if (!filled) throw new Error(t("Deskriptor 5 level wajib terisi semua (anchor anti-halo §8)", "All 5 level descriptors must be filled (anti-halo anchors §8)"));
         await apiSend("/api/rekankerja/performance/masters", "POST", {
           kind, id: compForm.id || undefined, code: compForm.code, name: compForm.name,
-          kind: compForm.id ? undefined : compForm.kind,
+          compKind: compForm.id ? undefined : compForm.kind,
           levelsJson: compForm.id ? undefined : JSON.stringify(compForm.levels.map((l, i) => ({ level: i + 1, label: l.label, descriptor: l.descriptor }))),
           active: compForm.active,
         });
@@ -219,7 +219,7 @@ export function PerformanceMastersPage() {
         });
       }
       toast.success(t("Master disimpan", "Master saved"));
-      setDialog(false);
+      setDialog(null);
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));

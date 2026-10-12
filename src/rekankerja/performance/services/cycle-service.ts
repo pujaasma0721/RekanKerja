@@ -204,13 +204,14 @@ export async function createCycle(db: TenantDb, input: CycleInput, actor: string
   return row.id;
 }
 
-export async function patchCycle(db: TenantDb, id: string, input: CycleInput, actor: string): Promise<void> {
+export async function patchCycle(db: TenantDb, id: string, input: Partial<CycleInput>, actor: string): Promise<void> {
   const row = await db.performanceCycle.findUnique({ where: { id } });
   if (!row) bad("Siklus tidak ditemukan");
   if (row.status !== "Draft") bad("Siklus hanya dapat diubah saat masih Draft (perubahan fase berikutnya lewat aksi bernama)");
   const merged: CycleInput = {
     ...input,
     code: row.code, // kode tidak diubah
+    name: input.name ?? row.name,
     periodStart: input.periodStart ?? row.periodStart.toISOString(),
     periodEnd: input.periodEnd ?? row.periodEnd.toISOString(),
   };
@@ -319,7 +320,7 @@ const NEXT_STATUS: Record<string, string> = {
   Published: "Closed",
 };
 
-async function setCycleStatus(db: TenantDb, cycleId: string, target: string, actor: string, note: string): Promise<void> {
+async function setCycleStatus(db: TenantDb, cycleId: string, target: string, actor: string, note?: string): Promise<void> {
   const cycle = await db.performanceCycle.findUnique({ where: { id: cycleId } });
   if (!cycle) bad("Siklus tidak ditemukan");
   if (NEXT_STATUS[cycle.status] !== target) {

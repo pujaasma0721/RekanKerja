@@ -330,7 +330,7 @@ export async function copySources(db: TenantDb, cycleId: string) {
     orderBy: { periodEnd: "desc" },
     select: { id: true, code: true, name: true, periodStart: true, periodEnd: true, status: true },
   });
-  const out = [];
+  const out: { id: string; code: string; name: string; status: string; periodStart: Date; periodEnd: Date; participantsWithSource: number }[] = [];
   for (const c of candidates) {
     // hitung peserta aktif yang punya KPI terkunci di siklus kandidat
     const withKpi = await db.appraisalRecord.count({

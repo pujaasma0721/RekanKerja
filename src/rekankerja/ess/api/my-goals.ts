@@ -118,7 +118,7 @@ export async function POST(req: Request) {
       dataSource: "Manual",
       sourceKey: null,
     }));
-    await proposeGoals(db, { appraisalId: me.id, kpis: mapped }, m.actor.name);
+    await proposeGoals(db, { appraisalId: me.id, kpis: mapped }, m.actor.fullName);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

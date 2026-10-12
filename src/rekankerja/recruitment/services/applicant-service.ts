@@ -953,7 +953,7 @@ export async function submitPublicApplication(
         .filter(Boolean).join(" ").trim();
       void notifyEmailEvent(db, {
         event: "recruitment.application.received",
-        to: [{ email: input.payload.email, name: nama || undefined }],
+        to: [{ email: input.payload.email ?? "", name: nama || undefined }],
         data: {
           nama: nama || "Kandidat",
           posisi: jo?.titleToShow ?? jo?.jobOpportunity?.title ?? "-",

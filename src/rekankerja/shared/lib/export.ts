@@ -172,7 +172,7 @@ export function csvResponse(csv: string, filename: string): NextResponse {
 }
 
 /** Nama file aman (tanpa karakter aneh) + stamp tanggal. */
-export function exportFilename(prefix: string, ext: "xlsx" | "csv", suffix?: string): string {
+export function exportFilename(prefix: string, ext: "xlsx" | "csv" | "pdf" | string, suffix?: string): string {
   const now = new Date();
   const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
   const safe = String(prefix).replace(/[^A-Za-z0-9-_]+/g, "-").replace(/^-+|-+$/g, "");

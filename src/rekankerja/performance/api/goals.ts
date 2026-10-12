@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
       const fd = await req.formData();
       const obj: Record<string, unknown> = {};
       for (const [k, v] of fd.entries()) {
-        if (v instanceof File) importFile = v;
-        else obj[k] = v;
+        if (typeof v === "string") obj[k] = v;
+        else importFile = v as File;
       }
       // field JSON dalam formData
       for (const key of ["items", "kpis", "channels", "rows"]) {

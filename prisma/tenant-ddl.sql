@@ -3387,6 +3387,7 @@ CREATE TABLE "Feedback360" (
     "status" TEXT NOT NULL DEFAULT 'Invited',
     "dueAt" TIMESTAMP(3),
     "submittedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Feedback360_pkey" PRIMARY KEY ("id")
 );
@@ -5112,6 +5113,9 @@ ALTER TABLE "AppraisalKpi" ADD CONSTRAINT "AppraisalKpi_appraisalId_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "AppraisalCompetencyScore" ADD CONSTRAINT "AppraisalCompetencyScore_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppraisalCompetencyScore" ADD CONSTRAINT "AppraisalCompetencyScore_competencyId_fkey" FOREIGN KEY ("competencyId") REFERENCES "Competency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CheckIn" ADD CONSTRAINT "CheckIn_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

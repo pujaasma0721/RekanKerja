@@ -36,7 +36,10 @@ export type EssView =
   | "my-plan"
   // P1-PERF — modul Performance: target KPI saya (ESS §14.3; MBO §26-4;
   // periode lalu §18.3). Penilaian Saya & 360 Saya menyusul di P3.
-  | "my-goals";
+  | "my-goals"
+  // P3-PERF — Penilaian Saya (self-assessment + hasil) & 360 Saya (reviewer anonim)
+  | "my-appraisal"
+  | "my-360";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;

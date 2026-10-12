@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       const documentId = String(b.documentId ?? "");
       if (!documentId) return NextResponse.json({ error: "documentId wajib" }, { status: 400 });
       try {
-        const parse = await parseCvDocument(m.db, { applicantId, documentId, mode });
+        const parse = await parseCvDocument(m.db, { applicantId, documentId, mode: mode === "ai" ? "auto" : mode });
         return NextResponse.json({ parse }, { status: 201 });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "unknown";

@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
           reason: String(b.reason ?? ""),
           items: Array.isArray(b.items) ? (b.items as Record<string, unknown>[]).map((i) => ({
             kpiId: String(i.kpiId ?? ""),
-            target: i.target === undefined ? undefined : (i.target == null || i.target === "" ? null : Number(i.target)),
+            target: i.target === undefined ? undefined : (i.target == null || i.target === "" ? undefined : Number(i.target)),
             thresholdMin: i.thresholdMin === undefined ? undefined : (i.thresholdMin == null || i.thresholdMin === "" ? null : Number(i.thresholdMin)),
             stretchValue: i.stretchValue === undefined ? undefined : (i.stretchValue == null || i.stretchValue === "" ? null : Number(i.stretchValue)),
             weight: i.weight === undefined ? undefined : Number(i.weight),

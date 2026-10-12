@@ -58,7 +58,9 @@ interface MetricItemUI {
   labelEn: string;
   value: number | null;
   unit: string;
+  unitEn?: string;
   hint: string;
+  hintEn?: string;
   breakdown?: { source: string; applicants: number; hires: number; rate: number | null }[];
 }
 

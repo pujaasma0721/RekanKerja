@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
         id: b.id ? String(b.id) : undefined,
         code: String(b.code ?? ""),
         name: String(b.name ?? ""),
-        kind: b.kind != null ? String(b.kind) : undefined,
+        kind: b.compKind != null ? String(b.compKind) : undefined,
         levelsJson: b.levelsJson != null ? String(b.levelsJson) : undefined,
         active: b.active != null ? b.active === true : undefined,
         effectiveYear: Number.isFinite(Number(b.effectiveYear)) ? Number(b.effectiveYear) : undefined,

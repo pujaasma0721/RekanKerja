@@ -50,6 +50,8 @@ import { EssOpenShift } from "./ess-open-shift";
 // F1-REC — modul Rekrutmen ESS: PR saya + kotak approval PR
 import { EssPrPage } from "./ess-pr";
 import { EssMyGoalsPage } from "./ess-my-goals";
+import { EssMyAppraisalPage } from "./ess-my-appraisal";
+import { EssMy360Page } from "./ess-my-360";
 import { EssPrApprovalPage } from "./ess-pr-approval";
 // F3 — modul Rekrutmen ESS: seleksi saya (kandidat internal)
 import { EssMySelectionPage } from "./ess-my-selection";
@@ -58,7 +60,7 @@ import { EssMyJobsPage } from "./ess-my-jobs";
 import { EssMyPlanPage } from "./ess-my-plan";
 // Task 52-f — kanal whistleblowing TPKS (anonim) utk semua pekerja.
 import { WhistleblowForm, WB_CATEGORIES } from "@/rekankerja/whistleblow/components/whistleblow-form";
-import { Siren, Ticket } from "lucide-react";
+import { Siren, Ticket, NotebookPen, UsersRound } from "lucide-react";
 
 // ============ NAVIGASI ESS ============
 interface EssNavItem { id: EssView; label: string; en: string; short: string; shortEn: string; icon: React.ElementType }
@@ -83,6 +85,9 @@ const ESS_NAV: EssNavItem[] = [
   { id: "my-plan", label: "Rencana Rekrutmen", en: "Recruitment Plan", short: "Rencana", shortEn: "Plan", icon: Target },
   // P1-PERF — Target Saya: KPI periode aktif + usulan MBO + periode lalu
   { id: "my-goals", label: "Target Saya", en: "My Goals", short: "Target", shortEn: "Goals", icon: Target },
+  // P3-PERF — Penilaian Saya + 360 Saya
+  { id: "my-appraisal", label: "Penilaian Saya", en: "My Appraisal", short: "Penilaian", shortEn: "Review", icon: NotebookPen },
+  { id: "my-360", label: "360 Saya", en: "My 360", short: "360", shortEn: "360", icon: UsersRound },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)
   { id: "letters", label: "Surat", en: "Letters", short: "Surat", shortEn: "Letters", icon: FileText },
   // Task 27-f/g/b — pengumuman / tukar shift / aset saya
@@ -336,7 +341,17 @@ export function EssShell() {
   const session = useSession();
   const setUiMode = useUiMode((s) => s.setUiMode);
   const { state: meState, retry } = useEssMe();
-  const [view, setView] = useState<EssView>("dashboard");
+  // P3 hotfix — view ESS di-persist ke sessionStorage: reload PWA (SW controllerchange)
+  // maupun refresh tak sengaja tidak membuang pengguna ke dashboard (§18.7 semangat
+  // ketahanan pengisian); sesi baru (tab baru) tetap mulai dari dashboard.
+  const [view, setView] = useState<EssView>(() => {
+    if (typeof window === "undefined") return "dashboard";
+    const v = window.sessionStorage.getItem("rk:ess:view");
+    return v ? (v as EssView) : "dashboard";
+  });
+  useEffect(() => {
+    try { window.sessionStorage.setItem("rk:ess:view", view); } catch { /* privat mode */ }
+  }, [view]);
   const [intent, setIntent] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false); // bottom sheet mobile "Lainnya"
   const [pwOpen, setPwOpen] = useState(false);
@@ -644,6 +659,8 @@ export function EssShell() {
             {/* F1-REC — Rekrutmen: PR saya + kotak approval PR */}
             {view === "my-pr" && <EssPrPage />}
             {view === "my-goals" && <EssMyGoalsPage />}
+            {view === "my-appraisal" && <EssMyAppraisalPage />}
+            {view === "my-360" && <EssMy360Page />}
             {view === "pr-approval" && <EssPrApprovalPage />}
             {/* F3 — Seleksi Saya (kandidat internal) */}
             {view === "my-selection" && <EssMySelectionPage />}

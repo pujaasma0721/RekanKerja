@@ -300,9 +300,9 @@ export async function getDsrPackage(db: TenantDb, dsrId: string): Promise<Record
   });
   const esigns = await db.esignRequest.findMany({
     where: { offer: { candidate: { applicantId: a.id } } },
-    select: { offerNo: true, purpose: true, status: true, signedAt: true, expiresAt: true, letterNo: true },
+    select: { purpose: true, status: true, signedAt: true, expiresAt: true, offer: { select: { offerNo: true, letterNo: true } } },
     orderBy: { createdAt: "desc" },
-  }).catch(() => [] as { offerNo: string | null; purpose: string; status: string; signedAt: Date | null; expiresAt: Date; letterNo: string | null }[]);
+  }).catch(() => [] as { offer: { offerNo: string; letterNo: string | null } | null; purpose: string; status: string; signedAt: Date | null; expiresAt: Date }[]);
   const logs = await db.activityLog.findMany({
     where: { entityId: a.applicantNo },
     orderBy: { createdAt: "desc" },
@@ -365,8 +365,8 @@ export async function getDsrPackage(db: TenantDb, dsrId: string): Promise<Record
       })),
     })),
     esign: esigns.map((e) => ({
-      offerNo: e.offerNo, purpose: e.purpose, status: e.status,
-      signedAt: iso(e.signedAt), expiresAt: iso(e.expiresAt), letterNo: e.letterNo,
+      offerNo: e.offer?.offerNo ?? null, purpose: e.purpose, status: e.status,
+      signedAt: iso(e.signedAt), expiresAt: iso(e.expiresAt), letterNo: e.offer?.letterNo ?? null,
     })),
     dokumen: a.documents.map((d) => ({
       judul: d.title, dokumenWajib: d.requiredDocument?.title ?? null, terverifikasi: d.verified,

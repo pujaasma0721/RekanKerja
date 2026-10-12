@@ -385,6 +385,8 @@ const AFTER_TABLE: string[] = [
   // dataSource+sourceKey); ADD COLUMN IF NOT EXISTS aman utk tenant lama.
   `ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "sourceKey" TEXT`,
   `ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+  // P3 hotfix — kolom urutan undangan 360 + relasi competency di penilaian
+  `ALTER TABLE "Feedback360" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
   // --- FK (drop-if-exists + add — pola F1 rekrutmen, race-safe) ---
   // P1 hotfix — FK relasi eksplisit anak→AppraisalRecord (include kpis/comps/
   // checkins/f360/calibrations di client; idempoten utk tenant lama).
@@ -392,6 +394,9 @@ const AFTER_TABLE: string[] = [
   `ALTER TABLE "AppraisalKpi" ADD CONSTRAINT "AppraisalKpi_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   `ALTER TABLE "AppraisalCompetencyScore" DROP CONSTRAINT IF EXISTS "AppraisalCompetencyScore_appraisalId_fkey"`,
   `ALTER TABLE "AppraisalCompetencyScore" ADD CONSTRAINT "AppraisalCompetencyScore_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  // P3 hotfix — FK relasi eksplisit competency (include competency di penilaian)
+  `ALTER TABLE "AppraisalCompetencyScore" DROP CONSTRAINT IF EXISTS "AppraisalCompetencyScore_competencyId_fkey"`,
+  `ALTER TABLE "AppraisalCompetencyScore" ADD CONSTRAINT "AppraisalCompetencyScore_competencyId_fkey" FOREIGN KEY ("competencyId") REFERENCES "Competency"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
   `ALTER TABLE "CheckIn" DROP CONSTRAINT IF EXISTS "CheckIn_appraisalId_fkey"`,
   `ALTER TABLE "CheckIn" ADD CONSTRAINT "CheckIn_appraisalId_fkey" FOREIGN KEY ("appraisalId") REFERENCES "AppraisalRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   `ALTER TABLE "Feedback360" DROP CONSTRAINT IF EXISTS "Feedback360_appraisalId_fkey"`,
@@ -521,7 +526,7 @@ export async function main(schemas?: string[]): Promise<void> {
           );
         }
         // item nilai inti (komponen core 10% — rata 4)
-        for (const cc of CORE_ITEMS) {
+        for (const cc of CORE_TEMPLATE_ITEMS) {
           await c.query(
             `INSERT INTO "${schemaName}"."PerformanceTemplateItem" (id, "templateId", kind, "refId", weight)
              SELECT gen_random_uuid()::text, $1, 'Competency', c.id, 25::double precision
