@@ -255,15 +255,14 @@ export function RecruitmentMastersPage() {
         )}
       />
 
-      <Tabs value={type} onValueChange={setType} className="mb-4">
-        <TabsList className="h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1 dark:bg-slate-900">
+      <Tabs value={type} onValueChange={setType} className="mb-4 w-full">
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-slate-100 p-1 dark:bg-slate-900">
           {MASTER_DEFS.map((m) => {
             const Icon = TYPE_ICON[m.type] ?? Boxes;
             return (
               <TabsTrigger
                 key={m.type}
                 value={m.type}
-                className="gap-1.5 px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100"
                 title={t(m.desc, m.descEn)}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden />

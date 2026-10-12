@@ -281,20 +281,34 @@ const WHISTLEBLOW_NAV: NavGroup[] = [
 // tahap seleksi). F1: pr (permintaan karyawan) + pr-approval. F2: openings
 // (lowongan JO), applicants (talent pool), public-staging (lamaran publik).
 // F3+: candidates, selection, appointments, reports.
+// MENU-REC — pengelompokan mengikuti pola modul lain (overview "Ringkasan"
+// mandiri di atas + grup berlabel): Permintaan & Persetujuan / Lowongan &
+// Kandidat / Seleksi & Penawaran / Perencanaan / Analitik & Kepatuhan /
+// Pengaturan Rekrutmen. Label grup & item dwibahasa via BASE_EN (t(label)).
 const RECRUITMENT_NAV: NavGroup[] = [
   { section: "recruitment", children: [
     { id: "overview", label: "Ringkasan", icon: LayoutDashboard },
+  ] },
+  { section: "recruitment", label: "Permintaan & Persetujuan", children: [
     { id: "pr", label: "Permintaan Karyawan", icon: ClipboardList },
     { id: "pr-approval", label: "Approval PR", icon: ClipboardCheck },
+  ] },
+  { section: "recruitment", label: "Lowongan & Kandidat", children: [
     { id: "openings", label: "Lowongan", icon: Megaphone },
     { id: "applicants", label: "Talent Pool", icon: UsersRound },
     { id: "public-staging", label: "Lamaran Publik", icon: Inbox },
+  ] },
+  { section: "recruitment", label: "Seleksi & Penawaran", children: [
     { id: "selection", label: "Kandidat & Seleksi", icon: UserRoundCheck },
     { id: "offers", label: "Offer & Pengangkatan", icon: Handshake },
+  ] },
+  { section: "recruitment", label: "Perencanaan", children: [
     // F5 — rencana & anggaran + demografi/segmen (oranHR RecruitmentPlanning
     // + RecruitmentBudget + ApplicantDemography)
     { id: "plan", label: "Rencana & Anggaran", icon: Calculator },
     { id: "demographics", label: "Demografi & Segmen", icon: PieChart },
+  ] },
+  { section: "recruitment", label: "Analitik & Kepatuhan", children: [
     // F8 — analitik & prediktif rekrutmen (recruitment:reports)
     { id: "reports", label: "Laporan", icon: BarChart3 },
     // F9 — kepatuhan UU PDP: DSR, consent, retensi, audit PII

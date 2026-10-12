@@ -1289,8 +1289,8 @@ export function CandidateDetailDialog({ candidateId, employees, stages, blind = 
                 </DialogTitle>
               </DialogHeader>
 
-              <Tabs value={tab} onValueChange={setTab}>
-                <TabsList className="h-auto flex flex-wrap gap-1">
+              <Tabs value={tab} onValueChange={setTab} className="w-full">
+                <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-slate-100 p-1 dark:bg-slate-900">
                   <TabsTrigger value="steps">{t("Tahapan", "Stages")}</TabsTrigger>
                   <TabsTrigger value="scorecard">{t("Scorecard", "Scorecard")}</TabsTrigger>
                   {canScore && <TabsTrigger value="aiscore">{t("Skor AI", "AI Score")}</TabsTrigger>}

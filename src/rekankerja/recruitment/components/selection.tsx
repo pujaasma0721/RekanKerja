@@ -637,9 +637,9 @@ export function SelectionPage() {
               <Switch checked={blind} onCheckedChange={toggleBlind} aria-label={t("Mode Buta", "Blind Mode")} />
             </label>
             <Tabs value={mode} onValueChange={(v) => setMode(v === "calendar" ? "calendar" : "board")}>
-              <TabsList>
-                <TabsTrigger value="board" className="gap-1.5"><KanbanSquare className="h-4 w-4" aria-hidden /> {t("Papan", "Board")}</TabsTrigger>
-                <TabsTrigger value="calendar" className="gap-1.5"><CalendarDays className="h-4 w-4" aria-hidden /> {t("Kalender", "Calendar")}</TabsTrigger>
+              <TabsList className="h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1 dark:bg-slate-900">
+                <TabsTrigger value="board"><KanbanSquare className="h-4 w-4" aria-hidden /> {t("Papan", "Board")}</TabsTrigger>
+                <TabsTrigger value="calendar"><CalendarDays className="h-4 w-4" aria-hidden /> {t("Kalender", "Calendar")}</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

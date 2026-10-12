@@ -548,6 +548,26 @@ export const BASE_EN: Record<string, string> = {
   "Rumah Sakit & Asuransi": "Hospitals & Insurance",
   "Laporan Medis": "Medical Reports",
 
+  // — navigasi Rekrutmen (MENU-REC: label menu modul + identitas shell) —
+  "Rekrutmen": "Recruitment",
+  "Permintaan karyawan, seleksi & pengangkatan": "Personnel requisitions, selection & appointments",
+  "Permintaan & Persetujuan": "Requisitions & Approvals",
+  "Permintaan Karyawan": "Personnel Requisitions",
+  "Approval PR": "PR Approvals",
+  "Lowongan & Kandidat": "Openings & Candidates",
+  "Lowongan": "Job Openings",
+  "Lamaran Publik": "Public Applications",
+  "Seleksi & Penawaran": "Selection & Offers",
+  "Kandidat & Seleksi": "Candidates & Selection",
+  "Offer & Pengangkatan": "Offers & Appointments",
+  "Perencanaan": "Planning",
+  "Rencana & Anggaran": "Plans & Budgets",
+  "Demografi & Segmen": "Demographics & Segments",
+  "Analitik & Kepatuhan": "Analytics & Compliance",
+  "Kepatuhan": "Compliance",
+  "Pengaturan Rekrutmen": "Recruitment Settings",
+  "Master Rekrutmen": "Recruitment Masters",
+
   // — navigasi Settings —
   "Keamanan & Akses": "Security & Access",
   "Approval Berjenjang": "Tiered Approvals",

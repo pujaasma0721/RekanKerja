@@ -366,12 +366,12 @@ export function CvParseSection({
         <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           <FileSearch className="h-3.5 w-3.5" aria-hidden /> {t("Sumber CV", "CV Source")}
         </h4>
-        <Tabs defaultValue="paste">
+        <Tabs defaultValue="paste" className="w-full">
           <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-slate-100 p-1 dark:bg-slate-900">
-            <TabsTrigger value="paste" className="gap-1.5 px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">
+            <TabsTrigger value="paste">
               <ClipboardPaste className="h-3.5 w-3.5" aria-hidden /> {t("Tempel Teks", "Paste Text")}
             </TabsTrigger>
-            <TabsTrigger value="docs" className="gap-1.5 px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">
+            <TabsTrigger value="docs">
               <FileText className="h-3.5 w-3.5" aria-hidden /> {t("Dari Dokumen", "From Document")}
             </TabsTrigger>
           </TabsList>

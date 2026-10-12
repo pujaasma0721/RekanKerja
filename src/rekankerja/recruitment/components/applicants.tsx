@@ -1010,16 +1010,16 @@ export function ApplicantsPage() {
           ) : detail && (
             <Tabs defaultValue="profil" className="w-full">
               <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-slate-100 p-1 dark:bg-slate-900">
-                <TabsTrigger value="profil" className="px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">{t("Profil", "Profile")}</TabsTrigger>
-                <TabsTrigger value="edu" className="px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">{t("Pendidikan & Skill", "Education & Skills")}</TabsTrigger>
-                <TabsTrigger value="docs" className="px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">{t("Dokumen ({n})", "Documents ({n})", { n: String(detail.documents.length) })}</TabsTrigger>
+                <TabsTrigger value="profil">{t("Profil", "Profile")}</TabsTrigger>
+                <TabsTrigger value="edu">{t("Pendidikan & Skill", "Education & Skills")}</TabsTrigger>
+                <TabsTrigger value="docs">{t("Dokumen ({n})", "Documents ({n})", { n: String(detail.documents.length) })}</TabsTrigger>
                 {canParseCv && (
-                  <TabsTrigger value="cvparse" className="gap-1 px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">
+                  <TabsTrigger value="cvparse">
                     <FileSearch className="h-3.5 w-3.5" aria-hidden /> {t("Parse CV", "Parse CV")}
                   </TabsTrigger>
                 )}
-                <TabsTrigger value="apps" className="px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">{t("Lamaran ({n})", "Applications ({n})", { n: String(detail.applications.length) })}</TabsTrigger>
-                <TabsTrigger value="consent" className="px-3 py-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">{t("Consent ({n})", "Consent ({n})", { n: String(detail.consents.length) })}</TabsTrigger>
+                <TabsTrigger value="apps">{t("Lamaran ({n})", "Applications ({n})", { n: String(detail.applications.length) })}</TabsTrigger>
+                <TabsTrigger value="consent">{t("Consent ({n})", "Consent ({n})", { n: String(detail.consents.length) })}</TabsTrigger>
               </TabsList>
 
               {/* (a) profil */}
