@@ -43,6 +43,7 @@ import {
   UsersRound, UserRoundCheck, Handshake, PieChart, Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CompanySwitcher } from "./company-switcher";
 
 // ============ UTIL WARNA (aksen dinamis — hex inline, bukan kelas tailwind) ============
 function hexA(hex: string, a: number): string {
@@ -995,6 +996,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {/* workspace switcher (multi-tenant SaaS) */}
             <WorkspaceMenu />
+
+            {/* company switcher — 1 tenant multi-Company, satu aktif per waktu */}
+            <CompanySwitcher />
 
             {/* search trigger */}
             <button

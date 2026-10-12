@@ -59,6 +59,8 @@ export const DIMENSION_LABEL: Record<AccessDimension, string> = {
 
 export interface ScopeFilter {
   /** dimensi → nilai (id atau teks status kerja) */
+  /** Company aktif (switcher — 1 tenant bisa multi-Company). */
+  companyId?: string;
   companyOfficeId?: string;
   workLocationId?: string;
   orgUnitId?: string;
@@ -108,7 +110,7 @@ interface RuleRow {
  */
 export async function resolveAccessScope(
   db: TenantDb,
-  actor: { appUserId: string | null; employeeId: string | null; appUserRole: string | null; platformRole: string },
+  actor: { appUserId: string | null; employeeId: string | null; appUserRole: string | null; platformRole: string; activeCompanyId?: string | null },
 ): Promise<DataAccessScope> {
   const sources: string[] = [];
   const filters: ScopeFilter[] = [];
@@ -185,6 +187,39 @@ export async function resolveAccessScope(
     });
   }
 
+  // multi-company (1 tenant, beberapa Company): dimensi company AKTIF
+  // (switcher) ditambakan eksplisit — super admin yang buka selector tetap
+  // ter-limit company aktif; user biasa mengikuti rule + company aktif.
+  let activeCompanyId = actor.activeCompanyId ?? null;
+  try {
+    const cancelabel = await db.company.findMany({
+      where: { active: true },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    if (cancelabel.length === 1) activeCompanyId = cancelabel[0]!.id;
+    // company aktif via header bagi multi-company; bila id tak dikenal →
+    // fallback company pertama (tak pernah bocor lintas company).
+    if (cancelabel.length > 1) {
+      if (!activeCompanyId || !cancelabel.some((c) => c.id === activeCompanyId)) {
+        activeCompanyId = cancelabel[0]!.id;
+      }
+    }
+  } catch { /* schema lama tanpa kolom active — biarkan */ }
+  if (activeCompanyId) {
+    if (all) {
+      // super admin tetap dibatasi company aktif — dimensi switcher.
+      filters.push({ companyId: activeCompanyId, source: `Company aktif (switcher)` });
+      all = false;
+    } else {
+      for (const f of filters) f.companyId = activeCompanyId;
+      if (filters.length === 0) {
+        filters.push({ companyId: activeCompanyId, source: `Company aktif (switcher)` });
+      }
+      sources.push(`Company aktif — ${activeCompanyId.slice(0, 8)}…`);
+    }
+  }
+
   return {
     all,
     sources,
@@ -204,6 +239,7 @@ async function ruleMatchesActor(db: TenantDb, r: RuleRow, actor: { appUserId: st
 
 /** where untuk satu filter kriteria (AND antar dimensi, relasi via assignment aktif). */
 function filterWhere(f: ScopeFilter): Prisma.EmployeeWhereInput {
+  const direct: Prisma.EmployeeWhereInput = f.companyId ? { companyId: f.companyId } : {};
   const assign: Prisma.EmployeeAssignmentWhereInput = { validTo: null };
   if (f.companyOfficeId) assign.companyOfficeId = f.companyOfficeId;
   if (f.workLocationId) assign.workLocationId = f.workLocationId;
@@ -212,7 +248,7 @@ function filterWhere(f: ScopeFilter): Prisma.EmployeeWhereInput {
   if (f.gradeId) assign.gradeId = f.gradeId;
   if (f.employmentStatus) assign.employmentStatus = f.employmentStatus;
   if (f.positionLevelId) assign.position = { positionLevelId: f.positionLevelId };
-  return { assignments: { some: assign } };
+  return { AND: [direct, { assignments: { some: assign } }] };
 }
 
 /** Gabungan scope → kondisi WHERE Employee (OR antar sumber akses). */
@@ -237,18 +273,22 @@ export async function isEmployeeInScope(db: TenantDb, scope: DataAccessScope, em
   if (scope.filters.length === 0) return false;
 
   // cek lewat assignment aktif — cukup ambil atribut penempatan lalu cocokkan
+  // companyId dibaca dari Employee langsung (dimensi company aktif).
   const assigns = await db.employeeAssignment.findMany({
     where: { employeeId, validTo: null },
     select: {
       companyOfficeId: true, workLocationId: true, orgUnitId: true, positionId: true,
       gradeId: true, employmentStatus: true,
       position: { select: { positionLevelId: true } },
+      employee: { select: { companyId: true } },
     },
   });
   if (assigns.length === 0) return false;
   for (const f of scope.filters) {
     for (const a of assigns) {
+      const companyId = a.employee?.companyId ?? null;
       const ok =
+        (!f.companyId || companyId === f.companyId) &&
         (!f.companyOfficeId || a.companyOfficeId === f.companyOfficeId) &&
         (!f.workLocationId || a.workLocationId === f.workLocationId) &&
         (!f.orgUnitId || a.orgUnitId === f.orgUnitId) &&
@@ -265,7 +305,7 @@ export async function isEmployeeInScope(db: TenantDb, scope: DataAccessScope, em
 // ============ guard endpoint ber-scope ============
 
 export type ScopedResult =
-  | { ok: true; db: TenantDb; scope: DataAccessScope; actor: { appUserId: string | null; employeeId: string | null } }
+  | { ok: true; db: TenantDb; scope: DataAccessScope; actor: { appUserId: string | null; employeeId: string | null; activeCompanyId: string | null } }
   | { ok: false; status: number; error: string };
 
 /**
@@ -307,12 +347,17 @@ export async function requireScoped(req: Request): Promise<ScopedResult> {
     appUser = null;
   }
 
+  // Dimensi company aktif dari header switcher (x-rekankerja-company).
+  const hdrCompany = req.headers.get("x-rekankerja-company");
+  const activeCompanyId = hdrCompany && /^[a-z0-9_-]{1,64}$/i.test(hdrCompany.trim()) ? hdrCompany.trim() : null;
+
   const scope = await resolveAccessScope(db, {
     appUserId: appUser?.id ?? null,
     employeeId: appUser?.employeeId ?? null,
     appUserRole: appUser?.role ?? null,
     platformRole: membership.role,
+    activeCompanyId,
   });
   // Task 52-e — aktor dibawa keluar utk jejak audit akses baca (appUserId).
-  return { ok: true, db, scope, actor: { appUserId: appUser?.id ?? null, employeeId: appUser?.employeeId ?? null } };
+  return { ok: true, db, scope, actor: { appUserId: appUser?.id ?? null, employeeId: appUser?.employeeId ?? null, activeCompanyId } };
 }

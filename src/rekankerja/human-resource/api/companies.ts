@@ -1,50 +1,121 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 
-// GET /api/rekankerja/companies — first company + stats
+// ============ API PERUSAHAAN (1 tenant, multi-Company, switcher) ============
+// Model: satu company AKTIF per waktu — UI selector mengirim header
+// `x-rekankerja-company` (id Company). GET menampilkan semua Company tenant
+// (list untuk selector), POST membuat company baru, PATCH mengubah profil
+// by-id. Guard hak akses menu hr:companies.
+
+/** Id company aktif dari header (dipakai selector switcher UI). */
+export function activeCompanyIdOf(req: NextRequest): string | null {
+  const raw = req.headers.get("x-rekankerja-company");
+  if (!raw) return null;
+  const v = raw.trim();
+  return /^[a-z0-9_-]{1,64}$/i.test(v) ? v : null;
+}
+
+/** Ambil company aktif utk request ini (header → fallback company pertama). */
+export async function activeCompanyOf(req: NextRequest, db: TenantDb) {
+  const wanted = activeCompanyIdOf(req);
+  if (wanted) {
+    try {
+      const found = await db.company.findUnique({ where: { id: wanted } });
+      if (found && found.active) return found;
+    } catch { /* schema lama — fallback di bawah */ }
+  }
+  return db.company.findFirst({ orderBy: { createdAt: "asc" } });
+}
+
+// GET — daftar semua Company tenant (untuk selector) + company aktif.
 export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
 
-    const company = await db.company.findFirst({
-      include: { _count: { select: { employees: true, orgUnits: true } } },
-    });
-    if (!company) return NextResponse.json({ error: "Perusahaan belum di-setup" }, { status: 404 });
-    const [activeEmployees, positions] = await Promise.all([
-      db.employee.count({ where: { companyId: company.id, status: "Active" } }),
-      db.position.count({ where: { active: true } }),
-    ]);
-    return NextResponse.json({
-      company: {
-        ...company,
-        activeEmployees, positions, orgUnitCount: company._count.orgUnits,
+    const companies = await db.company.findMany({
+      orderBy: [{ createdAt: "asc" }],
+      select: {
+        id: true, code: true, name: true, shortName: true, active: true,
+        _count: { select: { employees: true, orgUnits: true, companyOffices: true } },
       },
+    });
+    const activeCompany = await activeCompanyOf(req, db);
+    const activeId = activeCompany?.id ?? companies[0]?.id ?? null;
+    return NextResponse.json({
+      companies,
+      activeId,
+      multi: companies.length > 1,
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
 }
 
-// PATCH update company profile — T1-SECURITY: guard hak AKSI menu hr:companies (Ubah).
+// POST — buat Company baru (kode harus unik).
+export async function POST(req: NextRequest) {
+  try {
+    const m = await requireMenuAction(req, "hr:companies", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
+
+    const b = await req.clone().json().catch(() => ({}));
+    const code = String(b.code ?? "").trim().toUpperCase();
+    const name = String(b.name ?? "").trim();
+    if (code.length < 2 || code.length > 12) {
+      return NextResponse.json({ error: "Kode perusahaan wajib 2-12 karakter (A-Z0-9)" }, { status: 400 });
+    }
+    if (!name) return NextResponse.json({ error: "Nama perusahaan wajib diisi" }, { status: 400 });
+
+    const clash = await db.company.findUnique({ where: { code }, select: { id: true } });
+    if (clash) return NextResponse.json({ error: `Kode ${code} sudah dipakai company lain` }, { status: 409 });
+
+    const created = await db.company.create({
+      data: {
+        code,
+        name,
+        shortName: String(b.shortName ?? "").trim() || code,
+        taxId: b.taxId ? String(b.taxId) : null,
+        address: b.address ? String(b.address) : null,
+        city: b.city ? String(b.city) : null,
+        phone: b.phone ? String(b.phone) : null,
+        email: b.email ? String(b.email) : null,
+        website: b.website ? String(b.website) : null,
+        currency: String(b.currency ?? "IDR"),
+        active: b.active !== false,
+      },
+    });
+    return NextResponse.json({ company: created }, { status: 201 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+  }
+}
+
+// PATCH — ubah profil company by-id (bukan hanya pertama).
 export async function PATCH(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "hr:companies", "update");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
-    const b = await req.json();
-    const company = await db.company.findFirst();
-    if (!company) return NextResponse.json({ error: "Perusahaan tidak ditemukan" }, { status: 404 });
-    const updated = await db.company.update({
-      where: { id: company.id },
-      data: {
-        name: b.name, shortName: b.shortName, taxId: b.taxId, address: b.address,
-        city: b.city, phone: b.phone, email: b.email, website: b.website,
-      },
-    });
-    await db.activityLog.create({ data: { action: "Updated", entity: "Company", entityId: company.id, detail: `Profil perusahaan diperbarui` } });
+    const b = await req.json().catch(() => ({}));
+    const id = String(b.id ?? "").trim();
+    if (!id) return NextResponse.json({ error: "id company wajib" }, { status: 400 });
+
+    const data: Record<string, unknown> = {};
+    if (b.name !== undefined) data.name = String(b.name).trim();
+    if (b.shortName !== undefined) data.shortName = String(b.shortName).trim() || null;
+    if (b.taxId !== undefined) data.taxId = b.taxId ? String(b.taxId) : null;
+    if (b.address !== undefined) data.address = b.address ? String(b.address) : null;
+    if (b.city !== undefined) data.city = b.city ? String(b.city) : null;
+    if (b.phone !== undefined) data.phone = b.phone ? String(b.phone) : null;
+    if (b.email !== undefined) data.email = b.email ? String(b.email) : null;
+    if (b.website !== undefined) data.website = b.website ? String(b.website) : null;
+    if (b.currency !== undefined) data.currency = String(b.currency);
+    if (b.active !== undefined) data.active = b.active === true;
+
+    const updated = await db.company.update({ where: { id }, data });
     return NextResponse.json({ company: updated });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

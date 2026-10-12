@@ -456,7 +456,7 @@ export async function POST(req: NextRequest) {
     }
     const company = b.companyId
       ? await db.company.findUnique({ where: { id: b.companyId }, select: { id: true, code: true } })
-      : await db.company.findFirst({ select: { id: true, code: true } });
+      : await db.company.findFirst({ select: { id: true, code: true }, orderBy: { createdAt: "asc" } });
     const companyId = company?.id;
     if (b.companyId && !company) {
       return NextResponse.json({ error: "Perusahaan tidak dikenal — pilih ulang perusahaan" }, { status: 400 });

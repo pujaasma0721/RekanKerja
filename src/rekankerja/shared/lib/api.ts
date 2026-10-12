@@ -13,6 +13,37 @@ import { getLang, trServer } from "@/rekankerja/shared/lib/i18n-core";
  */
 export const VAULT_CHANGED_EVENT = "rekankerja:vault-changed";
 
+/**
+ * Multi-company switcher — company aktif disimpan di localStorage dan
+ * dilampirkan sebagai header `x-rekankerja-company` pada SEMUA fetch via
+ * useApi/apiSend/apiUpload. Server mengonsultasi header ini dalam
+ * resolveAccessScope (fall-back: company pertama tenant).
+ */
+export const ACTIVE_COMPANY_KEY = "rekankerja:activeCompany";
+
+export function getActiveCompanyId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_COMPANY_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveCompanyId(id: string | null) {
+  try {
+    if (id) localStorage.setItem(ACTIVE_COMPANY_KEY, id);
+    else localStorage.removeItem(ACTIVE_COMPANY_KEY);
+  } catch { /* storage tidak tersedia */ }
+  window.dispatchEvent(new CustomEvent("rekankerja:company-changed", { detail: id }));
+}
+
+function companyHeaders(): Record<string, string> {
+  const id = getActiveCompanyId();
+  return id ? { "x-rekankerja-company": id } : {};
+}
+
+export const COMPANY_CHANGED_EVENT = "rekankerja:company-changed";
+
 export function useApi<T>(url: string | null, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(!!url);
@@ -29,6 +60,13 @@ export function useApi<T>(url: string | null, deps: unknown[] = []) {
     return () => window.removeEventListener(VAULT_CHANGED_EVENT, onVaultChanged);
   }, []);
 
+  // company switcher: ganti company → refetch semua hook aktif
+  useEffect(() => {
+    const onCompanyChanged = () => setTick((t) => t + 1);
+    window.addEventListener(COMPANY_CHANGED_EVENT, onCompanyChanged);
+    return () => window.removeEventListener(COMPANY_CHANGED_EVENT, onCompanyChanged);
+  }, []);
+
   useEffect(() => {
     let alive = true;
     const load = async () => {
@@ -40,7 +78,7 @@ export function useApi<T>(url: string | null, deps: unknown[] = []) {
       setLoading(true);
       setError(null);
       try {
-        const r = await fetch(url);
+        const r = await fetch(url, { headers: companyHeaders() });
         if (!r.ok) throw new Error(trServer((await r.json().catch(() => ({}))).error ?? `HTTP ${r.status}`));
         const d = (await r.json()) as T;
         if (alive) { setData(d); setLoading(false); }
@@ -58,7 +96,7 @@ export function useApi<T>(url: string | null, deps: unknown[] = []) {
 export async function apiSend<T>(url: string, method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE", body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...companyHeaders() },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
@@ -78,7 +116,7 @@ export async function apiSend<T>(url: string, method: "GET" | "POST" | "PATCH" |
 /** T16-ATTACH — upload multipart/form-data (tanpa header Content-Type manual;
  * browser menyetel boundary). Dipakai area upload lampiran. */
 export async function apiUpload<T>(url: string, form: FormData): Promise<T> {
-  const res = await fetch(url, { method: "POST", body: form });
+  const res = await fetch(url, { method: "POST", body: form, headers: companyHeaders() });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(trServer((json as { error?: string }).error ?? `HTTP ${res.status}`));
