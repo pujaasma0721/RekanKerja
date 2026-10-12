@@ -6394,3 +6394,41 @@ Work Log:
 Stage Summary:
 - 3 catatan user DITUTUP SEMUA: (1) label menu modul Rekrutmen kini dwibahasa end-to-end (kamus +18 entri; panel desktop/sheet mobile/All-Modules/palette); (2) menu digroup 7 kelompok mengikuti pola konsisten modul lain; (3) seluruh 7 tablist modul Rekrutmen seragam model "laporan/report" (slate pill bar + trigger aksen default).
 - File DIUBAH (7): app-shell.tsx (NAV regroup), i18n-core.ts (+20 baris kamus), recruitment-masters.tsx, applicants.tsx, ai-cv-dialogs.tsx, selection-dialogs.tsx, selection.tsx (tab className). Tidak ada perubahan id menu/hak akses/perilaku data.
+
+---
+Task ID: SB-REC (koordinator — keputusan strategic-backlog)
+Agent: main (Z.ai Code)
+Task: Analisa 9 item backlog modul Rekrutmen yang "menunggu prasyarat eksternal" (psikotest online · portal akun pelamar · multi-posting job board · WhatsApp API · referral berinsentif · video interview · career site builder no-code · attrition prediction ML · automated test suite). Permintaan user: JANGAN dieksekusi — simpan analisa & rekomendasi sebagai keputusan strategic-backlog. TIDAK ADA kode yang diubah dalam entri ini.
+
+Work Log:
+- METODE: verifikasi klaim "prasyarat eksternal" terhadap kondisi kode AKTUAL (bukan hanya baca planning §3): wa-service.ts + wa-defaults.ts + email-defaults.ts, schema-tenant.prisma (referralEmployeeId), analytics-service (MetricSnapshot), jumlah script e2e-*.ts, pola OTP e-sign portal, RECRUITMENT_WEBHOOK_EVENTS.
+- TEMUAN KUNCI — alasan penundaan di planning §3 sebagian SUDAH KEDALUWARSA karena infrastruktur shared-layer menyusul dibangun:
+  · WhatsApp API: alasan lama "butuh WhatsApp Business API; sandbox tidak tersedia" AGAK KEDALUWARSA — wa-service.ts (Task 28-a) SUDAH LENGKAP (provider Fonnte/Wablas/Custom, editor template di Pengaturan, WaLog, sendWa fire-and-forget). Yang belum: template event rekrutmen di wa-defaults.ts = 0 + wiring sendWa() di titik notifyEmailEvent() (pasangan email recruitment.* sudah terdefinisi di email-defaults.ts). Sisa prasyarat eksternal hanya: admin membeli token Fonnte (murah, lokal, tanpa approval panjang).
+  · Referral berinsentif: referralEmployeeId di Applicant SUDAH TERCATAT sejak F2; yang hilang = view ESS + skema insentif → blokernya KEPUTUSAN BISNIS (budget bonus), bukan teknis.
+  · Attrition ML: antarmuka MetricSnapshot (F8) sudah disiapkan; prasyarat data historis 12+ bulan SAH dan tidak bisa di-cheat (model dengan data < 12 bln = prediksi plasebo, lebih berbahaya daripada tidak ada).
+  · Automated test suite: 24 script e2e-*.ts + 138 script util SUDAH ADA (ad-hoc per-task, terbukti menemukan bug nyata) → yang hilang bukan menulis test dari nol, melainkan KONSOLIDASI (agregator runner + fixture reset deterministik).
+  · Psikotest online: alasan berat/niche/risiko privasi kamera MASIH VALID; F3 sudah mencatat hasil manual + master Kategori Penilaian.
+  · Portal akun pelamar: portal :3010 jalan anonim + e-sign OTP; pola OTP/magic-link SUDAH TERBUKTI → membuka kompromi tanpa-password (magic-link status lamaran) bila suatu saat diminta.
+  · Multi-posting: feed XML/JSON generik (fondasi direncanakan di F7) BELUM dibuat; prasyarat akun per job board MASIH SAH.
+  · Video interview: tidak ada apa pun; prasyarat eksternal SAH (kompromi mikro: kolom link meeting di tahap seleksi + ikut template reminder).
+  · Career site builder: portal SSR hardcoded (by design); builder penuh L+; kompromi murah bila diminta klien = branding config per tenant (logo/warna/hero) effort M.
+- KLASIFIKASI HASIL: dari 9 item hanya 3 yang benar-benar masih tergantung pihak luar (multi-posting, video interview, psikotest-proctoring); sisanya terhenti karena (a) infrastruktur sudah menyusul (WhatsApp), (b) keputusan bisnis (referral, attrition-data), atau (c) kerja konsolidasi (test suite).
+- REKOMENDASI PRIORITAS (BILA SUATU SAAT DIBUKA — tidak dieksekusi sekarang):
+  1. WA notifikasi rekrutmen (wiring saja) — effort S (~½ hari), nilai harian recruiter tertinggi, risiko nyaris nol (fire-and-forget + WaLog).
+  2. `bun run test:e2e` agregator + fixture reset — effort S–M, melindungi investasi F0–F9 dari regresi, tanpa dependency eksternal.
+  3. Magic-link status pelamar di portal — effort M, kompromi aman dari "portal akun pelamar" (~80% nilai self-service, ~20% permukaan serangan: tanpa password, link expired, rate-limit existing) — fitur baru, PERLU PERSETUJUAN user.
+  4. Link meeting di tahap seleksi — effort XS, 80% nilai "video interview" dengan 1% effort.
+  —. Referral tracker ESS — effort M — trigger: HR menetapkan skema insentif.
+  —. Attrition — effort L — trigger: MetricSnapshot terisi 12 bulan (kompromi opsional: heuristik explainable ala F6b, bukan ML).
+  —. Multi-posting / Psikotest / Career builder penuh — L–XL — defer; trigger: ada akun job board / keputusan vendor / permintaan klien eksplisit.
+
+KEPUTUSAN (strategic-backlog):
+- SEMUA 9 item TETAP DEFERRED — tidak ada yang dieksekusi sekarang; tidak ada perubahan kode/schema pada entri ini.
+- Alasan penundaan di planning diperbarui secara implisit oleh temuan ini: item "WhatsApp API" dan "automated test suite" tidak lagi diblokir prasyarat eksternal penuh (infra ada), hanya menunggu prioritas/persetujuan.
+- Trigger objektif pembuka per item dicatat di atas (data 12 bln / skema insentif / akun board / vendor / permintaan klien / persetujuan user utk fitur baru).
+- Entri ini = acuan tunggal bila user meminta eksekusi salah satu item di masa depan; analisa lengkap tersimpan di sini, tidak perlu riset ulang.
+
+Stage Summary:
+- Backlog 9 item di-AUDIT status nyatanya vs alasan planning: 3 masih sah tergantung eksternal, 2 sudah "matang oleh waktu" (WA wiring + konsolidasi test), 2 menunggu keputusan bisnis, 2 kompromi mikro tersedia.
+- TIDAK ADA file runtime yang diubah — entri keputusan murni (dokumentasi strategis di worklog).
+- Prioritas rekomendasi + trigger pembuka tercatat; eksekusi menunggu perintah eksplisit user.
