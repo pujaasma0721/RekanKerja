@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/performance/**/*",
+    "src/rekankerja/ess/api/my-goals.ts",
+    "src/rekankerja/ess/components/ess-my-goals.tsx",
+    "src/rekankerja/ess/components/ess-types.ts",
+    "src/rekankerja/shared/lib/menu-perms.ts",
+    "src/rekankerja/shared/services/wa-defaults.ts",
+    "src/app/api/rekankerja/performance/cycles/route.ts",
+    "src/app/api/rekankerja/performance/goals/route.ts",
+    "src/app/api/rekankerja/ess/my-goals/route.ts",
+    "src/rekankerja/ess/components/ess-shell.tsx",
+    "src/rekankerja/shared/components/shell/app-shell.tsx",
+    "src/rekankerja/shared/services/scheduler-service.ts",
+    "src/app/page.tsx",
+    "scripts/migrate-performance-p1.ts",
+    "src/rekankerja/shared/lib/parity-runner.ts"
+  ]
+}

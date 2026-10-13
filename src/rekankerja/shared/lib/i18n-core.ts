@@ -1225,7 +1225,6 @@ export const BASE_EN: Record<string, string> = {
   "Saldo Digenerate": "Balance Generated",
   "Saldo Medis": "Medical Balance",
   "Saldo Plafon": "Ceiling Balance",
-  "Satuan": "Unit",
   "Selisih/Malam": "Diff/Night",
   "Sensus Karyawan": "Employee Census",
   "Sesi": "Session",

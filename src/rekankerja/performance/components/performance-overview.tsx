@@ -49,7 +49,7 @@ export function PerformanceOverview() {
       <PageHeader
         eyebrow="Performance · P0"
         title={t("Ringkasan Kinerja", "Performance Overview")}
-        desc={t(
+        description={t(
           "Fondasi modul penilaian kinerja: pustaka KPI & kompetensi ber-versi, skala rating, template bobot, dan matriks merit.",
           "Performance module foundation: versioned KPI & competency library, rating scales, weight templates, and merit matrix.",
         )}
@@ -59,7 +59,7 @@ export function PerformanceOverview() {
         <EmptyState
           icon={Target}
           title={t("Gagal memuat ringkasan", "Failed to load overview")}
-          desc={error}
+          description={error}
         />
       )}
 
@@ -89,7 +89,7 @@ export function PerformanceOverview() {
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {PHASES.map((p, i) => {
-              const done = i === 0;
+              const done = i <= 1; // P0 + P1 selesai
               return (
                 <div
                   key={p.id}

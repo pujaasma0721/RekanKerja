@@ -42,6 +42,11 @@ export const WA_DEFAULT_TEMPLATES: WaTemplateDefault[] = [
     event: "shiftswap.approved", label: "Tukar Shift — Disetujui (→ Kedua Pihak)", active: true,
     body: "[RekanKerja] Halo {{nama}}, tukar shift {{docNo}} pada {{tanggal}} telah disetujui — jadwal Anda bertukar dengan {{pasangan}}. Terima kasih.",
   },
+  {
+    // P1-PERF §18.8 (D17) — nudge pengingat formulir kinerja multi-kanal.
+    event: "performance.nudge", label: "Kinerja — Pengingat Formulir (→ Atasan/Karyawan)", active: true,
+    body: "[RekanKerja] {{title}}. {{body}}",
+  },
 ];
 
 /** Label tampil untuk sebuah event (UI — fallback event mentah). */

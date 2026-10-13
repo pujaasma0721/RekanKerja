@@ -90,13 +90,13 @@ export function PerformanceSettingsPage() {
       <PageHeader
         eyebrow="Performance · P0"
         title={t("Pengaturan Kinerja", "Performance Settings")}
-        desc={t(
+        description={t(
           "Penomoran dokumen penilaian, bobot default, jendela banding karyawan, dan retensi arsip hasil.",
           "Appraisal document numbering, default weights, employee appeal window, and result archive retention.",
         )}
       />
 
-      {loadErr && <EmptyState icon={Settings} title={t("Gagal memuat pengaturan", "Failed to load settings")} desc={loadErr} />}
+      {loadErr && <EmptyState icon={Settings} title={t("Gagal memuat pengaturan", "Failed to load settings")} description={loadErr} />}
 
       {!setting && !loadErr ? (
         <div className="space-y-4">

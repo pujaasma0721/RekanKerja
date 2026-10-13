@@ -4,6 +4,8 @@
 // Fase P1+ mengisi: cycles, goals, checkins, appraisals, calibration,
 // results, pip, probation, reports.
 import { PerformanceOverview } from "./performance-overview";
+import { PerformanceCyclesPage } from "./performance-cycles";
+import { PerformanceGoalsPage } from "./performance-goals";
 import { PerformanceMastersPage } from "./performance-masters";
 import { PerformanceSettingsPage } from "./performance-settings";
 
@@ -11,6 +13,10 @@ export function PerformanceModule({ view }: { view: string }) {
   switch (view) {
     case "masters":
       return <PerformanceMastersPage />;
+    case "cycles":
+      return <PerformanceCyclesPage />;
+    case "goals":
+      return <PerformanceGoalsPage />;
     case "settings":
       return <PerformanceSettingsPage />;
     default:

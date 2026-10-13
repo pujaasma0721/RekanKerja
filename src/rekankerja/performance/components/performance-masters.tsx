@@ -110,7 +110,7 @@ export function PerformanceMastersPage() {
       <PageHeader
         eyebrow="Performance · P0"
         title={t("Master Kinerja", "Performance Masters")}
-        desc={t(
+        description={t(
           "Pustaka KPI & kompetensi ber-versi, skala rating, template bobot penilaian, dan matriks merit. Perubahan definitif wajib menjadi versi baru — data penilaian lama selalu aman.",
           "Versioned KPI & competency library, rating scales, appraisal weight templates, and merit matrix. Definitive changes require a new version — historical appraisal data stays safe.",
         )}
@@ -284,7 +284,7 @@ function KpiTab() {
               ) : rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8}>
-                    <EmptyState icon={ListChecks} title={t("Belum ada KPI", "No KPIs yet")} desc={error ?? undefined} />
+                    <EmptyState icon={ListChecks} title={t("Belum ada KPI", "No KPIs yet")} description={error ?? undefined} />
                   </TableCell>
                 </TableRow>
               ) : (
@@ -625,7 +625,7 @@ function CompTab() {
               ) : (data?.rows ?? []).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6}>
-                    <EmptyState icon={Users} title={t("Belum ada kompetensi", "No competencies yet")} desc={error ?? undefined} />
+                    <EmptyState icon={Users} title={t("Belum ada kompetensi", "No competencies yet")} description={error ?? undefined} />
                   </TableCell>
                 </TableRow>
               ) : (
@@ -887,7 +887,7 @@ function ScaleTab() {
               ) : (data?.rows ?? []).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6}>
-                    <EmptyState icon={Scale} title={t("Belum ada skala", "No scale yet")} desc={error ?? undefined} />
+                    <EmptyState icon={Scale} title={t("Belum ada skala", "No scale yet")} description={error ?? undefined} />
                   </TableCell>
                 </TableRow>
               ) : (
@@ -1069,7 +1069,7 @@ function TemplateTab() {
               ) : (data?.rows ?? []).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6}>
-                    <EmptyState icon={Grid3x3} title={t("Belum ada template", "No templates yet")} desc={error ?? undefined} />
+                    <EmptyState icon={Grid3x3} title={t("Belum ada template", "No templates yet")} description={error ?? undefined} />
                   </TableCell>
                 </TableRow>
               ) : (
@@ -1302,7 +1302,7 @@ function MatrixTab() {
               ) : (data?.rows ?? []).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6}>
-                    <EmptyState icon={Wallet} title={t("Belum ada matriks", "No matrix yet")} desc={error ?? undefined} />
+                    <EmptyState icon={Wallet} title={t("Belum ada matriks", "No matrix yet")} description={error ?? undefined} />
                   </TableCell>
                 </TableRow>
               ) : (

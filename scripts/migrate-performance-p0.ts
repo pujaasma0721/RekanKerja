@@ -746,7 +746,7 @@ export async function main(schemas?: string[]): Promise<void> {
       for (const ddl of CREATE_TABLES) await c.query(ddl);
       for (const ddl of AFTER_TABLE) await c.query(ddl);
       await seedTenant(c, schemaName);
-      console.log(`[migrate-performance-p0] schema: ${schemaName} — 20 tabel + seed master OK`);
+      console.log(`[m[migrate-performance-p0] schema: ${schemaName} — 20 tabel + seed master OK`);
     }
   } finally {
     await c.end();

@@ -406,6 +406,9 @@ const STEPS: Step[] = [
   // + seed starter pack (40 KPI BSC, 12 kompetensi 5-level, 5 skala rating,
   // 2 template bobot, matriks merit default, setting) — idempoten.
   { key: "performance-p0", label: "P0 Kinerja — 20 tabel modul Performance + master starter pack", run: (s) => import("../../../../scripts/migrate-performance-p0").then((m) => m.main(s)) },
+  // P1-PERF — seed demo siklus historis PER-2025 (sumber salin §18.2 + bukti
+  // hidup E2E alur 1–2; idempoten — skip bila sudah ada)
+  { key: "performance-p1", label: "P1 Kinerja — demo PER-2025 historis (12 peserta terkunci)", run: (s) => import("../../../../scripts/migrate-performance-p1").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============

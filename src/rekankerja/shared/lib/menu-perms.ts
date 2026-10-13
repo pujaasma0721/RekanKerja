@@ -174,6 +174,10 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "phase", label: "Menggerakkan fase siklus", hint: "Membuka/menutup jendela fase (goal/self/manager/kalibrasi) dan publikasi" },
     { key: "nudge", label: "Nudge multi-kanal", hint: "Remind All / kirim WA / email pengingat formulir (AM2 §18.8 — rate-limit)" },
   ],
+  // P1-PERF — Target & KPI: penetapan/usulan/lock + impor Excel target (AM2 §18.5)
+  "performance:goals": [
+    { key: "import", label: "Impor Excel target", hint: "Unggah target KPI massal via template Excel (AM2 §18.5 — hanya baris valid)" },
+  ],
   "performance:appraisals": [
     { key: "finalize", label: "Finalisasi penilaian", hint: "Mengunci nilai & mengirim ke kalibrasi" },
     { key: "ai-compose", label: "AI Assist ulasan", hint: "Menyusun draf ulasan dari poin penilai (AM3 §18.11 — compose-only)" },

@@ -33,7 +33,9 @@ export type EssView =
   // F5-REC — lowongan internal (MyJobOpportunity) + rencana rekrutmen
   // (MysRecruitmentPlanning) §2.10
   | "my-jobs"
-  | "my-plan";
+  | "my-plan"
+  // P1-PERF — Target Saya (MyGoals §14.6/§18.3)
+  | "my-goals";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;

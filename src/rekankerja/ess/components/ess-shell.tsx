@@ -55,6 +55,7 @@ import { EssMySelectionPage } from "./ess-my-selection";
 // F5 — modul Rekrutmen ESS: lowongan internal + rencana rekrutmen
 import { EssMyJobsPage } from "./ess-my-jobs";
 import { EssMyPlanPage } from "./ess-my-plan";
+import { EssMyGoalsPage } from "./ess-my-goals";
 // Task 52-f — kanal whistleblowing TPKS (anonim) utk semua pekerja.
 import { WhistleblowForm, WB_CATEGORIES } from "@/rekankerja/whistleblow/components/whistleblow-form";
 import { Siren, Ticket } from "lucide-react";
@@ -80,6 +81,8 @@ const ESS_NAV: EssNavItem[] = [
   // Rekrutmen (MysRecruitmentPlanning §2.10).
   { id: "my-jobs", label: "Lowongan Internal", en: "Internal Jobs", short: "Lowongan", shortEn: "Jobs", icon: Megaphone },
   { id: "my-plan", label: "Rencana Rekrutmen", en: "Recruitment Plan", short: "Rencana", shortEn: "Plan", icon: Target },
+  // P1-PERF — Target Saya: KPI periode berjalan + periode lalu + usulan MBO
+  { id: "my-goals", label: "Target Saya", en: "My Goals", short: "Target", shortEn: "Goals", icon: ListChecks },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)
   { id: "letters", label: "Surat", en: "Letters", short: "Surat", shortEn: "Letters", icon: FileText },
   // Task 27-f/g/b — pengumuman / tukar shift / aset saya
@@ -646,6 +649,7 @@ export function EssShell() {
             {/* F5 — Rekrutmen ESS: lowongan internal + rencana rekrutmen */}
             {view === "my-jobs" && <EssMyJobsPage />}
             {view === "my-plan" && <EssMyPlanPage />}
+            {view === "my-goals" && <EssMyGoalsPage />}
             {view === "assets" && <EssAssets />}
             {view === "whistleblow" && (
               <div className="mx-auto max-w-2xl">

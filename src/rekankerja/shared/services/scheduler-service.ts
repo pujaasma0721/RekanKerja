@@ -58,6 +58,8 @@ import { jobSelectionReminders } from "@/rekankerja/recruitment/services/selecti
 import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service";
 import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webhook-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
+import { perfGoalReminders } from "@/rekankerja/performance/services/perf-goal-service";
+import { flushQueuedNudges } from "@/rekankerja/performance/services/perf-cycle-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
 import { runRetention } from "@/rekankerja/recruitment/services/compliance-service";
 
@@ -1679,6 +1681,10 @@ export interface SchedulerJobCounts {
   retentionAnonymized: number;
   /** F9-REC — pelamar ditahan job retention karena consent talent-pool aktif. */
   retentionSkippedConsent: number;
+  /** P1-PERF §18.8 — peserta tertinggal yang di-nudge otomatis (H-7/H-1). */
+  perfPhaseReminded: number;
+  /** P1-PERF §18.8 — antrean nudge di luar jam kerja yang terkirim job ini. */
+  perfNudgeQueueFlushed: number;
 }
 
 export interface SchedulerRunResult {
@@ -1843,6 +1849,37 @@ export async function runAllJobs(
     jobs.selectionReminded = r.reminded;
     jobs.selectionNotified = r.notified;
   });
+  // P1-PERF §18.8 — pengingat terjadwal fase kinerja (H-7 & H-1 sebelum
+  // jendela fase tutup → nudge otomatis kanal default ke peserta tertinggal;
+  // dedupe ActivityLog "Reminder" per cycle+phase+band) + flush antrean nudge
+  // di luar jam kerja (D17 "antre otomatis bila malam").
+  await guarded("perf-phase-reminder", async () => {
+    const push = async (tdb: TenantDb, appraisalIds: string[], title: string) => {
+      // kanal default: in-app ke AppUser penerima fase (atasan snapshot)
+      let sent = 0;
+      const rows = await tdb.appraisalRecord.findMany({
+        where: { id: { in: appraisalIds } },
+        select: { id: true, managerId: true, employeeId: true },
+        take: 500,
+      });
+      for (const r of rows) {
+        const targetId = r.managerId ?? r.employeeId;
+        if (!targetId) continue;
+        const u = await tdb.appUser.findFirst({ where: { employeeId: targetId }, select: { id: true } });
+        if (!u) continue;
+        const nid = await pushNotification(tdb, {
+          appUserId: u.id, title, kind: "performance", link: "performance:goals",
+          body: "Pengingat otomatis — buka Performance → Target & KPI untuk menyelesaikan formulir.",
+        });
+        if (nid) sent++;
+      }
+      return sent;
+    };
+    const out = await perfGoalReminders(db, push);
+    jobs.perfPhaseReminded = out.reduce((a, b) => a + b.recipients, 0);
+    jobs.perfNudgeQueueFlushed = await flushQueuedNudges(db, tenant);
+  });
+
   // F4-REC — offer: kedaluwarsa otomatis (Sent/Viewed lewat expiryDate) +
   // pengingat offer berakhir ≤3 hari ke officer rekrutmen (dedupe per tanggal).
   await guarded("offer-expiry", async () => {
