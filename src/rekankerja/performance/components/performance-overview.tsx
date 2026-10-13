@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { Button } from "@/components/ui/button";
-import { Boxes, ClipboardList, Gauge, NotebookPen, Target, Users, CalendarRange, Percent, MessageSquareText, Waypoints, FileBarChart, BarChart3, TrendingUp } from "lucide-react";
+import { Boxes, ClipboardList, Gauge, NotebookPen, ShieldCheck, Target, Users, CalendarRange, Percent, MessageSquareText, Waypoints, FileBarChart, BarChart3, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OverviewData {
@@ -60,6 +60,8 @@ export function PerformanceOverviewPage() {
     { label: ["PIP", "PIP"], desc: ["Program perbaikan kinerja 1–3 bulan: target mini-KPI, checkpoint, outcome", "1–3-month improvement program: mini-KPI targets, checkpoints, outcome"], view: "pip", icon: Waypoints },
     { label: ["Evaluasi Masa Percobaan", "Probation Evaluation"], desc: ["Keputusan percobaan dari hiring rekrutmen", "Probation decisions from recruitment hires"], view: "probation", icon: ClipboardList },
     { label: ["Laporan", "Reports"], desc: ["Katalog 14 laporan dokumen dwibahasa (pf11–pf44) siap cetak + XLSX", "Catalog of 14 bilingual report documents (pf11–pf44), print + XLSX ready"], view: "reports", icon: BarChart3 },
+    // P9 — kepatuhan UU PDP: DSR karyawan (data kinerja) + retensi arsip
+    { label: ["Kepatuhan", "Compliance"], desc: ["DSR karyawan UU PDP (akses/ekspor/hapus — SLA 7 hari) + retensi arsip", "Employee DSRs under UU PDP (access/export/erase — 7-day SLA) + records retention"], view: "compliance", icon: ShieldCheck },
   ];
 
   const maxRating = Math.max(1, ...(d?.ratingDist ?? []).map((r) => r.count));

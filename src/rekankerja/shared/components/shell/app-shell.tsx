@@ -352,6 +352,9 @@ const PERFORMANCE_NAV: NavGroup[] = [
   ] },
   { section: "performance", label: "Laporan", children: [
     { id: "reports", label: "Laporan", icon: BarChart3 },
+    // P9 — kepatuhan UU PDP: DSR karyawan (data kinerja) + retensi arsip
+    // (performance:compliance)
+    { id: "compliance", label: "Kepatuhan", icon: ShieldCheck },
   ] },
   { section: "performance", label: "Pengaturan", children: [
     { id: "settings", label: "Pengaturan", icon: Settings },

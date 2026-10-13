@@ -63,6 +63,8 @@ import { jobPerfProbationReminders } from "@/rekankerja/performance/services/pro
 // P8-PERF — snapshot metrik kinerja (perf_completion, perf_rating_distribution,
 // perf_pip_recovery_rate) ke MetricSnapshot yang sama dgn analitik rekrutmen.
 import { snapshotPerfMetrics } from "@/rekankerja/performance/services/perf-metrics";
+// P9-PERF — retensi arsip hasil penilaian (§37; tandai archivedAt — idempoten)
+import { jobPerfRetentionScan } from "@/rekankerja/performance/services/retention-service";
 import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webhook-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
@@ -1660,6 +1662,9 @@ export interface SchedulerJobCounts {
   /** P8-PERF — baris MetricSnapshot kinerja ditulis job perf-metrics-snapshot
    *  (harian; perf_completion + perf_rating_distribution + perf_pip_recovery_rate). */
   perfMetricsSnapshotted: number;
+  /** P9-PERF — data kinerja (siklus Closed melewati retensi) yang ditandai
+   *  arsip oleh job perf-retention-scan (harian; penghapusan TIDAK otomatis). */
+  perfRetentionArchived: number;
   /** F2-REC — pelamar talent pool yang otomatis jadi Outdated oleh job
    *  applicant-outdated (keepOnFileUntil lewat; idempoten by filter Active). */
   applicantOutdatedRows: number;
@@ -1762,6 +1767,7 @@ export async function runAllJobs(
     perfPipReminded: 0,
     perfProbReminded: 0,
     perfMetricsSnapshotted: 0,
+    perfRetentionArchived: 0,
 };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1888,6 +1894,13 @@ export async function runAllJobs(
     );
     if (!claimed) return; // sudah disnapshot hari ini
     jobs.perfMetricsSnapshotted = await snapshotPerfMetrics(db);
+  });
+  // P9-PERF — retensi arsip: tandai data kinerja siklus Closed yang melewati
+  // jendela retensi (retentionYears) sebagai terarsip (updateMany ringan —
+  // idempoten by filter archivedAt null, tidak perlu claim-dedupe).
+  await guarded("perf-retention-scan", async () => {
+    const r = await jobPerfRetentionScan(db);
+    jobs.perfRetentionArchived = r.archived;
   });
 
   // F2-REC — talent pool: pelamar keep-on-file lewat → Outdated otomatis.

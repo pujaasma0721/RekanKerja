@@ -84,6 +84,7 @@ export async function POST(req: Request) {
           comment: a.comment != null ? String(a.comment) : undefined,
           aiAssisted: a.aiAssisted === true,
         })) : [],
+        appUserId: m.actor.appUserId, // rate-limit P9 (10/jam)
       }, m.actor.fullName);
       return NextResponse.json({ ok: true });
     }

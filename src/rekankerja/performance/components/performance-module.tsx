@@ -13,6 +13,7 @@ import { PerformanceResultsPage } from "./performance-results";
 import { PerformancePipPage } from "./performance-pip";
 import { PerformanceProbationPage } from "./performance-probation";
 import { PerformanceReportsPage } from "./performance-reports";
+import { PerformanceCompliancePage } from "./performance-compliance";
 
 export function PerformanceModule({ view }: { view: string }) {
   switch (view) {
@@ -36,6 +37,9 @@ export function PerformanceModule({ view }: { view: string }) {
       return <PerformanceProbationPage />;
     case "reports":
       return <PerformanceReportsPage />;
+    // P9-PERF — kepatuhan UU PDP: DSR karyawan (data kinerja) + retensi arsip
+    case "compliance":
+      return <PerformanceCompliancePage />;
     case "masters":
       return <PerformanceMastersPage />;
     case "settings":

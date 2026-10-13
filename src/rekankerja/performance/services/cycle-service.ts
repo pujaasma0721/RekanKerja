@@ -3,7 +3,7 @@
 // atasan penilai) + Command Center (§18.8 AMANDEMEN 2) + nudge multi-kanal
 // dengan rate-limit D17 (1/peserta/kanal/6 jam, hanya jam kerja).
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
-import { nextPerfDocNo, parseWeights } from "./perf-service";
+import { nextPerfDocNo, parseWeights, reservePerfDocNoRange } from "./perf-service";
 
 // ============ tipe ============
 
@@ -256,6 +256,28 @@ async function managerOf(db: TenantDb, employeeId: string): Promise<string | nul
   return assignment?.managerId ?? null;
 }
 
+/** Batch managerOf (P9 — enroll massal §22): assignment aktif SEMUA karyawan
+ *  dalam SATU query; per karyawan ambil yang validFrom terbaru (mirror
+ *  findFirst orderBy validFrom desc). */
+async function managerOfMany(db: TenantDb, employeeIds: string[]): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+  for (const id of employeeIds) map.set(id, null);
+  if (employeeIds.length === 0) return map;
+  const rows = await db.employeeAssignment.findMany({
+    where: { employeeId: { in: employeeIds }, validTo: null },
+    orderBy: { validFrom: "desc" },
+    select: { employeeId: true, managerId: true },
+  });
+  for (const r of rows) {
+    if (map.get(r.employeeId) == null) map.set(r.employeeId, r.managerId);
+  }
+  return map;
+}
+
+/** Ambang jalur cepat enroll batch (P9 §22 — di atasnya query per-baris
+ *  terasa pada 500 karyawan; di bawahnya perilaku loop lama dipertahankan). */
+const ENROLL_BATCH_THRESHOLD = 50;
+
 export async function enrollParticipants(
   db: TenantDb,
   cycleId: string,
@@ -287,18 +309,35 @@ export async function enrollParticipants(
     where: { id: { in: employeeIds }, status: "Active" },
     select: { id: true, fullName: true, employeeNo: true },
   });
-  const activeSet = new Set(activeEmps.map((e) => e.id));
+  const candidates = activeEmps.filter((e) => !existingSet.has(e.id));
   const needManager: string[] = [];
   let enrolled = 0;
-  for (const emp of activeEmps) {
-    if (existingSet.has(emp.id)) continue;
-    const managerId = await managerOf(db, emp.id);
-    if (!managerId) needManager.push(`${emp.employeeNo} — ${emp.fullName}`);
-    const docNo = await nextPerfDocNo(db, "appraisal");
-    await db.appraisalRecord.create({
-      data: { docNo, cycleId, employeeId: emp.id, managerId, status: "Enrolled" },
+  if (candidates.length > ENROLL_BATCH_THRESHOLD) {
+    // P9-PERF — jalur cepat batch (§22 risiko 500 karyawan): 1 query atasan
+    // (managerOfMany) + 1 scan penomoran (reservePerfDocNoRange) + createMany —
+    // menggantikan 3 query × N baris. Perilaku respons IDENTIK jalur lama.
+    const managerMap = await managerOfMany(db, candidates.map((e) => e.id));
+    const docNos = await reservePerfDocNoRange(db, "appraisal", candidates.length);
+    const data = candidates.map((emp, i) => {
+      const managerId = managerMap.get(emp.id) ?? null;
+      if (!managerId) needManager.push(`${emp.employeeNo} — ${emp.fullName}`);
+      return { docNo: docNos[i] as string, cycleId, employeeId: emp.id, managerId, status: "Enrolled" };
     });
-    enrolled++;
+    if (data.length > 0) {
+      await db.appraisalRecord.createMany({ data });
+      enrolled = data.length;
+    }
+  } else {
+    // jalur lama — perilaku ≤50 kandidat TIDAK berubah (loop per karyawan)
+    for (const emp of candidates) {
+      const managerId = await managerOf(db, emp.id);
+      if (!managerId) needManager.push(`${emp.employeeNo} — ${emp.fullName}`);
+      const docNo = await nextPerfDocNo(db, "appraisal");
+      await db.appraisalRecord.create({
+        data: { docNo, cycleId, employeeId: emp.id, managerId, status: "Enrolled" },
+      });
+      enrolled++;
+    }
   }
   await db.activityLog.create({
     data: {

@@ -160,6 +160,9 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "newVersion", label: "Versi baru pustaka", hint: "Simpan definisi KPI/kompetensi sebagai versi baru (§18.9)" },
     { key: "archive", label: "Mengarsipkan definisi", hint: "Arsip lembut — hilang dari picker, data historis tetap terbaca" },
   ],
+  "performance:compliance": [
+    { key: "dsr", label: "Mengelola DSR karyawan", hint: "Permintaan subjek data UU PDP: akses/ekspor/hapus data kinerja karyawan (§7.3, §37 — SLA 7 hari)" },
+  ],
 
   // F1-REC — Rekrutmen: PR (permintaan karyawan) + kotak approval
   "recruitment:pr": [

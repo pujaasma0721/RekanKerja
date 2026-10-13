@@ -1,8 +1,23 @@
 // P3-PERF — service feedback 360 (§29-3; §37 anonimitas ≥3 reviewer):
 // undang reviewer (peer/subordinate/cross/upward), isian anonim, agregasi.
+// P9-PERF — rate-limit submit 10/jam/user (ActivityLog appUserId — pola
+// ai-compose D20; hanya berlaku bila appUserId diketahui).
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 
 function bad(msg: string): never { throw new Error(msg); }
+
+/** Rate-limit P9: maks 10 submit 360 per user per jam. */
+const SUBMIT_360_RATE_LIMIT_PER_HOUR = 10;
+
+/** Hitung submit 360 user dalam 1 jam terakhir (pola ai-compose D20). */
+async function recent360SubmitCount(db: TenantDb, appUserId: string | null): Promise<number> {
+  if (!appUserId) return 0;
+  const since = new Date(Date.now() - 3600 * 1000);
+  const n = await db.activityLog.count({
+    where: { action: "Submitted", entity: "Feedback360", appUserId, createdAt: { gte: since } },
+  });
+  return n;
+}
 
 export async function inviteReviewers(
   db: TenantDb,
@@ -46,7 +61,7 @@ export async function inviteReviewers(
 
 export async function submit360(
   db: TenantDb,
-  input: { feedbackId: string; answers: { competencyId: string; score: number; comment?: string; aiAssisted?: boolean }[] },
+  input: { feedbackId: string; answers: { competencyId: string; score: number; comment?: string; aiAssisted?: boolean }[]; appUserId?: string | null },
   actor: string,
 ): Promise<void> {
   const f = await db.feedback360.findUnique({ where: { id: input.feedbackId }, include: { appraisal: { include: { cycle: { select: { code: true, status: true } } } } } });
@@ -54,6 +69,13 @@ export async function submit360(
   if (f.status === "Submitted") bad("Isian sudah disubmit");
   if (f.status === "Expired" || (f.dueAt && new Date() > f.dueAt)) bad("Undangan 360 sudah kedaluwarsa");
   if (f.appraisal.cycle.status !== "Assessment") bad("Siklus bukan di fase Assessment");
+  // P9-PERF — rate-limit 10 submit/jam (hanya bila identitas user diketahui;
+  // ActivityLog submit di bawah mencatat appUserId sbg penanda hitungan)
+  const appUserId = input.appUserId ?? null;
+  const used = await recent360SubmitCount(db, appUserId);
+  if (appUserId && used >= SUBMIT_360_RATE_LIMIT_PER_HOUR) {
+    bad("Batas 10 submit 360 per jam tercapai — coba lagi nanti");
+  }
   for (const ans of input.answers) {
     if (!(ans.score >= 1 && ans.score <= 5)) bad("Skor 360 harus 1–5");
     await db.feedback360Answer.create({
@@ -70,6 +92,7 @@ export async function submit360(
   await db.activityLog.create({
     data: {
       action: "Submitted", entity: "Feedback360", entityId: input.feedbackId,
+      ...(appUserId ? { appUserId } : {}),
       detail: `Isian 360 disubmit (${input.answers.length} kompetensi) untuk ${f.appraisal.docNo} — anonim`,
     },
   });

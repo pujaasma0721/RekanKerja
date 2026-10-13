@@ -13,41 +13,63 @@ const KIND_PREFIX: Record<PerfDocKind, string> = {
 };
 
 /**
- * Nomor dokumen berikutnya pola {PREFIX}-{TAHUN}-{NNNN} (PER-2026-0001).
- * Prefix dasar dari PerformanceSetting.docPrefixes (urutan PER|PRB|PIP|MER),
- * bisa dioverride tenant. Delete-safe: scan max suffix yang ada.
+ * Prefix dokumen utk kind dari PerformanceSetting.docPrefixes (urutan
+ * PER|PRB|PIP|MER; bisa dioverride tenant) — dipakai nextPerfDocNo & range.
  */
-export async function nextPerfDocNo(db: TenantDb, kind: PerfDocKind, year = new Date().getFullYear()): Promise<string> {
+async function docPrefixOf(db: TenantDb, kind: PerfDocKind): Promise<string> {
   const setting = await db.performanceSetting.findFirst({ select: { docPrefixes: true } });
   const parts = (setting?.docPrefixes ?? "PER|PRB|PIP|MER").split("|");
   const fallback: Record<PerfDocKind, string> = { appraisal: "PER", probation: "PRB", pip: "PIP", merit: "MER" };
   const order: PerfDocKind[] = ["appraisal", "probation", "pip", "merit"];
   const idx = order.indexOf(kind);
-  const prefix = (parts[idx] ?? fallback[kind] ?? KIND_PREFIX[kind]).trim() || KIND_PREFIX[kind];
+  return ((parts[idx] ?? fallback[kind] ?? KIND_PREFIX[kind]).trim() || KIND_PREFIX[kind]);
+}
 
+/** Scan max suffix numerik yang ada pada tabel kind (delete-safe). */
+async function maxSuffixOf(db: TenantDb, kind: PerfDocKind, like: string): Promise<number> {
+  let max = 0;
+  if (kind === "appraisal") {
+    const rows = await db.appraisalRecord.findMany({ where: { docNo: { startsWith: like } }, select: { docNo: true } });
+    max = maxSuffix(rows.map((r) => r.docNo), like);
+  } else if (kind === "probation") {
+    const rows = await db.probationEvaluation.findMany({ where: { docNo: { startsWith: like } }, select: { docNo: true } });
+    max = maxSuffix(rows.map((r) => r.docNo), like);
+  } else if (kind === "pip") {
+    const rows = await db.pipPlan.findMany({ where: { docNo: { startsWith: like } }, select: { docNo: true } });
+    max = maxSuffix(rows.map((r) => r.docNo), like);
+  } else {
+    const rows = await db.meritRecommendation.findMany({ where: { docNo: { startsWith: like } }, select: { docNo: true } });
+    max = maxSuffix(rows.map((r) => r.docNo), like);
+  }
+  return max;
+}
+
+/**
+ * Nomor dokumen berikutnya pola {PREFIX}-{TAHUN}-{NNNN} (PER-2026-0001).
+ * Prefix dasar dari PerformanceSetting.docPrefixes (urutan PER|PRB|PIP|MER),
+ * bisa dioverride tenant. Delete-safe: scan max suffix yang ada.
+ */
+export async function nextPerfDocNo(db: TenantDb, kind: PerfDocKind, year = new Date().getFullYear()): Promise<string> {
+  const prefix = await docPrefixOf(db, kind);
   const like = `${prefix}-${year}-`;
-  const scan = async (table: "AppraisalRecord" | "ProbationEvaluation" | "PipPlan" | "MeritRecommendation"): Promise<string> => {
-    // scan max suffix via findFirst prefix match (kode pendek — aman)
-    let max = 0;
-    if (table === "AppraisalRecord") {
-      const rows = await db.appraisalRecord.findMany({ where: { docNo: { startsWith: like } }, select: { docNo: true } });
-      max = maxSuffix(rows.map((r) => r.docNo), like);
-    } else if (table === "ProbationEvaluation") {
-      const rows = await db.probationEvaluation.findMany({ where: { docNo: { startsWith: like } }, select: { docNo: true } });
-      max = maxSuffix(rows.map((r) => r.docNo), like);
-    } else if (table === "PipPlan") {
-      const rows = await db.pipPlan.findMany({ where: { docNo: { startsWith: like } }, select: { docNo: true } });
-      max = maxSuffix(rows.map((r) => r.docNo), like);
-    } else {
-      const rows = await db.meritRecommendation.findMany({ where: { docNo: { startsWith: like } }, select: { docNo: true } });
-      max = maxSuffix(rows.map((r) => r.docNo), like);
-    }
-    return `${like}${String(max + 1).padStart(4, "0")}`;
-  };
-  if (kind === "appraisal") return scan("AppraisalRecord");
-  if (kind === "probation") return scan("ProbationEvaluation");
-  if (kind === "pip") return scan("PipPlan");
-  return scan("MeritRecommendation");
+  const max = await maxSuffixOf(db, kind, like);
+  return `${like}${String(max + 1).padStart(4, "0")}`;
+}
+
+/**
+ * P9-PERF — cadangkan RANGE nomor dokumen berurutan dalam SATU scan (enroll
+ * massal §22: 500 karyawan × 3 query → jalur batch): max suffix dicari sekali,
+ * lalu {like}{max+1}…{like}{max+count} dikembalikan tanpa query per baris.
+ * Format konsisten dgn nextPerfDocNo ({PREFIX}-{TAHUN}-{NNNN}); aman karena
+ * pemanggil membuat barisnya SEGERA (createMany) sehingga scan berikutnya
+ * melihat nomor terpakai (delete-safe sama).
+ */
+export async function reservePerfDocNoRange(db: TenantDb, kind: PerfDocKind, count: number, year = new Date().getFullYear()): Promise<string[]> {
+  if (count <= 0) return [];
+  const prefix = await docPrefixOf(db, kind);
+  const like = `${prefix}-${year}-`;
+  const max = await maxSuffixOf(db, kind, like);
+  return Array.from({ length: count }, (_, i) => `${like}${String(max + 1 + i).padStart(4, "0")}`);
 }
 
 function maxSuffix(values: string[], like: string): number {
