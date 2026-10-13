@@ -6528,3 +6528,17 @@ Stage Summary:
 - Lingkungan PULIH TOTAL: kode = origin/main 9c9bfe7 (F0-F9 rekrutmen + PLAN-LINK + scrub + multi-company + parity), DB = 3 tenant + demo lengkap, semua layanan hidup, login E2E lulus.
 - SATU-SATUNYA kerugian permanen: DOKUMEN blueprint performance (DEVELOPMENT-PLAN-PERFORMANCE.md + AM1/AM2) — rencana pemulihan: tulis ulang dari ringkasan percakapan (10 item AM2 utuh) dengan pola DEVELOPMENT-PLAN-RECRUITMENT.md.
 - Pelajaran: commit lokal tanpa push = hilang saat reset sandbox; commit dokumen penting harus segera di-push.
+
+---
+Task ID: PLAN-PERF-RESTORE
+Agent: main (Z.ai Code) — koordinator
+Task: Pulihkan DEVELOPMENT-PLAN-PERFORMANCE.md dari backup user (upload/DEVELOPMENT-PLAN-PERFORMANCE (1).md) + push ke origin & onevity + mulai eksekusi P0.
+
+Work Log:
+- User unggah backup: 2.326 baris, 148KB — verifikasi struktur utuh: §0–§37 + Lampiran A–G + AMANDEMEN 1 (KPI Builder + copy-from-previous) + AMANDEMEN 2 (7 fitur: impor Excel, tarikan otomatis, autosave+progress bar, HR Command Center+nudge, versioning pustaka, bell curve) + AMANDEMEN 3 (AI Assist compose-only + estimasi dampak real-time) — 90 penyebut AMANDEMEN.
+- cp ke root → commit b98747a "PLAN-PERF: pulihkan dokumen blueprint performance dari backup user" → push origin main + onevity main (keduanya sinkron).
+- Register D1–D21 dinyatakan berlaku default per §23 (user menyuruh langsung lanjut P0).
+- Lanjut eksekusi P0 per §20: 17 model schema + DDL + parity step; masters (KPI library ±40 BSC, 12 kompetensi ber-level, skala rating, template, merit matrix default) + versioning §18.9; menu & rail grup; settings; penomoran. Target verifikasi: migrasi idempoten 3 tenant; halaman Master CRUD + riwayat versi; tsc/lint/audit gate.
+
+Stage Summary:
+- Dokumen blueprint performance SELAMAT & ter-backup ganda di GitHub (origin + onevity). Eksekusi P0 dimulai — Task ID PLAN-PERF-P0.
