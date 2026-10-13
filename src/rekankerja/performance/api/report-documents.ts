@@ -567,16 +567,20 @@ async function pf24Agg360(db: TenantDb, fp: ReportFilters): Promise<{ periodLabe
     ? await db.competency.findMany({ where: { id: { in: compIds } }, select: { id: true, name: true } })
     : [];
   const compName = new Map(comps.map((c) => [c.id, c.name]));
-  // agregat per kelompok reviewer — HANYA count ≥3 yang boleh tampil nilai (§37)
-  const byType = new Map<string, { count: number; scores: number[]; byComp: Map<string, { name: string; sum: number; n: number }[]> }>();
+  // agregat per kelompok reviewer — HANYA count ≥3 yang boleh tampil nilai (§37).
+  // (helper bertipe eksplisit — fallback `??` literal dgn `new Map()` nested
+  // membuat skor ter-infer `never[]`; helper dgn return type memutus ambigu.)
+  interface F360Group { count: number; scores: number[]; byComp: Map<string, { name: string; sum: number; n: number }> }
+  const newGroup = (): F360Group => ({ count: 0, scores: [], byComp: new Map() });
+  const byType = new Map<string, F360Group>();
   for (const f of feedbacks) {
-    const g = byType.get(f.reviewerType) ?? { count: 0, scores: [], byComp: new Map() };
+    const g = byType.get(f.reviewerType) ?? newGroup();
     g.count++;
     for (const a of f.answers) {
       g.scores.push(a.score);
-      const arr = g.byComp.get(a.competencyId) ?? [];
-      arr.push({ name: compName.get(a.competencyId) ?? "—", sum: a.score, n: 1 });
-      g.byComp.set(a.competencyId, arr);
+      const c = g.byComp.get(a.competencyId);
+      if (c) { c.sum += a.score; c.n += 1; }
+      else g.byComp.set(a.competencyId, { name: compName.get(a.competencyId) ?? "—", sum: a.score, n: 1 });
     }
     byType.set(f.reviewerType, g);
   }
@@ -584,13 +588,13 @@ async function pf24Agg360(db: TenantDb, fp: ReportFilters): Promise<{ periodLabe
   const excluded: PF24Data["excluded"] = [];
   for (const [group, g] of byType) {
     if (g.count < 3) { excluded.push({ group, count: g.count }); continue; }
+    // merge lintas competencyId dgn NAMA sama (kompetensi serumpun, cth. core
+    // vs managerial same-name) — Σbobot & n digabung sebelum rata-rata.
     const compAgg = new Map<string, { name: string; sum: number; n: number }>();
-    for (const arr of g.byComp.values()) {
-      for (const c of arr) {
-        const e = compAgg.get(c.name) ?? { name: c.name, sum: 0, n: 0 };
-        e.sum += c.sum; e.n += c.n;
-        compAgg.set(c.name, e);
-      }
+    for (const c of g.byComp.values()) {
+      const e = compAgg.get(c.name) ?? { name: c.name, sum: 0, n: 0 };
+      e.sum += c.sum; e.n += c.n;
+      compAgg.set(c.name, e);
     }
     groups.push({
       group,

@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Based on the screenshot, here is a detailed description of the page and its contents:\n\n### **Page Identification**\nThis is the **Performance Overview** page (also labeled **\"Penilaian Kinerja\"** in Indonesian) within the **RekanKerja HR Suite**. It is specifically for **PT Mitra Industri Internasional** (shown as \"TRIAL\" status). The page serves as the main dashboard for performance management, showing live data from appraisal cycles, KPIs, check-ins, and calibration.\n\n---\n\n### **Visible Headings & Sections**\n1.  **Header:** `PERFORMANCE • PENILAIAN KINERJA`\n2.  **Main Title:** `Performance Overview`\n3.  **Sub-description:** Explains the module covers: *appraisal cycles → KPI targets → check-ins → appraisal → calibration → consequences (merit, PA, PIP, letters).*\n4.  **Button:** `Manage Performance Masters` (blue CTA button)\n5.  **Chart/Section Title:** `Final Rating Distribution (all cycles)`\n6.  **Section Title:** `Form Status` (partially obscured by popup)\n7.  **Section Title:** `Module Menu Map`\n\n---\n\n### **Summary Cards (Top Row)**\nFour metric cards are displayed with large numbers:\n*   **2** — Appraisal Cycles\n*   **0** — Active Participants (r...)\n*   **40** — Active KPI Library\n*   **12** — Active Competencies\n\n---\n\n### **Rating Distribution Bars (with Numbers)**\nThis horizontal bar chart shows the distribution of final ratings across all cycles:\n\n| Rating Level | Count | Bar Color |\n| :--- | :--- | :--- |\n| **1 - Very Poor** | **4** | Red/Pink |\n| **2 - Poor** | **0** | Light Gray/Empty |\n| **3 - Satisfactory** | **5** | Yellow/Orange |\n| **4 - Good** | **5** | Green |\n| **5 - Outstanding** | **5** | Teal/Dark Green |\n\n*(Total rated employees: 19)*\n\n---\n\n### **Status Distribution**\nLocated under the **\"Form Status\"** heading (partially covered by an \"Install the RekanKerja app\" popup), the visible text shows:\n> **PIP:** 1 active • 1 recovered / 2 not recovered (recovery rate 33%)\n\n---\n\n### **Module Menu Map**\nThis section lists the available sub-modules with icons and descriptions:\n*   **Appraisal Cycles** — Open cycles, enroll participants, phase gates + Command Center nudge\n*   **Goals & KPI** — KPI Builder + copy from previous cycle + Excel import\n*   **Check-ins** — Documented 1-on-1s + mid-year progress\n*   **Appraisals** — Self → manager → 360, auto-pull, AI assist, impact estimate\n*   **Calibration** — Distribution + bell curve + audited decisions\n*   **Results & 9-Box** — Publication, acknowledgement, appeals, talent lens\n*   **PIP** — 1-3 month improvement program; mini-KPI targets, checkpoints, outcome\n*   **Probation Evaluation** — Probation decisions from recruitment hires\n*   **Reports** — Catalog of 14 bilingual report documents (pf11–pf44), print + XLSX ready\n\n---\n\n### **Other Elements**\n*   **Sidebar Navigation:** Shows \"Overview\" is active, with other menu items like Siklus Penilaian, Target & KPI, Check-In, Penilaian, Kalibrasi, Hasil & 9-Box, PIP, Evaluasi Masa Percobaan, etc.\n*   **Popup Modal:** A dark overlay prompting to **\"Install the RekanKerja app\"** for faster access.\n*   **Footer:** © 2026 RekanKerja HR Suite - Performance",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791847573,
+  "id": "202610130726021c111a2b452141c3",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202610130726021c111a2b452141c3",
+  "usage": {
+    "completion_tokens": 831,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1972,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 2803
+  }
+}

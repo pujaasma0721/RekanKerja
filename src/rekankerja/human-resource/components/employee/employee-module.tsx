@@ -33,7 +33,7 @@ import {
   Users, Search, ChevronLeft, ChevronRight, ArrowLeft, Mail, Phone, MapPin, Pencil,
   User, Briefcase, Heart, GraduationCap, History, Scale, Plus, Trash2, Calendar, IdCard,
   Landmark, Banknote, Clock3, ArrowRight, Building2, FileText, LogOut, OctagonX, FileWarning,
-  ClipboardEdit,
+  ClipboardEdit, Gauge, FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -110,6 +110,11 @@ interface DetailEmp {
   experiences: { id: string; company: string; position: string; startDate: string | null; endDate: string | null; notes: string | null }[];
   disciplinary: { id: string; warningLevel: string; violation: string; sanction: string | null; issuedAt: string; expiresAt: string | null; notes: string | null }[];
   assignments: AssignmentHistory[];
+  /** P8-PERF — register riwayat kinerja (PP 35/2021 §7.2): null bila cakupan PII limited. */
+  performance?: {
+    appraisals: { id: string; docNo: string; status: string; selfScore: number | null; managerScore: number | null; finalScore: number | null; finalRating: number | null; potentialBand: number | null; acknowledgedAt: string | null; appealStatus: string | null; cycleCode: string; cycleName: string; periodStart: string; periodEnd: string; managerName: string | null; kpiCount: number; compCount: number }[];
+    pips: { docNo: string; status: string; startDate: string; endDate: string; outcomeNotes: string | null; checkpointsTotal: number; checkpointsReviewed: number; lastAchievementPct: number | null }[];
+  } | null;
 }
 
 // label EN paralel untuk tab detail (kunci tab = nilai internal, bukan data server)
@@ -121,6 +126,7 @@ const TAB_LABEL_EN: Record<string, string> = {
   experience: "Experience",
   discipline: "Discipline",
   letters: "Letters",
+  kinerja: "Performance",
 };
 
 /** Baris riwayat surat karyawan (GET /api/rekankerja/letters?employeeId= — 26-a). */
@@ -334,6 +340,7 @@ function EmployeeDetail() {
             ["experience", "Pengalaman", History],
             ["discipline", "Disiplin", Scale],
             ["letters", "Surat", FileText],
+            ["kinerja", "Kinerja", Gauge],
           ] as const).map(([id, label, Icon]) => (
             <TabsTrigger key={id} value={id} className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:ov-fill [&[data-state=active]_[data-count]]:ov-tile">
               <Icon className="h-4 w-4" aria-hidden /> {t(label, TAB_LABEL_EN[id])}
@@ -342,6 +349,7 @@ function EmployeeDetail() {
               {id === "education" && e.education.length > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.education.length}</span>}
               {id === "discipline" && e.disciplinary.length > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.disciplinary.length}</span>}
               {id === "letters" && (letters.data?.letters.length ?? 0) > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{letters.data!.letters.length}</span>}
+              {id === "kinerja" && (e.performance?.appraisals.length ?? 0) > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.performance!.appraisals.length}</span>}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -564,6 +572,102 @@ function EmployeeDetail() {
                 <div className="rounded-xl border border-dashed ov-border-accent ov-soft p-6 text-center">
                   <p className="text-sm font-bold ov-text-accent">{t("Rekam jejak bersih ✨", "Clean record ✨")}</p>
                   <p className="mt-0.5 text-xs text-slate-400">{t("Tidak ada catatan pelanggaran untuk karyawan ini.", "No violation records for this employee.")}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ===== P8-PERF: riwayat kinerja (PP 35/2021 §7.2 — register + ekspor) ===== */}
+        <TabsContent value="kinerja">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                <Gauge className="h-4 w-4 ov-text-accent" /> {t("Riwayat Penilaian Kinerja", "Performance History")}
+              </CardTitle>
+              {(e.performance?.appraisals.length ?? 0) > 0 && (
+                <a
+                  href={`/api/rekankerja/performance/reports/documents?id=employee-history&employeeId=${encodeURIComponent(e.id)}&export=xlsx&lang=${lang}`}
+                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  aria-label={t("Unduh riwayat kinerja lengkap sebagai XLSX", "Download the full performance history as XLSX")}
+                >
+                  <FileSpreadsheet className="h-4 w-4" aria-hidden /> {t("Unduh Riwayat (XLSX)", "Download History (XLSX)")}
+                </a>
+              )}
+            </CardHeader>
+            <CardContent className="pt-0">
+              <p className="mb-3 text-[11px] leading-relaxed text-slate-400">
+                {t(
+                  "Register lintas siklus (PP 35/2021 §7.2 — dasar keputusan konversi/perpanjangan kontrak; eksporabel & ter-audit).",
+                  "Cross-cycle register (PP 35/2021 §7.2 — the basis for contract conversion/extension decisions; exportable & audited).",
+                )}
+              </p>
+              {(e.performance?.appraisals.length ?? 0) === 0 ? (
+                <EmptyState
+                  title={t("Belum ada riwayat penilaian", "No appraisal history yet")}
+                  description={t("Karyawan ini belum terdaftar sebagai peserta siklus penilaian kinerja mana pun.", "This employee has not been enrolled in any performance appraisal cycle yet.")}
+                  icon={<Gauge className="h-6 w-6" />}
+                />
+              ) : (
+                <div className="max-h-96 overflow-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50/80 dark:bg-slate-800/60">
+                        <TableHead className="text-[10.5px] font-bold uppercase tracking-wide">{t("No. Dokumen", "Document No.")}</TableHead>
+                        <TableHead className="text-[10.5px] font-bold uppercase tracking-wide">{t("Siklus · Periode", "Cycle · Period")}</TableHead>
+                        <TableHead className="text-[10.5px] font-bold uppercase tracking-wide">{t("Atasan Penilai", "Rating Manager")}</TableHead>
+                        <TableHead className="text-center text-[10.5px] font-bold uppercase tracking-wide">{t("Status", "Status")}</TableHead>
+                        <TableHead className="text-center text-[10.5px] font-bold uppercase tracking-wide">{t("Skor Final", "Final Score")}</TableHead>
+                        <TableHead className="text-center text-[10.5px] font-bold uppercase tracking-wide">{t("Rating", "Rating")}</TableHead>
+                        <TableHead className="text-center text-[10.5px] font-bold uppercase tracking-wide">{t("Band", "Band")}</TableHead>
+                        <TableHead className="text-center text-[10.5px] font-bold uppercase tracking-wide">{t("Ack", "Ack")}</TableHead>
+                        <TableHead className="text-center text-[10.5px] font-bold uppercase tracking-wide">{t("Banding", "Appeal")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {e.performance?.appraisals.map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell className="whitespace-nowrap font-mono text-[11px] font-bold text-slate-800 dark:text-slate-100">{a.docNo}</TableCell>
+                          <TableCell className="whitespace-nowrap text-[11px]">
+                            <span className="font-bold text-slate-800 dark:text-slate-100">{a.cycleCode}</span>
+                            <span className="text-slate-400"> · {fmtDate(a.periodStart)} – {fmtDate(a.periodEnd)}</span>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-[11px]">{a.managerName ?? "—"}</TableCell>
+                          <TableCell className="text-center"><StatusPill status={a.status} /></TableCell>
+                          <TableCell className="text-center text-[11px] font-bold tabular-nums">{a.finalScore ?? "—"}</TableCell>
+                          <TableCell className="text-center"><Badge variant="outline" className="text-[10px] font-bold">{a.finalRating ?? "—"}</Badge></TableCell>
+                          <TableCell className="text-center text-[11px] tabular-nums">{a.potentialBand ?? "—"}</TableCell>
+                          <TableCell className="text-center text-[11px]">{a.acknowledgedAt ? "✓" : "—"}</TableCell>
+                          <TableCell className="text-center text-[11px]">{a.appealStatus ?? "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {(e.performance?.pips.length ?? 0) > 0 && (
+                <div className="mt-4 space-y-2.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Riwayat PIP", "PIP History")}</p>
+                  {e.performance?.pips.map((p) => (
+                    <div key={p.docNo} className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-[11px] font-bold text-slate-800 dark:text-slate-100">{p.docNo}</span>
+                          <Badge variant="outline" className={cn(
+                            "text-[10px] font-bold",
+                            p.status === "Recovered" && "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+                            p.status === "NotRecovered" && "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300",
+                          )}>{p.status}</Badge>
+                          <span className="text-[11px] text-slate-400">{fmtDate(p.startDate)} – {fmtDate(p.endDate)}</span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                          {t("Checkpoint {r}/{t}", "Checkpoints {r}/{t}", { r: String(p.checkpointsReviewed), t: String(p.checkpointsTotal) })}
+                          {p.lastAchievementPct != null && ` · ${p.lastAchievementPct}%`}
+                        </span>
+                      </div>
+                      {p.outcomeNotes && <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{p.outcomeNotes}</p>}
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>

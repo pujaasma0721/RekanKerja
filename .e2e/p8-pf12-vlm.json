@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Yes, this is an A4 report document screenshot. Here is the list of the requested elements:\n\n*   **Company Letterhead:** PT MITRA INDUSTRI INTERNASIONAL (including address, NPWP, and Branch details).\n*   **Report Number and Title:** Document No. PF/F12/2026/10; Title: PHASE-BY-PHASE COMPLETION.\n*   **Summary Boxes:** Phase Summary section containing boxes for PARTICIPANTS (10), TARGETS LOCKED (1), SELF DONE (10), MANAGER DONE (10), and ACKNOWLEDGED (2).\n*   **Table Headers:** #, EMPLOYEE NO., NAME, UNIT, STATUS, TARGET, SELF, SUPERVISOR, ACK, SKOR FINAL.\n*   **Total Row:** TOTAL — 10 PARTICIPANTS (at the bottom of the table).",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791848364,
+  "id": "202610130739209f2bb4b608814bb8",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202610130739209f2bb4b608814bb8",
+  "usage": {
+    "completion_tokens": 178,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 2952,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 3130
+  }
+}

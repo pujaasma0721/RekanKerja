@@ -172,6 +172,48 @@ export async function GET(req: NextRequest) {
       personal.experiences = [];
       personal.disciplinary = [];
     }
+    // P8-PERF — register riwayat kinerja per karyawan (PP 35/2021 §7.2:
+    // penilaian = dasar keputusan konversi/perpanjangan → riwayat harus
+    // eksporabel & ter-audit). Cakupan PII limited → kosong (data kinerja
+    // sensitif; karyawan sendiri memakai ESS my-history).
+    const perfEmpty = { appraisals: [] as unknown[], pips: [] as unknown[] };
+    const performance = piiScope === "limited" ? perfEmpty : {
+      appraisals: (await db.appraisalRecord.findMany({
+        where: { employeeId: id },
+        select: {
+          id: true, docNo: true, status: true,
+          selfScore: true, managerScore: true, finalScore: true, finalRating: true,
+          potentialBand: true, acknowledgedAt: true, appealStatus: true,
+          cycle: { select: { code: true, name: true, periodStart: true, periodEnd: true } },
+          manager: { select: { fullName: true } },
+          _count: { select: { kpis: true, comps: true } },
+        },
+        orderBy: { docNo: "asc" },
+      })).map((a) => ({
+        id: a.id, docNo: a.docNo, status: a.status,
+        selfScore: a.selfScore, managerScore: a.managerScore, finalScore: a.finalScore,
+        finalRating: a.finalRating, potentialBand: a.potentialBand,
+        acknowledgedAt: a.acknowledgedAt, appealStatus: a.appealStatus,
+        cycleCode: a.cycle.code, cycleName: a.cycle.name,
+        periodStart: a.cycle.periodStart, periodEnd: a.cycle.periodEnd,
+        managerName: a.manager?.fullName ?? null,
+        kpiCount: a._count.kpis, compCount: a._count.comps,
+      })),
+      pips: (await db.pipPlan.findMany({
+        where: { employeeId: id },
+        select: {
+          docNo: true, status: true, startDate: true, endDate: true, outcomeNotes: true,
+          checkpoints: { select: { status: true, achievementPct: true } },
+        },
+        orderBy: { docNo: "asc" },
+      })).map((p) => ({
+        docNo: p.docNo, status: p.status, startDate: p.startDate, endDate: p.endDate,
+        outcomeNotes: p.outcomeNotes,
+        checkpointsTotal: p.checkpoints.length,
+        checkpointsReviewed: p.checkpoints.filter((c) => c.status === "Reviewed").length,
+        lastAchievementPct: p.checkpoints.length > 0 ? p.checkpoints[p.checkpoints.length - 1].achievementPct : null,
+      })),
+    };
     // 26-b P0 — guard PKWT PP 35/2021 (total durasi kontrak > 5 tahun → wajib
     // konversi ke PKS) + sisa masa kontrak; dihitung server agar UI profil &
     // banner memakai logika satu sumber.
@@ -233,6 +275,7 @@ export async function GET(req: NextRequest) {
         managerName: a.manager?.fullName ?? null,
       })),
       pkwt,
+      performance,
     };
 
     // M-9 / 42-e: flag cakupan PII (full|self|limited) di payload root —
