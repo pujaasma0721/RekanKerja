@@ -6507,3 +6507,24 @@ Stage Summary:
 - Strategi penggantian semantik agar kalimat tetap gramatikal: "sistem referensi" (posisi subjek), "sistem demo referensi" (bekas URL demo), "gaya lama" (suffix -style), "versi referensi" (perbandingan versi); referensi fitur (MyPersonnelRequisition, RecruitmentPlanning §2.1, SLA Group, dst.) tetap utuh tanpa atribusi merek.
 - 75 file berubah; tidak ada perubahan perilaku fungsial kecuali satu: kata tersebut tidak lagi masuk daftar blokir kata sandi umum.
 - Observasi pre-existing (BUKAN hasil scrub, belum dikerjakan): React console warning "duplicate key … Male" pada chart Demographics (demographics.tsx) — tercatat untuk backlog.
+
+---
+Task ID: RECOVER-RESET-5
+Agent: main (Z.ai Code) — koordinator
+Task: Pemulihan penuh pasca reset sandbox ke-5 (postgres data hilang + snapshot kode tertinggal 21 commit di belakang origin + env DB hilang) — dipicu instruksi user "push".
+
+Work Log:
+- Diagnosis: git status bersih tapi local main (8704816 F5) 21 commit di belakang origin/main (9c9bfe7 parity F0-F9 45 tabel); fetch origin aman (fast-forward murni).
+- VERIFIKASI KEHILANGAN PLAN-PERF: commit PLAN-PERF + PLAN-PERF-AM1 (b5e8dcd) TIDAK ada di origin/onevity, TIDAK ada di objek lokal (cat-file b5e8dcd invalid; fsck --unreachable: hanya commit era lama), file DEVELOPMENT-PLAN-PERFORMANCE.md tidak ada di disk, worklog tanpa entri PLAN-PERF → dokumen blueprint performance 1.789 baris + AM1/AM2 hilang permanen (tidak pernah di-push). Kode module performance sendiri TIDAK pernah ada (P0-P9 belum pernah dimulai) → tidak ada baris kode yang hilang.
+- git pull --ff-only origin main → 9c9bfe7; git push onevity main (bb3d03b..9c9bfe7) — backup remote kembali sinkron.
+- bun run db:generate (2 skema Prisma); .env ditambah PLATFORM_DB_URL + TENANT_DB_BASE_URL postgres://onevity:onevity_dev@127.0.0.1:5432/onevity (env proses lama hilang saat reset; kredensial dari mini-services/postgres/index.ts).
+- Postgres: cluster initdb BARU 08:21:55 (data lama hilang — snapshot tidak memuat data/). bun run db:push (platform registry: Tenant/User/UserTenant) → bun scripts/restore-demo.ts (3 tenant + MII seed penuh 45 karyawan + payroll + attendance + owner hrd@mii.co.id + 29 template email; 1 langkah gagal: migrasi sandi).
+- Pipeline parity via bun CLI mati transien berulang ("Engine is not yet connected"/"Response from the Engine was empty" — engine Prisma di proses bun tunggal 60 langkah; bukan bug kode; standalone skrip selalu sukses) → SOLUSI: parity dijalankan via boot instrumentation server Next (Node) — "[demo-seed] pipeline parity selesai (exit 0)" lengkap semua langkah F0..F9 + plan-link.
+- bun scripts/migrate-letters-offboarding.ts + migrate-password-security.ts (manual — lanjutan restore-demo).
+- Layanan: watch-dev.sh (3000) + mini-services candidate-portal (3010) + smtp-catcher + postgres embedded — semua hidup. Health: / 200, /api/public/recruitment/openings 200 (sebelumnya 500 env DB kosong), portal 200, login hrd@mii.co.id 200 (Tri Handayani OWNER MII).
+- Data demo MII terverifikasi: Employee 45 · JobOpportunity 4 · PersonnelRequisition 9 · JobCandidate 10 · RecruitmentPlan 3 · PayrollRun 3 · AppUser 6 · LetterTemplate 24 ×3 tenant · tabel F6-F9 (KnockoutQuestion/CvParseResult/CandidateAiScore/MetricSnapshot/WebhookEndpoint) ada.
+
+Stage Summary:
+- Lingkungan PULIH TOTAL: kode = origin/main 9c9bfe7 (F0-F9 rekrutmen + PLAN-LINK + scrub + multi-company + parity), DB = 3 tenant + demo lengkap, semua layanan hidup, login E2E lulus.
+- SATU-SATUNYA kerugian permanen: DOKUMEN blueprint performance (DEVELOPMENT-PLAN-PERFORMANCE.md + AM1/AM2) — rencana pemulihan: tulis ulang dari ringkasan percakapan (10 item AM2 utuh) dengan pola DEVELOPMENT-PLAN-RECRUITMENT.md.
+- Pelajaran: commit lokal tanpa push = hilang saat reset sandbox; commit dokumen penting harus segera di-push.
