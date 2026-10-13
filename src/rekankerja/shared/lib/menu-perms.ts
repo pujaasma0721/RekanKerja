@@ -178,6 +178,10 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   "performance:goals": [
     { key: "import", label: "Impor Excel target", hint: "Unggah target KPI massal via template Excel (AM2 §18.5 — hanya baris valid)" },
   ],
+  // P2-PERF — Check-in 1-on-1 & revisi mid-year (§27)
+  "performance:checkins": [
+    { key: "revise", label: "Mengajukan revisi target", hint: "Revisi target mid-year dengan alasan + persetujuan atasan berjenjang (§27-4)" },
+  ],
   "performance:appraisals": [
     { key: "finalize", label: "Finalisasi penilaian", hint: "Mengunci nilai & mengirim ke kalibrasi" },
     { key: "ai-compose", label: "AI Assist ulasan", hint: "Menyusun draf ulasan dari poin penilai (AM3 §18.11 — compose-only)" },

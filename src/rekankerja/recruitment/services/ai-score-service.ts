@@ -367,12 +367,12 @@ function factorsFromAiText(raw: string, rubric: RubricFactor[]): { factor: strin
     });
   }
   // SEMUA faktor rubrik harus terisi — kalau kurang → tolak (fallback simulated)
-  const out = rubric.map((r) => {
+  const out = rubric.flatMap((r) => {
     const hit = byName.get(r.name.toLowerCase());
-    if (!hit) return null;
-    return { factor: r.name, score: hit.score, evidence: hit.evidence };
+    if (!hit) return [];
+    return [{ factor: r.name, score: hit.score, evidence: hit.evidence }];
   });
-  return out.every(Boolean) ? out : null;
+  return out.length === rubric.length ? out : null;
 }
 
 // ============ generate skor ============

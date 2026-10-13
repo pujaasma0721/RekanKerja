@@ -126,7 +126,7 @@ async function seedDemoF7(schema: string): Promise<string> {
       data: {
         url: "https://example.com/hooks/rekankerja-demo",
         eventsJson: JSON.stringify(["pr.approved", "offer.accepted", "candidate.hired"]),
-        secretEnc: tenantCryptoForDb(db).encryptText(secret),
+        secretEnc: tenantCryptoForDb(db).encryptText(secret) ?? "", // encryptText(non-empty) tidak pernah null — fallback hanya utk ketat-tipe
         active: false, // contoh non-aktif — aktifkan + ubah URL via UI Pengaturan
         note: "Contoh endpoint (non-aktif) — ganti URL tujuan lalu aktifkan.",
       },

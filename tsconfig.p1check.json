@@ -19,6 +19,8 @@
     "src/rekankerja/shared/services/scheduler-service.ts",
     "src/app/page.tsx",
     "scripts/migrate-performance-p1.ts",
-    "src/rekankerja/shared/lib/parity-runner.ts"
+    "src/rekankerja/shared/lib/parity-runner.ts",
+    "src/rekankerja/ess/api/my-checkins.ts",
+    "src/rekankerja/ess/components/ess-my-checkins.tsx"
   ]
 }

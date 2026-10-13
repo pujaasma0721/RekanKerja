@@ -207,12 +207,13 @@ interface PlanMatchLite {
  *  Aturan fallback = cermin planPrWhere: posisi (id master ATAU judul,
  *  insensitive) + kantor kompatibel + tahun requestDate == tahun periode. */
 function prAutoServesPlan(
-  pr: { positionId: string | null; companyOfficeId: string | null; requestDate: Date; positionTitle: string | null },
+  pr: { positionId: string | null; companyOfficeId: string | null; requestDate: Date; position: { title: string } | null },
   plan: PlanMatchLite,
 ): boolean {
+  const prTitle = pr.position?.title ?? null;
   const posOk = plan.positionId
     ? plan.positionId === pr.positionId
-    : !!pr.positionTitle && plan.positionTitle.toLowerCase() === pr.positionTitle.toLowerCase();
+    : !!prTitle && plan.positionTitle.toLowerCase() === prTitle.toLowerCase();
   if (!posOk) return false;
   if (plan.companyOfficeId && plan.companyOfficeId !== pr.companyOfficeId) return false;
   const year = yearOfPeriod(plan.period);

@@ -294,8 +294,9 @@ export function normalizeDateText(v: unknown): string | null {
   const MONTHS: Record<string, string> = {
     januari: "01", februari: "02", maret: "03", april: "04", mei: "05", juni: "06",
     juli: "07", agustus: "08", september: "09", oktober: "10", november: "11", desember: "12",
-    january: "01", february: "02", march: "03", april: "04", may: "05", june: "06",
-    july: "07", august: "08", september: "09", october: "10", november: "11", december: "12",
+    // EN — april/september/november ejaannya sama persis dgn ID (sudah di baris atas)
+    january: "01", february: "02", march: "03", may: "05", june: "06",
+    july: "07", august: "08", october: "10", december: "12",
   };
   m = /^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/.exec(s);
   if (m) {

@@ -59,6 +59,7 @@ import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service"
 import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webhook-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import { perfGoalReminders } from "@/rekankerja/performance/services/perf-goal-service";
+import { checkinReminders } from "@/rekankerja/performance/services/perf-checkin-service";
 import { flushQueuedNudges } from "@/rekankerja/performance/services/perf-cycle-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
 import { runRetention } from "@/rekankerja/recruitment/services/compliance-service";
@@ -1685,6 +1686,10 @@ export interface SchedulerJobCounts {
   perfPhaseReminded: number;
   /** P1-PERF §18.8 — antrean nudge di luar jam kerja yang terkirim job ini. */
   perfNudgeQueueFlushed: number;
+  /** P2-PERF §27-1 — penerima pengingat check-in 1-on-1 (Planned ≤ H-2). */
+  perfCheckinReminded: number;
+  /** P2-PERF §27-1 — check-in lewat tenggat >7 hari yang otomatis Missed. */
+  perfCheckinMissed: number;
 }
 
 export interface SchedulerRunResult {
@@ -1746,6 +1751,10 @@ export async function runAllJobs(
     retentionScanned: 0,
     retentionAnonymized: 0,
     retentionSkippedConsent: 0,
+    perfPhaseReminded: 0,
+    perfNudgeQueueFlushed: 0,
+    perfCheckinReminded: 0,
+    perfCheckinMissed: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1878,6 +1887,22 @@ export async function runAllJobs(
     const out = await perfGoalReminders(db, push);
     jobs.perfPhaseReminded = out.reduce((a, b) => a + b.recipients, 0);
     jobs.perfNudgeQueueFlushed = await flushQueuedNudges(db, tenant);
+  });
+
+  // P2-PERF §27-1 — pengingat check-in 1-on-1 jatuh tempo (Planned ≤ H-2 →
+  // nudge in-app atasan + karyawan; lewat > 7 hari → otomatis Missed ter-log).
+  await guarded("perf-checkin-reminder", async () => {
+    const push = async (appUserIds: string[], title: string, body: string) => {
+      let sent = 0;
+      for (const id of appUserIds) {
+        const nid = await pushNotification(db, { appUserId: id, title, body, kind: "performance", link: "performance:checkins" });
+        if (nid) sent++;
+      }
+      return sent;
+    };
+    const out = await checkinReminders(db, push);
+    jobs.perfCheckinReminded = out.reminded;
+    jobs.perfCheckinMissed = out.autoMissed;
   });
 
   // F4-REC — offer: kedaluwarsa otomatis (Sent/Viewed lewat expiryDate) +

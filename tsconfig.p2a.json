@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/performance/**/*",
+    "src/rekankerja/shared/lib/menu-perms.ts",
+    "src/rekankerja/shared/services/wa-defaults.ts",
+    "src/rekankerja/shared/lib/parity-runner.ts",
+    "scripts/migrate-performance-p1.ts",
+    "src/app/api/rekankerja/performance/*/route.ts"
+  ]
+}
