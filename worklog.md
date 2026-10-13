@@ -6809,3 +6809,28 @@ Stage Summary:
 - Integrasi: docType ProbationDecision di engine (amount = FLAG 1=Terminate); appointment-service hook D9 (additive, failure-safe); provisioning self-heal.
 - Data demo MII: 3 PRB (Confirm+PA+surat; Terminate+PA+surat 3-jenjang; 1 Open utk scheduler window).
 - Siap P8 (Laporan & Analitik: overview KPI + katalog pf11–pf44 16 laporan dwibahasa XLSX/PDF + MetricSnapshot + ekspor riwayat per karyawan PP 35/2021 §7.2).
+
+---
+Task ID: PERF-P8
+Agent: main (Z.ai Code)
+Task: P8 Performance — Laporan & Analitik (§20 P8; §11.2 katalog; §17 reports API): overview KPI + katalog pf11–pf44 4 grup bilingual XLSX/PDF + MetricSnapshot + ekspor riwayat per karyawan PP 35/2021 §7.2 — review kode subagent → verifikasi E2E → perbaiki → audit → selesai
+
+Work Log:
+- MULAI dari 2 commit subagent UUID (6bd0002 kode 3.672 baris; 539611b hasil E2E + fix employee-detail): review penuh menemukan implementasi PATUH blueprint — 14 laporan dokumen pf11–pf44 (§11.2: 3+4+3+4 per grup G1-G4; "16 laporan" §20 = 14 dokumen + overview dashboard + riwayat karyawan) + overview API + ESS my-history + employee-detail tab Kinerja + scheduler job perf-metrics-snapshot.
+- Struktur terverifikasi: guard requireMenuViewAny performance:reports|overview (UI) + requireEss employeeId-DARI-SESI (ESS tidak bisa ekspor milik orang lain — PDP); PII limited → data kinerja dikosongkan di employee-detail (visibility §11.3); pf24 anonimitas §37: kelompok <3 responden DIKECUALIKAN + note; pf41 nominal merit didekripsi vault di batas serializer (laporan internal HR/Finance); unit subtree filter; kop perusahaan (nama/alamat/kota/NPWP) + printedBy + filterChips; ActivityLog tiap ekspor; _params opsi filter (karyawan mengikuti siklus).
+- VERIFIKASI DISPLAY-ANOMALY RE-TERJADI: Read/grep menampilkan kode "rusak" (.id tanpa m, SP_RANK]) — verifikasi od -c membuktikan file ASLI VALID (pola anomali serialisasi tercatat P3) — TIDAK ada edit keliru.
+- TEST API E2E (hrd@mii.co.id, curl): login+select-tenant; 14 laporan: pf11 2 siklus, pf12 10 peserta (target 1/self 10/manager 10/ack 2), pf13 31 KPI, pf21 mean 63.9 min 25 max 94, pf22 byUnit counts+mean+sigma, pf23 guard employee wajib 400, pf24 excluded group note anonimitas, pf31 sessions+decisions audit, pf32 4 atasan indikator bias, pf33 1 banding, pf41 10 merit (7 approved/3 applied, sumBonus 101,4jt, dekripsi vault OK), pf42 5 PIP recoveryRate 33.3 + saran SP jenjang, pf43 cells 9-box (Joko Lubis pot2/perf1 52), pf44 13 tren; guard param wajib 400 utk pf12/13/21/22/23/24/31/32/43 tanpa cycle.
+- TEST EXPORT XLSX: pf21 ID (7.960 B, sheet "Hasil"), employee-history EN (12.507 B, 5 sheet: Overview/Target & Skor KPI/Kompetensi/PIP/Merit), ESS my-history ID (12.458 B — yusuf@mii.co.id self-export).
+- TEST GUARD NEGATIF: ESS akses documents → 403 pesan jelas; ESS overview → 403.
+- TEST METRICSNAPSHOT: job perf-metrics-snapshot menulis perf_completion 52.6, perf_pip_recovery_rate 33.3, perf_rating_distribution per-rating (dims {"rating":"N"}) — periode 2026-10 idempoten upsert.
+- TEST UI (playwright, protokol anti-OOM): login → Performance Overview render (kartu + distribusi live); tab Reports: katalog 4 grup × deskripsi lengkap; P1.2 → dialog param (combobox disabled saat opsi dimuat → tunggu enabled) → PER-2026 → Generate Report → hasil render + tombol [XLSX, Cetak/PDF] — PASS (p8-pf12-gen.png). Bahasa ID aktif (menuitem Bahasa Indonesia).
+- TEST UI SUBAGENT (bukti ter-commit): overview EN + pf12 EN + tab Kinerja employee detail EN (riwayat render + tombol Unduh Riwayat + PER-xxxx) + mobile 375×812 tanpa h-scroll — screenshot .e2e-shots/p8-*.
+- FIX-1 lint ERROR: directive eslint-disable no-explicit-any memakai em-dash (nama rule invalid → error) — rule sudah OFF global; directive dihapus, jadi komentar biasa → kembali 6 warning baseline.
+- FIX-2 bilingual +1 gap: ["TOTAL",…] array-item footer pf41 → trFor(lang, "TOTAL", "TOTAL") (pola L1288) → TOTAL_GAP kembali 149.
+- LINGKUNGAN (protokol final): OOM-cycle next-server 2.4-2.8GB berulang SETIAP restart server (turbopack kompilasi ulang graph; container 4GB). Warm-up WAJIB: curl session login → halaman → API route handler SATU PER SATU dengan jeda (SSR halaman TIDAK mengompilasi route handler API — hanya fetch client yang melakukannya); browser dibuka HANYA setelah semua chunk+API warm; DUA chrome bersamaan = OOM pasti (agent-browser session harus close sebelum playwright launch). dev.log ter-truncate tee per restart — riwayat crash via dmesg.
+
+Stage Summary:
+- P8 SELESAI. Overview KPI (kartu siklus/peserta/KPI/kompetensi + distribusi rating + PIP counts) + 14 laporan dokumen pf11–pf44 4 grup (bilingual, kop+printedBy+filterChips, XLSX stream ActivityLog, guard param wajib, anonimitas 360, vault merit, unit subtree) + riwayat karyawan 2 pintu (HR admin employee-history 5-sheet workbook + ESS my-history self-export PP 35/2021 §7.2 — keduanya ActivityLog) + tab Kinerja employee detail (PII limited dihormati) + MetricSnapshot harian (3 metrik, idempoten).
+- Gate: tsc 0 error (3GB protokol); lint 0 error/6 warning baseline (2 fix); bilingual TOTAL_GAP=149 baseline; dev.log bersih dari error kode (hanya [watchdog] restart OOM lingkungan); E2E API penuh + UI (gabungan sesi main + bukti subagent) lulus ID/EN/mobile.
+- Data demo MII konsisten lintas laporan (mean 63.9 = kalibrasi P4; merit 7+3 = P5; PIP recovery 33.3 = P6; ack 2 = P4).
+- Siap P9 (Kepatuhan & Hardening: visibility matrix §11.3 enforcement test negatif 403; DSR karyawan extend DataSubjectRequest; retensi arsip; rate-limit submit 360; uji beban enroll massal).

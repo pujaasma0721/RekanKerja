@@ -75,8 +75,8 @@ interface ReportFilters {
 }
 
 // ============ util kecil ============
-
-/* eslint-disable @typescript-eslint/no-explicit-any — payload laporan di-cast longgar utk builder XLSX generik (pola medical-report-documents). */
+// (no-explicit-any OFF global; payload laporan di-cast longgar utk builder
+// XLSX generik — pola medical-report-documents.)
 type AnyRec = Record<string, any>;
 const s = (v: unknown) => (v == null ? "—" : String(v));
 const rp = (n: unknown) => (n == null ? "" : n as number);
@@ -1329,7 +1329,7 @@ function buildSheets(id: string, p: AnyRec, periodLabel: string, lang: Lang = "i
             s(r.matrixCode), r.bonusMonths ?? "", rp(r.bonusAmount), r.raisePct ?? "", rp(r.raiseAmount),
             s(r.status), s(r.chainStatus), s(r.appliedRunNo), s(r.paDocNo), s(r.letterRefNo),
           ]),
-          ["TOTAL", "", "", "", "", "", "", "", rp(sum.sumBonus), "", rp(sum.sumRaise), "", "", "", "", ""],
+          [trFor(lang, "TOTAL", "TOTAL"), "", "", "", "", "", "", "", rp(sum.sumBonus), "", rp(sum.sumRaise), "", "", "", "", ""],
         ],
       }];
     }
