@@ -84,12 +84,12 @@ export type { TenantPrismaClient };
 // F9-REC: versi dinaikkan (F9REC) — DataSubjectRequest (DSR UU PDP) masuk
 // client hasil generate; instance lama tidak boleh dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  rekankerjaTenantClientsF9REC: Map<string, TenantPrismaClient> | undefined;
+  rekankerjaTenantClientsP0PERF: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.rekankerjaTenantClientsF9REC ?? new Map();
-globalForTenants.rekankerjaTenantClientsF9REC = tenantClients;
+  globalForTenants.rekankerjaTenantClientsP0PERF ?? new Map();
+globalForTenants.rekankerjaTenantClientsP0PERF = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

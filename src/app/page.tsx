@@ -49,6 +49,7 @@ const WhistleblowModule = dynamic(() => import("@/rekankerja/whistleblow/compone
 // F0-REC — modul Rekrutmen (DEVELOPMENT-PLAN-RECRUITMENT.md): F0 fondasi
 // (ringkasan + 10 master + katalog tahap seleksi); F1+ tumbuh per fase.
 const RecruitmentModule = dynamic(() => import("@/rekankerja/recruitment/components/recruitment-module").then((m) => ({ default: m.RecruitmentModule })), { ssr: false, loading: ModuleLoading });
+const PerformanceModule = dynamic(() => import("@/rekankerja/performance/components/performance-module").then((m) => ({ default: m.PerformanceModule })), { ssr: false, loading: ModuleLoading });
 const SettingsModule = dynamic(() => import("@/rekankerja/shared/components/settings/settings-module").then((m) => ({ default: m.SettingsModule })), { ssr: false, loading: ModuleLoading });
 // Task 96 — widget chat AI mengambang (admin + ESS, self-gate via sesi):
 // stack react-markdown/SDK dimuat off the critical path.
@@ -168,6 +169,7 @@ function PageInner() {
             {section === "medical" && <MedicalModule view={view} />}
             {section === "whistleblowing" && <WhistleblowModule view={view} />}
             {section === "recruitment" && <RecruitmentModule view={view} />}
+            {section === "performance" && <PerformanceModule view={view} />}
           </motion.div>
         </AnimatePresence>
       </AppShell>

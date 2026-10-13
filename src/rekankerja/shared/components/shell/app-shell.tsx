@@ -40,8 +40,7 @@ import {
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
   MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
-  UsersRound, UserRoundCheck, Handshake, PieChart, Settings,
-} from "lucide-react";
+  UsersRound, UserRoundCheck, Handshake, PieChart, Settings, Target, ListChecks, MessagesSquare, Grid3x3, LifeBuoy, Hourglass} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanySwitcher } from "./company-switcher";
 
@@ -92,6 +91,9 @@ export const MODULES: ModuleMeta[] = [
   // F0-REC (DEVELOPMENT-PLAN-RECRUITMENT.md) — modul Rekrutmen: PR → lowongan
   // → talent pool → seleksi → appointment→onboarding. F0: master + overview.
   { id: "recruitment", label: "Recruitment", short: "Rekrutmen", desc: "Permintaan karyawan, seleksi & pengangkatan", icon: UserRoundSearch, ready: true, hex: "#ea580c" },
+  // P0-PERF — modul Performance (DEVELOPMENT-PLAN-PERFORMANCE.md §14.1:
+  // ikon Target, fuchsia #d946ef — belum terpakai 8 modul lain)
+  { id: "performance", label: "Performance", short: "Kinerja", desc: "Penilaian kinerja, kalibrasi & merit", icon: Target, ready: true, hex: "#d946ef" },
 ];
 
 export const SETTINGS_META = {
@@ -323,6 +325,47 @@ const RECRUITMENT_NAV: NavGroup[] = [
   ] },
 ];
 
+// P0-PERF — struktur menu modul Performance (DEVELOPMENT-PLAN-PERFORMANCE.md
+// §14.2 — 12 menu key: overview, cycles, goals, checkins, appraisals,
+// calibration, results, pip, probation, masters, reports, settings; fase
+// P1+ mengisi satu per satu; P0 mengaktifkan overview/masters/settings,
+// sisanya placeholder "segera" (itemAllowed memfilter lewat izin menu).
+const PERFORMANCE_NAV: NavGroup[] = [
+  { section: "performance", children: [
+    { id: "overview", label: "Ringkasan", icon: LayoutDashboard },
+  ] },
+  { section: "performance", label: "Siklus", children: [
+    // P1 — siklus + peserta + command center AM2 §18.8
+    { id: "cycles", label: "Siklus Penilaian", icon: CalendarRange },
+    // P1 — KPI Builder AM1 §18.1 + salin periode sebelumnya §18.2
+    { id: "goals", label: "Target & KPI", icon: ListChecks },
+    // P2 — check-in 1-on-1
+    { id: "checkins", label: "Check-in", icon: MessagesSquare },
+  ] },
+  { section: "performance", label: "Penilaian", children: [
+    // P3 — self/atasan/360 + AI assist AM3 §18.11 + estimasi dampak §18.12
+    { id: "appraisals", label: "Penilaian", icon: ClipboardCheck },
+    // P4 — kalibrasi + bell curve AM2 §18.10
+    { id: "calibration", label: "Kalibrasi", icon: Scale },
+    // P4 — publikasi, 9-box, merit
+    { id: "results", label: "Hasil & 9-Box", icon: Grid3x3 },
+  ] },
+  { section: "performance", label: "Tindak Lanjut", children: [
+    // P6 — PIP 30/60/90
+    { id: "pip", label: "PIP", icon: LifeBuoy },
+    // P7 — evaluasi masa percobaan
+    { id: "probation", label: "Evaluasi Masa Percobaan", icon: Hourglass },
+  ] },
+  { section: "performance", label: "Master Kinerja", children: [
+    // P0 — KPI library, kompetensi, skala, template, merit matrix + VERSIONING §18.9
+    { id: "masters", label: "Master Kinerja", icon: Boxes },
+    // P8 — katalog laporan pf11–pf44
+    { id: "reports", label: "Laporan", icon: BarChart3 },
+    // P0 — penomoran, bobot default, banding, retensi
+    { id: "settings", label: "Pengaturan", icon: Settings },
+  ] },
+];
+
 // Pengaturan sistem — cross-module, tampil di panel semua modul + rail bawah.
 export const SETTINGS_NAV: NavGroup[] = [
   { section: "settings", label: "Pengaturan Sistem", children: [
@@ -354,6 +397,7 @@ export function navOfModule(m: ModuleId): NavGroup[] {
     case "medical": return MEDICAL_NAV;
     case "whistleblowing": return WHISTLEBLOW_NAV;
     case "recruitment": return RECRUITMENT_NAV;
+    case "performance": return PERFORMANCE_NAV;
     default: return HR_NAV;
   }
 }

@@ -160,6 +160,33 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   ],
 
   // Recruitment F7 — otomasi, integrasi webhook & e-sign kandidat
+  // P0-PERF — modul Performance (DEVELOPMENT-PLAN-PERFORMANCE.md §14.2/§17):
+  // ops khusus per menu (base view/create/update/delete sudah bawaan).
+  "performance:masters": [
+    { key: "version", label: "Membuat versi baru pustaka", hint: "Simpan perubahan definitif KPI/kompetensi sebagai versi baru ber-tahun berlaku (§18.9)" },
+    { key: "archive", label: "Mengarsipkan pustaka", hint: "Menonaktifkan KPI/kompetensi dari picker tanpa menghapus riwayat (guard §35-28)" },
+  ],
+  "performance:settings": [
+    { key: "update", label: "Mengubah pengaturan kinerja", hint: "Prefix nomor dokumen (PER/PRB/PIP/MER), bobot default, jendela banding, retensi arsip" },
+  ],
+  "performance:cycles": [
+    { key: "enroll", label: "Mendaftarkan peserta", hint: "Enroll massal karyawan aktif ke siklus penilaian (snapshot atasan)" },
+    { key: "phase", label: "Menggerakkan fase siklus", hint: "Membuka/menutup jendela fase (goal/self/manager/kalibrasi) dan publikasi" },
+    { key: "nudge", label: "Nudge multi-kanal", hint: "Remind All / kirim WA / email pengingat formulir (AM2 §18.8 — rate-limit)" },
+  ],
+  "performance:appraisals": [
+    { key: "finalize", label: "Finalisasi penilaian", hint: "Mengunci nilai & mengirim ke kalibrasi" },
+    { key: "ai-compose", label: "AI Assist ulasan", hint: "Menyusun draf ulasan dari poin penilai (AM3 §18.11 — compose-only)" },
+    { key: "import", label: "Impor Excel realisasi", hint: "Unggah realisasi akhir tahun massal via template Excel (AM2 §18.5)" },
+  ],
+  "performance:calibration": [
+    { key: "decide", label: "Keputusan kalibrasi", hint: "Mengubah skor/rating final dengan alasan ter-audit" },
+  ],
+  "performance:results": [
+    { key: "publish", label: "Publikasi hasil", hint: "Menerbitkan hasil ke karyawan + jendela acknowledgement" },
+    { key: "appeal", label: "Memutuskan banding", hint: "Menyetujui/menolak banding karyawan dalam jendela" },
+  ],
+
   "recruitment:settings": [
     { key: "webhook", label: "Mengelola webhook", hint: "Menambah/mengubah/menguji endpoint webhook rekrutmen (event PR, lamaran, offer, hired)" },
     { key: "esign", label: "Permintaan e-sign kandidat", hint: "Membuat/mengirim ulang OTP/membatalkan permintaan tanda tangan elektronik kandidat eksternal" },

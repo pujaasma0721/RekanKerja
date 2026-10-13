@@ -11,7 +11,8 @@ export type ModuleId =
   | "travel"
   | "medical"
   | "whistleblowing"
-  | "recruitment";
+  | "recruitment"
+  | "performance";
 
 export type SectionId =
   | "dashboard"
@@ -27,7 +28,8 @@ export type SectionId =
   | "travel"
   | "medical"
   | "whistleblowing"
-  | "recruitment";
+  | "recruitment"
+  | "performance";
 
 export interface NavState {
   module: ModuleId;
@@ -40,8 +42,8 @@ export interface NavState {
   syncFromUrl: () => void;
 }
 
-const VALID_MODULES: ModuleId[] = ["hr", "payroll", "attendance", "leave", "travel", "medical", "whistleblowing", "recruitment"];
-const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "reports", "payroll", "settings", "attendance", "leave", "travel", "medical", "whistleblowing", "recruitment"];
+const VALID_MODULES: ModuleId[] = ["hr", "payroll", "attendance", "leave", "travel", "medical", "whistleblowing", "recruitment", "performance"];
+const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "reports", "payroll", "settings", "attendance", "leave", "travel", "medical", "whistleblowing", "recruitment", "performance"];
 
 export const MODULE_LABEL: Record<ModuleId, string> = {
   hr: "Human Resource Base",
@@ -52,6 +54,7 @@ export const MODULE_LABEL: Record<ModuleId, string> = {
   medical: "Medical",
   whistleblowing: "Whistleblowing",
   recruitment: "Recruitment",
+  performance: "Performance",
 };
 
 export function moduleOfSection(section: SectionId): ModuleId {
@@ -70,6 +73,8 @@ export function moduleOfSection(section: SectionId): ModuleId {
       return "whistleblowing";
     case "recruitment":
       return "recruitment";
+    case "performance":
+      return "performance";
     default:
       return "hr"; // dashboard, org, position, employee, actions, settings
   }
@@ -91,6 +96,8 @@ export function defaultSectionOfModule(m: ModuleId): SectionId {
       return "whistleblowing";
     case "recruitment":
       return "recruitment";
+    case "performance":
+      return "performance";
     default:
       return "dashboard";
   }
@@ -111,6 +118,7 @@ export function defaultView(section: SectionId): string {
     case "medical": return "claims";
     case "whistleblowing": return "report";
     case "recruitment": return "overview";
+    case "performance": return "overview";
     default: return "overview";
   }
 }

@@ -401,6 +401,11 @@ const STEPS: Step[] = [
   // PLAN-LINK — tautan eksplisit MPP (RecruitmentPlan) ↔ PR: kolom
   // PersonnelRequisition.planId + index + FK (monitoring capaian MPP dari PR).
   { key: "plan-link", label: "PLAN-LINK — kolom PersonnelRequisition.planId (tautan eksplisit MPP↔PR)", run: (s) => import("../../../../scripts/migrate-plan-link").then((m) => m.main(s)) },
+  // P0-PERF (DEVELOPMENT-PLAN-PERFORMANCE.md §15 + §20 P0) — modul Performance:
+  // 20 tabel (master + siklus + penilaian + kalibrasi + merit + PIP + probation)
+  // + seed starter pack (40 KPI BSC, 12 kompetensi 5-level, 5 skala rating,
+  // 2 template bobot, matriks merit default, setting) — idempoten.
+  { key: "performance-p0", label: "P0 Kinerja — 20 tabel modul Performance + master starter pack", run: (s) => import("../../../../scripts/migrate-performance-p0").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -672,6 +677,31 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (recColMissing > 0)
       reasons.push(`${recColMissing} kolom ALTER rekrutmen hilang lintas tenant (F3/F5/F6/LINK — rincian: jalankan scripts/audit-recruitment-schema.ts)`);
+    // P0-PERF — modul Performance: 20 tabel wajib per tenant (schema tunggal
+    // sumber: prisma/schema-tenant.prisma seksi PERFORMANCE; migrasi
+    // idempoten → rerun aman; gap = struktur hilang nyata).
+    const PERF_TABLE_NAMES = [
+      "PerformanceSetting", "KpiDefinition", "Competency", "RatingScale",
+      "PerformanceTemplate", "PerformanceTemplateItem", "PerformanceCycle",
+      "AppraisalRecord", "AppraisalKpi", "AppraisalCompetencyScore", "CheckIn",
+      "Feedback360", "Feedback360Answer", "CalibrationSession",
+      "CalibrationDecision", "MeritMatrix", "MeritRecommendation", "PipPlan",
+      "PipCheckpoint", "ProbationEvaluation",
+    ];
+    const perfMissing = await q(
+      `SELECT COUNT(*)::int AS n FROM (
+        SELECT s.tn, t.tname FROM
+          (SELECT UNNEST($1::text[]) AS tn) s,
+          (SELECT UNNEST($2::text[]) AS tname) t
+        WHERE NOT EXISTS (
+          SELECT 1 FROM information_schema.tables it
+          WHERE it.table_schema = s.tn AND it.table_name = t.tname
+        )
+      ) z`,
+      [schemas, PERF_TABLE_NAMES],
+    );
+    if (perfMissing > 0)
+      reasons.push(`${perfMissing} struktur tabel kinerja (Performance) hilang lintas tenant (P0 — rincian di log migrasi)`);
     return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk) };
   } finally {
     await c.end();

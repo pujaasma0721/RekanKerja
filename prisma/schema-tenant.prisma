@@ -359,6 +359,16 @@ model Employee {
   // F9-REC — compliance: penangan DSR pelamar
   dsrHandled       DataSubjectRequest[]      @relation("DsrHandler")
 
+  // P0-PERF — modul Performance (DEVELOPMENT-PLAN-PERFORMANCE.md §15):
+  // peserta penilaian / atasan penilai / reviewer 360 / pembina PIP / subjek
+  // evaluasi masa percobaan.
+  perfAppraisals       AppraisalRecord[]     @relation("PerfEmployee")
+  perfManaged          AppraisalRecord[]     @relation("PerfManager")
+  perf360Reviews       Feedback360[]         @relation("PerfReviewer")
+  pipSubjected         PipPlan[]             @relation("PipEmployee")
+  pipReviewed          PipPlan[]             @relation("PipReviewer")
+  probEvaluations      ProbationEvaluation[] @relation("ProbEmployee")
+
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
   @@index([status])
@@ -4396,4 +4406,438 @@ model DataSubjectRequest {
 
   @@index([status, dueAt])
   @@index([applicantId])
+}
+
+// ============================================================================
+// PERFORMANCE — P0 Fondasi Modul & Master
+// (DEVELOPMENT-PLAN-PERFORMANCE.md §15 — 20 model; AM1+AM2+AM3 termuat:
+// versioning pustaka KpiDefinition/Competency §18.9, provenance salinan
+// §18.2, kolom AI-assist §18.11, snapshot manager §8-10, bukti tarikan
+// otomatis autoValueJson §16/§18.6)
+// Konvensi: cuid PK, enum String + komentar daftar nilai, uang nominal =
+// String vault terenkripsi (enc:v1:…), relasi eksplisit bernama, @@index
+// pada semua FK + filter utama.
+// ============================================================================
+
+// ===== MASTER (P0) =====
+model PerformanceSetting {
+  id             String   @id @default(cuid())
+  docPrefixes    String   @default("PER|PRB|PIP|MER") // penomoran per jenis dokumen
+  defWeights     String   @default("70|20|10") // wKPI|wKomp|wCore default
+  appealDays     Int      @default(7) // jendela banding setelah publikasi
+  retentionYears Int      @default(5) // retensi arsip hasil
+  updatedAt      DateTime @updatedAt
+}
+
+model KpiDefinition {
+  // pustaka KPI per tenant (starter pack BSC ±40 di-seed P0)
+  id             String    @id @default(cuid())
+  code           String
+  name           String
+  category       String // Financial | Customer | InternalProcess | LearningGrowth (BSC §3.4)
+  polarity       String // Higher | Lower | Boolean
+  unit            String // "%|Rp|hari|unit|…"
+  dataSource      String    @default("Manual") // Manual | Attendance | Payroll | Recruitment | Leave
+  sourceKey      String? // binding data otomatis, mis. "attendance_presence_pct"
+  description    String?
+  active         Boolean   @default(true)
+  // AM2 §18.9 — versioning pustaka: ubah definisi tahun ini tanpa merusak
+  // data tahun lalu (lapis-2 di atas snapshot baris penilaian)
+  versionNo      Int       @default(1) // 1, 2, 3 … per code
+  effectiveYear  Int // tahun mulai berlaku versi ini
+  status         String    @default("Active") // Active | Superseded | Archived
+  supersededById String? // id versi pengganti (jejak)
+  changeNote     String? // catatan apa yang berubah (audit HR)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  appraisalKpis AppraisalKpi[]
+
+  @@unique([code, versionNo])
+  @@index([category, active])
+  @@index([status])
+}
+
+model Competency {
+  // kompetensi + deskriptor 5 level (anchor perilaku anti-halo §8)
+  id             String    @id @default(cuid())
+  code           String
+  name           String
+  kind           String // CoreValue | Managerial | Technical
+  levelsJson     String // [{level:1..5, label, descriptor}] — deskriptor perilaku per level
+  active         Boolean   @default(true)
+  // AM2 §18.9 — versioning pustaka (sama seperti KpiDefinition)
+  versionNo      Int       @default(1)
+  effectiveYear  Int
+  status         String    @default("Active") // Active | Superseded | Archived
+  supersededById String?
+  changeNote     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  appraisalCompScores AppraisalCompetencyScore[]
+  feedback360Answers  Feedback360Answer[]
+
+  @@unique([code, versionNo])
+  @@index([kind, active])
+  @@index([status])
+}
+
+model RatingScale {
+  // skala konversi skor→rating (dapat dikustom per tenant)
+  id        String  @id @default(cuid())
+  value     Int     @unique // 1..5
+  labelId   String // "Sangat Baik"
+  labelEn   String // "Outstanding"
+  minScore  Float   @unique // 90|80|70|60|0
+  color     String // emerald|… (token warna UI)
+  guideline String? // panduan deskriptor kapan diberikan
+}
+
+model PerformanceTemplate {
+  // template bobot & komponen per kelompok jabatan
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  weightsJson String // {kpi:70, competency:20, core:10}
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       PerformanceTemplateItem[]
+}
+
+model PerformanceTemplateItem {
+  id         String  @id @default(cuid())
+  templateId String
+  kind       String // Kpi | Competency
+  refId      String // KpiDefinition.id | Competency.id
+  weight     Float // bobot dalam komponennya; Σ per kind = 100
+  template   PerformanceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  // refId POLIMORFIK (kind menentukan target: KpiDefinition | Competency) —
+  // FK DB tunggal tidak mungkin; integritas dijaga service layer (pola seragam
+  // dengan referensi dokumen lintas-modul).
+
+  @@index([templateId])
+}
+
+// ===== SIKLUS & PENILAIAN (P1–P4) =====
+model PerformanceCycle {
+  id          String    @id @default(cuid())
+  code        String    @unique // PER-2026 (tahunan) / PER-2026-H1
+  name        String
+  cycleType   String    @default("Annual") // Annual | MidYearOnly | OffCycle
+  periodStart DateTime
+  periodEnd   DateTime
+  // jendela fase (digerbangkan; null = fase dilewati)
+  goalStart   DateTime?
+  goalEnd     DateTime?
+  midStart    DateTime?
+  midEnd      DateTime?
+  selfStart   DateTime?
+  selfEnd     DateTime?
+  mgrStart    DateTime?
+  mgrEnd      DateTime?
+  calibStart  DateTime?
+  calibEnd    DateTime?
+  publishAt   DateTime?
+  weightsJson String // override bobot default untuk siklus ini
+  feedback360 Boolean   @default(false) // aktifkan 360 pada siklus ini
+  status      String    @default("Draft") // Draft|GoalSetting|Ongoing|Assessment|Calibration|Published|Closed
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  appraisals AppraisalRecord[]
+  sessions   CalibrationSession[]
+  probations ProbationEvaluation[]
+
+  @@index([status, periodEnd])
+}
+
+model AppraisalRecord {
+  // 1 baris per karyawan per siklus (peserta)
+  id              String    @id @default(cuid())
+  docNo           String    @unique // PER-2026-0001
+  cycleId         String
+  employeeId      String
+  managerId       String? // snapshot atasan penilai saat enroll (§8-10)
+  templateId      String?
+  goalsCopiedFrom String? // AM1 §18.2 — kode siklus sumber salinan KPI (chip UI)
+  // skor — semua null sampai fase terkait; dihitung server (§16)
+  kpiTotalWeight Float?
+  selfScore       Float?
+  managerScore    Float?
+  finalScore      Float? // pasca kalibrasi
+  finalRating     Int? // 1..5
+  potentialBand   Int? // 1..3 (isi saat kalibrasi — bahan 9-box)
+  status          String    @default("Enrolled")
+  // Enrolled|GoalProposed|GoalApproved|Ongoing|SelfDone|ManagerDone|Calibrating|Finalized|Published|Appealed|Closed
+  acknowledgedAt  DateTime?
+  appealNote     String?
+  appealStatus   String? // Submitted|Rejected|Adjusted|Withdrawn
+  appealDecidedBy String?
+  appealDecidedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  cycle        PerformanceCycle @relation(fields: [cycleId], references: [id])
+  employee     Employee         @relation("PerfEmployee", fields: [employeeId], references: [id])
+  manager      Employee?        @relation("PerfManager", fields: [managerId], references: [id])
+  kpis         AppraisalKpi[]
+  comps        AppraisalCompetencyScore[]
+  checkins     CheckIn[]
+  f360         Feedback360[]
+  calibrations CalibrationDecision[]
+  merit        MeritRecommendation?
+  pips         PipPlan[]
+
+  @@unique([cycleId, employeeId])
+  @@index([employeeId])
+  @@index([cycleId, status])
+}
+
+model AppraisalKpi {
+  // KPI yang dinilai utk satu appraisal — SNAPSHOT definisi (§18.9 lapis-1)
+  id            String   @id @default(cuid())
+  appraisalId   String
+  kpiDefId      String? // dari pustaka ATAU free-text (usulan karyawan)
+  title         String
+  polarity      String
+  unit          String
+  thresholdMin  Float? // ambang gagal (F)
+  target        Float // target (T)
+  stretchValue  Float? // opsional — skor bisa sampai 120
+  weight        Float // Σ per appraisal = 100
+  isCritical    Boolean  @default(false) // gagal Boolean kritis = otomatis rating ≤2 (§4.5)
+  dataSource    String   @default("Manual")
+  autoValueJson String? // hasil tarikan otomatis (sumber+periode+nilai) — bukti
+  midActual     Float? // checkpoint tengah tahun (progress)
+  finalActual   Float?
+  evidenceJson  String? // [{type:"attachment",id}|{type:"note",text}] — bukti per KPI
+  proposedBy    String   @default("Manager") // Manager|Employee (mode MBO §3.2)
+  // AM1 §18.2 — provenance baris (jejak salin antar-periode)
+  origin        String   @default("Fresh") // Fresh|Template|CopiedFromCycle|EmployeeProposal
+  copiedFromId  String? // id AppraisalKpi sumber (bila origin=CopiedFromCycle)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  appraisal  AppraisalRecord @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+  kpiDef     KpiDefinition? @relation(fields: [kpiDefId], references: [id])
+
+  @@index([appraisalId])
+}
+
+model AppraisalCompetencyScore {
+  // nilai kompetensi oleh penilai (bukan 360)
+  id            String  @id @default(cuid())
+  appraisalId   String
+  competencyId  String
+  score         Int // 1..5 (dinilai saat fase manager; self saat fase self)
+  selfScore     Int?
+  comment       String?
+  // AM3 §18.11 — ulasan & flag AI assist (audit internal)
+  selfComment    String? // ulasan self-assessment per kompetensi (bisa disusun AI dari poin)
+  aiAssisted     Boolean @default(false) // komentar atasan disusun dgn bantuan AI lalu diedit
+  selfAiAssisted Boolean @default(false) // flag utk selfComment
+
+  appraisal   AppraisalRecord @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+  competency  Competency      @relation(fields: [competencyId], references: [id])
+
+  @@unique([appraisalId, competencyId])
+}
+
+model CheckIn {
+  // 1-on-1 terdokumentasi (fase Do §2)
+  id             String   @id @default(cuid())
+  appraisalId    String
+  heldAt         DateTime
+  agenda         String?
+  notesJson      String // {wins:[], blockers:[], next:[]} — ringkas & terstruktur
+  managerComment String?
+  nextCheckInAt  DateTime?
+  status         String   @default("Planned") // Planned|Held|Missed
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  appraisal AppraisalRecord @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+
+  @@index([appraisalId, heldAt])
+}
+
+model Feedback360 {
+  // undangan reviewer 360 (opsional per siklus)
+  id           String    @id @default(cuid())
+  appraisalId  String
+  reviewerId   String // Employee id
+  reviewerType String // Peer|Subordinate|CrossTeam|Upward
+  status       String    @default("Invited") // Invited|Submitted|Declined|Expired
+  dueAt        DateTime?
+  submittedAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  appraisal AppraisalRecord     @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+  reviewer Employee             @relation("PerfReviewer", fields: [reviewerId], references: [id])
+  answers   Feedback360Answer[]
+
+  @@unique([appraisalId, reviewerId, reviewerType])
+}
+
+model Feedback360Answer {
+  id            String  @id @default(cuid())
+  feedbackId    String
+  competencyId  String
+  score         Int // 1..5
+  comment       String? // ditampilkan HANYA ter-agregasi ≥3 reviewer (§37)
+  aiAssisted    Boolean @default(false) // AM3 §18.11 — anonimitas 360 tetap utuh
+
+  feedback    Feedback360 @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  competency Competency  @relation(fields: [competencyId], references: [id])
+
+  @@index([feedbackId, competencyId])
+}
+
+model CalibrationSession {
+  // forum penyetaraan standar antar atasan
+  id              String   @id @default(cuid())
+  cycleId         String
+  orgUnitId       String? // lingkup diskusi
+  heldAt          DateTime
+  participantsJson String // [employeeId…] hadir
+  chairId         String? // ketua (kepala unit)
+  notes           String?
+  createdAt        DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  cycle     PerformanceCycle      @relation(fields: [cycleId], references: [id])
+  decisions CalibrationDecision[]
+
+  @@index([cycleId])
+}
+
+model CalibrationDecision {
+  // SETIAP perubahan hasil ter-audit (§7.2)
+  id            String   @id @default(cuid())
+  sessionId     String
+  appraisalId   String
+  oldScore      Float?
+  newScore      Float?
+  oldRating     Int?
+  newRating     Int?
+  potentialBand Int? // isi/ubah 9-box band di sini
+  reason        String // WAJIB — alasan kalibrasi
+  decidedBy     String
+  decidedAt     DateTime  @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  session    CalibrationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  appraisal  AppraisalRecord  @relation(fields: [appraisalId], references: [id])
+
+  @@index([appraisalId])
+}
+
+// ===== KONSEKUENSI (P5–P7) =====
+model MeritMatrix {
+  // matriks rating → % bonus & % kenaikan
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  gridJson  String // {5:{bonusMonths:2,raisePct:[8,12]},3:{…},…} + catatan kebijakan
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  recommendations MeritRecommendation[]
+}
+
+model MeritRecommendation {
+  // usulan per karyawan pasca-publikasi
+  id                String    @id @default(cuid())
+  docNo             String    @unique // MER-2026-0001
+  appraisalId       String    @unique
+  matrixId          String?
+  bonusMonths       Float?
+  bonusAmount       String? // VAULT terenkripsi (enc:v1:…)
+  raisePct          Float?
+  raiseAmount       String? // VAULT
+  note              String?
+  status            String    @default("Draft") // Draft|Submitted|Approved|Rejected|Applied|Cancelled
+  personnelActionId String? // PA SalaryAdjustment/Promotion yang digulirkan
+  appliedRunNo      String? // PayrollRun yang menyerap (bukti penerapan)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  appraisal  AppraisalRecord @relation(fields: [appraisalId], references: [id])
+  matrix     MeritMatrix?    @relation(fields: [matrixId], references: [id])
+}
+
+model PipPlan {
+  // Program Perbaikan Kinerja 30/60/90
+  id           String    @id @default(cuid())
+  docNo        String    @unique // PIP-2026-0001
+  employeeId   String
+  appraisalId  String? // asal (rating ≤2) — bisa null (kasus khusus)
+  startDate    DateTime
+  endDate      DateTime // 1–3 bulan (register §23 D7)
+  targetsJson  String // [{title, metric, target, weight}] — mini-KPI PIP
+  reviewerId   String // atasan pembina
+  hrAdvisorId  String?
+  status       String    @default("Draft") // Draft|Active|Extended|Recovered|NotRecovered|Cancelled
+  outcomeNotes String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  employee    Employee         @relation("PipEmployee", fields: [employeeId], references: [id])
+  appraisal   AppraisalRecord? @relation(fields: [appraisalId], references: [id])
+  reviewer    Employee        @relation("PipReviewer", fields: [reviewerId], references: [id])
+  checkpoints PipCheckpoint[]
+
+  @@index([employeeId, status])
+}
+
+model PipCheckpoint {
+  // evaluasi berkala PIP
+  id              String    @id @default(cuid())
+  pipId           String
+  seq             Int // 1..3 (≈30/60/90 hari)
+  dueDate         DateTime
+  achievementPct  Float?
+  notes           String?
+  status          String    @default("Pending") // Pending|Reviewed
+  reviewedById    String?
+  reviewedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  pip PipPlan @relation(fields: [pipId], references: [id], onDelete: Cascade)
+
+  @@unique([pipId, seq])
+}
+
+model ProbationEvaluation {
+  // evaluasi masa percobaan (dari onboarding)
+  id                String    @id @default(cuid())
+  docNo             String    @unique // PRB-2026-0001
+  employeeId        String
+  onboardingId      String? // otomatis saat hire dari rekrutmen
+  cycleId           String? // siklus penilaian tempat dia terdaftar
+  dueDate           DateTime // H+3bln joinDate (maks! §7.1)
+  criteriaJson      String // kriteria ringkas [{title, weight}] + kompetensi terpilih
+  managerScore      Float?
+  hrNote            String?
+  recommendation    String? // Confirm|Extend|Terminate
+  decisionDate      DateTime?
+  personnelActionId String? // PA yang digulirkan (ChangeStatus/ExtendProbation/Termination)
+  status            String    @default("Open") // Open|Assessed|Recommended|Decided|Cancelled
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  employee  Employee          @relation("ProbEmployee", fields: [employeeId], references: [id])
+  cycle     PerformanceCycle? @relation(fields: [cycleId], references: [id])
+
+  @@index([employeeId, status])
+  @@index([dueDate])
 }
