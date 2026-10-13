@@ -18,6 +18,15 @@ import { Client } from "pg";
 import { db as platform } from "@/lib/db";
 import { getTenantClient, disconnectTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 import { WA_DEFAULT_TEMPLATES } from "@/rekankerja/shared/services/wa-defaults";
+// F0–F9 REC — peta lengkap struktur rekrutmen (sumber tunggal dgn
+// scripts/audit-recruitment-schema.ts): gap-check kini memeriksa SEMUA
+// tabel + kolom ALTER fase rekrutmen, bukan 1 tabel representatif per fase.
+import { RECRUITMENT_TABLES, RECRUITMENT_ALTER_COLUMNS } from "../../../../scripts/lib/recruitment-schema";
+
+const RECRUITMENT_TABLE_NAMES = RECRUITMENT_TABLES.map((r) => r.table);
+const RECRUITMENT_ALTER_COLUMNS_TUPLES = RECRUITMENT_ALTER_COLUMNS.map(
+  (r) => `('${r.table}', '${r.column}')`,
+).join(", ");
 
 const TENANT_URL = () =>
   process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
@@ -431,8 +440,8 @@ export async function checkParityGap(): Promise<ParityGap> {
         return 0; // tabel belum ada → gap 0 (step DDL akan membuatnya)
       }
     };
-    const q = async (sql: string): Promise<number> =>
-      (await c.query<{ n: number }>(sql, [schemas])).rows[0]?.n ?? 0;
+    const q = async (sql: string, params?: unknown[]): Promise<number> =>
+      (await c.query<{ n: number }>(sql, params ?? [schemas])).rows[0]?.n ?? 0;
     const annOk = await q(
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'Announcement' AND table_schema = ANY($1::text[])`,
@@ -620,99 +629,50 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (otWorkweekOk < schemas.length)
       reasons.push(`${schemas.length - otWorkweekOk} tenant tanpa kolom AttendanceRule.otWorkweekDays (kepatuhan PP 35/2021)`);
-    // F0-REC — modul Rekrutmen: tabel master RecruitmentMethod/SelectionProcess
-    // belum ada = gap (tenant existing dibuat sebelum F0 → step recruitment-f0
-    // membuat tabel + seed default rantai seleksi).
-    const recMastersOk = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-       WHERE table_name = 'SelectionProcess' AND table_schema = ANY($1::text[])`,
+    // F0..F9-REC — modul Rekrutmen: SELURUH 45 tabel + 5 kolom ALTER fase
+    // F0–F9 diperiksa (bukan lagi 1 tabel representatif per fase) — latar:
+    // error produksi berulang menu-menu recruitment akibat tabel/kolom
+    // sekunder fase (mis. ApplicantDocument, ScorecardTemplate,
+    // WebhookDelivery, kolom planId/rubricJson) luput dari deteksi gap.
+    // Peta sumber tunggal: scripts/lib/recruitment-schema.ts. Semua fase
+    // idempoten → rerun migrasi aman; gap yang hilang berarti sisa gap
+    // nyata yang dilaporkan (parity.ok=false).
+    // rincian per tenant dilaporkan audit-recruitment-schema.ts; di sini
+    // cukup jumlah struktur hilang agar instrumentation boot memicu healing.
+    const recMissing = await q(
+      `SELECT COUNT(*)::int AS n FROM (
+        SELECT s.tn, t.tname FROM
+          (SELECT UNNEST($1::text[]) AS tn) s,
+          (SELECT UNNEST($2::text[]) AS tname) t
+        WHERE NOT EXISTS (
+          SELECT 1 FROM information_schema.tables it
+          WHERE it.table_schema = s.tn AND it.table_name = t.tname
+        )
+      ) z`,
+      [schemas, RECRUITMENT_TABLE_NAMES],
     );
-    if (recMastersOk < schemas.length)
-      reasons.push(`${schemas.length - recMastersOk} tenant tanpa tabel master Rekrutmen (F0 — modul Recruitment)`);
-    // F1-REC — tabel PersonnelRequisition (PR rekrutmen) belum ada = gap
-    // (tenant existing dibuat sebelum F1 → step recruitment-f1 membuat tabel
-    // + struktur approval AS-PR-STD + demo PR).
-    const recPrOk = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-       WHERE table_name = 'PersonnelRequisition' AND table_schema = ANY($1::text[])`,
+    if (recMissing > 0)
+      reasons.push(`${recMissing} struktur tabel rekrutmen hilang lintas tenant (F0–F9 — rincian: jalankan scripts/audit-recruitment-schema.ts)`);
+    // Kolom ALTER fase-recruitment (planId/rubricJson/internalOnly/…) — wajib
+    // bila tabel induknya ada (pola sama dgn penyebut medical).
+    const recColMissing = await q(
+      `SELECT COUNT(*)::int AS n FROM (
+        SELECT s.tn, c.tname, c.cname FROM
+          (SELECT UNNEST($1::text[]) AS tn) s,
+          (VALUES ${RECRUITMENT_ALTER_COLUMNS_TUPLES}) AS c(tname, cname)
+        WHERE EXISTS (
+          SELECT 1 FROM information_schema.tables it
+          WHERE it.table_schema = s.tn AND it.table_name = c.tname
+        ) AND NOT EXISTS (
+          SELECT 1 FROM information_schema.columns ic
+          WHERE ic.table_schema = s.tn AND ic.table_name = c.tname AND ic.column_name = c.cname
+        )
+      ) z`,
+      [RECRUITMENT_TABLE_NAMES],
     );
-    if (recPrOk < schemas.length)
-      reasons.push(`${schemas.length - recPrOk} tenant tanpa tabel PersonnelRequisition (F1 — modul Recruitment)`);
-    // F2-REC — tabel JobOpening (slot lowongan rekrutmen) belum ada = gap
-    // (tenant existing dibuat sebelum F2 → step recruitment-f2 membuat 11
-    // tabel lowongan+pelamar + demo).
-    const recJoOk = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-       WHERE table_name = 'JobOpening' AND table_schema = ANY($1::text[])`,
-    );
-    if (recJoOk < schemas.length)
-      reasons.push(`${schemas.length - recJoOk} tenant tanpa tabel JobOpening (F2 — modul Recruitment)`);
-    // F3-REC — tabel JobCandidate (kandidat seleksi) belum ada = gap
-    // (tenant existing dibuat sebelum F3 → step recruitment-f3 membuat 7
-    // tabel kandidat+seleksi + referensi + demo).
-    const recCandOk = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-       WHERE table_name = 'JobCandidate' AND table_schema = ANY($1::text[])`,
-    );
-    if (recCandOk < schemas.length)
-      reasons.push(`${schemas.length - recCandOk} tenant tanpa tabel JobCandidate (F3 — modul Recruitment)`);
-    // F4-REC — tabel CandidateOffer (offer kandidat) belum ada = gap
-    // (tenant existing dibuat sebelum F4 → step recruitment-f4 membuat 2
-    // tabel offer+pengangkatan + surat + struktur approval + demo).
-    const recOfferOk = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-       WHERE table_name = 'CandidateOffer' AND table_schema = ANY($1::text[])`,
-    );
-    if (recOfferOk < schemas.length)
-      reasons.push(`${schemas.length - recOfferOk} tenant tanpa tabel CandidateOffer (F4 — modul Recruitment)`);
-    // F5-REC — tabel RecruitmentPlan (rencana rekrutmen) belum ada = gap
-    // (tenant existing dibuat sebelum F5 → step recruitment-f5 membuat 3 tabel
-    // rencana/anggaran/lamaran-internal + kolom JO internal-first + demo).
-    const recPlanOk = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-       WHERE table_name = 'RecruitmentPlan' AND table_schema = ANY($1::text[])`,
-    );
-    if (recPlanOk < schemas.length)
-      reasons.push(`${schemas.length - recPlanOk} tenant tanpa tabel RecruitmentPlan (F5 — modul Recruitment)`);
-    // F6-REC — tabel CvParseResult (AI rekrutmen) belum ada = gap
-    // (tenant existing dibuat sebelum F6 → step recruitment-f6 membuat 4
-    // tabel AI + kolom rubric PR + demo).
-    const recAiOk = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-       WHERE table_name = 'CvParseResult' AND table_schema = ANY($1::text[])`,
-    );
-    if (recAiOk < schemas.length)
-      reasons.push(`${schemas.length - recAiOk} tenant tanpa tabel CvParseResult (F6 — modul Recruitment)`);
-    // F7-REC — tabel WebhookEndpoint (otomasi & integrasi) belum ada = gap
-    const recF7Ok = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-       WHERE table_name = 'WebhookEndpoint' AND table_schema = ANY($1::text[])`,
-    );
-    if (recF7Ok < schemas.length)
-      reasons.push(`${schemas.length - recF7Ok} tenant tanpa tabel WebhookEndpoint (F7 — modul Recruitment)`);
-    // F8-REC — tabel MetricSnapshot (analitik) belum ada = gap
-    const recF8Ok = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-       WHERE table_name = 'MetricSnapshot' AND table_schema = ANY($1::text[])`,
-    );
-    if (recF8Ok < schemas.length)
-      reasons.push(`${schemas.length - recF8Ok} tenant tanpa tabel MetricSnapshot (F8 — modul Recruitment)`);
-    // F9-REC — tabel DataSubjectRequest (DSR UU PDP) belum ada = gap
-    const recF9Ok = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-       WHERE table_name = 'DataSubjectRequest' AND table_schema = ANY($1::text[])`,
-    );
-    if (recF9Ok < schemas.length)
-      reasons.push(`${schemas.length - recF9Ok} tenant tanpa tabel DataSubjectRequest (F9 — modul Recruitment)`);
-    // PLAN-LINK — kolom PersonnelRequisition.planId belum ada = gap
-    // (tautan eksplisit MPP↔PR; tanpa kolom → picker rencana & recon v2 gagal).
-    const planLinkOk = await q(
-      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
-       WHERE table_name = 'PersonnelRequisition' AND column_name = 'planId' AND table_schema = ANY($1::text[])`,
-    );
-    if (planLinkOk < schemas.length)
-      reasons.push(`${schemas.length - planLinkOk} tenant tanpa kolom PersonnelRequisition.planId (PLAN-LINK — tautan MPP↔PR)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, recMastersOk, recPrOk, recJoOk, recCandOk, recOfferOk, recPlanOk, recAiOk, recF7Ok, recF8Ok, recF9Ok, planLinkOk) };
+    if (recColMissing > 0)
+      reasons.push(`${recColMissing} kolom ALTER rekrutmen hilang lintas tenant (F3/F5/F6/LINK — rincian: jalankan scripts/audit-recruitment-schema.ts)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk) };
   } finally {
     await c.end();
   }
@@ -778,4 +738,4 @@ export async function runParityPipeline(log: (line: string) => void = (l) => con
     running = false;
     await releaseParityLock(lock);
   }
-}
+}
