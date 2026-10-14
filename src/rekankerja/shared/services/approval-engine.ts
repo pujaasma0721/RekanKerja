@@ -21,7 +21,7 @@ export type DbOrTx = TenantDb | Prisma.TransactionClient;
 
 // ============ konstanta domain ============
 
-export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer"] as const;
+export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal"] as const;
 export type ApprovalDocType = (typeof APPROVAL_DOC_TYPES)[number];
 
 /** docType yang jenjangnya bisa memakai syarat nominal (besaran). */
@@ -37,6 +37,7 @@ export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   TravelClaim: "Klaim Travel (Settlement)",
   RecruitmentPR: "Permintaan Karyawan (PR)",
   RecruitmentOffer: "Penawaran Kandidat (Offer)",
+  PerformanceAppraisal: "Penilaian Kinerja (Performance)",
 };
 
 export const APPROVER_TYPE_LABEL: Record<string, string> = {
@@ -361,6 +362,7 @@ export async function buildApprovalChain(
   employeeId: string,
   docType: string,
   amount?: number | null,
+  opts?: { includeLevels?: number[] },
 ): Promise<BuiltChain> {
   const params = await getEmployeeApprovalParams(db, employeeId);
   if (!params) throw new Error("Karyawan pemohon tidak ditemukan");
@@ -378,6 +380,15 @@ export async function buildApprovalChain(
   } else if (structure && useAmount && amount == null) {
     // nominal belum diketahui — jenjang bersyarat minimal diaktifkan konservatif
     levels = levels.filter((l) => l.minAmount == null);
+  }
+
+  // P4-PERF: jenjang kondisional NON-nominal (§11.1) — pemanggil menyatakan
+  // jenjang struktur mana yang aktif utk dokumen ini (mis. L3 Direktur HANYA
+  // bila rating ekstrem/PIP/grade tinggi). LevelNo mengacu struktur asli;
+  // penomoran ulang tetap dilakukan di bawah (pola filter nominal).
+  if (structure && opts?.includeLevels && opts.includeLevels.length > 0) {
+    const keep = new Set(opts.includeLevels);
+    levels = levels.filter((l) => keep.has(l.levelNo));
   }
 
   let steps: BuiltStep[] = [];
@@ -429,15 +440,17 @@ export async function buildApprovalChain(
 
 // ============ runtime chain ============
 
-/** Buat chain untuk dokumen (idempotent — chain sudah ada dikembalikan apa adanya). */
+/** Buat chain untuk dokumen (idempotent — chain sudah ada dikembalikan apa adanya).
+ *  opts.includeLevels: batasi jenjang struktur yang aktif (pola PerformanceAppraisal
+ *  L3-kondisional §11.1) — hanya berlaku saat chain pertama kali dibuat. */
 export async function startApprovalChain(
   db: DbOrTx,
-  input: { docType: ApprovalDocType; docId: string; employeeId: string; amount?: number | null; createdBy?: string | null },
+  input: { docType: ApprovalDocType; docId: string; employeeId: string; amount?: number | null; createdBy?: string | null; includeLevels?: number[] },
 ): Promise<ChainView> {
   const existing = await getApprovalChain(db, input.docType, input.docId);
   if (existing) return existing;
 
-  const built = await buildApprovalChain(db, input.employeeId, input.docType, input.amount);
+  const built = await buildApprovalChain(db, input.employeeId, input.docType, input.amount, { includeLevels: input.includeLevels });
   const chain = await db.approvalChain.create({
     data: {
       docType: input.docType,
@@ -524,6 +537,7 @@ const DELEGATION_DOC_ALIASES: Record<string, string[]> = {
   PersonnelAction: ["PersonnelAction", "PA"],
   RecruitmentPR: ["RecruitmentPR", "PersonnelRequisition", "PR"],
   RecruitmentOffer: ["RecruitmentOffer", "CandidateOffer", "Offer"],
+  PerformanceAppraisal: ["PerformanceAppraisal", "AppraisalRecord"],
 };
 
 /** nilai docType delegasi yang berlaku untuk semua jenis dokumen. */

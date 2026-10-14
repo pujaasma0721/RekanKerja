@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { goalActorOf } from "@/rekankerja/performance/api/cycles";
+import { finalize as finalizePerf } from "@/rekankerja/performance/services/perf-calibration-service";
 import {
   listAppraisals, appraisalDetail, submitSelf, saveManagerScore, submitManager,
   pullAutoSources, previewImpact, aiCompose,
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
       action === "importActualsCommit" ? "op:import" :
       action === "aiCompose" ? "op:ai-compose" :
       action === "pullAutoSources" ? "op:pull" :
+      action === "finalize" ? "op:finalize" :
       action === "previewImpact" ? "view" :
       action === "saveManagerScore" ? "update" : "update";
     const m = await requireMenuAction(req, "performance:appraisals", act as never);
@@ -210,11 +212,19 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(out); // unavailable → status 200 + flag (kegagalan tenang)
       }
       case "finalize": {
-        // stub — finalisasi via P4 kalibrasi (approval chain §11.1)
-        return NextResponse.json(
-          { error: "Finalisasi via P4 kalibrasi — belum tersedia pada fase P3 (aksi ditolak sementara)" },
-          { status: 400 },
-        );
+        // P4 — finalisasi via approval chain PerformanceAppraisal (§11.1/§35-10);
+        // kotak keputusan penuh (chain status + approve/reject) ada di menu Kalibrasi.
+        const out = await finalizePerf(db, { ...actor, name: m.actor.name }, {
+          appraisalIds: Array.isArray(b.appraisalIds) ? b.appraisalIds.map(String) : undefined,
+          cycleId: b.cycleId != null ? String(b.cycleId) : undefined,
+        });
+        await db.activityLog.create({
+          data: {
+            action: "Submitted", entity: "AppraisalRecord", entityId: String(b.cycleId ?? "-"),
+            detail: `Finalisasi (endpoint appraisals): ${out.submitted.length} diajukan · ${out.skipped.length} dilewati — struktur ${out.structureCode} (§35-10)`,
+          },
+        }).catch(() => { /* best-effort */ });
+        return NextResponse.json(out);
       }
       default:
         return NextResponse.json({ error: `Aksi tidak dikenal: ${action}` }, { status: 400 });

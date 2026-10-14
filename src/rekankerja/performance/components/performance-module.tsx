@@ -10,6 +10,8 @@ import { PerformanceMastersPage } from "./performance-masters";
 import { PerformanceSettingsPage } from "./performance-settings";
 import { PerformanceCheckinsPage } from "./performance-checkins";
 import { PerformanceAppraisalsPage } from "./performance-appraisals";
+import { PerformanceCalibrationPage } from "./performance-calibration";
+import { PerformanceResultsPage } from "./performance-results";
 
 export function PerformanceModule({ view }: { view: string }) {
   switch (view) {
@@ -23,6 +25,10 @@ export function PerformanceModule({ view }: { view: string }) {
       return <PerformanceGoalsPage />;
     case "appraisals":
       return <PerformanceAppraisalsPage />;
+    case "calibration":
+      return <PerformanceCalibrationPage />;
+    case "results":
+      return <PerformanceResultsPage />;
     case "settings":
       return <PerformanceSettingsPage />;
     default:

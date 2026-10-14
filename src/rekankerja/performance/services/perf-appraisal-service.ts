@@ -91,7 +91,7 @@ async function mustAppraisal(db: TenantDb, appraisalId: string) {
           id: true, code: true, name: true, status: true,
           periodStart: true, periodEnd: true,
           selfStart: true, selfEnd: true, mgrStart: true, mgrEnd: true,
-          weightsJson: true, feedback360: true,
+          weightsJson: true, feedback360: true, publishAt: true,
         },
       },
       employee: { select: { id: true, employeeNo: true, fullName: true, orgUnitId: true, positionId: true } },
@@ -1435,19 +1435,34 @@ export async function mySelfAssessment(db: TenantDb, employeeId: string, apprais
   };
 }
 
-/** Hasil final ESS (siklus Published/Closed) — read-only utk §31-1. */
+/** Hasil final ESS (siklus Published/Closed) — read-only utk §31-1 + info
+ *  acknowledge & jendela banding D6 (P4). */
 export async function myPublishedResult(db: TenantDb, employeeId: string, appraisalId: string) {
   const a = await mustAppraisal(db, appraisalId);
   if (a.employeeId !== employeeId) throw new Error("Bukan penilaian milik karyawan ini");
   const scale = a.finalRating != null
     ? await db.ratingScale.findUnique({ where: { value: a.finalRating } })
     : null;
+  // jendela banding D6: appealDays sejak publishAt (lazy — dihitung saat cek)
+  const setting = await db.performanceSetting.findFirst({ select: { appealDays: true } });
+  const appealDays = setting?.appealDays ?? 7;
+  const publishAt = a.cycle.publishAt ?? null;
+  const deadline = publishAt ? new Date(publishAt.getTime() + appealDays * DAY_MS) : null;
+  const appealWindow = {
+    days: appealDays,
+    deadline: deadline?.toISOString() ?? null,
+    open: deadline != null && Date.now() <= deadline.getTime(),
+    daysLeft: deadline != null ? Math.ceil((deadline.getTime() - Date.now()) / DAY_MS) : null,
+  };
   return {
     appraisal: {
       id: a.id, docNo: a.docNo, status: a.status,
       selfScore: a.selfScore, managerScore: a.managerScore,
       finalScore: a.finalScore, finalRating: a.finalRating,
       acknowledgedAt: a.acknowledgedAt?.toISOString() ?? null,
+      appealStatus: a.appealStatus ?? null,
+      appealNote: a.appealNote ?? null,
+      appealDecidedBy: a.appealDecidedBy ?? null,
     },
     cycle: {
       code: a.cycle.code, status: a.cycle.status,
@@ -1455,6 +1470,7 @@ export async function myPublishedResult(db: TenantDb, employeeId: string, apprai
       periodEnd: a.cycle.periodEnd.toISOString().slice(0, 10),
     },
     rating: scale ? { value: scale.value, labelId: scale.labelId, labelEn: scale.labelEn, color: scale.color } : null,
+    appealWindow,
     kpis: a.kpis.map((k) => ({
       title: k.title, unit: k.unit, target: k.target, finalActual: k.finalActual,
       midActual: k.midActual, weight: k.weight,

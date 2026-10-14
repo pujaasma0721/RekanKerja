@@ -4,6 +4,9 @@ import {
   mySelfAssessment, myPublishedResult, submitSelf, aiCompose,
   type SubmitSelfInput, type AiComposeInput,
 } from "@/rekankerja/performance/services/perf-appraisal-service";
+import {
+  acknowledge, appeal, withdrawAppeal,
+} from "@/rekankerja/performance/services/perf-results-service";
 
 // ============================================================================
 // PERFORMANCE — ESS "Penilaian Saya" (P3 — §17 ess/my-appraisal, Alur 5 §29-2):
@@ -15,6 +18,9 @@ import {
 //        (autosave = mirror lokal form-kit §18.7 — tidak ada kolom draf server)
 //   POST {action: aiCompose, scope:"self", ...} → AI assist ulasan diri (AM3
 //        §18.11 — compose-only; estimator dampak TIDAK ada di ESS, D21).
+//   POST {action: acknowledge|appeal|withdrawAppeal, appraisalId} → P4 §31:
+//        konfirmasi menerima hasil (bukan persetujuan isi) + banding D6
+//        (jendela appealDays sejak publishAt) + tarik banding (self-scope).
 // Guard: requireEss (self-scope anti-IDOR).
 // ============================================================================
 export async function GET(req: Request) {
@@ -99,6 +105,25 @@ export async function POST(req: Request) {
       };
       const out = await aiCompose(db, { employeeId, superAdmin: false }, `ess:${employeeId}`, input);
       return NextResponse.json(out); // unavailable → 200 + flag (kegagalan tenang)
+    }
+
+    // ===== P4 §31: acknowledge + banding (self-scope; hasil Published) =====
+    if (action === "acknowledge") {
+      const out = await acknowledge(db, employeeId, String(b.appraisalId ?? ""));
+      return NextResponse.json(out);
+    }
+
+    if (action === "appeal") {
+      const out = await appeal(db, employeeId, String(b.appraisalId ?? ""), {
+        note: String(b.note ?? ""),
+        evidence: b.evidence != null ? String(b.evidence) : null,
+      });
+      return NextResponse.json(out, { status: 201 });
+    }
+
+    if (action === "withdrawAppeal") {
+      const out = await withdrawAppeal(db, employeeId, String(b.appraisalId ?? ""));
+      return NextResponse.json(out);
     }
 
     return NextResponse.json({ error: `Aksi tidak dikenal: ${action}` }, { status: 400 });

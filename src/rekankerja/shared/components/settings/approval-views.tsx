@@ -52,7 +52,7 @@ const DOC_TYPES = ["PersonnelAction", "PayrollRun", "Overtime", "LeaveRequest", 
 
 /** docType pilihan delegasi — nama engine (Leave/Travel/Medical/Loan/WorkOff)
  *  + wildcard All; mesin approval juga menerima nama legacy di atas. */
-const DELEGATION_DOC_TYPES = [...DOC_TYPES, "Leave", "Travel", "Medical", "Loan", "WorkOff", "RecruitmentPR", "All"];
+const DELEGATION_DOC_TYPES = [...DOC_TYPES, "Leave", "Travel", "Medical", "Loan", "WorkOff", "RecruitmentPR", "PerformanceAppraisal", "All"];
 
 // =================================================================
 export function ApprovalEngineView() {

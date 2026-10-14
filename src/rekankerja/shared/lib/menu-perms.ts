@@ -190,10 +190,13 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   ],
   "performance:calibration": [
     { key: "decide", label: "Keputusan kalibrasi", hint: "Mengubah skor/rating final dengan alasan ter-audit" },
+    { key: "finalize", label: "Finalisasi penilaian", hint: "Mengajukan hasil ke approval PerformanceAppraisal (batch)" },
+    { key: "approve", label: "Memutus approval finalisasi", hint: "Menyetujui/menolak dokumen PerformanceAppraisal di kotak finalisasi (jenjang sesuai engine)" },
   ],
   "performance:results": [
     { key: "publish", label: "Publikasi hasil", hint: "Menerbitkan hasil ke karyawan + jendela acknowledgement" },
     { key: "appeal", label: "Memutuskan banding", hint: "Menyetujui/menolak banding karyawan dalam jendela" },
+    { key: "close", label: "Menutup hasil siklus", hint: "Menutup hasil siklus menjadi read-only permanen setelah semua banding selesai (§35-16)" },
   ],
 
   "recruitment:settings": [

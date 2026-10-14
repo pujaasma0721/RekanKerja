@@ -7,7 +7,10 @@
 //     bukti catatan; draf MIRROR localStorage (pulihkan/buang — server = sumber
 //     kebenaran) + progress bar; SUBMIT sekali di akhir (§35-7).
 //   • Fase Published → hasil final read-only (skor/rating/rincian + ringkasan
-//     360) — acknowledge/banding menyusul P4.
+//     360) + P4 §31: acknowledge "telah dibaca & dipahami" (BUKAN persetujuan
+//     isi §35-13) + banding D6 jendela appealDays sejak publishAt (alasan wajib
+//     §35-14) + tarik banding — kartu tetap tampil meski karyawan terdaftar di
+//     siklus baru (perbaikan P4: sebelumnya hanya saat !current).
 //   • Tab "Periode lalu" — riwayat siklus final (read-only §18.3 gaya).
 // Estimator dampak TIDAK ada di ESS (D21 — karyawan tidak melihat).
 // ============================================================================
@@ -27,7 +30,7 @@ import { ProgressTrackerBar, AiComposeDialog } from "@/rekankerja/performance/co
 import { ESS_BASE } from "./ess-api";
 import {
   ClipboardCheck, AlertTriangle, Loader2, Sparkles, Send, RotateCcw, History,
-  ChevronDown, Info, ShieldAlert,
+  ChevronDown, Info, ShieldAlert, CheckCircle2, Scale, Clock,
 } from "lucide-react";
 
 // ---------- tipe (kontrak API) ----------
@@ -57,9 +60,11 @@ interface PublishedData {
     id: string; docNo: string; status: string;
     selfScore: number | null; managerScore: number | null;
     finalScore: number | null; finalRating: number | null; acknowledgedAt: string | null;
+    appealStatus: string | null; appealNote: string | null; appealDecidedBy: string | null;
   };
   cycle: { code: string; status: string; periodStart: string; periodEnd: string };
   rating: { value: number; labelId: string; labelEn: string; color: string } | null;
+  appealWindow: { days: number; deadline: string | null; open: boolean; daysLeft: number | null };
   kpis: { title: string; unit: string; target: number; finalActual: number | null; midActual: number | null; weight: number }[];
   comps: { name: string; kind: string; score: number; selfScore: number | null; comment: string | null; selfComment: string | null }[];
   feedback360: { perCompetency: { name: string; avg: number | null; count: number; comments: string[] | null }[]; reviewers: { submitted: number }; hidden: string | null } | null;
@@ -133,7 +138,10 @@ export function EssMyAppraisalPage() {
               ? <WaitingPhase c={data.current} />
               : <SelfAssessmentForm d={data.current} onDone={refresh} />
           )}
-          {tab === "current" && !data.current && data.published && <PublishedResultCard d={data.published} />}
+          {/* P4: hasil terpublikasi TETAP tampil di bawah form siklus berjalan —
+              karyawan aktif di siklus baru harus tetap bisa acknowledge/banding
+              hasil siklus sebelumnya yang baru dipublikasikan (§31-1). */}
+          {tab === "current" && data.published && <PublishedResultCard d={data.published} onDone={refresh} />}
           {tab === "current" && !data.current && !data.published && data.previous.length > 0 && (
             <EmptyState icon={ClipboardCheck} title={t("Tidak ada siklus berjalan", "No running cycle")}
               description={t("Anda tidak terdaftar di siklus aktif mana pun — lihat Periode Lalu.", "You are not enrolled in any active cycle — see Past Periods.")} />
@@ -449,10 +457,81 @@ function SelfAssessmentForm({ d, onDone }: { d: SelfData; onDone: () => void }) 
   );
 }
 
-/** Hasil final read-only (siklus Published) — acknowledge menyusul P4. */
-export function PublishedResultCard({ d }: { d: PublishedData }) {
+/** Hasil final (siklus Published) + P4 §31: acknowledge §35-13 + banding §35-14/15 + tarik banding. */
+export function PublishedResultCard({ d, onDone }: { d: PublishedData; onDone: () => void }) {
   const { t, locale } = useI18n();
   const [open, setOpen] = useState(false);
+  const [ackBusy, setAckBusy] = useState(false);
+  const [appealOpen, setAppealOpen] = useState(false);
+  const [appealNote, setAppealNote] = useState("");
+  const [appealEvidence, setAppealEvidence] = useState("");
+  const [appealBusy, setAppealBusy] = useState(false);
+  const [confirmAck, setConfirmAck] = useState(false);
+
+  const fmtDT = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString(locale.startsWith("en") ? "en-GB" : "id-ID", { dateStyle: "medium", timeStyle: "short" }) : "—";
+
+  async function doAcknowledge() {
+    setAckBusy(true);
+    try {
+      const out = await apiSend<{ docNo: string; acknowledgedAt: string; already: boolean }>(`${ESS_BASE}/my-appraisal`, "POST", {
+        action: "acknowledge", appraisalId: d.appraisal.id,
+      });
+      toast.success(t(
+        `Konfirmasi penerimaan ${out.docNo} tercatat — terima kasih.`,
+        `Acknowledgement for ${out.docNo} recorded — thank you.`,
+      ));
+      setConfirmAck(false);
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "error");
+    } finally {
+      setAckBusy(false);
+    }
+  }
+
+  async function doAppeal() {
+    if (!appealNote.trim()) {
+      toast.error(t("Alasan banding wajib diisi (§35-14)", "Appeal reason is required (§35-14)"));
+      return;
+    }
+    setAppealBusy(true);
+    try {
+      const out = await apiSend<{ docNo: string; appealStatus: string; deadline: string | null }>(`${ESS_BASE}/my-appraisal`, "POST", {
+        action: "appeal", appraisalId: d.appraisal.id, note: appealNote.trim(),
+        evidence: appealEvidence.trim() || null,
+      });
+      toast.success(t(
+        `Banding ${out.docNo} diajukan — HR akan meninjau (tenggat ${fmtD(out.deadline)}).`,
+        `Appeal for ${out.docNo} submitted — HR will review (deadline ${fmtD(out.deadline)}).`,
+      ));
+      setAppealOpen(false); setAppealNote(""); setAppealEvidence("");
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "error");
+    } finally {
+      setAppealBusy(false);
+    }
+  }
+
+  async function doWithdraw() {
+    setAppealBusy(true);
+    try {
+      const out = await apiSend<{ docNo: string; appealStatus: string }>(`${ESS_BASE}/my-appraisal`, "POST", {
+        action: "withdrawAppeal", appraisalId: d.appraisal.id,
+      });
+      toast.success(t(`Banding ${out.docNo} ditarik.`, `Appeal for ${out.docNo} withdrawn.`));
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "error");
+    } finally {
+      setAppealBusy(false);
+    }
+  }
+
+  const win = d.appealWindow ?? { days: 7, deadline: null, open: false, daysLeft: null };
+  const ap = d.appraisal.appealStatus;
+  const canAppeal = win.open && (ap == null || ap === "Withdrawn");
   return (
     <Card className="border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/80">
       <CardContent className="p-4 sm:p-5">
@@ -477,6 +556,131 @@ export function PublishedResultCard({ d }: { d: PublishedData }) {
             <p className="text-[10px] text-emerald-600 dark:text-emerald-400">{t("Skor final", "Final score")}</p>
             <p className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{d.appraisal.finalScore ?? "—"}</p>
           </div>
+        </div>
+        <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+          {t("Hasil final telah dipublikasikan untuk Anda.", "Your final result has been published.")}
+        </p>
+
+        {/* ===== P4 §35-13: acknowledge — konfirmasi telah dibaca & dipahami ===== */}
+        <div className="mt-3 rounded-lg border border-dashed border-emerald-300/70 px-3 py-2.5 dark:border-emerald-800">
+          {d.appraisal.acknowledgedAt ? (
+            <p className="flex flex-wrap items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              {t(
+                `Anda mengonfirmasi telah membaca & memahami hasil ini (${fmtDT(d.appraisal.acknowledgedAt)}) — konfirmasi penerimaan, bukan persetujuan isi.`,
+                `You confirmed reading & understanding this result (${fmtDT(d.appraisal.acknowledgedAt)}) — an acknowledgement of receipt, not agreement.`,
+              )}
+            </p>
+          ) : confirmAck ? (
+            <div className="space-y-2 text-xs">
+              <p className="text-slate-600 dark:text-slate-300">
+                {t(
+                  "Konfirmasi bahwa Anda telah membaca dan memahami hasil penilaian ini. Ini BUKAN persetujuan atas isi hasil (§35-13) — bila tidak setuju, gunakan hak banding di bawah.",
+                  "Confirm that you have read and understood this appraisal result. This is NOT agreement with the content (§35-13) — if you disagree, use your appeal right below.",
+                )}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={doAcknowledge} disabled={ackBusy} className="h-8">
+                  {ackBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                  {t("Ya, saya telah membaca & memahami", "Yes, I have read & understood")}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8" onClick={() => setConfirmAck(false)} disabled={ackBusy}>
+                  {t("Batal", "Cancel")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <p className="min-w-0 flex-1 text-slate-600 dark:text-slate-300">
+                {t("Mohon konfirmasi bahwa Anda telah membaca & memahami hasil ini.", "Please confirm you have read & understood this result.")}
+              </p>
+              <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => setConfirmAck(true)}>
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {t("Saya telah membaca & memahami", "I have read & understood")}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* ===== P4 §35-14: banding D6 (jendela appealDays sejak publish) ===== */}
+        <div className="mt-2 rounded-lg border border-dashed border-amber-300/80 px-3 py-2.5 dark:border-amber-800/70">
+          {!win.open ? (
+            <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <Clock className="h-4 w-4 shrink-0" />
+              {t(
+                `Jendela banding D6 telah tutup (tenggat ${fmtD(win.deadline)}).`,
+                `Appeal window D6 has closed (deadline ${fmtD(win.deadline)}).`,
+              )}
+            </p>
+          ) : ap === "Submitted" ? (
+            <div className="space-y-2 text-xs">
+              <p className="flex items-center gap-1.5 font-medium text-amber-700 dark:text-amber-400">
+                <Scale className="h-4 w-4 shrink-0" />
+                {t("Banding Anda menunggu keputusan HR (§35-15).", "Your appeal is awaiting HR decision (§35-15).")}
+              </p>
+              {d.appraisal.appealNote && (
+                <p className="whitespace-pre-wrap rounded-md bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                  {t("Alasan Anda:", "Your reason:")} {d.appraisal.appealNote}
+                </p>
+              )}
+              <div>
+                <Button size="sm" variant="outline" className="h-8" onClick={doWithdraw} disabled={appealBusy}>
+                  {appealBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                  {t("Tarik Banding", "Withdraw Appeal")}
+                </Button>
+              </div>
+            </div>
+          ) : ap === "Rejected" || ap === "Adjusted" ? (
+            <div className="space-y-1.5 text-xs">
+              <p className={cn("flex items-center gap-1.5 font-medium", ap === "Adjusted" ? "text-emerald-700 dark:text-emerald-400" : "text-slate-600 dark:text-slate-300")}>
+                {ap === "Adjusted" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <Info className="h-4 w-4 shrink-0" />}
+                {ap === "Adjusted"
+                  ? t("Banding diputuskan: DISETUJUI — skor disesuaikan.", "Appeal decided: APPROVED — score adjusted.")
+                  : t("Banding diputuskan: DITOLAK — hasil tetap.", "Appeal decided: REJECTED — result stands.")}
+              </p>
+              <p className="text-slate-500 dark:text-slate-400">
+                {t("Keputusan oleh", "Decided by")} {d.appraisal.appealDecidedBy ?? "—"}
+              </p>
+            </div>
+          ) : appealOpen ? (
+            <div className="space-y-2 text-xs">
+              <p className="font-medium text-slate-700 dark:text-slate-200">
+                {t(
+                  `Ajukan banding bila Anda merasa hasil tidak mencerminkan capaian (sisa ${win.daysLeft ?? win.days} hari dari jendela ${win.days} hari):`,
+                  `File an appeal if you feel the result does not reflect your achievement (${win.daysLeft ?? win.days} days left of the ${win.days}-day window):`,
+                )}
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="appeal-note">{t("Alasan banding (wajib)", "Appeal reason (required)")}</Label>
+                <Textarea id="appeal-note" rows={3} value={appealNote} onChange={(e) => setAppealNote(e.target.value)}
+                  placeholder={t("Jelaskan capaian/bukti yang menurut Anda belum diperhitungkan…", "Explain achievements/evidence you feel were not accounted for…")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="appeal-evidence">{t("Bukti tambahan (opsional)", "Additional evidence (optional)")}</Label>
+                <Input id="appeal-evidence" value={appealEvidence} onChange={(e) => setAppealEvidence(e.target.value)}
+                  placeholder={t("mis. nama dokumen/link bukti", "e.g. document name/evidence link")} />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={doAppeal} disabled={appealBusy} className="h-8">
+                  {appealBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  {t("Kirim Banding", "Submit Appeal")}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8" onClick={() => { setAppealOpen(false); setAppealNote(""); setAppealEvidence(""); }} disabled={appealBusy}>
+                  {t("Batal", "Cancel")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {ap === "Withdrawn" && (
+                <p className="min-w-0 flex-1 text-slate-500 dark:text-slate-400">{t("Banding sebelumnya ditarik — Anda bisa mengajukan ulang.", "Previous appeal withdrawn — you may file again.")}</p>
+              )}
+              <Button size="sm" variant="outline" className="ml-auto h-8 shrink-0" onClick={() => setAppealOpen(true)} disabled={!canAppeal}>
+                <Scale className="h-3.5 w-3.5" />
+                {t("Ajukan Banding", "File an Appeal")}
+              </Button>
+            </div>
+          )}
         </div>
         <Button variant="ghost" size="sm" className="mt-2 h-7 text-xs" onClick={() => setOpen(!open)} aria-expanded={open}>
           <History className="h-3.5 w-3.5" />{open ? t("Sembunyikan rincian", "Hide details") : t("Lihat rincian", "View details")}
@@ -521,9 +725,6 @@ export function PublishedResultCard({ d }: { d: PublishedData }) {
             {d.feedback360?.hidden && (
               <p className="flex items-center gap-1.5 text-slate-400"><ShieldAlert className="h-3.5 w-3.5" />{t("360 dirahasiakan (<3 reviewer)", "360 hidden (<3 reviewers)")}</p>
             )}
-            <p className="rounded-lg border border-dashed border-slate-300 px-2.5 py-1.5 text-[11px] text-slate-400 dark:border-slate-700">
-              {t("Konfirmasi penerimaan (acknowledge) & banding menyusul fase P4.", "Acknowledgement & appeals arrive in phase P4.")}
-            </p>
           </div>
         )}
       </CardContent>
