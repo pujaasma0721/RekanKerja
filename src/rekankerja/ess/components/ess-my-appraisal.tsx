@@ -32,7 +32,7 @@ import { ProgressTrackerBar, AiComposeDialog } from "@/rekankerja/performance/co
 import { ESS_BASE } from "./ess-api";
 import {
   ClipboardCheck, AlertTriangle, Loader2, Sparkles, Send, RotateCcw, History,
-  ChevronDown, Info, ShieldAlert, CheckCircle2, Scale, Clock,
+  ChevronDown, Info, ShieldAlert, CheckCircle2, Scale, Clock, Download,
 } from "lucide-react";
 
 // ---------- tipe (kontrak API) ----------
@@ -93,9 +93,42 @@ const fmtD = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "—"
 // ============================================================================
 
 export function EssMyAppraisalPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { data, loading, error, refresh } = useApi<{ current: CurrentBlock | null; published: PublishedData | null; previous: PrevRow[]; pips?: MyPipRow[] }>(`${ESS_BASE}/my-appraisal`);
   const [tab, setTab] = useState<"current" | "previous">("current");
+  const [exporting, setExporting] = useState(false);
+
+  /** P8 §7.2 PP 35/2021 — ekspor riwayat penilaian sendiri (XLSX, self-scope).
+   *  POST → blob → anchor click (GET navigasi tak bisa POST). */
+  const exportHistory = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch(`${ESS_BASE}/my-appraisal`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "exportHistory", lang }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(j?.error ?? `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("content-disposition") ?? "";
+      const m = /filename="?([^";]+)"?/.exec(cd);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = m?.[1] ?? `rekankerja-perf-history.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5_000);
+      toast.success(t("Riwayat penilaian Anda terunduh (XLSX).", "Your appraisal history was downloaded (XLSX)."));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Ekspor gagal", "Export failed"));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -120,6 +153,14 @@ export function EssMyAppraisalPage() {
 
       {data && (data.current || data.previous.length > 0) && (
         <>
+          {/* P8 §7.2 PP 35/2021 — riwayat penilaian eksporabel (bukti konversi
+              PKWT) — selalu tersedia saat ada riwayat apa pun. */}
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={exportHistory} disabled={exporting} className="gap-1.5 font-bold">
+              {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              {t("Ekspor Riwayat Saya (XLSX)", "Export My History (XLSX)")}
+            </Button>
+          </div>
           {(data.current && !("waiting" in data.current)) && data.previous.length > 0 && (
             <div className="flex gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800/60">
               <button onClick={() => setTab("current")}

@@ -1704,6 +1704,10 @@ export interface SchedulerJobCounts {
   /** P7-PERF §28 — evaluasi percobaan H-14/H-3 + lewat tenggat tanpa keputusan
    *  (eskalasi mingguan) yang diingatkan job perf-probation-reminder. */
   perfProbReminded: number;
+  /** P8-PERF §20 — baris MetricSnapshot kinerja (perf_completion /
+   *  rating_distribution / pip_recovery_rate) yang ditulis job harian
+   *  perf-metrics-snapshot. */
+  perfMetricsSnapshots: number;
 }
 
 export interface SchedulerRunResult {
@@ -1774,6 +1778,7 @@ export async function runAllJobs(
     pipOutcomeDueReminded: 0,
     pipOverdueEscalated: 0,
     perfProbReminded: 0,
+    perfMetricsSnapshots: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1951,6 +1956,26 @@ export async function runAllJobs(
     notificationsSent += r.notified;
   });
 
+  // P8-PERF §20 — snapshot metrik kinerja harian (MetricSnapshot periode
+  // YYYY-MM: perf_completion / rating_distribution / pip_recovery_rate;
+  // upsert idempoten, klaim dedupe per hari — service di-dynamic-import agar
+  // tenant dgn tabel belum termigrasi di-skip senyap).
+  await guarded("perf-metrics-snapshot", async () => {
+    try {
+      const key = `perf-metrics:${dayKey()}`;
+      const claimed = await claimReminder(
+        db,
+        key,
+        `Snapshot metrik kinerja periode berjalan diperbarui (${dayKey()})`,
+      );
+      if (!claimed) return; // sudah disnapshot hari ini
+      const mod = await import("@/rekankerja/performance/services/perf-analytics-service");
+      jobs.perfMetricsSnapshots = await mod.snapshotMetrics(db);
+    } catch (e) {
+      console.warn(`[scheduler] perf-metrics-snapshot skip: ${e instanceof Error ? e.message : e}`);
+    }
+  });
+
   // F4-REC — offer: kedaluwarsa otomatis (Sent/Viewed lewat expiryDate) +
   // pengingat offer berakhir ≤3 hari ke officer rekrutmen (dedupe per tanggal).
   await guarded("offer-expiry", async () => {
@@ -2029,6 +2054,7 @@ export async function runAllJobs(
     (jobs.slaEscalations > 0 ? `, ${jobs.slaEscalations} tahap dieskalasi SLA` : "") +
     (jobs.digestEmails > 0 ? `, ${jobs.digestEmails} ringkasan notifikasi harian terkirim` : "") +
     (jobs.metricsSnapshotRows > 0 ? `, ${jobs.metricsSnapshotRows} metrik disnapshot (F8)` : "") +
+    (jobs.perfMetricsSnapshots > 0 ? `, ${jobs.perfMetricsSnapshots} metrik kinerja disnapshot (P8)` : "") +
     (jobs.reportDigestsSent > 0 ? `, ${jobs.reportDigestsSent} ringkasan laporan mingguan terkirim` : "") +
     (jobs.retentionAnonymized > 0 ? `, ${jobs.retentionAnonymized} pelamar dianonimkan (retensi UU PDP)` : "") +
     (jobs.retentionScanned > 0 && jobs.retentionAnonymized === 0 ? `, retensi UU PDP: ${jobs.retentionScanned} dipindai, ${jobs.retentionSkippedConsent} ditahan consent` : "") +

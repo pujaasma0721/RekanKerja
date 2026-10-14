@@ -1,7 +1,7 @@
 /**
- * AUDIT-1 — Audit menyeluruh API laporan distribusi 6 modul (75 laporan).
+ * AUDIT-1 — Audit menyeluruh API laporan distribusi 7 modul (89 laporan).
  *
- * Cakupan per modul (hr, attendance, leave, medical, travel):
+  * Cakupan per modul (hr, attendance, leave, medical, travel, performance):
  *   A. _params        → 200 + kunci pool ada
  *   B. 12-15 dokumen  → 200 + bentuk {id, meta, data} + meta.periodLabel +
  *                       meta.docNo + jumlah baris tabel primer + ringkasan
@@ -223,6 +223,56 @@ async function auditPayroll(cookie: string): Promise<void> {
   ck("[payroll] tanpa sesi → 401", rn.status === 401, `status=${rn.status}`);
 }
 
+/** PERFORMANCE (P8 — 14 laporan pf11–pf44): mayoritas butuh param siklus
+ *  (wajib) & pf23 butuh karyawan → pool _params dulu, lalu dokumen + XLSX +
+ *  guard. Pola payroll (param khusus per laporan). */
+async function auditPerformance(cookie: string): Promise<void> {
+  const base = "/api/rekankerja/performance/reports/documents";
+  console.log(`\n===== MODUL PERFORMANCE (14 laporan) =====`);
+  const rp = await get(`${base}?id=_params`, cookie);
+  const pj = (await rp.json().catch(() => ({}))) as {
+    cycles?: { id: string; code: string }[]; employees?: { id: string; label: string }[];
+    years?: number[]; defaultCycleId?: string | null;
+  };
+  ck("[performance] _params 200", rp.status === 200 && (pj.cycles?.length ?? 0) > 0,
+    `status=${rp.status} cycles=${pj.cycles?.map((c) => c.code).join(",")} employees=${pj.employees?.length ?? 0} default=${pj.cycles?.find((c) => c.id === pj.defaultCycleId)?.code ?? "?"}`);
+  const cyc = pj.defaultCycleId ?? pj.cycles?.[0]?.id ?? "";
+  const emp = pj.employees?.[0]?.id ?? "";
+  // siklus wajib utk: pf12 pf13 pf21 pf22 pf24 pf31 pf32 pf41 pf43 (pf23 opsional +
+  // employee wajib; pf11/pf33/pf42/pf44 pakai tahun / tanpa siklus)
+  const CYCLE_REQ = new Set(["pf12", "pf13", "pf21", "pf22", "pf24", "pf31", "pf32", "pf41", "pf43"]);
+  for (const id of ["pf11", "pf12", "pf13", "pf21", "pf22", "pf23", "pf24", "pf31", "pf32", "pf33", "pf41", "pf42", "pf43", "pf44"]) {
+    const qs = new URLSearchParams({ id });
+    if (CYCLE_REQ.has(id) && cyc) qs.set("cycle", cyc);
+    if (id === "pf23" && emp) qs.set("employee", emp);
+    const r = await get(`${base}?${qs}`, cookie);
+    if (r.status !== 200) { ck(`[performance] ${id} 200`, false, `status=${r.status} ${(await r.text()).slice(0, 160)}`); continue; }
+    const j = (await r.json()) as DocShape;
+    const metaOk = !!j.meta?.periodLabel && typeof j.data === "object" && j.data != null;
+    const rows = primaryRows(j.data);
+    rowCounts[`performance:${id}`] = { key: rows.key, n: rows.n, periodLabel: j.meta?.periodLabel };
+    const sm = (j.data ?? {}) as Record<string, unknown>;
+    const smKeys = Object.keys(sm).filter((k) => /total|sum/i.test(k) && typeof sm[k] !== "object");
+    const smPick: Record<string, unknown> = {};
+    for (const k of smKeys.slice(0, 8)) smPick[k] = sm[k];
+    summaryBlocks[`performance:${id}`] = smPick;
+    ck(`[performance] ${id} bentuk+meta`, metaOk, `rows=${rows.n} (${rows.key}) period=${String(j.meta?.periodLabel).slice(0, 48)}`);
+    const rx = await get(`${base}?${qs}&export=xlsx`, cookie);
+    const buf = new Uint8Array(await rx.arrayBuffer());
+    const pk = buf[0] === 0x50 && buf[1] === 0x4b;
+    ck(`[performance] ${id} XLSX PK`, rx.status === 200 && pk, `status=${rx.status} size=${buf.length}B`);
+  }
+  const rb = await get(`${base}?id=zz99`, cookie);
+  ck("[performance] id tak dikenal → 400", rb.status === 400, `status=${rb.status}`);
+  const rn = await get(`${base}?id=pf11`, "");
+  ck("[performance] tanpa sesi → 401", rn.status === 401, `status=${rn.status}`);
+  // varian filter: pf21 + status (server-side) + pf22 groupBy atasan
+  const rf = await get(`${base}?id=pf21&cycle=${cyc}`, cookie);
+  ck("[performance] filter cycle (pf21) → 200", rf.status === 200, `status=${rf.status}`);
+  const rg = await get(`${base}?id=pf22&cycle=${cyc}&groupBy=atasan`, cookie);
+  ck("[performance] filter groupBy=atasan (pf22) → 200", rg.status === 200, `status=${rg.status}`);
+}
+
 async function main(): Promise<void> {
   // login + pilih workspace MII
   const rl = await post("/api/auth/login", { email: EMAIL, password: PASS });
@@ -262,6 +312,7 @@ async function main(): Promise<void> {
     ["tr11", "tr12", "tr13", "tr21", "tr22", "tr23", "tr31", "tr32", "tr33", "tr41", "tr42", "tr43"],
     "status=Approved").catch((e) => ck("[travel] modul error", false, String(e)));
   await auditPayroll(cookie).catch((e) => ck("[payroll] modul error", false, String(e)));
+  await auditPerformance(cookie).catch((e) => ck("[performance] modul error", false, String(e)));
 
   const total = checks.length;
   console.log(`\n===== REKAP AUDIT-1 =====`);

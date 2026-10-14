@@ -7,6 +7,8 @@ import {
 import {
   acknowledge, appeal, withdrawAppeal,
 } from "@/rekankerja/performance/services/perf-results-service";
+import { toXlsxMulti, xlsxResponse, exportFilename, type ExportSheet } from "@/rekankerja/shared/lib/export";
+import { trFor, locReportFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 
 // ============================================================================
@@ -167,6 +169,104 @@ export async function POST(req: Request) {
     if (action === "withdrawAppeal") {
       const out = await withdrawAppeal(db, employeeId, String(b.appraisalId ?? ""));
       return NextResponse.json(out);
+    }
+
+    // ===== P8 §7.2 PP 35/2021: EKSPOR RIWAYAT PENILAIAN SENDIRI (self-scope
+    // anti-IDOR — employeeId HANYA dari sesi ESS; bukti konversi PKWT). =====
+    if (action === "exportHistory") {
+      const lang: Lang = b.lang === "id" ? "id" : "en";
+      const me = await db.employee.findFirst({
+        where: { id: employeeId },
+        select: { employeeNo: true, fullName: true },
+      });
+      if (!me) return NextResponse.json({ error: "Karyawan tidak ditemukan" }, { status: 404 });
+
+      const rows = await db.appraisalRecord.findMany({
+        where: { employeeId },
+        include: { cycle: { select: { code: true, periodStart: true, periodEnd: true } } },
+        orderBy: [{ cycle: { periodStart: "asc" } }, { docNo: "asc" }],
+        take: 100,
+      });
+      const apprIds = rows.map((r) => r.id);
+      const decisions = apprIds.length > 0
+        ? await db.calibrationDecision.findMany({ where: { appraisalId: { in: apprIds } }, orderBy: { decidedAt: "asc" }, take: 500 })
+        : [];
+      const nOf = new Map<string, number>();
+      for (const d of decisions) nOf.set(d.appraisalId, (nOf.get(d.appraisalId) ?? 0) + 1);
+
+      const fmtD = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "—");
+      const ratingLabel = new Map<number, string>();
+      for (const s of await db.ratingScale.findMany()) ratingLabel.set(s.value, lang === "id" ? s.labelId : s.labelEn);
+
+      const periodLabel = rows.length > 0
+        ? `${rows[0].cycle.periodStart.getFullYear()}–${rows[rows.length - 1].cycle.periodEnd.getFullYear()}`
+        : `${new Date().getFullYear()}`;
+      const title = `${trFor(lang, "Riwayat Penilaian")} — ${me.employeeNo} ${me.fullName} · ${locReportFor(lang, periodLabel)}`;
+
+      const sNum = (v: number | null) => (v == null ? "—" : v);
+      const sheets: ExportSheet[] = [
+        {
+          name: trFor(lang, "Riwayat Penilaian"),
+          title,
+          columns: [
+            { header: trFor(lang, "No. Dokumen"), width: 16 },
+            { header: trFor(lang, "Siklus"), width: 14 },
+            { header: trFor(lang, "Periode"), width: 22 },
+            { header: trFor(lang, "Status"), width: 16 },
+            { header: trFor(lang, "Skor Diri"), width: 10 },
+            { header: trFor(lang, "Skor Atasan"), width: 12 },
+            { header: trFor(lang, "Skor Final"), width: 10 },
+            { header: trFor(lang, "Rating"), width: 14 },
+            { header: trFor(lang, "Tanda Terima"), width: 12 },
+            { header: trFor(lang, "Banding"), width: 14 },
+            { header: trFor(lang, "Jml Kalibrasi"), width: 12 },
+          ],
+          rows: rows.map((r) => [
+            r.docNo, r.cycle.code,
+            `${r.cycle.periodStart.toISOString().slice(0, 10)} → ${r.cycle.periodEnd.toISOString().slice(0, 10)}`,
+            r.status, sNum(r.selfScore), sNum(r.managerScore), sNum(r.finalScore),
+            r.finalRating == null ? "—" : `${r.finalRating} — ${ratingLabel.get(r.finalRating) ?? ""}`.trim(),
+            r.acknowledgedAt ? fmtD(r.acknowledgedAt) : "—",
+            r.appealStatus ?? "—",
+            nOf.get(r.id) ?? 0,
+          ]),
+        },
+        {
+          name: trFor(lang, "Jejak Kalibrasi"),
+          title,
+          columns: [
+            { header: trFor(lang, "No. Dokumen"), width: 16 },
+            { header: trFor(lang, "Siklus"), width: 14 },
+            { header: trFor(lang, "Skor dari"), width: 10 },
+            { header: trFor(lang, "Skor ke"), width: 10 },
+            { header: trFor(lang, "Rating dari"), width: 11 },
+            { header: trFor(lang, "Rating ke"), width: 11 },
+            { header: trFor(lang, "Alasan"), width: 48 },
+            { header: trFor(lang, "Diputus oleh"), width: 18 },
+            { header: trFor(lang, "Waktu"), width: 12 },
+          ],
+          rows: decisions.map((d) => {
+            const ap = rows.find((r) => r.id === d.appraisalId);
+            return [
+              ap?.docNo ?? "—", ap?.cycle.code ?? "—",
+              sNum(d.oldScore), sNum(d.newScore),
+              sNum(d.oldRating), sNum(d.newRating),
+              d.reason, d.decidedBy, fmtD(d.decidedAt),
+            ];
+          }),
+        },
+      ];
+      const buf = await toXlsxMulti(sheets, { lang });
+      try {
+        await db.activityLog.create({
+          data: {
+            employeeId,
+            action: "Exported", entity: "PerformanceReportDocument",
+            detail: `Ekspor XLSX riwayat penilaian sendiri (${rows.length} siklus · PP 35/2021 §7.2 — ${me.employeeNo})`,
+          },
+        });
+      } catch { /* ActivityLog opsional */ }
+      return xlsxResponse(buf, exportFilename(`rekankerja-perf-history-${me.employeeNo}`, "xlsx"));
     }
 
     return NextResponse.json({ error: `Aksi tidak dikenal: ${action}` }, { status: 400 });

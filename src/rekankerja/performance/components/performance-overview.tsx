@@ -1,12 +1,17 @@
 "use client";
-// RekanKerja Performance — Ringkasan modul (P0): kartu jumlah master aktif +
-// status fase rencana eksekusi P0–P9 (§20). Fase berikutnya menambah KPI
-// siklus/peserta progres nyata di sini.
+// RekanKerja Performance — Ringkasan modul. P0: kartu master aktif. P8 (§20):
+// KPI modul NYATA dari dashboard laporan (siklus aktif · peserta · selesai ·
+// terbit · PIP · percobaan · merit) + distribusi rating ringkas + tautan ke
+// Laporan & Analitik + status fase rencana eksekusi P0–P9 (kini s/d P8 selesai).
 import { useApi } from "@/rekankerja/shared/lib/api";
 import { PageHeader, EmptyState } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Target, ListChecks, Users, Scale, Grid3x3, Wallet, CalendarRange, CheckCircle2, Circle, Clock } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import {
+  Target, ListChecks, Users, Scale, Grid3x3, Wallet, CalendarRange, CheckCircle2,
+  Circle, Clock, BarChart3, ClipboardCheck, BadgeCheck, LifeBuoy, ChevronRight, Lock,
+} from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +21,15 @@ interface Counts {
   "rating-scale": number;
   template: number;
   "merit-matrix": number;
+}
+
+interface DashboardKpi {
+  kpi: {
+    activeCycles: number; totalCycles: number; participants: number; completionPct: number | null;
+    resultsPublished: number; pipsActive: number; pipsRecoveredPct: number | null;
+    probationsOpen: number; meritAppliedCount: number; meritAppliedTotalAmount: number | null;
+    money: { canSee: boolean };
+  };
 }
 
 const PHASES: { id: string; label: string; labelEn: string; detail: string; detailEn: string }[] = [
@@ -34,6 +48,7 @@ const PHASES: { id: string; label: string; labelEn: string; detail: string; deta
 export function PerformanceOverview() {
   const { t } = useI18n();
   const { data, loading, error } = useApi<{ counts: Counts }>("/api/rekankerja/performance/masters");
+  const dash = useApi<DashboardKpi>("/api/rekankerja/performance/reports");
 
   const c = data?.counts;
   const cards: { label: string; labelEn: string; value?: number; icon: React.ElementType }[] = [
@@ -44,41 +59,118 @@ export function PerformanceOverview() {
     { label: "Matriks merit", labelEn: "Merit matrices", value: c?.["merit-matrix"], icon: Wallet },
   ];
 
+  const k = dash.data?.kpi;
+  const kpiTiles: { label: string; labelEn: string; value: string | null; sub?: string | null; icon: React.ElementType; tone: string }[] = [
+    { label: "Siklus Aktif", labelEn: "Active Cycles", value: k ? `${k.activeCycles}` : null, sub: k ? `${k.totalCycles} ${t("total", "total")}` : null, icon: CalendarRange, tone: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300" },
+    { label: "Peserta", labelEn: "Participants", value: k ? `${k.participants}` : null, sub: t("siklus aktif", "active cycles"), icon: Users, tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
+    { label: "Penilaian Selesai", labelEn: "Appraisals Finalized", value: k?.completionPct == null ? null : `${k.completionPct}%`, icon: ClipboardCheck, tone: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" },
+    { label: "Hasil Terbit", labelEn: "Published Results", value: k ? `${k.resultsPublished}` : null, icon: BadgeCheck, tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
+    { label: "PIP Aktif", labelEn: "Active PIPs", value: k ? `${k.pipsActive}` : null, sub: k?.pipsRecoveredPct != null ? t(`pemulihan ${k.pipsRecoveredPct}%`, `recovery ${k.pipsRecoveredPct}%`) : null, icon: LifeBuoy, tone: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" },
+    { label: "Merit Diterapkan", labelEn: "Merit Applied", value: k ? `${k.meritAppliedCount}` : null, sub: k && k.money.canSee && k.meritAppliedTotalAmount != null ? `Rp ${k.meritAppliedTotalAmount.toLocaleString("id-ID")}` : k && !k.money.canSee ? "•••" : null, icon: Wallet, tone: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300" },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Performance · P0"
+        eyebrow="Performance"
         title={t("Ringkasan Kinerja", "Performance Overview")}
         description={t(
-          "Fondasi modul penilaian kinerja: pustaka KPI & kompetensi ber-versi, skala rating, template bobot, dan matriks merit.",
-          "Performance module foundation: versioned KPI & competency library, rating scales, weight templates, and merit matrix.",
+          "Denyut modul penilaian kinerja: siklus berjalan, partisipasi, hasil terbit, konsekuensi (PIP · merit) — plus fondasi master (pustaka KPI & kompetensi ber-versi, skala, template, matriks merit).",
+          "The pulse of the performance module: running cycles, participation, published results, consequences (PIP · merit) — plus the master foundation (versioned KPI & competency library, scales, templates, merit matrix).",
         )}
       />
 
       {error && (
         <EmptyState
-          icon={Target}
+          icon={<Target />}
           title={t("Gagal memuat ringkasan", "Failed to load overview")}
           description={error}
         />
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {cards.map((k) => (
-          <Card key={k.label} className="border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/80">
+      {/* KPI modul nyata (P8) */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {kpiTiles.map((x) => (
+          <Card key={x.label} className="border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/80">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                <k.icon className="h-4 w-4" />
-                <span className="text-xs font-medium">{t(k.label, k.labelEn)}</span>
+                <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg", x.tone)}>
+                  <x.icon className="h-4 w-4" />
+                </span>
+                <span className="truncate text-[10px] font-bold uppercase tracking-wide" title={t(x.label, x.labelEn)}>
+                  {t(x.label, x.labelEn)}
+                </span>
               </div>
-              {loading ? (
-                <Skeleton className="mt-2 h-7 w-12" />
+              {dash.loading && !dash.data ? (
+                <Skeleton className="mt-2 h-7 w-14" />
               ) : (
-                <div className="mt-1 text-2xl font-semibold tabular-nums">{k.value ?? "—"}</div>
+                <p className="mt-1.5 text-2xl font-black tabular-nums text-slate-900 dark:text-slate-50">
+                  {x.value ?? "—"}
+                  {x.sub === "•••" && <Lock className="ml-1 inline h-3.5 w-3.5 text-amber-500" />}
+                </p>
               )}
+              {x.sub && x.sub !== "•••" && <p className="mt-0.5 truncate text-[9.5px] font-semibold text-slate-400">{x.sub}</p>}
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Master fondasi + tautan laporan */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-2">
+          <CardContent className="p-4 sm:p-5">
+            <h3 className="text-sm font-bold">{t("Fondasi Master", "Master Foundation")}</h3>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {cards.map((k2) => (
+                <div key={k2.label} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-900/40">
+                  <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                    <k2.icon className="h-3.5 w-3.5" />
+                    <span className="truncate text-[9.5px] font-bold uppercase tracking-wide">{t(k2.label, k2.labelEn)}</span>
+                  </div>
+                  {loading ? (
+                    <Skeleton className="mt-2 h-6 w-10" />
+                  ) : (
+                    <div className="mt-1 text-xl font-black tabular-nums text-slate-900 dark:text-slate-50">{k2.value ?? "—"}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* progres penyelesaian modul */}
+            <div className="mt-4">
+              <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                <span>{t("Penyelesaian modul (fase terverifikasi)", "Module completion (verified phases)")}</span>
+                <span className="tabular-nums">P0–P8 · 9/10</span>
+              </div>
+              <Progress value={90} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* tautan ke Laporan & Analitik */}
+        <a
+          href="/?m=performance&v=reports"
+          className="group relative flex flex-col overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:border-emerald-500/30 dark:from-emerald-500/10 dark:to-slate-900"
+        >
+          <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-400 to-teal-500" />
+          <div className="flex items-start justify-between gap-2">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm transition-transform group-hover:scale-105">
+              <BarChart3 className="h-5 w-5" />
+            </span>
+            <ChevronRight className="h-4 w-4 text-emerald-600 transition-transform group-hover:translate-x-1 dark:text-emerald-400" />
+          </div>
+          <p className="mt-3 text-[13px] font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
+            {t("Laporan & Analitik", "Reports & Analytics")}
+          </p>
+          <p className="mt-1 flex-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+            {t(
+              "14 laporan pf11–pf44 dwibahasa (XLSX/PDF) + ringkasan analitik + register riwayat per karyawan (PP 35/2021 §7.2).",
+              "14 bilingual reports pf11–pf44 (XLSX/PDF) + analytics summary + per-employee history register (PP 35/2021 §7.2).",
+            )}
+          </p>
+          <p className="mt-3 border-t border-dashed border-emerald-200 pt-2.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-700 dark:border-emerald-500/20 dark:text-emerald-300">
+            {t("Buka tab Laporan", "Open Reports tab")}
+          </p>
+        </a>
       </div>
 
       <Card className="border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/80">
@@ -89,7 +181,7 @@ export function PerformanceOverview() {
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {PHASES.map((p, i) => {
-              const done = i <= 1; // P0 + P1 selesai
+              const done = i <= 8; // P0..P8 selesai (P8 = laporan & analitik)
               return (
                 <div
                   key={p.id}

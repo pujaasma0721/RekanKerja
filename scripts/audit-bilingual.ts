@@ -73,6 +73,9 @@ const RUNTIME_TRANSLATED = [
   "src/rekankerja/time-attendance/api/attendance-report-documents.ts",
   "src/rekankerja/travel/api/travel-report-documents.ts",
   "src/rekankerja/payroll/api/reports-monthly.ts",
+  // P8-PERF: 14 laporan pf11–pf44 — header/sheet/status/cell diterjemahkan
+  // terpusat oleh export.ts localizeSheet + BASE_EN (pola 6 API di atas).
+  "src/rekankerja/performance/api/performance-report-documents.ts",
   "src/rekankerja/shared/lib/export.ts",
   // — Task BL-5 (tier-2 export): 10 API ekspor tier-2 — header/nama sheet/
   //   judul/sel label diterjemahkan terpusat oleh export.ts (localizeSheet /
