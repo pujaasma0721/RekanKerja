@@ -20,7 +20,7 @@
 //   · UI Template Surat (daftar token + tombol "Kembalikan ke bawaan")
 // =====================================================================
 
-export type LetterCategory = "Disciplinary" | "PersonnelAction" | "EmployeeService" | "Recruitment";
+export type LetterCategory = "Disciplinary" | "PersonnelAction" | "EmployeeService" | "Recruitment" | "Performance";
 
 export interface LetterTemplateDefault {
   key: string;
@@ -923,9 +923,84 @@ Demikian kami sampaikan. Kami mengucapkan sukses bagi perjalanan karier Saudara/
 {{signatory_name}}
 {{signatory_title}}`,
   },
-];
+  // ---------------- PERFORMANCE (P5 — surat hasil penilaian & SK PIP) ----------------
+  {
+    key: "PERF_RESULT",
+    category: "Performance",
+    name: "Surat Hasil Penilaian Kinerja",
+    description: "Pemberitahuan hasil penilaian kinerja per karyawan pasca-publikasi siklus (Alur 8 §32-4).",
+    subject: "Hasil Penilaian Kinerja",
+    signatoryTitle: "HR Director",
+    body: `{{letter_no}}
 
-// ---------------- KATALOG PLACEHOLDER (untuk editor + mesin render) ----------------
+Perihal: Hasil Penilaian Kinerja — {{cycle_name}}
+
+Kepada Yth.
+Bapak/Ibu {{employee_name}}
+NIK {{employee_no}}
+{{employee_position}} — {{employee_org_unit}}
+
+Dengan ini perusahaan {{company_name}} menyampaikan hasil penilaian kinerja Saudara untuk siklus {{cycle_name}} (periode {{cycle_period}}), sebagai berikut:
+
+    Dokumen Penilaian : {{appraisal_no}}
+    Skor Akhir        : {{final_score}}
+    Rating Kinerja    : {{rating_label}}
+    Atasan Penilai    : {{manager_name}}
+
+Hasil tersebut merupakan keputusan resmi perusahaan yang telah melalui proses penilaian oleh atasan langsung, kalibrasi antar-penilai, dan persetujuan berjenjang sesuai ketentuan yang berlaku. Tersedia jendela pengajuan keberatan (banding) selama masa yang ditetapkan bagi Saudara yang ingin mendiskusikan hasil ini melalui jalur resmi Human Resources.
+
+Saudara dipersilakan menghubungi Human Resources untuk memperoleh penjelasan rinci mengenai komponen penilaian, termasuk saran pengembangan yang diberikan oleh atasan penilai.
+
+Demikian surat ini kami sampaikan untuk menjadi perhatian. Terima kasih atas kontribusi dan kerja sama Saudara selama periode berjalan.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
+  {
+    key: "PERF_PIP",
+    category: "Performance",
+    name: "SK Program Perbaikan Kinerja (PIP)",
+    description: "Surat Keputusan pembentukan Program Perbaikan Kinerja 30/60/90 hari (Alur 9 §33-1) — rating ≤ 2.",
+    subject: "Surat Keputusan Program Perbaikan Kinerja",
+    signatoryTitle: "HR Director",
+    body: `{{letter_no}}
+
+Perihal: Surat Keputusan Program Perbaikan Kinerja (PIP)
+
+Kepada Yth.
+Bapak/Ibu {{employee_name}}
+NIK {{employee_no}}
+{{employee_position}} — {{employee_org_unit}}
+
+Berdasarkan hasil penilaian kinerja siklus {{cycle_name}} ({{appraisal_no}}) dengan skor akhir {{final_score}} dan rating {{rating_label}}, serta sesuai ketentuan Peraturan Perusahaan dan peraturan perundang-undangan yang berlaku, dengan ini perusahaan {{company_name}} menetapkan Saudara mengikuti Program Perbaikan Kinerja (Performance Improvement Plan) dengan ketentuan sebagai berikut:
+
+    Program           : Perbaikan Kinerja 30/60/90 hari
+    Mulai Program     : {{pip_start}}
+    Selesai Program   : {{pip_end}}
+    Pembina / Atasan  : {{pip_reviewer}}
+
+Sasaran perbaikan yang harus dicapai Saudara selama program berlangsung:
+
+{{pip_targets}}
+
+Selama program berlangsung, Saudara wajib mengikuti seluruh jadwal evaluasi berkala (checkpoint) yang diselenggarakan bersama pembina dan konsultan Human Resources. Keberhasilan program dinilai berdasarkan pencapaian sasaran di atas. Apabila sasaran tidak tercapai hingga akhir program, perusahaan dapat mengambil tindakan lebih lanjut sesuai Peraturan Perusahaan dan peraturan perundang-undangan ketenagakerjaan yang berlaku.
+
+Perusahaan berharap Saudara memandang program ini sebagai dukungan dan kesempatan untuk memperbaiki serta mengembangkan kinerja. Bantuan dan pendampingan yang diperlukan dapat diminta kepada pembina maupun Human Resources.
+
+Demikian surat keputusan ini dibuat untuk dilaksanakan sebagaimana mestinya.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
+];
 
 export interface LetterPlaceholderGroup {
   group: string;
@@ -1046,6 +1121,21 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholderGroup[] = [
       { token: "appointment_date", desc: "Tanggal pengangkatan (surat pengangkatan)" },
       { token: "office_name", desc: "Kantor penempatan (surat pengangkatan)" },
       { token: "supervisor_name", desc: "Atasan langsung penempatan (surat pengangkatan)" },
+    ],
+  },
+  {
+    group: "Kinerja (surat hasil penilaian & SK PIP — PERF_RESULT / PERF_PIP)",
+    tokens: [
+      { token: "appraisal_no", desc: "Nomor dokumen penilaian (PER-YYYY-NNNN)" },
+      { token: "cycle_name", desc: "Nama siklus penilaian" },
+      { token: "cycle_period", desc: "Periode siklus penilaian (teks rentang tanggal)" },
+      { token: "final_score", desc: "Skor akhir penilaian" },
+      { token: "rating_label", desc: "Label rating akhir (mis. Baik / Exceeds)" },
+      { token: "manager_name", desc: "Nama atasan penilai" },
+      { token: "pip_start", desc: "Tanggal mulai program PIP" },
+      { token: "pip_end", desc: "Tanggal selesai program PIP" },
+      { token: "pip_reviewer", desc: "Nama pembina / atasan program PIP" },
+      { token: "pip_targets", desc: "Daftar sasaran PIP (satu baris per target)" },
     ],
   },
 ];

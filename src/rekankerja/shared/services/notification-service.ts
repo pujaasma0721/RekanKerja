@@ -111,6 +111,9 @@ async function resolveDocId(db: TenantDb, docType: string, docNo: string): Promi
       // P4-PERF — penilaian kinerja (docNo PER-YYYY-NNNN)
       case "PerformanceAppraisal":
         return (await db.appraisalRecord.findUnique({ where: { docNo }, select: { id: true } }))?.id ?? null;
+      // P5-PERF — usulan merit (docNo MER-YYYY-NNNN)
+      case "MeritRecommendation":
+        return (await db.meritRecommendation.findUnique({ where: { docNo }, select: { id: true } }))?.id ?? null;
       default:
         return null;
     }

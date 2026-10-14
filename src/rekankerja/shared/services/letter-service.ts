@@ -222,6 +222,9 @@ export async function buildLetterContext(
     letterNo: string;
     /** keperluan surat (permintaan ESS / input HR) — default "sesuai keperluan". */
     purpose?: string | null;
+    /** P5-PERF: token tambahan khusus modul (mis. appraisal_no, cycle_name,
+     *  pip_targets) — di-merge SETELAH ctx default (menimpa nilai "—"). */
+    extraCtx?: Record<string, string> | null;
   },
 ): Promise<Record<string, string>> {
   const { employee, template, disciplinaryRecord, personnelAction, letterNo, purpose } = opts;
@@ -416,6 +419,13 @@ export async function buildLetterContext(
     );
   }
 
+  // ---- Konteks TAMBAHAN modul (P5-PERF) — merge TERAKHIR agar menimpa default "—" ----
+  if (opts.extraCtx) {
+    for (const [k, v] of Object.entries(opts.extraCtx)) {
+      if (typeof v === "string") ctx[k] = v;
+    }
+  }
+
   return ctx;
 }
 
@@ -432,7 +442,7 @@ export async function buildLetterContext(
 export async function issueLetter(
   db: TenantDb,
   opts: {
-    category: "Disciplinary" | "PersonnelAction" | "EmployeeService";
+    category: "Disciplinary" | "PersonnelAction" | "EmployeeService" | "Performance";
     templateKey: string;
     employeeId: string;
     personnelActionId?: string | null;
@@ -440,6 +450,8 @@ export async function issueLetter(
     actorId?: string | null;
     /** keperluan surat layanan (Permintaan ESS / input HR saat terbit dari profil). */
     purpose?: string | null;
+    /** P5-PERF: token tambahan utk buildLetterContext (di-merge setelah ctx default). */
+    extraCtx?: Record<string, string> | null;
   },
 ): Promise<IssuedLetter> {
   const { category, templateKey, employeeId } = opts;
@@ -497,7 +509,7 @@ export async function issueLetter(
   const countSame = await db.letterDocument.count({
     where: { category, issuedAt: { gte: yearStart, lt: yearEnd } },
   });
-  const code = category === "Disciplinary" ? "HR-DIS" : category === "PersonnelAction" ? "HR-PA" : "HR-ES";
+  const code = category === "Disciplinary" ? "HR-DIS" : category === "PersonnelAction" ? "HR-PA" : category === "Performance" ? "HR-PER" : "HR-ES";
   const refNo = `${String(countSame + 1).padStart(3, "0")}/${code}/${ROMAN[now.getMonth()]}/${year}`;
 
   // 4. render snapshot + simpan + jejak aktivitas
@@ -508,6 +520,7 @@ export async function issueLetter(
     personnelAction,
     letterNo: refNo,
     purpose: opts.purpose ?? null,
+    extraCtx: opts.extraCtx ?? null,
   });
   const body = renderLetterBody(template.body, ctx);
 

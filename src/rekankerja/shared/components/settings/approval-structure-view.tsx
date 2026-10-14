@@ -43,8 +43,9 @@ const DOC_TYPES = [
   { value: "Loan", label: "Pinjaman Karyawan (Loan)", en: "Employee Loan" },
   { value: "RecruitmentPR", label: "Permintaan Karyawan (PR)", en: "Personnel Requisition (PR)" },
   { value: "PerformanceAppraisal", label: "Penilaian Kinerja (Performance)", en: "Performance Appraisal" },
+  { value: "MeritRecommendation", label: "Usulan Merit (Performance)", en: "Merit Recommendation (Performance)" },
 ] as const;
-const AMOUNT_DOC_TYPES = ["Travel", "Medical", "Loan", "TravelClaim", "RecruitmentPR"];
+const AMOUNT_DOC_TYPES = ["Travel", "Medical", "Loan", "TravelClaim", "RecruitmentPR", "MeritRecommendation"];
 
 const APPROVER_TYPES = [
   { value: "ATASAN_LANGSUNG", label: "Atasan Langsung", en: "Direct Superior" },

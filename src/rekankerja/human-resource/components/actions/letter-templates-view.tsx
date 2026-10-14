@@ -29,7 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { FileText, Pencil, RotateCcw, Loader2, PenLine, Eye, Scale, Inbox, CheckCircle2, XCircle, FileDown, UserRound, HeartHandshake, Fingerprint, FileSignature } from "lucide-react";
+import { FileText, Pencil, RotateCcw, Loader2, PenLine, Eye, Scale, Inbox, CheckCircle2, XCircle, FileDown, UserRound, HeartHandshake, Fingerprint, FileSignature, ClipboardCheck } from "lucide-react";
 import { EsignSignDialog } from "@/rekankerja/shared/components/esign/sign-dialog";
 import { cn } from "@/lib/utils";
 // Task adv-e — Advance Search tab Dokumen Terbit (client-side, tambahan di atas docQ)
@@ -145,6 +145,7 @@ const DOC_ADV_FIELDS: AdvFieldDef<DocRow>[] = [
     ["Disciplinary", "Disipliner", "Disciplinary"],
     ["PersonnelAction", "Personnel Action", "Personnel Action"],
     ["EmployeeService", "Layanan Karyawan", "Employee Service"],
+    ["Performance", "Kinerja", "Performance"],
   ]),
   dt("issuedAt", "Tanggal Terbit", "Issued At"),
   sel("esign", "e-Sign", "e-Sign", [
@@ -206,6 +207,7 @@ export function LetterTemplatesView() {
   const personnel = templates.filter((x) => x.category === "PersonnelAction");
   const service = templates.filter((x) => x.category === "EmployeeService");
   const recruitment = templates.filter((x) => x.category === "Recruitment");
+  const performance = templates.filter((x) => x.category === "Performance");
   const reqRows = requests.data?.requests ?? [];
   const pendingCount = requests.data?.counts.pending ?? 0;
   const docRows = filterRowsByAdv(
@@ -219,9 +221,9 @@ export function LetterTemplatesView() {
     DOC_ADV_FIELDS,
   );
   const signedCount = (issued.data?.letters ?? []).filter((d) => d.esign).length;
-  const CATEGORY_LABEL: Record<string, string> = { Disciplinary: "Disipliner", PersonnelAction: "Personnel Action", EmployeeService: "Layanan Karyawan", Recruitment: "Rekrutmen" };
+  const CATEGORY_LABEL: Record<string, string> = { Disciplinary: "Disipliner", PersonnelAction: "Personnel Action", EmployeeService: "Layanan Karyawan", Recruitment: "Rekrutmen", Performance: "Kinerja" };
   // Task 103-f — pasangan EN (key = kode kategori) utk render t(label, EN).
-  const CATEGORY_LABEL_EN: Record<string, string> = { Disciplinary: "Disciplinary", PersonnelAction: "Personnel Action", EmployeeService: "Employee Service", Recruitment: "Recruitment" };
+  const CATEGORY_LABEL_EN: Record<string, string> = { Disciplinary: "Disciplinary", PersonnelAction: "Personnel Action", EmployeeService: "Employee Service", Recruitment: "Recruitment", Performance: "Performance" };
 
   /** Toggle aktif/nonaktif (klik pil). */
   const toggleActive = async (tpl: TemplateRow) => {
@@ -415,6 +417,17 @@ export function LetterTemplatesView() {
                 </h3>
                 <div className="grid gap-3">
                   {recruitment.map(renderRow)}
+                </div>
+              </section>
+
+              {/* ===== seksi Kinerja (P5-PERF — surat hasil penilaian & SK PIP) ===== */}
+              <section aria-label={t("Template Surat Kinerja", "Performance Templates")}>
+                <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <ClipboardCheck className="h-3.5 w-3.5" aria-hidden /> {t("Kinerja", "Performance")}
+                  <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-slate-400">{performance.length}</Badge>
+                </h3>
+                <div className="grid gap-3">
+                  {performance.map(renderRow)}
                 </div>
               </section>
             </div>

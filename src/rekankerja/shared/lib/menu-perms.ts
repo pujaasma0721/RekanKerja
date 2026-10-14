@@ -197,6 +197,9 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "publish", label: "Publikasi hasil", hint: "Menerbitkan hasil ke karyawan + jendela acknowledgement" },
     { key: "appeal", label: "Memutuskan banding", hint: "Menyetujui/menolak banding karyawan dalam jendela" },
     { key: "close", label: "Menutup hasil siklus", hint: "Menutup hasil siklus menjadi read-only permanen setelah semua banding selesai (§35-16)" },
+    // P5-PERF — Merit, PA & Surat (§32 Alur 8)
+    { key: "merit", label: "Mengelola usulan merit", hint: "Rekomendasi bonus/kenaikan pasca-penilaian → payroll/PA (§32)" },
+    { key: "pip", label: "Memutuskan usul PIP", hint: "Menjalankan atau menolak usulan PIP rating ≤2 (§32-5)" },
   ],
 
   "recruitment:settings": [

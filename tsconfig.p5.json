@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "allowJs": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/performance/**/*",
+    "src/rekankerja/shared/lib/menu-perms.ts",
+    "src/rekankerja/shared/lib/letter-defaults.ts",
+    "src/rekankerja/shared/lib/money-view.ts",
+    "src/rekankerja/shared/services/wa-defaults.ts",
+    "src/rekankerja/shared/services/scheduler-service.ts",
+    "src/rekankerja/shared/services/approval-engine.ts",
+    "src/rekankerja/shared/services/notification-service.ts",
+    "src/rekankerja/shared/services/letter-service.ts",
+    "src/rekankerja/shared/components/settings/approval-structure-view.tsx",
+    "src/rekankerja/shared/components/settings/approval-views.tsx",
+    "src/rekankerja/human-resource/components/actions/letter-templates-view.tsx",
+    "src/rekankerja/human-resource/api/personnel-actions.ts",
+    "src/rekankerja/payroll/services/payroll-service.ts",
+    "src/app/api/rekankerja/performance/*/route.ts"
+  ]
+}

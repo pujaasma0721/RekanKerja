@@ -30,8 +30,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   ClipboardCheck, AlertTriangle, Loader2, Users, Grid3X3, Megaphone, Lock, CheckCircle2,
-  MailCheck, Scale, Info, Search,
+  MailCheck, Scale, Info, Search, Award,
 } from "lucide-react";
+import { PerformanceMeritPage } from "./performance-merit";
 
 // ---------- tipe (kontrak API §17) ----------
 
@@ -83,12 +84,20 @@ export function PerformanceResultsPage() {
   const [picked, setPicked] = useState("");
   const [tab, setTab] = useState("results");
 
-  // default DERIVED (bukan setState-in-effect): Published > Calibration > teratas
+  // default DERIVED (bukan setState-in-effect): Published > Calibration > teratas;
+  // tab Merit & Tindak Lanjut (P5 §32): default siklus Closed terbaru (pasca-
+  // publikasi — merit/PA/surat bekerja atas hasil final) — pilihan manual tetap
+  // menang di semua tab.
   const rows = cycles.data?.rows ?? [];
   const cycle = rows.find((c) => c.id === picked)
-    ?? rows.find((c) => c.status === "Published")
-    ?? rows.find((c) => c.status === "Calibration")
-    ?? rows[0] ?? null;
+    ?? (tab === "merit"
+      ? rows.find((c) => c.status === "Closed")
+        ?? rows.find((c) => c.status === "Published")
+        ?? rows.find((c) => c.status === "Calibration")
+        ?? rows[0] ?? null
+      : rows.find((c) => c.status === "Published")
+      ?? rows.find((c) => c.status === "Calibration")
+      ?? rows[0] ?? null);
   const cycleId = cycle?.id ?? "";
 
   return (
@@ -133,9 +142,13 @@ export function PerformanceResultsPage() {
               <TabsTrigger value="ninebox" className="h-9 gap-1.5 rounded-lg px-3 text-xs font-semibold data-[state=active]:ov-fill">
                 <Grid3X3 className="h-3.5 w-3.5" /> {t("9-Box", "9-Box")}
               </TabsTrigger>
+              <TabsTrigger value="merit" className="h-9 gap-1.5 rounded-lg px-3 text-xs font-semibold data-[state=active]:ov-fill">
+                <Award className="h-3.5 w-3.5" /> {t("Merit & Tindak Lanjut", "Merit & Follow-up")}
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="results"><ResultsTab cycleId={cycleId} /></TabsContent>
             <TabsContent value="ninebox"><NineBoxTab cycleId={cycleId} /></TabsContent>
+            <TabsContent value="merit"><PerformanceMeritPage cycleId={cycleId} /></TabsContent>
           </Tabs>
         </>
       )}
