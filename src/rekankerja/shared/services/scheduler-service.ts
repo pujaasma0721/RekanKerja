@@ -60,6 +60,7 @@ import { processWebhookDeliveries } from "@/rekankerja/recruitment/services/webh
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import { perfGoalReminders } from "@/rekankerja/performance/services/perf-goal-service";
 import { checkinReminders } from "@/rekankerja/performance/services/perf-checkin-service";
+import { pipReminders } from "@/rekankerja/performance/services/perf-pip-service";
 import { flushQueuedNudges } from "@/rekankerja/performance/services/perf-cycle-service";
 import { expireOverdue } from "@/rekankerja/performance/services/perf-360-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
@@ -1693,6 +1694,12 @@ export interface SchedulerJobCounts {
   perfCheckinMissed: number;
   /** P3-PERF §29-3 — undangan 360 Invited lewat dueAt yang otomatis Expired. */
   perf360Expired: number;
+  /** P6-PERF §33-3 — checkpoint PIP Pending jatuh tempo ≤ H+3 yang diingatkan (pembina + karyawan). */
+  pipCheckpointReminded: number;
+  /** P6-PERF §33-4 — PIP lewat endDate tanpa outcome yang diingatkan ke HR (keputusan ≤ +7 hari). */
+  pipOutcomeDueReminded: number;
+  /** P6-PERF §33-4 — PIP lewat endDate +7 hari yang dieskalasi (ActivityLog sekali per PIP). */
+  pipOverdueEscalated: number;
 }
 
 export interface SchedulerRunResult {
@@ -1759,6 +1766,9 @@ export async function runAllJobs(
     perfCheckinReminded: 0,
     perfCheckinMissed: 0,
     perf360Expired: 0,
+    pipCheckpointReminded: 0,
+    pipOutcomeDueReminded: 0,
+    pipOverdueEscalated: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1914,6 +1924,17 @@ export async function runAllJobs(
   // siklus ber-360 yang punya baris Feedback360).
   await guarded("perf-360-expire", async () => {
     jobs.perf360Expired = await expireOverdue(db);
+  });
+
+  // P6-PERF §33-3/§33-4 — pengingat PIP: (a) checkpoint Pending jatuh tempo ≤ H+3
+  // → nudge in-app pembina + karyawan; (b) endDate ≤ hari ini → ingatkan HR
+  // "outcome jatuh tempo — keputusan paling lambat +7 hari"; (c) endDate +7
+  // lewat → eskalasi overdue ter-log sekali per PIP (dedupe ActivityLog Reminder).
+  await guarded("perf-pip-reminder", async () => {
+    const r = await pipReminders(db);
+    jobs.pipCheckpointReminded = r.checkpointReminded;
+    jobs.pipOutcomeDueReminded = r.outcomeDueReminded;
+    jobs.pipOverdueEscalated = r.overdueEscalated;
   });
 
   // F4-REC — offer: kedaluwarsa otomatis (Sent/Viewed lewat expiryDate) +

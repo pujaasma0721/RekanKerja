@@ -12,6 +12,8 @@
 //     §35-14) + tarik banding — kartu tetap tampil meski karyawan terdaftar di
 //     siklus baru (perbaikan P4: sebelumnya hanya saat !current).
 //   • Tab "Periode lalu" — riwayat siklus final (read-only §18.3 gaya).
+//   • P6 §33-3 — seksi "Program Perbaikan Kinerja (PIP)": progres program
+//     milik sendiri (sasaran + checkpoint 30/60/90 + capaian) — read-only.
 // Estimator dampak TIDAK ada di ESS (D21 — karyawan tidak melihat).
 // ============================================================================
 import { useEffect, useState } from "react";
@@ -92,7 +94,7 @@ const fmtD = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "—"
 
 export function EssMyAppraisalPage() {
   const { t } = useI18n();
-  const { data, loading, error, refresh } = useApi<{ current: CurrentBlock | null; published: PublishedData | null; previous: PrevRow[] }>(`${ESS_BASE}/my-appraisal`);
+  const { data, loading, error, refresh } = useApi<{ current: CurrentBlock | null; published: PublishedData | null; previous: PrevRow[]; pips?: MyPipRow[] }>(`${ESS_BASE}/my-appraisal`);
   const [tab, setTab] = useState<"current" | "previous">("current");
 
   return (
@@ -174,7 +176,120 @@ export function EssMyAppraisalPage() {
           )}
         </>
       )}
+
+      {data && (data.pips ?? []).length > 0 && <MyPipSection pips={data.pips ?? []} />}
     </div>
+  );
+}
+
+// ---------- P6 §33-3: PIP Saya (read-only — karyawan melihat progresnya sendiri) ----------
+
+interface MyPipRow {
+  id: string; docNo: string; startDate: string; endDate: string; status: string;
+  reviewerName: string | null;
+  targets: { title: string; metric: string; target: string; weight: number }[];
+  checkpoints: { seq: number; dueDate: string; achievementPct: number | null; status: string; notes: string | null }[];
+  outcomeNotes: string | null;
+}
+
+function MyPipSection({ pips }: { pips: MyPipRow[] }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const live = pips.find((p) => p.status === "Active" || p.status === "Extended") ?? pips[0];
+  if (!live) return null;
+  const reviewed = live.checkpoints.filter((c) => c.status === "Reviewed").length;
+  const statusTone: Record<string, string> = {
+    Active: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    Extended: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    Recovered: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
+    NotRecovered: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+    Cancelled: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+    Draft: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  };
+  return (
+    <Card className="border-amber-200/70 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20">
+      <CardContent className="p-4 sm:p-5">
+        <button className="flex w-full items-center gap-2 text-left" onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}>
+          <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold">
+                {t("Program Perbaikan Kinerja (PIP)", "Performance Improvement Plan (PIP)")}
+              </span>
+              <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", statusTone[live.status] ?? statusTone.Draft)}>
+                {live.status}
+              </span>
+              <span className="font-mono text-xs text-slate-500">{live.docNo}</span>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {t(
+                `${fmtD(live.startDate)} – ${fmtD(live.endDate)} · pembina ${live.reviewerName ?? "—"} · checkpoint direview ${reviewed}/${live.checkpoints.length}`,
+                `${fmtD(live.startDate)} – ${fmtD(live.endDate)} · coach ${live.reviewerName ?? "—"} · checkpoints reviewed ${reviewed}/${live.checkpoints.length}`,
+              )}
+            </p>
+          </div>
+          <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", open && "rotate-180")} aria-hidden />
+        </button>
+
+        {open && (
+          <div className="mt-3 space-y-3">
+            {live.targets.length > 0 && (
+              <div>
+                <p className="mb-1 text-xs font-semibold text-slate-600">{t("Sasaran program", "Program targets")}</p>
+                <ul className="space-y-1">
+                  {live.targets.map((tg, i) => (
+                    <li key={i} className="text-xs text-slate-600">
+                      <span className="font-medium">{i + 1}. {tg.title}</span>
+                      {tg.metric ? ` (${tg.metric})` : ""} — {t("target", "target")}: {tg.target} · {t("bobot", "weight")} {tg.weight}%
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div>
+              <p className="mb-1 text-xs font-semibold text-slate-600">{t("Progres checkpoint (30/60/90 hari)", "Checkpoint progress (30/60/90 days)")}</p>
+              <div className="space-y-1.5">
+                {live.checkpoints.map((c) => (
+                  <div key={c.seq} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-900/60">
+                    <span className="font-mono text-[11px] text-slate-400">CP{c.seq}</span>
+                    <span className="text-xs text-slate-500">{fmtD(c.dueDate)}</span>
+                    <span className="ml-auto text-xs font-semibold">
+                      {c.status === "Reviewed"
+                        ? `${c.achievementPct ?? 0}%`
+                        : t("menunggu review", "awaiting review")}
+                    </span>
+                    <span className={cn("h-2 w-2 shrink-0 rounded-full", c.status === "Reviewed" ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600")} aria-hidden />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {live.checkpoints.some((c) => c.notes) && (
+              <div className="rounded-lg border border-slate-200 bg-white/70 p-2.5 dark:border-slate-800 dark:bg-slate-900/60">
+                <p className="mb-1 text-xs font-semibold text-slate-600">{t("Catatan pembina", "Coach notes")}</p>
+                <ul className="space-y-1">
+                  {live.checkpoints.filter((c) => c.notes).map((c) => (
+                    <li key={c.seq} className="text-xs text-slate-600">
+                      <span className="font-mono text-[11px] text-slate-400">CP{c.seq}:</span> {c.notes}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {live.outcomeNotes && (
+              <p className="text-xs text-slate-500">
+                <span className="font-semibold">{t("Hasil program:", "Program outcome:")}</span> {live.outcomeNotes}
+              </p>
+            )}
+            {pips.length > 1 && (
+              <p className="text-[11px] text-slate-400">
+                {t(`+ ${pips.length - 1} program lain di riwayat`, `+ ${pips.length - 1} other program(s) in history`)}
+              </p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

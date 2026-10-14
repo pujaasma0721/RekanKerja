@@ -202,6 +202,14 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "pip", label: "Memutuskan usul PIP", hint: "Menjalankan atau menolak usulan PIP rating ≤2 (§32-5)" },
   ],
 
+  // P6-PERF — PIP end-to-end (§33 Alur 9): register & checkpoint
+  "performance:pip": [
+    { key: "activate", label: "Mengaktivasi PIP", hint: "Mengajukan PIP ke approval AS-PIP-STD dan mengaktifkan program (§33-1)" },
+    { key: "checkpoint", label: "Review checkpoint PIP", hint: "Mencatat capaian checkpoint 30/60/90 hari oleh pembina (§33-3)" },
+    { key: "extend", label: "Memperpanjang PIP", hint: "Perpanjangan 1× dengan total durasi ≤3 bulan (§35-21)" },
+    { key: "outcome", label: "Memutuskan hasil PIP", hint: "Keputusan akhir Recovered/NotRecovered (§35-22)" },
+  ],
+
   "recruitment:settings": [
     { key: "webhook", label: "Mengelola webhook", hint: "Menambah/mengubah/menguji endpoint webhook rekrutmen (event PR, lamaran, offer, hired)" },
     { key: "esign", label: "Permintaan e-sign kandidat", hint: "Membuat/mengirim ulang OTP/membatalkan permintaan tanda tangan elektronik kandidat eksternal" },

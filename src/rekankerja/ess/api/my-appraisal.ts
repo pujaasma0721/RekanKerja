@@ -7,6 +7,7 @@ import {
 import {
   acknowledge, appeal, withdrawAppeal,
 } from "@/rekankerja/performance/services/perf-results-service";
+import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 
 // ============================================================================
 // PERFORMANCE — ESS "Penilaian Saya" (P3 — §17 ess/my-appraisal, Alur 5 §29-2):
@@ -22,7 +23,48 @@ import {
 //        konfirmasi menerima hasil (bukan persetujuan isi) + banding D6
 //        (jendela appealDays sejak publishAt) + tarik banding (self-scope).
 // Guard: requireEss (self-scope anti-IDOR).
+// P6 — respons diperluas `pips`: program PIP milik sendiri (§33-3 karyawan
+// melihat progresnya sendiri — read-only; SK PIP terbit saat draf dibuat).
 // ============================================================================
+
+/** PIP milik karyawan (§33-3 — read-only di ESS). Anti-IDOR: self-scope
+ * employeeId dari sesi ESS. */
+async function myPips(db: TenantDb, employeeId: string) {
+  const rows = await db.pipPlan.findMany({
+    where: { employeeId },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  });
+  if (rows.length === 0) return [];
+  const reviewerIds = [...new Set(rows.map((r) => r.reviewerId))];
+  const reviewers = await db.employee.findMany({ where: { id: { in: reviewerIds } }, select: { id: true, fullName: true } });
+  const reviewerName = new Map(reviewers.map((r) => [r.id, r.fullName]));
+  const cps = await db.pipCheckpoint.findMany({
+    where: { pipId: { in: rows.map((r) => r.id) } },
+    orderBy: { seq: "asc" },
+  });
+  return rows.map((r) => {
+    let targets: { title: string; metric: string; target: string; weight: number }[] = [];
+    try { targets = JSON.parse(r.targetsJson) as typeof targets; } catch { targets = []; }
+    return {
+      id: r.id,
+      docNo: r.docNo,
+      startDate: r.startDate.toISOString(),
+      endDate: r.endDate.toISOString(),
+      status: r.status,
+      reviewerName: reviewerName.get(r.reviewerId) ?? null,
+      targets,
+      checkpoints: cps
+        .filter((c) => c.pipId === r.id)
+        .map((c) => ({
+          seq: c.seq, dueDate: c.dueDate.toISOString(), achievementPct: c.achievementPct,
+          status: c.status, notes: c.notes,
+        })),
+      outcomeNotes: r.outcomeNotes,
+    };
+  });
+}
+
 export async function GET(req: Request) {
   const m = await requireEss(req);
   if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
@@ -36,7 +78,7 @@ export async function GET(req: Request) {
       orderBy: { updatedAt: "desc" },
       take: 10,
     });
-    if (!appraisals.length) return NextResponse.json({ current: null, published: null, previous: [] });
+    if (!appraisals.length) return NextResponse.json({ current: null, published: null, previous: [], pips: await myPips(db, employeeId) });
 
     // siklus aktif = belum Published/Closed; hasil final = sudah
     const current = appraisals.find((a) => !["Published", "Closed"].includes(a.cycle.status)) ?? null;
@@ -59,6 +101,7 @@ export async function GET(req: Request) {
           finalScore: r.appraisal.finalScore, finalRating: r.appraisal.finalRating,
           rating: r.rating,
         })),
+      pips: await myPips(db, employeeId),
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

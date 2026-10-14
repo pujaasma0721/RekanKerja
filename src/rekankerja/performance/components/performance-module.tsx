@@ -12,6 +12,7 @@ import { PerformanceCheckinsPage } from "./performance-checkins";
 import { PerformanceAppraisalsPage } from "./performance-appraisals";
 import { PerformanceCalibrationPage } from "./performance-calibration";
 import { PerformanceResultsPage } from "./performance-results";
+import { PerformancePipPage } from "./performance-pip";
 
 export function PerformanceModule({ view }: { view: string }) {
   switch (view) {
@@ -29,6 +30,8 @@ export function PerformanceModule({ view }: { view: string }) {
       return <PerformanceCalibrationPage />;
     case "results":
       return <PerformanceResultsPage />;
+    case "pip":
+      return <PerformancePipPage />;
     case "settings":
       return <PerformanceSettingsPage />;
     default:
