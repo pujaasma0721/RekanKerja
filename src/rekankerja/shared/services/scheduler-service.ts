@@ -61,6 +61,7 @@ import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruit
 import { perfGoalReminders } from "@/rekankerja/performance/services/perf-goal-service";
 import { checkinReminders } from "@/rekankerja/performance/services/perf-checkin-service";
 import { pipReminders } from "@/rekankerja/performance/services/perf-pip-service";
+import { probationReminders } from "@/rekankerja/performance/services/perf-probation-service";
 import { flushQueuedNudges } from "@/rekankerja/performance/services/perf-cycle-service";
 import { expireOverdue } from "@/rekankerja/performance/services/perf-360-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
@@ -1700,6 +1701,9 @@ export interface SchedulerJobCounts {
   pipOutcomeDueReminded: number;
   /** P6-PERF §33-4 — PIP lewat endDate +7 hari yang dieskalasi (ActivityLog sekali per PIP). */
   pipOverdueEscalated: number;
+  /** P7-PERF §28 — evaluasi percobaan H-14/H-3 + lewat tenggat tanpa keputusan
+   *  (eskalasi mingguan) yang diingatkan job perf-probation-reminder. */
+  perfProbReminded: number;
 }
 
 export interface SchedulerRunResult {
@@ -1769,6 +1773,7 @@ export async function runAllJobs(
     pipCheckpointReminded: 0,
     pipOutcomeDueReminded: 0,
     pipOverdueEscalated: 0,
+    perfProbReminded: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1935,6 +1940,15 @@ export async function runAllJobs(
     jobs.pipCheckpointReminded = r.checkpointReminded;
     jobs.pipOutcomeDueReminded = r.outcomeDueReminded;
     jobs.pipOverdueEscalated = r.overdueEscalated;
+  });
+
+  // P7-PERF §28 — percobaan: H-14 & H-3 menjelang jatuh tempo → ingatkan atasan
+  // + HR; lewat jatuh tempo tanpa keputusan → eskalasi mingguan HR + direktur
+  // (dedupe ActivityLog Reminder per key — entity Scheduler).
+  await guarded("perf-probation-reminder", async () => {
+    const r = await probationReminders(db);
+    jobs.perfProbReminded = r.reminded;
+    notificationsSent += r.notified;
   });
 
   // F4-REC — offer: kedaluwarsa otomatis (Sent/Viewed lewat expiryDate) +

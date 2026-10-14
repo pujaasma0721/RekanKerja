@@ -210,6 +210,15 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "outcome", label: "Memutuskan hasil PIP", hint: "Keputusan akhir Recovered/NotRecovered (§35-22)" },
   ],
 
+  // P7-PERF — evaluasi masa percobaan (§28 Alur 4; §7.1 UU 13/2003 Ps.60)
+  "performance:probation": [
+    { key: "assess", label: "Penilaian atasan", hint: "Mengisi skor atasan 0–100 + kriteria bobot 3–6 item Σ100 (§28-2)" },
+    { key: "recommend", label: "Rekomendasi HR", hint: "Confirm / Extend (perjanjian kerja baru — UU 13/2003 Ps.60 §7.1) / Terminate (§28-3)" },
+    { key: "submit", label: "Mengajukan keputusan", hint: "Meneruskan rekomendasi ke jalur persetujuan AS-PROB-STD (L3 Direktur hanya utk Terminate)" },
+    { key: "decide", label: "Keputusan masa percobaan", hint: "Memutus jenjang persetujuan + menggulir PA + menerbitkan surat (§28-4)" },
+    { key: "cancel", label: "Membatalkan evaluasi", hint: "Membatalkan evaluasi percobaan (mis. salah karyawan) — alasan ter-audit" },
+  ],
+
   "recruitment:settings": [
     { key: "webhook", label: "Mengelola webhook", hint: "Menambah/mengubah/menguji endpoint webhook rekrutmen (event PR, lamaran, offer, hired)" },
     { key: "esign", label: "Permintaan e-sign kandidat", hint: "Membuat/mengirim ulang OTP/membatalkan permintaan tanda tangan elektronik kandidat eksternal" },

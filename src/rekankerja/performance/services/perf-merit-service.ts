@@ -1109,7 +1109,9 @@ export async function pipCandidates(
   const pipRejectOf = new Map<string, { at: Date; reason: string }>();
   for (const l of rejectLogs) {
     const detail = l.detail ?? "";
-    if (pipRejectOf.has(l.entityId) || !detail.includes("DITOLAK")) continue;
+    // P7 baseline-fix: ActivityLog.entityId bertipe nullable — skip baris tanpa
+    // entityId (logika sama, tipe kini eksplisit non-null utk Map).
+    if (!l.entityId || pipRejectOf.has(l.entityId) || !detail.includes("DITOLAK")) continue;
     const m = /— alasan: (.+) \(§32-5\)\s*$/.exec(detail);
     pipRejectOf.set(l.entityId, { at: l.createdAt, reason: m?.[1] ?? "—" });
   }

@@ -1000,6 +1000,80 @@ Demikian surat keputusan ini dibuat untuk dilaksanakan sebagaimana mestinya.
 {{signatory_name}}
 {{signatory_title}}`,
   },
+  // ---------------- EVALUASI MASA PERCOBAAN (P7-PERF — §28 alur 4; §7.1) ----------------
+  {
+    key: "PROB_RESULT",
+    category: "Performance",
+    name: "Surat Hasil Evaluasi Masa Percobaan",
+    description: "Hasil keputusan evaluasi masa percobaan (Confirm/Terminate) — diterbitkan dari menu Performance · Percobaan setelah keputusan disetujui.",
+    subject: "Surat Hasil Evaluasi Masa Percobaan",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Hasil Evaluasi Masa Percobaan
+
+Kepada Yth.
+Bapak/Ibu {{employee_name}}
+NIK {{employee_no}}
+{{employee_position}} — {{employee_org_unit}}
+
+Sehubungan dengan berakhirnya masa percobaan Saudara/i yang berakhir pada {{probation_due_date}}, berdasarkan hasil evaluasi terhadap capaian kerja Saudara/i selama masa percobaan tersebut (dokumen evaluasi {{probation_doc_no}}, skor penilaian atasan {{probation_manager_score}}/100), dengan ini perusahaan menyampaikan hasil evaluasi masa percobaan Saudara/i sebagai berikut:
+
+    Hasil evaluasi : {{probation_recommendation_label}}
+
+Hasil tersebut merupakan kesimpulan atas penilaian kriteria kerja yang ditetapkan perusahaan selama masa percobaan, sebagaimana diatur dalam perjanjian kerja Saudara/i dan ketentuan peraturan perusahaan. Tindak lanjut administratif atas hasil ini (apabila ada) akan disampaikan secara terpisah melalui dokumen aksi kepegawaian yang berlaku.
+
+Apabila terdapat hal yang ingin didiskusikan lebih lanjut mengenai hasil evaluasi ini, silakan menghubungi bagian HRD atau atasan langsung Saudara/i.
+
+Demikian surat ini kami sampaikan. Atas perhatian dan kerja sama Saudara/i selama masa percobaan, kami ucapkan terima kasih.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
+  {
+    key: "PROB_EXTEND",
+    category: "Performance",
+    name: "Surat Perjanjian — Perubahan Perjanjian Kerja terkait Masa Percobaan",
+    description: "Perjanjian kerja BARU pengganti terkait keputusan masa percobaan (percobaan ke-2) — jalur yang benar karena \"perpanjangan masa percobaan\" tidak dikenal UU 13/2003 Pasal 60 (§7.1).",
+    subject: "Perjanjian Kerja — Masa Percobaan",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Perjanjian Kerja — Perubahan Perjanjian Kerja terkait Masa Percobaan
+
+Pada hari ini, {{letter_date}}, bertempat di {{city}}, yang bertanda tangan di bawah ini:
+
+{{company_name}}, selanjutnya disebut "Perusahaan", dan
+
+Nama        : {{employee_name}}
+NIK         : {{employee_no}}
+Jabatan     : {{employee_position}}
+Unit kerja  : {{employee_org_unit}}
+selanjutnya disebut "Pekerja".
+
+Sehubungan dengan hasil evaluasi masa percobaan Pekerja (dokumen evaluasi {{probation_doc_no}}), para pihak sepakat mengakhiri perjanjian kerja sebelumnya dan menggantinya dengan perjanjian kerja baru dengan ketentuan sebagai berikut:
+
+1. Perjanjian kerja ini merupakan PERJANJIAN KERJA BARU PENGGANTI. Para pihak sepakat dan memahami bahwa "perpanjangan masa percobaan" TIDAK dikenal dalam Undang-Undang Nomor 13 Tahun 2003 tentang Ketenagakerjaan Pasal 60; oleh karena itu, keikutsertaan Pekerja dalam masa percobaan kembali dilakukan melalui perjanjian kerja baru sebagaimana surat ini, dan bukan melalui perpanjangan masa percobaan pada perjanjian kerja yang lama.
+
+2. Masa percobaan dalam perjanjian kerja baru ini berlaku paling lama 3 (tiga) bulan terhitung sejak tanggal berlakunya perjanjian kerja baru ini, yaitu sejak {{probation_start_label}} sampai dengan {{probation_new_end_date}}, sepanjang tidak ditetapkan lebih pendek menurut perjanjian kerja yang bersangkutan.
+
+3. Selama masa percobaan, Perusahaan membayar upah Pekerja tidak lebih rendah dari upah minimum, dan masing-masing pihak dapat mengakhiri hubungan kerja dengan mengakhiri perjanjian kerja ini menurut syarat-syarat yang ditetapkan dalam perjanjian kerja ini tanpa mewajibkan pembayaran ganti rugi.
+
+4. Ketentuan-ketentuan lain mengenai jabatan, penempatan, hak, dan kewajiban Pekerja mengikuti perjanjian kerja baru yang diterbitkan bersamaan dengan surat ini serta peraturan perusahaan yang berlaku.
+
+Demikian perjanjian ini dibuat dalam rangkap 2 (dua) asli, masing-masing mempunyai kekuatan hukum yang sama, ditandatangani oleh para pihak dalam keadaan sadar tanpa paksaan dari pihak mana pun.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}                       Pekerja
+
+{{signatory_name}}                     {{employee_name}}
+{{signatory_title}}`,
+  },
 ];
 
 export interface LetterPlaceholderGroup {
@@ -1136,6 +1210,12 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholderGroup[] = [
       { token: "pip_end", desc: "Tanggal selesai program PIP" },
       { token: "pip_reviewer", desc: "Nama pembina / atasan program PIP" },
       { token: "pip_targets", desc: "Daftar sasaran PIP (satu baris per target)" },
+      { token: "probation_doc_no", desc: "Nomor dokumen evaluasi percobaan (PRB-…)" },
+      { token: "probation_due_date", desc: "Tanggal berakhir masa percobaan (joinDate + 3 bln)" },
+      { token: "probation_recommendation_label", desc: "Label hasil keputusan percobaan (dikonfirmasi / PhK percobaan)" },
+      { token: "probation_manager_score", desc: "Skor penilaian atasan masa percobaan (0–100)" },
+      { token: "probation_start_label", desc: "Mulai masa percobaan perjanjian baru (tanggal join)" },
+      { token: "probation_new_end_date", desc: "Akhir masa percobaan perjanjian baru (maks 3 bln)" },
     ],
   },
 ];
