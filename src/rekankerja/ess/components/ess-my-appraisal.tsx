@@ -13,19 +13,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
-import { NotebookPen, Sparkles, Send, Zap, Waypoints, FileSpreadsheet } from "lucide-react";
+import { NotebookPen, Sparkles, Send, Zap, Waypoints, FileSpreadsheet, ChevronDown } from "lucide-react";
 
 const API = "/api/rekankerja/ess/my-appraisal";
 
 interface CompRow { competencyId: string; name: string; kind: string; levels: { level: number; label: string; descriptor: string }[]; selfScore: number | null; selfComment: string | null }
 interface PipCp { seq: number; dueDate: string; achievementPct: number | null; status: string; notes: string | null }
-interface ActivePip {
-  docNo: string; startDate: string; endDate: string; status: string; reviewerName: string | null;
+interface MyPip {
+  id?: string; docNo: string; startDate: string; endDate: string; status: string; reviewerName: string | null;
   targets: { title: string; metric: string; target: string; weight: number }[];
   checkpoints: PipCp[];
+  outcomeNotes?: string | null;
 }
 interface Data {
-  activePip: ActivePip | null;
+  pips: MyPip[];
+  activePip: MyPip | null;
   active: {
     appraisalId: string; docNo: string; status: string;
     cycle: { code: string; selfStart: string | null; selfEnd: string | null };
@@ -48,7 +50,8 @@ export function EssMyAppraisalPage() {
   const [aiBusy, setAiBusy] = useState(false);
 
   const a = api.data?.active;
-  const pip = api.data?.activePip;
+  const pips = api.data?.pips ?? [];
+  const [pipOpen, setPipOpen] = useState(true);
   const canSubmit = a && a.status !== "SelfDone" && !["ManagerDone", "Calibrating", "Finalized", "Published", "Closed"].includes(a.status);
 
   useEffect(() => {
@@ -93,7 +96,7 @@ export function EssMyAppraisalPage() {
   };
 
   const fmtD = (iso: string) => new Date(iso).toLocaleDateString(lang === "en" ? "en-GB" : "id-ID");
-  const cpReviewed = (pip?.checkpoints ?? []).filter((c) => c.status === "Reviewed").length;
+  const cpReviewed = (pip: MyPip) => pip.checkpoints.filter((c) => c.status === "Reviewed").length;
 
   return (
     <div className="space-y-4">
@@ -114,52 +117,73 @@ export function EssMyAppraisalPage() {
         </div>
       </div>
 
-      {/* P6-PERF — Program Perbaikan Kinerja Anda (§33-3: read-only progress) */}
-      {pip && (
+      {/* P6-PERF — Program Perbaikan Kinerja (PIP) — §33-3: karyawan melihat
+          progres programnya sendiri (read-only, collapsible; riwayat lengkap). */}
+      {pips.length > 0 && (
         <Card className="border-amber-200 dark:border-amber-900"><CardContent className="p-4">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-1.5 text-sm font-semibold"><Waypoints className="h-4 w-4 text-amber-500" aria-hidden /> {t("Program Perbaikan Kinerja Anda", "Your Performance Improvement Plan")}</h3>
-            <StatusPill status={pip.status} />
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold"><Waypoints className="h-4 w-4 text-amber-500" aria-hidden /> {t("Program Perbaikan Kinerja (PIP)", "Performance Improvement Plan (PIP)")}</h3>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" aria-expanded={pipOpen} onClick={() => setPipOpen((v) => !v)}>
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", pipOpen ? "" : "-rotate-90")} aria-hidden />
+              {pipOpen ? t("Sembunyikan", "Hide") : t("Lihat {n} program", "Show {n} programs", { n: String(pips.length) })}
+            </Button>
           </div>
-          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-            {t(
-              "{doc} · {start} → {end} · pembina: {rev} · {r}/{n} checkpoint ter-review",
-              "{doc} · {start} → {end} · coach: {rev} · {r}/{n} checkpoints reviewed",
-              { doc: pip.docNo, start: fmtD(pip.startDate), end: fmtD(pip.endDate), rev: pip.reviewerName ?? "—", r: String(cpReviewed), n: String(pip.checkpoints.length) },
-            )}
-          </p>
-          <div className="grid gap-1.5">
-            {pip.targets.map((tg, i) => (
-              <div key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-800">
-                <span className="font-medium">{tg.title}</span>
-                <span className="text-xs text-slate-500">{t("Target", "Target")}: {tg.target} ({tg.metric}) · {t("bobot", "weight")} {Number(tg.weight)}%</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 space-y-2">
-            {pip.checkpoints.map((c) => (
-              <div key={c.seq} className="rounded-lg border border-slate-200 p-2 dark:border-slate-800">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-semibold">{t("Checkpoint {n}", "Checkpoint {n}", { n: String(c.seq) })} · {fmtD(c.dueDate)}</span>
-                  <StatusPill status={c.status === "Pending" ? "Pending" : "Reviewed"} />
-                </div>
-                {c.achievementPct != null ? (
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                      <div
-                        className={cn("h-full rounded-full", c.achievementPct >= 100 ? "bg-emerald-500" : c.achievementPct >= 75 ? "bg-amber-400" : "bg-rose-400")}
-                        style={{ width: `${Math.min(100, c.achievementPct)}%` }}
-                      />
-                    </div>
-                    <span className="w-12 text-right text-xs font-bold tabular-nums">{c.achievementPct}%</span>
+          {pipOpen && (
+            <div className="space-y-3">
+              {pips.map((pip) => (
+                <div key={pip.docNo} className="rounded-xl border border-amber-100 p-3 dark:border-amber-950/60">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-bold">{pip.docNo}</span>
+                    <StatusPill status={pip.status} />
                   </div>
-                ) : (
-                  <p className="mt-1 text-xs text-slate-500">{t("menunggu review pembina", "awaiting coach review")}</p>
-                )}
-                {c.notes && <p className="mt-1 text-xs italic text-slate-500">“{c.notes}”</p>}
-              </div>
-            ))}
-          </div>
+                  <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+                    {t(
+                      "{start} → {end} · pembina: {rev} · {r}/{n} checkpoint ter-review",
+                      "{start} → {end} · coach: {rev} · {r}/{n} checkpoints reviewed",
+                      { start: fmtD(pip.startDate), end: fmtD(pip.endDate), rev: pip.reviewerName ?? "—", r: String(cpReviewed(pip)), n: String(pip.checkpoints.length) },
+                    )}
+                  </p>
+                  <div className="grid gap-1.5">
+                    {pip.targets.map((tg, i) => (
+                      <div key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-800">
+                        <span className="font-medium">{tg.title}</span>
+                        <span className="text-xs text-slate-500">{t("Target", "Target")}: {tg.target} ({tg.metric}) · {t("bobot", "weight")} {Number(tg.weight)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {pip.checkpoints.map((c) => (
+                      <div key={c.seq} className="rounded-lg border border-slate-200 p-2 dark:border-slate-800">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-semibold">{t("Checkpoint {n}", "Checkpoint {n}", { n: String(c.seq) })} · {fmtD(c.dueDate)}</span>
+                          <StatusPill status={c.status === "Pending" ? "Pending" : "Reviewed"} />
+                        </div>
+                        {c.achievementPct != null ? (
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                              <div
+                                className={cn("h-full rounded-full", c.achievementPct >= 100 ? "bg-emerald-500" : c.achievementPct >= 75 ? "bg-amber-400" : "bg-rose-400")}
+                                style={{ width: `${Math.min(100, c.achievementPct)}%` }}
+                              />
+                            </div>
+                            <span className="w-12 text-right text-xs font-bold tabular-nums">{c.achievementPct}%</span>
+                          </div>
+                        ) : (
+                          <p className="mt-1 text-xs text-slate-500">{t("menunggu review pembina", "awaiting coach review")}</p>
+                        )}
+                        {c.notes && <p className="mt-1 text-xs italic text-slate-500">“{c.notes}”</p>}
+                      </div>
+                    ))}
+                  </div>
+                  {pip.outcomeNotes && (
+                    <p className="mt-2 rounded-md bg-slate-50 p-2 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                      <strong>{t("Catatan hasil", "Outcome note")}:</strong> {pip.outcomeNotes}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent></Card>
       )}
 

@@ -24,30 +24,52 @@ async function appealWindowEnd(db: TenantDb, cycleId: string): Promise<Date | nu
   return new Date(c.publishAt.getTime() + APPEAL_WINDOW_DAYS * 24 * 3600 * 1000);
 }
 
-/** PIP karyawan yang sedang berjalan (Active/Extended — SK sudah terbit; draf
- * yang belum disetujui tidak terlihat karyawan). Read-only di ESS (§33-3). */
-async function myOpenPip(db: TenantDb, employeeId: string) {
-  const pip = await db.pipPlan.findFirst({
-    where: { employeeId, status: { in: ["Active", "Extended"] } },
+/** PIP milik karyawan (§33-3: karyawan melihat progres programnya sendiri —
+ * read-only di ESS; SK PIP terbit saat draf dibuat sehingga program yang
+ * menunggu persetujuan pun sudah sah dikomunikasikan). Anti-IDOR: self-scope
+ * employeeId dari sesi ESS. */
+async function myPips(db: TenantDb, employeeId: string) {
+  const rows = await db.pipPlan.findMany({
+    where: { employeeId },
     orderBy: { createdAt: "desc" },
-    include: { checkpoints: { orderBy: { seq: "asc" } } },
+    take: 10,
   });
-  if (!pip) return null;
-  const reviewer = await db.employee.findUnique({ where: { id: pip.reviewerId }, select: { fullName: true } });
-  let targets: { title: string; metric: string; target: string; weight: number }[] = [];
-  try { targets = JSON.parse(pip.targetsJson) as typeof targets; } catch { targets = []; }
-  return {
-    docNo: pip.docNo,
-    startDate: pip.startDate.toISOString(),
-    endDate: pip.endDate.toISOString(),
-    status: pip.status,
-    reviewerName: reviewer?.fullName ?? null,
-    targets,
-    checkpoints: pip.checkpoints.map((c) => ({
-      seq: c.seq, dueDate: c.dueDate.toISOString(), achievementPct: c.achievementPct,
-      status: c.status, notes: c.notes,
-    })),
-  };
+  if (rows.length === 0) return [];
+  const reviewerIds = [...new Set(rows.map((r) => r.reviewerId))];
+  const reviewers = await db.employee.findMany({ where: { id: { in: reviewerIds } }, select: { id: true, fullName: true } });
+  const reviewerName = new Map(reviewers.map((r) => [r.id, r.fullName]));
+  const cps = await db.pipCheckpoint.findMany({
+    where: { pipId: { in: rows.map((r) => r.id) } },
+    orderBy: { seq: "asc" },
+  });
+  return rows.map((r) => {
+    let targets: { title: string; metric: string; target: string; weight: number }[] = [];
+    try { targets = JSON.parse(r.targetsJson) as typeof targets; } catch { targets = []; }
+    return {
+      id: r.id,
+      docNo: r.docNo,
+      startDate: r.startDate.toISOString(),
+      endDate: r.endDate.toISOString(),
+      status: r.status,
+      reviewerName: reviewerName.get(r.reviewerId) ?? null,
+      targets,
+      checkpoints: cps
+        .filter((c) => c.pipId === r.id)
+        .map((c) => ({
+          seq: c.seq, dueDate: c.dueDate.toISOString(), achievementPct: c.achievementPct,
+          status: c.status, notes: c.notes,
+        })),
+      outcomeNotes: r.outcomeNotes,
+    };
+  });
+}
+
+/** PIP karyawan yang sedang berjalan (Active/Extended — kompatibilitas UI lama;
+ * kini ESS memakai array `pips` lengkap di atas). */
+async function myOpenPip(db: TenantDb, employeeId: string) {
+  const pips = await myPips(db, employeeId);
+  const open = pips.find((r) => r.status === "Active" || r.status === "Extended") ?? null;
+  return open;
 }
 
 export async function GET(req: Request) {
@@ -56,10 +78,12 @@ export async function GET(req: Request) {
   const { db, employeeId } = m.actor;
   try {
     const me = await myAppraisal(db, employeeId);
-    const activePip = await myOpenPip(db, employeeId);
-    if (!me) return NextResponse.json({ active: null, activePip });
+    const pips = await myPips(db, employeeId);
+    const activePip = pips.find((r) => r.status === "Active" || r.status === "Extended") ?? null;
+    if (!me) return NextResponse.json({ active: null, pips, activePip });
     const view = await getAssessmentView(db, me.id);
     return NextResponse.json({
+      pips,
       activePip,
       active: {
         appraisalId: view.appraisal.id,

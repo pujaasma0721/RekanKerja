@@ -138,15 +138,13 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "appeal", label: "Memutuskan banding", hint: "Keputusan banding karyawan (jendela D6)" },
     { key: "merit", label: "Usulan merit & penerapan", hint: "MeritRecommendation → approval nominal → payroll/PA + surat hasil + usul PIP (Alur 8)" },
   ],
+  // P6-PERF — PIP end-to-end (§33 Alur 9)
   "performance:pip": [
-    { key: "new", label: "Menyusun draf PIP", hint: "Membuat/menyunting rencana PIP — target mini-KPI 3–5 item, pembina, durasi 1–3 bulan (D7)" },
-    { key: "submit", label: "Mengajukan PIP", hint: "Meneruskan draf PIP ke jalur persetujuan AS-PIP-STD (atasan → HR)" },
-    { key: "decide", label: "Menyetujui / menolak PIP", hint: "Keputusan jenjang persetujuan PipPlan" },
-    { key: "activate", label: "Mengaktifkan PIP", hint: "Aktivasi program perbaikan kinerja 30/60/90 (persetujuan akhir — SK terbit)" },
-    { key: "checkpoint", label: "Review checkpoint", hint: "Menilai capaian checkpoint PIP" },
-    { key: "extend", label: "Memperpanjang PIP", hint: "Perpanjangan 1× saja — total tetap ≤3 bulan (D7)" },
-    { key: "outcome", label: "Menutup outcome PIP", hint: "Recovered/NotRecovered/Cancelled" },
-    { key: "cancel", label: "Membatalkan PIP", hint: "Membatalkan program (mis. resign) — alasan ter-audit" },
+    { key: "activate", label: "Mengaktivasi PIP", hint: "Mengajukan PIP ke approval AS-PIP-STD dan mengaktifkan program (§33-1)" },
+    { key: "checkpoint", label: "Review checkpoint PIP", hint: "Mencatat capaian checkpoint 30/60/90 hari oleh pembina (§33-3)" },
+    { key: "extend", label: "Memperpanjang PIP", hint: "Perpanjangan 1× dengan total durasi ≤3 bulan (§35-21)" },
+    { key: "outcome", label: "Memutuskan hasil PIP", hint: "Keputusan akhir Recovered/NotRecovered (§35-22)" },
+    { key: "create", label: "Membuat PIP manual", hint: "PIP khusus tanpa usulan penilaian, wajib alasan (§35-20)" },
   ],
   "performance:probation": [
     { key: "new", label: "Membuat evaluasi percobaan", hint: "Evaluasi masa percobaan manual (karyawan tanpa evaluasi terbuka — tenggat maks 3 bulan sejak join §7.1)" },

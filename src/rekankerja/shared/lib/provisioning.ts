@@ -437,7 +437,7 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
   // (tenant baru; tenant lama di-heal ensurePipInfrastructure saat menu PIP
   // dibuka pertama kali).
   try {
-    const { ensurePipInfrastructure } = await import("@/rekankerja/performance/services/pip-service");
+    const { ensurePipInfrastructure } = await import("@/rekankerja/performance/services/perf-pip-service");
     await ensurePipInfrastructure(db);
   } catch { /* struktur/template unik per code — race tenant bootstrap aman diabaikan */ }
 

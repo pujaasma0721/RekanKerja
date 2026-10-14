@@ -58,7 +58,7 @@ import { jobSelectionReminders } from "@/rekankerja/recruitment/services/selecti
 import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service";
 // P2-PERF — reminder check-in terlewat (§27-1)
 import { jobPerfCheckInReminders } from "@/rekankerja/performance/services/checkin-service";
-import { jobPerfPipReminders } from "@/rekankerja/performance/services/pip-service";
+import { pipReminders } from "@/rekankerja/performance/services/perf-pip-service";
 import { jobPerfProbationReminders } from "@/rekankerja/performance/services/probation-service";
 // P8-PERF — snapshot metrik kinerja (perf_completion, perf_rating_distribution,
 // perf_pip_recovery_rate) ke MetricSnapshot yang sama dgn analitik rekrutmen.
@@ -1653,9 +1653,15 @@ export interface SchedulerJobCounts {
   attendanceTransferReminders: number;
   /** P2-PERF — check-in terlewat yang diingatkan job perf-checkin-reminder. */
   perfCheckInReminded: number;
-  /** P6-PERF — checkpoint PIP menjelang jatuh tempo + PIP lewat tenggat +7 hari
-   *  tanpa outcome yang diingatkan job perf-pip-reminder (dedupe per key). */
-  perfPipReminded: number;
+  /** P6-PERF — checkpoint PIP menjelang jatuh tempo (H-3) yang diingatkan job
+   *  perf-pip-reminder: pembina + karyawan (dedupe per checkpoint per tanggal). */
+  pipCheckpointReminded: number;
+  /** P6-PERF — PIP Active/Extended yang endDate-nya tiba (outcome jatuh tempo —
+   *  keputusan paling lambat +7 hari) yang diingatkan job perf-pip-reminder. */
+  pipOutcomeDueReminded: number;
+  /** P6-PERF — PIP lewat endDate+7 hari tanpa outcome yang dieskalasi job
+   *  perf-pip-reminder (ActivityLog eskalasi sekali per PIP). */
+  pipOverdueEscalated: number;
   /** P7-PERF — evaluasi percobaan H-14/H-3 + lewat tenggat tanpa keputusan
    *  (eskalasi mingguan) yang diingatkan job perf-probation-reminder. */
   perfProbReminded: number;
@@ -1764,7 +1770,9 @@ export async function runAllJobs(
     retentionAnonymized: 0,
     retentionSkippedConsent: 0,
     perfCheckInReminded: 0,
-    perfPipReminded: 0,
+    pipCheckpointReminded: 0,
+    pipOutcomeDueReminded: 0,
+    pipOverdueEscalated: 0,
     perfProbReminded: 0,
     perfMetricsSnapshotted: 0,
     perfRetentionArchived: 0,
@@ -1868,11 +1876,14 @@ export async function runAllJobs(
     jobs.perfCheckInReminded = r.reminded;
     notificationsSent += r.notified;
   });
-  // P6-PERF — PIP: checkpoint jatuh tempo ≤3 hari → ingatkan pembina;
-  // PIP lewat endDate+7 hari tanpa outcome → ingatkan HR (dedupe per key).
+  // P6-PERF — PIP: checkpoint jatuh tempo ≤3 hari (H-3) → ingatkan pembina +
+  // karyawan; endDate tiba → ingatkan HR (keputusan ≤ +7 hari); endDate+7 lewat
+  // → eskalasi overdue sekali per PIP (dedupe ActivityLog Reminder per key).
   await guarded("perf-pip-reminder", async () => {
-    const r = await jobPerfPipReminders(db);
-    jobs.perfPipReminded = r.reminded;
+    const r = await pipReminders(db);
+    jobs.pipCheckpointReminded = r.checkpointReminded;
+    jobs.pipOutcomeDueReminded = r.outcomeDueReminded;
+    jobs.pipOverdueEscalated = r.overdueEscalated;
     notificationsSent += r.notified;
   });
   // P7-PERF — percobaan: H-14 & H-3 menjelang jatuh tempo → ingatkan atasan +
