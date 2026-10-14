@@ -37,7 +37,11 @@ export type EssView =
   // P1-PERF — Target Saya (MyGoals §14.6/§18.3)
   | "my-goals"
   // P2-PERF — Check-in Saya (riwayat 1-on-1 + progres mid §27)
-  | "my-checkins";
+  | "my-checkins"
+  // P3-PERF — Penilaian Saya (self-assessment §29-2 + hasil published)
+  | "my-appraisal"
+  // P3-PERF — 360 Saya (undangan reviewer anonim §29-3/§37)
+  | "my-360";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;

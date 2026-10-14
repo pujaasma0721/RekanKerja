@@ -186,6 +186,7 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "finalize", label: "Finalisasi penilaian", hint: "Mengunci nilai & mengirim ke kalibrasi" },
     { key: "ai-compose", label: "AI Assist ulasan", hint: "Menyusun draf ulasan dari poin penilai (AM3 §18.11 — compose-only)" },
     { key: "import", label: "Impor Excel realisasi", hint: "Unggah realisasi akhir tahun massal via template Excel (AM2 §18.5)" },
+    { key: "pull", label: "Tarik data otomatis", hint: "Menarik nilai KPI dari modul sumber (kehadiran/lembur/cuti/rekrutmen) dengan bukti (AM2 §18.6)" },
   ],
   "performance:calibration": [
     { key: "decide", label: "Keputusan kalibrasi", hint: "Mengubah skor/rating final dengan alasan ter-audit" },

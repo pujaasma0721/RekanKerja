@@ -14,7 +14,7 @@ import {
   LayoutDashboard, UserRound, Palmtree, Fingerprint, ReceiptText, HeartPulse, ClipboardList, ClipboardCheck, FileText,
   Bell, Moon, Sun, LogOut, KeyRound, X, CheckCheck, MoreHorizontal, ArrowRight, Check,
   Waypoints, ChevronDown, Building2, Clock as ClockIcon, UserRoundSearch, ListChecks,
-  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package, CalendarPlus, Target,
+  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package, CalendarPlus, Target, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, initials, fmtDateTime } from "@/rekankerja/shared/lib/api";
@@ -57,6 +57,9 @@ import { EssMyJobsPage } from "./ess-my-jobs";
 import { EssMyPlanPage } from "./ess-my-plan";
 import { EssMyGoalsPage } from "./ess-my-goals";
 import { EssMyCheckinsPage } from "./ess-my-checkins";
+// P3-PERF — Penilaian Saya + 360 Saya (§14.6 ESS nav)
+import { EssMyAppraisalPage } from "./ess-my-appraisal";
+import { EssMy360Page } from "./ess-my-360";
 // Task 52-f — kanal whistleblowing TPKS (anonim) utk semua pekerja.
 import { WhistleblowForm, WB_CATEGORIES } from "@/rekankerja/whistleblow/components/whistleblow-form";
 import { Siren, Ticket, MessagesSquare } from "lucide-react";
@@ -86,6 +89,10 @@ const ESS_NAV: EssNavItem[] = [
   { id: "my-goals", label: "Target Saya", en: "My Goals", short: "Target", shortEn: "Goals", icon: ListChecks },
   // P2-PERF — Check-in Saya: riwayat 1-on-1 + progres tengah tahun (dua arah §27-2)
   { id: "my-checkins", label: "Check-in Saya", en: "My Check-ins", short: "1-on-1", shortEn: "1-on-1", icon: MessagesSquare },
+  // P3-PERF — Penilaian Saya: self-assessment + hasil final published (§29-2)
+  { id: "my-appraisal", label: "Penilaian Saya", en: "My Appraisal", short: "Penilaian", shortEn: "Appraisal", icon: ClipboardCheck },
+  // P3-PERF — 360 Saya: undangan reviewer anonim (§29-3)
+  { id: "my-360", label: "360 Saya", en: "My 360", short: "360", shortEn: "360", icon: Users },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)
   { id: "letters", label: "Surat", en: "Letters", short: "Surat", shortEn: "Letters", icon: FileText },
   // Task 27-f/g/b — pengumuman / tukar shift / aset saya
@@ -654,6 +661,8 @@ export function EssShell() {
             {view === "my-plan" && <EssMyPlanPage />}
             {view === "my-goals" && <EssMyGoalsPage />}
             {view === "my-checkins" && <EssMyCheckinsPage />}
+            {view === "my-appraisal" && <EssMyAppraisalPage />}
+            {view === "my-360" && <EssMy360Page />}
             {view === "assets" && <EssAssets />}
             {view === "whistleblow" && (
               <div className="mx-auto max-w-2xl">

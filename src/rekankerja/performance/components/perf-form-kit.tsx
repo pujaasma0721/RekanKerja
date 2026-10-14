@@ -13,8 +13,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
-import { CloudUpload, CloudOff, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
+import { CloudUpload, CloudOff, CheckCircle2, Loader2, RotateCcw, Sparkles, Undo2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { apiSend } from "@/rekankerja/shared/lib/api";
 
 // ---------------------------------------------------------------------------
 // useDraftAutosave
@@ -289,4 +297,165 @@ export function distributeEvenly(weights: number[], target = 100): number[] {
   const out = Array(n).fill(base);
   out[n - 1] = Math.round((target - base * (n - 1)) * 100) / 100;
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// AI Assist kolom ulasan §18.11 (AM3 — D20 compose-only; dipakai form atasan,
+// self-assessment ESS, isian 360). Hasil = DRAF yang dapat diedit — tombol
+// "Pakai" eksplisit; "kembali ke poin saya" selalu tersedia (§18.11-3).
+// ---------------------------------------------------------------------------
+
+export interface AiComposeTarget {
+  /** endpoint POST (admin appraisals / ESS my-appraisal / my-360). */
+  endpoint: string;
+  /** payload tetap: scope, appraisalId, competencyId (bila ada). */
+  extra: Record<string, unknown>;
+}
+
+export function AiComposeDialog({ target, title, onClose, onUse }: {
+  target: AiComposeTarget;
+  title: string;
+  onClose: () => void;
+  onUse: (text: string) => void;
+}) {
+  const { t, locale } = useI18n();
+  const [points, setPoints] = useState<string[]>([""]);
+  const [tone, setTone] = useState<"neutral" | "encouraging" | "firm">("neutral");
+  const [length, setLength] = useState<"short" | "medium">("short");
+  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState<string | null>(null);
+
+  const clean = points.map((p) => p.trim()).filter(Boolean);
+
+  const compose = async () => {
+    if (clean.length < 1) {
+      toast.info(t("Tulis minimal satu poin sebagai bahan ulasan", "Write at least one point as material for the review"));
+      return;
+    }
+    setBusy(true);
+    setUnavailable(null);
+    try {
+      const res = await apiSend<{ draft: string | null; unavailable: boolean; error?: string }>(target.endpoint, "POST", {
+        action: "aiCompose",
+        ...target.extra,
+        points: clean,
+        tone,
+        length,
+        lang: locale.startsWith("en") ? "en" : "id",
+      });
+      if (res.unavailable || !res.draft) {
+        // kegagalan TENANG §18.11-5 — banner halus, form tetap 100% berfungsi
+        setUnavailable(res.error ?? t("AI sedang tidak tersedia — tulis manual, coba lagi nanti", "AI is currently unavailable — write manually, try again later"));
+      } else {
+        setDraft(res.draft);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle><Sparkles className="mr-1 inline h-4 w-4 text-brand" />{t("Susun dengan AI", "Compose with AI")}</DialogTitle>
+          <DialogDescription>
+            {t(
+              `${title} — tulis poin pendek Anda, AI hanya merangkai kalimatnya (compose-only). AI tidak menilai, tidak menambah fakta, dan tidak menghasilkan angka skor.`,
+              `${title} — write your short points; the AI only arranges the sentences (compose-only). The AI does not judge, add facts, or produce score numbers.`,
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">{t("Poin Anda (1–6 baris)", "Your points (1–6 lines)")}</Label>
+            {points.map((p, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <Input
+                  value={p}
+                  aria-label={t(`Poin ${i + 1}`, `Point ${i + 1}`)}
+                  onChange={(e) => setPoints(points.map((x, j) => (j === i ? e.target.value : x)))}
+                  placeholder={t("mis. sering bantu tim lain saat deadline", "e.g. often helps other teams near deadlines")}
+                />
+                {points.length > 1 && (
+                  <Button size="sm" variant="ghost" className="h-8 px-2 text-slate-400"
+                    aria-label={t("Hapus poin", "Remove point")}
+                    onClick={() => setPoints(points.filter((_, j) => j !== i))}>×</Button>
+                )}
+              </div>
+            ))}
+            {points.length < 6 && (
+              <Button size="sm" variant="ghost" className="h-7 text-xs text-slate-500" onClick={() => setPoints([...points, ""])}>
+                + {t("tambah poin", "add point")}
+              </Button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">{t("Nada", "Tone")}</Label>
+              <Select value={tone} onValueChange={(v) => setTone(v as typeof tone)}>
+                <SelectTrigger aria-label={t("Nada", "Tone")}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="neutral">{t("Profesional netral", "Professionally neutral")}</SelectItem>
+                  <SelectItem value="encouraging">{t("Memberi semangat", "Encouraging")}</SelectItem>
+                  <SelectItem value="firm">{t("Tegas namun konstruktif", "Firm yet constructive")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t("Panjang", "Length")}</Label>
+              <Select value={length} onValueChange={(v) => setLength(v as typeof length)}>
+                <SelectTrigger aria-label={t("Panjang", "Length")}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="short">{t("Ringkas (2–3 kalimat)", "Short (2–3 sentences)")}</SelectItem>
+                  <SelectItem value="medium">{t("Sedang (4–6 kalimat)", "Medium (4–6 sentences)")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {unavailable && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-400" role="status">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{unavailable}</span>
+            </div>
+          )}
+
+          {draft != null && (
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Label className="text-xs">{t("Draf (dapat diedit sebelum dipakai)", "Draft (editable before use)")}</Label>
+                <Badge variant="outline" className="h-4 px-1 text-[9px] text-brand"><Sparkles className="mr-0.5 h-2.5 w-2.5" />{t("disusun AI dari poin Anda", "AI-arranged from your points")}</Badge>
+                <Button size="sm" variant="ghost" className="ml-auto h-6 px-2 text-[11px] text-slate-500"
+                  onClick={() => setDraft(clean.join(". ") + ".")}
+                  title={t("Kembalikan teks ke poin asli Anda", "Restore the text to your original points")}>
+                  <Undo2 className="mr-1 h-3 w-3" />{t("kembali ke poin saya", "back to my points")}
+                </Button>
+              </div>
+              <Textarea rows={5} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={t("Draf ulasan", "Review draft")} />
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>{t("Batal", "Cancel")}</Button>
+          {draft == null ? (
+            <Button onClick={compose} disabled={busy || clean.length < 1}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {t("Susun Draf", "Compose Draft")}
+            </Button>
+          ) : (
+            <Button onClick={() => onUse(draft.trim())}>
+              <CheckCircle2 className="h-4 w-4" />{t("Pakai", "Use")}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }

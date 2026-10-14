@@ -500,14 +500,20 @@ export async function assignBatch(
   }
   let created = 0;
   for (const it of items) {
-    const title = reqStr(it.title, "Judul KPI");
-    let polarity = it.polarity ?? "Higher";
-    let unit = it.unit ?? "";
+    // kpiDefId diberikan → definisi pustaka jadi sumber judul/polaritas/satuan
+    // bila pemanggil tak menyertakan judul (robust API; UI tetap boleh override judul).
+    let defPolarity: string | null = null;
+    let defUnit: string | null = null;
+    let defTitle: string | null = null;
     if (it.kpiDefId) {
       const def = await resolveDef(db, it.kpiDefId);
-      polarity = def.polarity;
-      unit = def.unit;
+      defPolarity = def.polarity;
+      defUnit = def.unit;
+      defTitle = def.name;
     }
+    const title = reqStr(it.title ?? defTitle, "Judul KPI");
+    let polarity = it.polarity ?? defPolarity ?? "Higher";
+    let unit = it.unit ?? defUnit ?? "";
     if (!["Higher", "Lower", "Boolean"].includes(polarity)) throw new Error(`Polaritas tidak valid: ${polarity}`);
     if (!unit) throw new Error(`Satuan wajib untuk "${title}"`);
     const weight = it.weight ?? 0;
@@ -641,7 +647,7 @@ export async function lockGoals(
   assertGoalWindow(a);
   const errors = validateDraft(a.kpis);
   const hard = errors.filter((e) =>
-    e.includes("Total bobot") || e.includes("ideal 3–8") || e.includes("terlalu banyak") ||
+    e.includes("Belum ada baris KPI") || e.includes("Total bobot") || e.includes("ideal 3–8") || e.includes("terlalu banyak") ||
     e.includes("ambang gagal belum diisi") || e.includes("bobot harus > 0") || e.includes("Boolean"));
   if (hard.length > 0) throw new Error(`Submit ditolak (§35-3): ${hard[0]}`);
 

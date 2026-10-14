@@ -275,6 +275,19 @@ export async function enrollParticipants(
   const existingIds = new Set(existing.map((e) => e.employeeId));
 
   const year = cycle.periodStart.getFullYear();
+  // nomor dokumen peserta PER-YYYY-NNNN — UNIQUE LINTAS-SIKLUS: ambil max-suffix
+  // global per tahun (bug: dulu hanya menghitung dalam 1 siklus → PER-2026-0001
+  // tabrakan saat enroll ke siklus lain tahun sama → unique constraint gagal).
+  const docPrefix = `PER-${year}-`;
+  const usedDocNos = await db.appraisalRecord.findMany({
+    where: { docNo: { startsWith: docPrefix } },
+    select: { docNo: true },
+  });
+  let maxSeq = 0;
+  for (const u of usedDocNos) {
+    const n = Number(u.docNo.slice(docPrefix.length));
+    if (Number.isFinite(n) && n > maxSeq) maxSeq = n;
+  }
   const report: EnrollReport = { enrolled: [], skippedDuplicate: [], needManager: [], docNos: [] };
   const mgrNames = new Map<string, string>();
   const resolveMgrName = async (id: string | null | undefined): Promise<string | null> => {
@@ -292,9 +305,9 @@ export async function enrollParticipants(
       continue;
     }
     const managerId = mgrOf.get(e.id) ?? null;
-    // nomor dokumen peserta PER-YYYY-NNNN (max-suffix — pemanggilan berurutan)
-    const seq = report.docNos.length + existingIds.size;
-    const docNo = `PER-${year}-${String(seq + 1).padStart(4, "0")}`;
+    // nomor dokumen peserta PER-YYYY-NNNN (max-suffix global per tahun — pemanggilan berurutan)
+    maxSeq++;
+    const docNo = `${docPrefix}${String(maxSeq).padStart(4, "0")}`;
     await db.appraisalRecord.create({
       data: { docNo, cycleId: cycle.id, employeeId: e.id, managerId, status: "Enrolled" },
     });

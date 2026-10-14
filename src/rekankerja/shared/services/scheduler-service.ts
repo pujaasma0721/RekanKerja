@@ -61,6 +61,7 @@ import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruit
 import { perfGoalReminders } from "@/rekankerja/performance/services/perf-goal-service";
 import { checkinReminders } from "@/rekankerja/performance/services/perf-checkin-service";
 import { flushQueuedNudges } from "@/rekankerja/performance/services/perf-cycle-service";
+import { expireOverdue } from "@/rekankerja/performance/services/perf-360-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
 import { runRetention } from "@/rekankerja/recruitment/services/compliance-service";
 
@@ -1690,6 +1691,8 @@ export interface SchedulerJobCounts {
   perfCheckinReminded: number;
   /** P2-PERF §27-1 — check-in lewat tenggat >7 hari yang otomatis Missed. */
   perfCheckinMissed: number;
+  /** P3-PERF §29-3 — undangan 360 Invited lewat dueAt yang otomatis Expired. */
+  perf360Expired: number;
 }
 
 export interface SchedulerRunResult {
@@ -1755,6 +1758,7 @@ export async function runAllJobs(
     perfNudgeQueueFlushed: 0,
     perfCheckinReminded: 0,
     perfCheckinMissed: 0,
+    perf360Expired: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1903,6 +1907,13 @@ export async function runAllJobs(
     const out = await checkinReminders(db, push);
     jobs.perfCheckinReminded = out.reminded;
     jobs.perfCheckinMissed = out.autoMissed;
+  });
+
+  // P3-PERF §29-3 — undangan 360 yang lewat tenggat otomatis Expired
+  // (expireOverdue polos per undangan; guard feedback360 tersirat — hanya
+  // siklus ber-360 yang punya baris Feedback360).
+  await guarded("perf-360-expire", async () => {
+    jobs.perf360Expired = await expireOverdue(db);
   });
 
   // F4-REC — offer: kedaluwarsa otomatis (Sent/Viewed lewat expiryDate) +

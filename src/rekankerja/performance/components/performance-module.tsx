@@ -9,6 +9,7 @@ import { PerformanceGoalsPage } from "./performance-goals";
 import { PerformanceMastersPage } from "./performance-masters";
 import { PerformanceSettingsPage } from "./performance-settings";
 import { PerformanceCheckinsPage } from "./performance-checkins";
+import { PerformanceAppraisalsPage } from "./performance-appraisals";
 
 export function PerformanceModule({ view }: { view: string }) {
   switch (view) {
@@ -20,6 +21,8 @@ export function PerformanceModule({ view }: { view: string }) {
       return <PerformanceCheckinsPage />;
     case "goals":
       return <PerformanceGoalsPage />;
+    case "appraisals":
+      return <PerformanceAppraisalsPage />;
     case "settings":
       return <PerformanceSettingsPage />;
     default:
