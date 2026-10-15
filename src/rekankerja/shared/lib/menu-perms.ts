@@ -236,6 +236,12 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "close", label: "Menutup objective kuartal", hint: "Menutup objective Posted di akhir kuartal — skor final dihitung server (D-BL5, hanya HR)" },
   ],
 
+  // B3-BL — Talent & Risiko Attrisi (DEVELOPMENT-PLAN-BACKLOG.md §4 B3;
+  // D-BL10…D-BL12): heuristik explainable READ-ONLY on-demand stateless —
+  // TANPA op khusus (tidak ada mutasi; cakupan baris HR/Direksi/atasan-langsung
+  // dijaga DI SERVICE, bukan op map).
+  "performance:talent": [],
+
   "recruitment:settings": [
     { key: "webhook", label: "Mengelola webhook", hint: "Menambah/mengubah/menguji endpoint webhook rekrutmen (event PR, lamaran, offer, hired)" },
     { key: "esign", label: "Permintaan e-sign kandidat", hint: "Membuat/mengirim ulang OTP/membatalkan permintaan tanda tangan elektronik kandidat eksternal" },

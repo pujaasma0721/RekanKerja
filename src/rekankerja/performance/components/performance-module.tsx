@@ -17,6 +17,7 @@ import { PerformanceProbationPage } from "./performance-probation";
 import { PerformanceReportsPage } from "./performance-reports";
 import { PerformanceCompliancePage } from "./performance-compliance";
 import { PerformanceOkrPage } from "./performance-okr";
+import { PerformanceTalentPage } from "./performance-talent";
 
 export function PerformanceModule({ view }: { view: string }) {
   switch (view) {
@@ -29,6 +30,9 @@ export function PerformanceModule({ view }: { view: string }) {
     // B1-BL — OKR kuartalan + board transparan (D-BL1…D-BL5)
     case "okr":
       return <PerformanceOkrPage />;
+    // B3-BL — Talent: heuristik attrisi explainable (D-BL10…D-BL12)
+    case "talent":
+      return <PerformanceTalentPage />;
     case "goals":
       return <PerformanceGoalsPage />;
     case "appraisals":

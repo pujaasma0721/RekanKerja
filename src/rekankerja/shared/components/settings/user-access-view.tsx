@@ -1151,6 +1151,7 @@ const MENU_OPS_LABEL_EN: Record<string, string> = {
   "Memosting objective OKR": "Post an OKR objective",
   "Menutup objective kuartal": "Close a quarterly objective",
 };
+
 const MENU_OPS_HINT_EN: Record<string, string> = {
   "Aksi Setujui & Tolak di kotak persetujuan": "The Approve & Reject actions in the approval inbox",
   "Aksi Setujui & Tolak pada daftar semua pengajuan": "The Approve & Reject actions on the all-requests list",
@@ -1182,6 +1183,9 @@ const MENU_OPS_HINT_EN: Record<string, string> = {
   // B1-BL — OKR kuartalan (performance:okr)
   "Menerbitkan objective Draft ke board transparan yang terlihat seluruh karyawan (D-BL3)": "Publishes a Draft objective onto the transparent board visible to all employees (D-BL3)",
   "Menutup objective Posted di akhir kuartal — skor final dihitung server (D-BL5, hanya HR)": "Closes a Posted objective at quarter end — the final score is computed server-side (D-BL5, HR only)",
+  // B3-BL — Talent & Risiko Attrisi (performance:talent): READ-ONLY tanpa
+  // operasi khusus (D-BL10…D-BL12) — tidak ada entri label/hint ops yang
+  // perlu dipetakan; item menu muncul otomatis di katalog lewat nav TALENT.
 };
 
 function PermSummaryBadge({ perm, menuKey }: { perm: MenuPerm; menuKey: string }) {

@@ -359,6 +359,11 @@ const PERFORMANCE_NAV: NavGroup[] = [
     // P7 — evaluasi masa percobaan
     { id: "probation", label: "Evaluasi Masa Percobaan", icon: Hourglass },
   ] },
+  // B3-BL — Talent: heuristik attrisi explainable (D-BL10…D-BL12 — grup baru
+  // utk tab talent modul Kinerja; succession B4 akan menyusul di sini)
+  { section: "performance", label: "TALENT", children: [
+    { id: "talent", label: "Talent & Attrisi", icon: TrendingUp },
+  ] },
   { section: "performance", label: "Master Kinerja", children: [
     // P0 — KPI library, kompetensi, skala, template, merit matrix + VERSIONING §18.9
     { id: "masters", label: "Master Kinerja", icon: Boxes },
