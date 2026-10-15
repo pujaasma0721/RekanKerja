@@ -6811,3 +6811,17 @@ Stage Summary:
 - Retensi arsip = TANDAI-SAJA (archivedAt) oleh job harian perf-retention-scan — penghapusan permanen SELALU keputusan eksplisit HR (bukti keputusan kepegawaian §7.2).
 - Insiden sesi ini tercatat: (1) arah repo kanonik = RekanKerja/origin saja (onevity berhenti di P8 sebagai backup historis + branch recovery); (2) environment reset penuh (PG re-init + .env tertimpa) dipulihkan via prosedur baku; (3) kegagalan run-parity-once standalone terbukti pre-existing (reproduksi di P8 bersih) — paritas P9 diverifikasi SQL langsung 3 tenant.
 - Push P9 → origin (RekanKerja.git) SAJA sesuai arahan user.
+
+---
+Task ID: STATUS-CHECK (pasca-P9)
+Agent: main (Z.ai Code) — orchestrator
+Task: Verifikasi push + audit sisa pekerjaan terhadap dokumen development (permintaan user: "push, lalu cek apa masih ada yang belum dikerjakan, cek dok development").
+
+Work Log:
+- GIT: worktree 100% bersih; main = origin/main @ a589a29 (P9) — tidak ada yang perlu di-push. Remote kanonik = origin (RekanKerja.git); onevity (OneVity.git) tetap backup historis berhenti di P8 sesuai keputusan P9.
+- DOK DEVELOPMENT: DEVELOPMENT-PLAN-PERFORMANCE.md §20 — P0–P9 LENGKAP 10/10 fase (commit be06aa5..a589a29). DEVELOPMENT-PLAN-RECRUITMENT.md F0–F9 lengkap (modul sebelumnya; F9 direferensikan hidup di P9: DSR pelamar applicantId-nullable).
+- SISA = backlog eksplisit "belum dijadwalkan — butuh keputusan user" (§20 akhir): OKR kuartalan + board transparan; AI ringkasan check-in & deteksi bias bahasa; modul Training terhubung skor kompetensi; succession planning penuh di atas 9-box; benchmark gaji. Rekrutmen: 9 item strategic-backlog (519c864, analisa tanpa eksekusi — keputusan sadar).
+- GATES §21 RE-RUN (semua hijau): tsc -p tsconfig.p9.json 0 error (heap 2000MB — 1400MB OOM karena dev-server memakan ~2,5GB RAM, lingkungan bukan regresi); lint 0 error/6 warning baseline; audit-bilingual TOTAL_GAP=150 baseline; dev.log bersih (GET / 200; 401 /api/auth/me = unauth normal); rg TODO/FIXME di src/rekankerja/performance/ nihil.
+
+Stage Summary:
+- Tidak ada pekerjaan terjadwal yang tersisa — kedua dokumen development (Rekrutmen F0–F9, Kinerja P0–P9) tuntas & ter-push. Menunggu keputusan user untuk backlog (OKR/Training/succession/benchmark gaji/AI-analitik lanjutan) atau modul baru.
