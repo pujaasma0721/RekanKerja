@@ -203,6 +203,9 @@ model Position {
 
   // F5-REC — baris rencana rekrutmen (RecruitmentPlan) untuk posisi ini
   recruitmentPlans RecruitmentPlan[] @relation("PlanPosition")
+
+  // B4-BL — succession planning: register peran kritis pada posisi ini
+  successionPosition SuccessionPosition? @relation("SuccessionPosition")
 }
 
 // ============ EMPLOYEE INFORMATION ============
@@ -374,6 +377,9 @@ model Employee {
   // B1-BL — OKR kuartalan: pemilik objective / pencatat progres KR terakhir.
   okrObjectives        OkrObjective[]        @relation("OkrOwner")
   okrKeyResults        OkrKeyResult[]        @relation("OkrUpdater")
+
+  // B4-BL — succession planning: kandidat penerus (bisa di beberapa peran).
+  successorCandidacies SuccessorCandidate[]  @relation("SuccessorEmployee")
 
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
@@ -4909,4 +4915,45 @@ model OkrKeyResult {
   updatedBy Employee?    @relation("OkrUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([objectiveId])
+}
+
+// B4-BL — SUCCESSION PLANNING (DEVELOPMENT-PLAN-BACKLOG.md §4 B4; D-BL13…D-BL15):
+// register peran kritis per Position + kandidat penerus. Kandidat di-seed dari
+// penempatan 9-box siklus Published/Closed TERAKHIR per karyawan (finalRating ×
+// potentialBand — D-BL13); readiness = keputusan MANUAL HR di atas saran sistem
+// (ReadyNow|Ready1yr|Ready23yr|Development). suggested9Box = snapshot string
+// saran saat kandidat ditambahkan (mis. "4/5 — Bintang"; label sel ID kanonik
+// sama seperti laporan pf43); flightRisk = snapshot skor heuristik D-BL10 saat
+// ditambahkan (refresh on-demand). devNotes = aksi pengembangan TEKS murni —
+// BUKAN modul training (D-BL14).
+model SuccessionPosition {
+  id               String   @id @default(cuid())
+  positionId       String   @unique
+  critical         Boolean  @default(true)
+  targetSuccessors Int      @default(2)
+  note             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  position   Position            @relation("SuccessionPosition", fields: [positionId], references: [id])
+  candidates SuccessorCandidate[]
+}
+
+model SuccessorCandidate {
+  id                   String   @id @default(cuid())
+  successionPositionId String
+  employeeId           String
+  readiness            String // ReadyNow|Ready1yr|Ready23yr|Development (keputusan manual HR — D-BL13)
+  suggested9Box        String? // snapshot saran saat ditambahkan (mis. "4/5 — Bintang")
+  flightRisk           Float? // skor heuristik D-BL10 saat ditambahkan (refresh on-demand)
+  devNotes             String? // aksi pengembangan — TEKS (D-BL14, BUKAN modul training)
+  addedById            String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  successionPosition SuccessionPosition @relation(fields: [successionPositionId], references: [id], onDelete: Cascade)
+  employee           Employee           @relation("SuccessorEmployee", fields: [employeeId], references: [id])
+
+  @@unique([successionPositionId, employeeId])
+  @@index([employeeId])
 }

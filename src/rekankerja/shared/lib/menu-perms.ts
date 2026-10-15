@@ -236,11 +236,15 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "close", label: "Menutup objective kuartal", hint: "Menutup objective Posted di akhir kuartal — skor final dihitung server (D-BL5, hanya HR)" },
   ],
 
-  // B3-BL — Talent & Risiko Attrisi (DEVELOPMENT-PLAN-BACKLOG.md §4 B3;
-  // D-BL10…D-BL12): heuristik explainable READ-ONLY on-demand stateless —
-  // TANPA op khusus (tidak ada mutasi; cakupan baris HR/Direksi/atasan-langsung
-  // dijaga DI SERVICE, bukan op map).
-  "performance:talent": [],
+  // B3-BL/B4-BL — Talent: attrisi heuristik explainable (B3, read-only) +
+  // succession planning (B4; D-BL13…D-BL15). Cakupan baris D-BL12 dijaga DI
+  // SERVICE (attrisi: HR/Direksi/atasan-langsung; succession: HR/Direksi —
+  // mutasi register HR saja). Op B4: kelola register peran & kandidat + ekspor.
+  "performance:talent": [
+    { key: "position/manage", label: "Mengelola peran kritis succession", hint: "Mendaftarkan/mengubah/menghapus peran kritis & target penerus (D-BL14)" },
+    { key: "candidate/manage", label: "Mengelola kandidat penerus", hint: "Menambah/mengubah readiness & catatan pengembangan/menghapus kandidat succession (D-BL13)" },
+    { key: "export", label: "Mengekspor rencana suksesi", hint: "Mengunduh laporan XLSX succession dwibahasa (D-BL15)" },
+  ],
 
   "recruitment:settings": [
     { key: "webhook", label: "Mengelola webhook", hint: "Menambah/mengubah/menguji endpoint webhook rekrutmen (event PR, lamaran, offer, hired)" },

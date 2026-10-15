@@ -418,6 +418,9 @@ const STEPS: Step[] = [
   // B2-BL (DEVELOPMENT-PLAN-BACKLOG.md §4 B2) — moderasi bias 360:
   // kolom Feedback360Answer.flaggedJson + moderated (D-BL7/D-BL9).
   { key: "backlog-b2", label: "B2 Backlog — kolom moderasi bias Feedback360Answer", run: (s) => import("../../../../scripts/migrate-performance-b2-bias").then((m) => m.main(s)) },
+  // B4-BL (DEVELOPMENT-PLAN-BACKLOG.md §4 B4) — succession planning:
+  // tabel SuccessionPosition/SuccessorCandidate (D-BL13…D-BL15).
+  { key: "backlog-b4", label: "B4 Backlog — tabel succession (peran kritis + kandidat)", run: (s) => import("../../../../scripts/migrate-performance-b4-succession").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============

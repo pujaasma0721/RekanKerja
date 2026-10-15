@@ -1,1 +1,1 @@
-export { GET } from "@/rekankerja/performance/api/talent";
+export { GET, POST } from "@/rekankerja/performance/api/talent";

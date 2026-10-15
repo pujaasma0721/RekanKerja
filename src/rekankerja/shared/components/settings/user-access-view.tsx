@@ -1150,6 +1150,10 @@ const MENU_OPS_LABEL_EN: Record<string, string> = {
   // B1-BL — OKR kuartalan (performance:okr)
   "Memosting objective OKR": "Post an OKR objective",
   "Menutup objective kuartal": "Close a quarterly objective",
+  // B4-BL — succession planning (performance:talent)
+  "Mengelola peran kritis succession": "Manage critical succession roles",
+  "Mengelola kandidat penerus": "Manage successor candidates",
+  "Mengekspor rencana suksesi": "Export the succession plan",
 };
 
 const MENU_OPS_HINT_EN: Record<string, string> = {
@@ -1183,9 +1187,10 @@ const MENU_OPS_HINT_EN: Record<string, string> = {
   // B1-BL — OKR kuartalan (performance:okr)
   "Menerbitkan objective Draft ke board transparan yang terlihat seluruh karyawan (D-BL3)": "Publishes a Draft objective onto the transparent board visible to all employees (D-BL3)",
   "Menutup objective Posted di akhir kuartal — skor final dihitung server (D-BL5, hanya HR)": "Closes a Posted objective at quarter end — the final score is computed server-side (D-BL5, HR only)",
-  // B3-BL — Talent & Risiko Attrisi (performance:talent): READ-ONLY tanpa
-  // operasi khusus (D-BL10…D-BL12) — tidak ada entri label/hint ops yang
-  // perlu dipetakan; item menu muncul otomatis di katalog lewat nav TALENT.
+  // B4-BL — succession planning (performance:talent)
+  "Mendaftarkan/mengubah/menghapus peran kritis & target penerus (D-BL14)": "Register/edit/delete critical roles & successor targets (D-BL14)",
+  "Menambah/mengubah readiness & catatan pengembangan/menghapus kandidat succession (D-BL13)": "Add/edit readiness & development notes/remove succession candidates (D-BL13)",
+  "Mengunduh laporan XLSX succession dwibahasa (D-BL15)": "Download the bilingual succession XLSX report (D-BL15)",
 };
 
 function PermSummaryBadge({ perm, menuKey }: { perm: MenuPerm; menuKey: string }) {

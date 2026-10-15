@@ -160,6 +160,188 @@ export function levelOf(score: number): "Tinggi" | "Sedang" | "Rendah" {
 const round0 = (n: number) => Math.round(n);
 const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
 
+// ============ perhitungan satu karyawan (SATU sumber logika faktor) ============
+
+/** Data karyawan minimal utk perhitungan attrition (listAttritionRisk & attritionRiskOf). */
+export interface AttritionEmployeeData {
+  id: string;
+  employeeNo: string;
+  fullName: string;
+  joinDate: Date;
+  assignments: {
+    validFrom: Date;
+    validTo: Date | null;
+    changeReason: string;
+    baseSalary: string | null;
+    orgUnit: { name: string } | null;
+    position: { title: string } | null;
+    grade: { code: string; minSalary: number; maxSalary: number } | null;
+  }[];
+}
+
+/** Satu baris risiko attrisi dari data ter-fetch — dipakai listAttritionRisk
+ * (populasi) DAN attritionRiskOf (satu karyawan; B4 succession flightRisk
+ * snapshot D-BL10) — SATU sumber logika faktor, tanpa duplikasi. */
+export function attritionRowOf(
+  e: AttritionEmployeeData,
+  cycles: { finalRating: number | null; cycleCode: string; periodEnd: Date }[],
+  pips: { status: string; docNo: string }[],
+  now: Date,
+  tc: { decryptMoney(stored: string | null | undefined): number | null },
+): AttritionRiskRow {
+  const active = e.assignments.find((a) => a.validTo == null);
+  const lastCycle = cycles[0] ?? null;
+  const prevCycle = cycles[1] ?? null;
+  const lastRating = lastCycle?.finalRating ?? null;
+
+  const factors: AttritionFactor[] = [];
+
+  // (1) rating terakhir — max 30; tanpa siklus terpublikasi → dinetralkan (D-BL11)
+  factors.push({
+    key: "rating",
+    score: lastRating == null ? 0 : ratingScore(lastRating),
+    max: 30,
+    available: lastRating != null,
+    note: lastRating == null
+      ? "belum ada siklus terpublikasi"
+      : `rating ${lastRating} (${cycles.length} siklus terdata${cycles.length < 2 ? " — data terbatas" : ""})`,
+  });
+
+  // (2) tren 2 siklus — max 10; butuh keduanya ber-rating
+  const trendReady = lastCycle != null && prevCycle != null
+    && lastCycle.finalRating != null && prevCycle.finalRating != null;
+  factors.push({
+    key: "trend",
+    score: trendReady
+      ? trendScore(prevCycle.finalRating as number, lastCycle.finalRating as number)
+      : 0,
+    max: 10,
+    available: trendReady,
+    note: trendReady
+      ? `${prevCycle.finalRating} → ${lastCycle.finalRating} (${prevCycle.cycleCode} → ${lastCycle.cycleCode})`
+      : "butuh 2 siklus terpublikasi ber-rating",
+  });
+
+  // (3) tenure — max 10 (selalu tersedia: joinDate NOT NULL)
+  const tenureYears = (now.getTime() - e.joinDate.getTime()) / (365.25 * 86_400_000);
+  factors.push({
+    key: "tenure",
+    score: tenureScore(tenureYears),
+    max: 10,
+    available: true,
+    note: `${tenureYears.toFixed(1)} tahun (join ${fmtDate(e.joinDate)})`,
+  });
+
+  // (4) kompa-rasio — max 15; gaji null / grade null / midpoint 0 → dinetralkan
+  const baseSalary = active ? tc.decryptMoney(active.baseSalary) : null;
+  const grade = active?.grade ?? null;
+  const midpoint = grade ? (grade.minSalary + grade.maxSalary) / 2 : 0;
+  const ratio = baseSalary != null && midpoint > 0 ? baseSalary / midpoint : null;
+  factors.push({
+    key: "compa",
+    score: ratio != null ? compaScore(ratio) : 0,
+    max: 15,
+    available: ratio != null,
+    note: ratio != null && grade != null
+      ? `kompa-rasio ${ratio.toFixed(2)} (midpoint grade ${grade.code})`
+      : active?.grade == null && baseSalary == null
+        ? "gaji pokok & grade belum diisi"
+        : active?.grade == null ? "grade belum diisi" : "gaji pokok belum diisi",
+  });
+
+  // (5) reward — max 15; sejak assignment Promotion/SalaryAdjustment/Mutation
+  // terbaru; tak pernah → sejak joinDate
+  const rewardAsg = e.assignments.find((a) => REWARD_REASON_SET[a.changeReason] === true);
+  const rewardFrom = rewardAsg?.validFrom ?? e.joinDate;
+  const rewardMonths = monthsSince(rewardFrom, now);
+  factors.push({
+    key: "reward",
+    score: rewardScore(rewardMonths, lastRating),
+    max: 15,
+    available: true,
+    note: rewardAsg
+      ? `${rewardMonths.toFixed(0)} bulan sejak ${rewardAsg.changeReason} (${fmtDate(rewardAsg.validFrom)})`
+      : `${rewardMonths.toFixed(0)} bulan sejak join (tak pernah promosi/penyesuaian)`,
+  });
+
+  // (6) PIP — max 20; aktif → 20; riwayat NotRecovered → 15; Recovered → 0
+  const ongoing = pips.find((p) => PIP_ONGOING_SET[p.status] === true);
+  const notRecovered = pips.find((p) => p.status === "NotRecovered");
+  const pipScoreV = ongoing ? 20 : notRecovered ? 15 : 0;
+  factors.push({
+    key: "pip",
+    score: pipScoreV,
+    max: 20,
+    available: true,
+    note: ongoing
+      ? `PIP berjalan (${ongoing.docNo})`
+      : notRecovered
+        ? `riwayat PIP tidak pulih (${notRecovered.docNo})`
+        : pips.some((p) => p.status === "Recovered")
+          ? "riwayat PIP pulih (Recovered)"
+          : "tidak ada PIP",
+  });
+
+  // urutan faktor konsisten utk tampilan: rating, trend, pip, tenure, compa, reward
+  const order: Record<string, number> = { rating: 0, trend: 1, pip: 2, tenure: 3, compa: 4, reward: 5 };
+  factors.sort((a, b) => order[a.key] - order[b.key]);
+
+  // skor = Σscore / Σmax YANG TERSEDIA × 100 (D-BL11 — netralisasi penyebut)
+  const avail = factors.filter((f) => f.available);
+  const sumScore = avail.reduce((s, f) => s + f.score, 0);
+  const sumMax = avail.reduce((s, f) => s + f.max, 0);
+  const score = sumMax > 0 ? round0((sumScore / sumMax) * 100) : 0;
+
+  return {
+    employeeId: e.id,
+    employeeNo: e.employeeNo,
+    fullName: e.fullName,
+    unitName: active?.orgUnit?.name ?? null,
+    positionName: active?.position?.title ?? null,
+    gradeCode: active?.grade?.code ?? null,
+    score,
+    level: levelOf(score),
+    factors,
+  };
+}
+
+/** Skor heuristik attrisi SATU karyawan on-demand (B4-BL succession flightRisk
+ * snapshot D-BL10 — memanggil logika faktor yang sama dgn listAttritionRisk,
+ * tanpa duplikasi). null bila karyawan tidak ditemukan. */
+export async function attritionRiskOf(
+  db: TenantDb,
+  employeeId: string,
+): Promise<AttritionRiskRow | null> {
+  const e = await db.employee.findFirst({
+    where: { id: employeeId },
+    select: {
+      id: true, employeeNo: true, fullName: true, joinDate: true,
+      assignments: {
+        orderBy: { validFrom: "desc" },
+        select: {
+          validFrom: true, validTo: true, changeReason: true, baseSalary: true,
+          orgUnit: { select: { name: true } },
+          position: { select: { title: true } },
+          grade: { select: { code: true, minSalary: true, maxSalary: true } },
+        },
+      },
+    },
+  });
+  if (!e) return null;
+  const [appraisals, pips] = await Promise.all([
+    db.appraisalRecord.findMany({
+      where: { employeeId, status: { in: PUBLISHED_STATUSES } },
+      select: { finalRating: true, cycle: { select: { code: true, periodEnd: true } } },
+      orderBy: [{ cycle: { periodEnd: "desc" } }, { createdAt: "desc" }],
+    }),
+    db.pipPlan.findMany({ where: { employeeId }, select: { status: true, docNo: true } }),
+  ]);
+  const cycles = appraisals.map((a) => ({
+    finalRating: a.finalRating, cycleCode: a.cycle.code, periodEnd: a.cycle.periodEnd,
+  }));
+  return attritionRowOf(e, cycles, pips, new Date(), tenantCryptoForDb(db));
+}
+
 // ============ daftar risiko attrisi (on-read — stateless) ============
 
 /**
@@ -276,125 +458,10 @@ export async function listAttritionRisk(
     pipByEmp.set(p.employeeId, list);
   }
 
-  // ---- hitung per karyawan ----
-  const rows: AttritionRiskRow[] = employees.map((e) => {
-    const active = e.assignments.find((a) => a.validTo == null);
-    const cycles = apprByEmp.get(e.id) ?? [];
-    const lastCycle = cycles[0] ?? null;
-    const prevCycle = cycles[1] ?? null;
-    const lastRating = lastCycle?.finalRating ?? null;
-
-    const factors: AttritionFactor[] = [];
-
-    // (1) rating terakhir — max 30; tanpa siklus terpublikasi → dinetralkan (D-BL11)
-    factors.push({
-      key: "rating",
-      score: lastRating == null ? 0 : ratingScore(lastRating),
-      max: 30,
-      available: lastRating != null,
-      note: lastRating == null
-        ? "belum ada siklus terpublikasi"
-        : `rating ${lastRating} (${cycles.length} siklus terdata${cycles.length < 2 ? " — data terbatas" : ""})`,
-    });
-
-    // (2) tren 2 siklus — max 10; butuh keduanya ber-rating
-    const trendReady = lastCycle != null && prevCycle != null
-      && lastCycle.finalRating != null && prevCycle.finalRating != null;
-    factors.push({
-      key: "trend",
-      score: trendReady
-        ? trendScore(prevCycle.finalRating as number, lastCycle.finalRating as number)
-        : 0,
-      max: 10,
-      available: trendReady,
-      note: trendReady
-        ? `${prevCycle.finalRating} → ${lastCycle.finalRating} (${prevCycle.cycleCode} → ${lastCycle.cycleCode})`
-        : "butuh 2 siklus terpublikasi ber-rating",
-    });
-
-    // (3) tenure — max 10 (selalu tersedia: joinDate NOT NULL)
-    const tenureYears = (now.getTime() - e.joinDate.getTime()) / (365.25 * 86_400_000);
-    factors.push({
-      key: "tenure",
-      score: tenureScore(tenureYears),
-      max: 10,
-      available: true,
-      note: `${tenureYears.toFixed(1)} tahun (join ${fmtDate(e.joinDate)})`,
-    });
-
-    // (4) kompa-ratio — max 15; gaji null / grade null / midpoint 0 → dinetralkan
-    const baseSalary = active ? tc.decryptMoney(active.baseSalary) : null;
-    const grade = active?.grade ?? null;
-    const midpoint = grade ? (grade.minSalary + grade.maxSalary) / 2 : 0;
-    const ratio = baseSalary != null && midpoint > 0 ? baseSalary / midpoint : null;
-    factors.push({
-      key: "compa",
-      score: ratio != null ? compaScore(ratio) : 0,
-      max: 15,
-      available: ratio != null,
-      note: ratio != null && grade != null
-        ? `kompa-rasio ${ratio.toFixed(2)} (midpoint grade ${grade.code})`
-        : active?.grade == null && baseSalary == null
-          ? "gaji pokok & grade belum diisi"
-          : active?.grade == null ? "grade belum diisi" : "gaji pokok belum diisi",
-    });
-
-    // (5) reward — max 15; sejak assignment Promotion/SalaryAdjustment/Mutation
-    // terbaru; tak pernah → sejak joinDate
-    const rewardAsg = e.assignments.find((a) => REWARD_REASON_SET[a.changeReason] === true);
-    const rewardFrom = rewardAsg?.validFrom ?? e.joinDate;
-    const rewardMonths = monthsSince(rewardFrom, now);
-    factors.push({
-      key: "reward",
-      score: rewardScore(rewardMonths, lastRating),
-      max: 15,
-      available: true,
-      note: rewardAsg
-        ? `${rewardMonths.toFixed(0)} bulan sejak ${rewardAsg.changeReason} (${fmtDate(rewardAsg.validFrom)})`
-        : `${rewardMonths.toFixed(0)} bulan sejak join (tak pernah promosi/penyesuaian)`,
-    });
-
-    // (6) PIP — max 20; aktif → 20; riwayat NotRecovered → 15; Recovered → 0
-    const myPips = pipByEmp.get(e.id) ?? [];
-    const ongoing = myPips.find((p) => PIP_ONGOING_SET[p.status] === true);
-    const notRecovered = myPips.find((p) => p.status === "NotRecovered");
-    const pipScore = ongoing ? 20 : notRecovered ? 15 : 0;
-    factors.push({
-      key: "pip",
-      score: pipScore,
-      max: 20,
-      available: true,
-      note: ongoing
-        ? `PIP berjalan (${ongoing.docNo})`
-        : notRecovered
-          ? `riwayat PIP tidak pulih (${notRecovered.docNo})`
-          : myPips.some((p) => p.status === "Recovered")
-            ? "riwayat PIP pulih (Recovered)"
-            : "tidak ada PIP",
-    });
-
-    // urutan faktor konsisten utk tampilan: rating, trend, pip, tenure, compa, reward
-    const order: Record<string, number> = { rating: 0, trend: 1, pip: 2, tenure: 3, compa: 4, reward: 5 };
-    factors.sort((a, b) => order[a.key] - order[b.key]);
-
-    // skor = Σscore / Σmax YANG TERSEDIA × 100 (D-BL11 — netralisasi penyebut)
-    const avail = factors.filter((f) => f.available);
-    const sumScore = avail.reduce((s, f) => s + f.score, 0);
-    const sumMax = avail.reduce((s, f) => s + f.max, 0);
-    const score = sumMax > 0 ? round0((sumScore / sumMax) * 100) : 0;
-
-    return {
-      employeeId: e.id,
-      employeeNo: e.employeeNo,
-      fullName: e.fullName,
-      unitName: active?.orgUnit?.name ?? null,
-      positionName: active?.position?.title ?? null,
-      gradeCode: active?.grade?.code ?? null,
-      score,
-      level: levelOf(score),
-      factors,
-    };
-  });
+  // ---- hitung per karyawan (logika faktor SATU sumber: attritionRowOf) ----
+  const rows: AttritionRiskRow[] = employees.map((e) =>
+    attritionRowOf(e, apprByEmp.get(e.id) ?? [], pipByEmp.get(e.id) ?? [], now, tc),
+  );
 
   // statistik level dihitung atas populasi SEBELUM filter onlyHigh (distribusi
   // sejati — tile tetap informatif saat daftar dipadatkan ke Tinggi saja)

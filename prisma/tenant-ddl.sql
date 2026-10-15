@@ -3561,6 +3561,35 @@ CREATE TABLE "OkrKeyResult" (
     CONSTRAINT "OkrKeyResult_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable (B4-BL — succession planning D-BL13–15)
+CREATE TABLE "SuccessionPosition" (
+    "id" TEXT NOT NULL,
+    "positionId" TEXT NOT NULL,
+    "critical" BOOLEAN NOT NULL DEFAULT true,
+    "targetSuccessors" INTEGER NOT NULL DEFAULT 2,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SuccessionPosition_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SuccessorCandidate" (
+    "id" TEXT NOT NULL,
+    "successionPositionId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "readiness" TEXT NOT NULL,
+    "suggested9Box" TEXT,
+    "flightRisk" DOUBLE PRECISION,
+    "devNotes" TEXT,
+    "addedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SuccessorCandidate_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -4452,6 +4481,15 @@ CREATE INDEX "OkrObjective_ownerEmployeeId_idx" ON "OkrObjective"("ownerEmployee
 
 -- CreateIndex
 CREATE INDEX "OkrKeyResult_objectiveId_idx" ON "OkrKeyResult"("objectiveId");
+
+-- CreateIndex (B4-BL — succession)
+CREATE UNIQUE INDEX "SuccessionPosition_positionId_key" ON "SuccessionPosition"("positionId");
+
+-- CreateIndex
+CREATE INDEX "SuccessorCandidate_employeeId_idx" ON "SuccessorCandidate"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SuccessorCandidate_successionPositionId_employeeId_key" ON "SuccessorCandidate"("successionPositionId", "employeeId");
 
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

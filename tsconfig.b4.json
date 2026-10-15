@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "allowJs": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/performance/**/*",
+    "src/rekankerja/shared/lib/menu-perms.ts",
+    "src/rekankerja/shared/lib/i18n-core.ts",
+    "src/rekankerja/shared/lib/parity-runner.ts",
+    "src/rekankerja/shared/lib/server-errors.ts",
+    "src/rekankerja/shared/lib/tenant-db.ts",
+    "src/rekankerja/shared/lib/menu-perms-context.tsx",
+    "src/rekankerja/shared/services/menu-access.ts",
+    "src/rekankerja/shared/services/access-scope.ts",
+    "src/rekankerja/shared/components/shell/app-shell.tsx",
+    "src/rekankerja/shared/components/settings/user-access-view.tsx",
+    "src/rekankerja/shared/components/ui-kit.tsx",
+    "src/app/api/rekankerja/performance/**/route.ts",
+    "scripts/e2e-b4-succession.ts",
+    "scripts/migrate-performance-b4-succession.ts"
+  ]
+}

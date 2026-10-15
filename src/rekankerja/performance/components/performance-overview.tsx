@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Target, ListChecks, Users, Scale, Grid3x3, Wallet, CalendarRange, CheckCircle2,
   Circle, Clock, BarChart3, ClipboardCheck, BadgeCheck, LifeBuoy, ChevronRight, Lock,
-  ShieldCheck, Telescope,
+  ShieldCheck, Telescope, Crown,
 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -53,6 +53,10 @@ export function PerformanceOverview() {
   const { t } = useI18n();
   const { data, loading, error } = useApi<{ counts: Counts }>("/api/rekankerja/performance/masters");
   const dash = useApi<DashboardKpi>("/api/rekankerja/performance/reports");
+  // B4-BL — ringkasan succession (kartu Talent; field hanya dikirim server-side
+  // utk aktor HR/Direksi — fetch gagal/403 utk lain → kartu disembunyikan).
+  const talentApi = useApi<{ succession?: { positions: number; candidates: number; uncovered: number } }>("/api/rekankerja/performance/talent");
+  const succession = talentApi.data?.succession;
 
   const c = data?.counts;
   const cards: { label: string; labelEn: string; value?: number; icon: React.ElementType }[] = [
@@ -235,6 +239,39 @@ export function PerformanceOverview() {
               </p>
               <p className="mt-3 border-t border-dashed border-fuchsia-200 pt-2.5 text-[10px] font-extrabold uppercase tracking-wide text-fuchsia-700 dark:border-fuchsia-500/20 dark:text-fuchsia-300">
                 {t("Buka tab OKR", "Open OKR tab")}
+              </p>
+            </a>
+          )}
+          {/* B4-BL — kartu Talent & Succession (ringkasan register peran kritis;
+              HANYA bila ada ≥1 peran terdaftar & aktor berhak melihat — data
+              ringkas dihitung server-side di GET talent response) */}
+          {succession != null && succession.positions >= 1 && (
+            <a
+              href="/?m=performance&v=talent"
+              className="group relative flex flex-col overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:border-amber-500/30 dark:from-amber-500/10 dark:to-slate-900"
+            >
+              <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-amber-400 to-rose-500" />
+              <div className="flex items-start justify-between gap-2">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-600 text-white shadow-sm transition-transform group-hover:scale-105">
+                  <Crown className="h-5 w-5" />
+                </span>
+                <span className="text-right">
+                  <span className="block text-lg font-black tabular-nums text-slate-900 dark:text-slate-50">{succession.positions}</span>
+                  <span className="block text-[9px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">{t("peran kritis", "critical roles")}</span>
+                </span>
+              </div>
+              <p className="mt-3 text-[13px] font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
+                {t("Talent & Succession", "Talent & Succession")}
+              </p>
+              <p className="mt-1 flex-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                {t(
+                  "{c} kandidat penerus terdaftar · {u} peran tanpa penerus siap — risiko attrisi & rencana suksesi dalam satu tab.",
+                  "{c} successor candidates registered · {u} roles without a ready successor — attrition risk & succession planning in one tab.",
+                  { c: String(succession.candidates), u: String(succession.uncovered) },
+                )}
+              </p>
+              <p className="mt-3 border-t border-dashed border-amber-200 pt-2.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-700 dark:border-amber-500/20 dark:text-amber-300">
+                {t("Buka tab Talent", "Open Talent tab")}
               </p>
             </a>
           )}
