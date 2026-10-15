@@ -206,6 +206,8 @@ model Position {
 
   // B4-BL — succession planning: register peran kritis pada posisi ini
   successionPosition SuccessionPosition? @relation("SuccessionPosition")
+  // B5-BL — benchmark gaji pasar berkunci posisi ini (D-BL16/D-BL17)
+  salaryBenchmarks SalaryBenchmark[] @relation("SalaryBenchmarkPosition")
 }
 
 // ============ EMPLOYEE INFORMATION ============
@@ -4956,4 +4958,29 @@ model SuccessorCandidate {
 
   @@unique([successionPositionId, employeeId])
   @@index([employeeId])
+}
+
+// B5-BL — benchmark gaji pasar (DEVELOPMENT-PLAN-BACKLOG.md §4 B5; D-BL16/D-BL17).
+// Data eksternal manual HR (impor survei XLSX ≤500 baris / CRUD): p25/p50/p75
+// per tahun × sumber; kunci A = gradeCode (cocokkan grade assignment karyawan)
+// ATAU kunci B = positionId (lebih spesifik — keduanya nullable tapi TEPAT
+// SATU terisi; guard "kunci tunggal" di service). unique 3-kolom nullable
+// berperilaku NULL-distinct di PG → guard duplikat null-aware 409 di SERVICE.
+model SalaryBenchmark {
+  id          String   @id @default(cuid())
+  year        Int
+  sourceLabel String // "Survei XX 2026" — sumber manual HR (D-BL16)
+  gradeCode   String? // kunci A: cocokkan berdasar Grade
+  positionId  String? // kunci B: cocokkan berdasar Position (lebih spesifik)
+  currency    String   @default("IDR")
+  p25         Float
+  p50         Float
+  p75         Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  position Position? @relation("SalaryBenchmarkPosition", fields: [positionId], references: [id])
+
+  @@unique([year, sourceLabel, gradeCode, positionId])
+  @@index([year, gradeCode])
 }

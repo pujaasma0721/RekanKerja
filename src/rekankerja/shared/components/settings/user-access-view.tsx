@@ -1154,6 +1154,10 @@ const MENU_OPS_LABEL_EN: Record<string, string> = {
   "Mengelola peran kritis succession": "Manage critical succession roles",
   "Mengelola kandidat penerus": "Manage successor candidates",
   "Mengekspor rencana suksesi": "Export the succession plan",
+  // B5-BL — benchmark gaji pasar (payroll:benchmark)
+  "Mengimpor benchmark gaji (XLSX)": "Import salary benchmarks (XLSX)",
+  "Mengelola master benchmark": "Manage the benchmark master",
+  "Mengekspor laporan benchmark": "Export the benchmark report",
 };
 
 const MENU_OPS_HINT_EN: Record<string, string> = {
@@ -1191,6 +1195,10 @@ const MENU_OPS_HINT_EN: Record<string, string> = {
   "Mendaftarkan/mengubah/menghapus peran kritis & target penerus (D-BL14)": "Register/edit/delete critical roles & successor targets (D-BL14)",
   "Menambah/mengubah readiness & catatan pengembangan/menghapus kandidat succession (D-BL13)": "Add/edit readiness & development notes/remove succession candidates (D-BL13)",
   "Mengunduh laporan XLSX succession dwibahasa (D-BL15)": "Download the bilingual succession XLSX report (D-BL15)",
+  // B5-BL — benchmark gaji pasar (payroll:benchmark)
+  "Unggah data survei pasar via template Excel — pratinjau per sel, hanya baris valid masuk (D-BL16)": "Upload market survey data via the Excel template — per-cell preview, only valid rows get in (D-BL16)",
+  "Menambah/mengubah/menghapus entri benchmark tahun × sumber × kunci grade/posisi (D-BL16)": "Add/edit/delete benchmark entries by year × source × grade/position key (D-BL16)",
+  "Mengunduh laporan XLSX kompa-ratio + master benchmark dwibahasa (D-BL17)": "Download the bilingual compa-ratio + benchmark master XLSX report (D-BL17)",
 };
 
 function PermSummaryBadge({ perm, menuKey }: { perm: MenuPerm; menuKey: string }) {

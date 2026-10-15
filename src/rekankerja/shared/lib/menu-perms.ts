@@ -246,6 +246,16 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "export", label: "Mengekspor rencana suksesi", hint: "Mengunduh laporan XLSX succession dwibahasa (D-BL15)" },
   ],
 
+  // B5-BL — benchmark gaji pasar (D-BL16/D-BL17): master benchmark eksternal
+  // manual HR (tahun × sumber × kunci grade/posisi, p25/p50/p75) + kompa-ratio
+  // karyawan vs p50. Menu admin-only (ESS tidak melihat benchmark — risiko §5);
+  // guard baris HR/Direksi di service. Op: impor XLSX + kelola master + ekspor.
+  "payroll:benchmark": [
+    { key: "import", label: "Mengimpor benchmark gaji (XLSX)", hint: "Unggah data survei pasar via template Excel — pratinjau per sel, hanya baris valid masuk (D-BL16)" },
+    { key: "manage", label: "Mengelola master benchmark", hint: "Menambah/mengubah/menghapus entri benchmark tahun × sumber × kunci grade/posisi (D-BL16)" },
+    { key: "export", label: "Mengekspor laporan benchmark", hint: "Mengunduh laporan XLSX kompa-ratio + master benchmark dwibahasa (D-BL17)" },
+  ],
+
   "recruitment:settings": [
     { key: "webhook", label: "Mengelola webhook", hint: "Menambah/mengubah/menguji endpoint webhook rekrutmen (event PR, lamaran, offer, hired)" },
     { key: "esign", label: "Permintaan e-sign kandidat", hint: "Membuat/mengirim ulang OTP/membatalkan permintaan tanda tangan elektronik kandidat eksternal" },

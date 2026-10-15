@@ -166,6 +166,11 @@ const PAYROLL_NAV: NavGroup[] = [
     { id: "templates", label: "Template Upah", icon: LayoutTemplate },
     { id: "profiles", label: "Data Gaji Karyawan", icon: IdCard },
   ] },
+  // B5-BL — benchmark gaji pasar (D-BL16/D-BL17): impor survei + kompa-ratio
+  // vs p50 (menu key payroll:benchmark — admin-only, ESS tidak melihat).
+  { section: "payroll", label: "Analisis Pasar", children: [
+    { id: "benchmark", label: "Benchmark Pasar", icon: Scale },
+  ] },
   { section: "payroll", label: "Transaksi", children: [
     { id: "transactions", label: "Transaksi & Rapel", icon: ArrowLeftRight },
     { id: "benefits", label: "Benefit Karyawan", icon: HeartHandshake, badge: "benefitPending" },

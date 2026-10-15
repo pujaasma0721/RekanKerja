@@ -3590,8 +3590,34 @@ CREATE TABLE "SuccessorCandidate" (
     CONSTRAINT "SuccessorCandidate_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable (B5-BL — benchmark gaji pasar D-BL16/D-BL17)
+CREATE TABLE "SalaryBenchmark" (
+    "id" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "sourceLabel" TEXT NOT NULL,
+    "gradeCode" TEXT,
+    "positionId" TEXT,
+    "currency" TEXT NOT NULL DEFAULT 'IDR',
+    "p25" DOUBLE PRECISION NOT NULL,
+    "p50" DOUBLE PRECISION NOT NULL,
+    "p75" DOUBLE PRECISION NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SalaryBenchmark_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
+
+-- CreateIndex (B5-BL — unique 3-kolom nullable = NULL-distinct di PG; guard duplikat null-aware di service benchmark)
+CREATE UNIQUE INDEX "SalaryBenchmark_year_sourceLabel_gradeCode_positionId_key" ON "SalaryBenchmark"("year", "sourceLabel", "gradeCode", "positionId");
+
+-- CreateIndex
+CREATE INDEX "SalaryBenchmark_year_gradeCode_idx" ON "SalaryBenchmark"("year", "gradeCode");
+
+-- AddForeignKey (B5-BL)
+ALTER TABLE "SalaryBenchmark" ADD CONSTRAINT "SalaryBenchmark_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CompanyOffice_code_key" ON "CompanyOffice"("code");

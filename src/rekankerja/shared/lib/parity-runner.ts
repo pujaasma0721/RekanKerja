@@ -421,6 +421,9 @@ const STEPS: Step[] = [
   // B4-BL (DEVELOPMENT-PLAN-BACKLOG.md §4 B4) — succession planning:
   // tabel SuccessionPosition/SuccessorCandidate (D-BL13…D-BL15).
   { key: "backlog-b4", label: "B4 Backlog — tabel succession (peran kritis + kandidat)", run: (s) => import("../../../../scripts/migrate-performance-b4-succession").then((m) => m.main(s)) },
+  // B5-BL (DEVELOPMENT-PLAN-BACKLOG.md §4 B5) — benchmark gaji pasar:
+  // tabel SalaryBenchmark (D-BL16/D-BL17 — kunci grade/posisi + p25/p50/p75).
+  { key: "backlog-b5", label: "B5 Backlog — tabel benchmark gaji pasar", run: (s) => import("../../../../scripts/migrate-performance-b5-benchmark").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
