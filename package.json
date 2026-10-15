@@ -11,7 +11,8 @@
     "db:push": "prisma db push --schema prisma/schema.prisma --accept-data-loss",
     "tenant:ddl": "prisma migrate diff --from-empty --to-schema-datamodel prisma/schema-tenant.prisma --script > prisma/tenant-ddl.sql",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "test:e2e": "bun scripts/test-e2e-all.ts"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.9.1",

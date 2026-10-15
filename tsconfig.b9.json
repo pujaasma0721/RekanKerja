@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "allowJs": false
+  },
+  "include": [
+    "scripts/test-e2e-all.ts"
+  ]
+}
