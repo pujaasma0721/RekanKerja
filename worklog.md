@@ -6994,3 +6994,18 @@ Work Log:
 Stage Summary:
 - Backlog item Rekrutmen referral tracker SELESAI: karyawan melihat referral-nya sendiri di ESS (status pipeline ikut proses rekrutmen), HR punya register lengkap + catatan insentif manual ter-ActivityLog (di luar payroll — ditegaskan banner ganda EN/ID), kolom perujuk + catatan konteks di pelamar admin. TANPA modul Training; insentif TIDAK menyentuh payroll sama sekali.
 - Fase berikutnya per §4: B9 — agregator `bun run test:e2e` (runner urut suite + ringkasan per-suite + --reset fixture + daftar suite stabil).
+
+---
+Task ID: B9
+Agent: main (Z.ai Code) — orchestrator (fase S dikerjakan langsung)
+Task: DEVELOPMENT-PLAN-BACKLOG.md §4 B9 — agregator `bun run test:e2e`: runner urut suite + ringkasan per-suite + `--reset` fixture + daftar suite stabil + README cara pakai.
+
+Work Log:
+- scripts/test-e2e-all.ts: agregator spawnSync berurutan — 32 SUITE STABIL terkurasi (8 grup: Payroll 4 · Keamanan 1 · HR 5 · Cuti 1 · Medis 6 berurutan wave · eSign 4 · Kinerja 3 · Backlog 8) + 3 TERCATAT DIKURASI KELUAR dgn alasan (e2e-smtp-connect menarget PROD URL Task 64m; e2e-browser-subdomain skrip browser eksternal; e2e-subdomain-tenant resolusi DNS lingkungan-spesifik). Fitur: subset via kata-kunci; --list; --reset (urutan deterministik 19 langkah = prosedur pemulihan worklog: restore-demo → password-security → seed-ess → F1-F3 → P0/P1/seedP6P7P8/P9 → B1/B2/B4-B8, B3 stateless; dev server TETAP HIDUP — data dibangun ulang); timeout per-suite 6 mnt + per-langkah reset 10 mnt dgn SIGKILL; probe /api/health dulu (exit 2 cepat); ringkasan per-suite (LULUS/GAGAL/TIMEOUT + durasi) + per-grup + TOTAL + tail 6 baris output utk suite gagal; exit code agregat.
+- package.json script "test:e2e" + README.md BARU (cara pakai + prasyarat + makna --reset + kriteria suite stabil + cara menambah + diagnosis kegagalan).
+- TERVERIFIKASI: --list (32/35 tercatat); subset b1+b3 → 2/2 LULUS ringkasan benar; --reset + b8 → reset 19 langkah 2m30s semua OK + 1/1 LULUS (sekaligus membuktikan ulang urutan reset = prosedur pemulihan insiden yang terdokumentasi); timing konsisten direct-run (b3 0.4s).
+- GATES: tsc tsconfig.b9.json 0 error; lint 0 error/6 warning baseline; audit-bilingual TOTAL_GAP=150; dev.log bersih.
+
+Stage Summary:
+- Infrastruktur uji teragregasi: satu perintah `bun run test:e2e` menjalankan seluruh suite E2E stabil berurut dgn ringkasan + opsi reset fixture deterministik — ganti praktik manual per-skrip. Siap dipakai BF (verifikasi silang menyeluruh seluruh suite).
+- Fase berikutnya per §4: BF — verifikasi silang menyeluruh + overview 10/10→N/N + push final.
