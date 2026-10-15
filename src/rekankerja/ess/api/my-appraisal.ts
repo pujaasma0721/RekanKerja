@@ -7,6 +7,7 @@ import {
 import {
   acknowledge, appeal, withdrawAppeal,
 } from "@/rekankerja/performance/services/perf-results-service";
+import { myEmployeeDsrs, createSelfDsr, DsrError } from "@/rekankerja/performance/services/perf-dsr-service";
 import { toXlsxMulti, xlsxResponse, exportFilename, type ExportSheet } from "@/rekankerja/shared/lib/export";
 import { trFor, locReportFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
@@ -27,6 +28,8 @@ import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 // Guard: requireEss (self-scope anti-IDOR).
 // P6 — respons diperluas `pips`: program PIP milik sendiri (§33-3 karyawan
 // melihat progresnya sendiri — read-only; SK PIP terbit saat draf dibuat).
+// P9 — respons diperluas `dsrs`: Permintaan Subjek Data (UU PDP §7.3) milik
+// sendiri + POST requestDsr utk mengajukan sendiri (hak akses/ekspor/hapus).
 // ============================================================================
 
 /** PIP milik karyawan (§33-3 — read-only di ESS). Anti-IDOR: self-scope
@@ -80,7 +83,7 @@ export async function GET(req: Request) {
       orderBy: { updatedAt: "desc" },
       take: 10,
     });
-    if (!appraisals.length) return NextResponse.json({ current: null, published: null, previous: [], pips: await myPips(db, employeeId) });
+    if (!appraisals.length) return NextResponse.json({ current: null, published: null, previous: [], pips: await myPips(db, employeeId), dsrs: await myEmployeeDsrs(db, employeeId) });
 
     // siklus aktif = belum Published/Closed; hasil final = sudah
     const current = appraisals.find((a) => !["Published", "Closed"].includes(a.cycle.status)) ?? null;
@@ -104,6 +107,7 @@ export async function GET(req: Request) {
           rating: r.rating,
         })),
       pips: await myPips(db, employeeId),
+      dsrs: await myEmployeeDsrs(db, employeeId),
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
@@ -169,6 +173,17 @@ export async function POST(req: Request) {
     if (action === "withdrawAppeal") {
       const out = await withdrawAppeal(db, employeeId, String(b.appraisalId ?? ""));
       return NextResponse.json(out);
+    }
+
+    // ===== P9 §7.3 UU PDP: karyawan mengajukan DSR data kinerjanya SENDIRI
+    // (hak akses/ekspor/hapus — self-scope anti-IDOR: employeeId HANYA dari
+    // sesi; SLA 7 hari; HR menangani di Performance → Kepatuhan). =====
+    if (action === "requestDsr") {
+      const res = await createSelfDsr(db, employeeId, {
+        type: String(b.type ?? ""),
+        note: b.note != null ? String(b.note) : null,
+      });
+      return NextResponse.json({ ok: true, id: res.id }, { status: 201 });
     }
 
     // ===== P8 §7.2 PP 35/2021: EKSPOR RIWAYAT PENILAIAN SENDIRI (self-scope
@@ -271,6 +286,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: `Aksi tidak dikenal: ${action}` }, { status: 400 });
   } catch (e) {
+    if (e instanceof DsrError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
 }

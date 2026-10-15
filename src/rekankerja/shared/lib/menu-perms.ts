@@ -219,6 +219,13 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "cancel", label: "Membatalkan evaluasi", hint: "Membatalkan evaluasi percobaan (mis. salah karyawan) — alasan ter-audit" },
   ],
 
+  // P9-PERF — kepatuhan UU PDP (§20 P9; §7.3/§37): DSR karyawan (data
+  // kinerja) + retensi arsip hasil penilaian + matriks akses §11.3.
+  "performance:compliance": [
+    { key: "dsr", label: "Mengelola DSR karyawan", hint: "Permintaan subjek data UU PDP: akses/ekspor/hapus data kinerja karyawan (§7.3, §37 — SLA 7 hari)" },
+    { key: "retention", label: "Mengelola retensi arsip", hint: "Menjalankan scan retensi & memulihkan data terarsip (tandai-saja — penghapusan manual §37)" },
+  ],
+
   "recruitment:settings": [
     { key: "webhook", label: "Mengelola webhook", hint: "Menambah/mengubah/menguji endpoint webhook rekrutmen (event PR, lamaran, offer, hired)" },
     { key: "esign", label: "Permintaan e-sign kandidat", hint: "Membuat/mengirim ulang OTP/membatalkan permintaan tanda tangan elektronik kandidat eksternal" },

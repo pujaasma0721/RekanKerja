@@ -53,6 +53,11 @@ export const SERVER_ERR_EN: Record<string, string> = {
   // ---- umum / paling sering muncul (seed dari inventory frekuensi) ----
   "id wajib": "id is required",
   "Karyawan tidak ditemukan": "Employee not found",
+  // P9-PERF — kepatuhan UU PDP (DSR karyawan + rate-limit 360 §37):
+  "Batas 10 submit 360 per jam tercapai — coba lagi nanti": "The limit of 10 360-feedback submissions per hour has been reached — please try again later",
+  "Permintaan data (DSR) tidak ditemukan": "Data subject request (DSR) not found",
+  "Alasan penolakan DSR wajib diisi (minimal 10 karakter)": "The DSR rejection reason is required (at least 10 characters)",
+  "Ringkasan hasil penyelesaian DSR wajib diisi": "A DSR resolution summary is required",
   "runId wajib": "runId is required",
   "Run tidak ditemukan": "Run not found",
   "Template tidak ditemukan": "Template not found",

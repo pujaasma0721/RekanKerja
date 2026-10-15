@@ -553,3 +553,31 @@ export async function nextPerfNo(db: TenantDb, kind: "PER" | "PRB" | "PIP" | "ME
   }
   return `${start}${String(max + 1).padStart(4, "0")}`;
 }
+
+/**
+ * P9-PERF — cadangkan RANGE nomor dokumen berurutan dalam SATU scan (enroll
+ * massal §22 risiko 500 karyawan: jalur per-baris 3 query × N → jalur batch
+ * 1 scan): max suffix dicari sekali, lalu {start}{max+1}…{start}{max+count}
+ * dikembalikan tanpa query per baris. Format konsisten dgn nextPerfNo
+ * ({PREFIX}-YYYY-NNNN); aman karena pemanggil membuat barisnya SEGERA
+ * (createMany) sehingga scan berikutnya melihat nomor terpakai (delete-safe
+ * sama dgn nextPerfNo).
+ */
+export async function reservePerfNoRange(
+  db: TenantDb, kind: "PER" | "PRB" | "PIP" | "MER", count: number, year = new Date().getFullYear(),
+): Promise<string[]> {
+  if (count <= 0) return [];
+  const start = `${kind}-${year}-`;
+  let max = 0;
+  const [prs, pips, probs, mers] = await Promise.all([
+    db.appraisalRecord.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 5000 }),
+    kind === "PIP" ? db.pipPlan.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 5000 }) : Promise.resolve([] as { docNo: string }[]),
+    kind === "PRB" ? db.probationEvaluation.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 5000 }) : Promise.resolve([] as { docNo: string }[]),
+    kind === "MER" ? db.meritRecommendation.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 5000 }) : Promise.resolve([] as { docNo: string }[]),
+  ]);
+  for (const r of [...prs, ...pips, ...probs, ...mers]) {
+    const n = parseInt(r.docNo.slice(start.length), 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return Array.from({ length: count }, (_, i) => `${start}${String(max + 1 + i).padStart(4, "0")}`);
+}

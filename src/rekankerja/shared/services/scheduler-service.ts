@@ -64,6 +64,9 @@ import { pipReminders } from "@/rekankerja/performance/services/perf-pip-service
 import { probationReminders } from "@/rekankerja/performance/services/perf-probation-service";
 import { flushQueuedNudges } from "@/rekankerja/performance/services/perf-cycle-service";
 import { expireOverdue } from "@/rekankerja/performance/services/perf-360-service";
+// P9-PERF — retensi arsip hasil penilaian (§37; tandai archivedAt — idempoten
+// updateMany ringan; job guarded di bawah).
+import { jobPerfRetentionScan } from "@/rekankerja/performance/services/perf-retention-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
 import { runRetention } from "@/rekankerja/recruitment/services/compliance-service";
 
@@ -1708,6 +1711,10 @@ export interface SchedulerJobCounts {
    *  rating_distribution / pip_recovery_rate) yang ditulis job harian
    *  perf-metrics-snapshot. */
   perfMetricsSnapshots: number;
+  /** P9-PERF §37 — data kinerja (siklus Closed melewati jendela retensi) yang
+   *  ditandai arsip oleh job perf-retention-scan (harian; penghapusan TIDAK
+   *  otomatis — keputusan eksplisit HR). */
+  perfRetentionArchived: number;
 }
 
 export interface SchedulerRunResult {
@@ -1779,6 +1786,7 @@ export async function runAllJobs(
     pipOverdueEscalated: 0,
     perfProbReminded: 0,
     perfMetricsSnapshots: 0,
+    perfRetentionArchived: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1976,6 +1984,34 @@ export async function runAllJobs(
     }
   });
 
+  // P9-PERF §37 — retensi arsip: tandai data kinerja siklus Closed yang
+  // melewati jendela retensi (retentionYears) sebagai terarsip (updateMany
+  // ringan — idempoten by filter archivedAt null; claim-dedupe harian pola
+  // perf-metrics-snapshot agar siklus 6-jam tidak mengulang scan; gagal →
+  // marker DILEPAS utk dicoba ulang siklus berikutnya;
+  // penghapusan permanen TIDAK otomatis — keputusan eksplisit HR).
+  await guarded("perf-retention-scan", async () => {
+    try {
+      const key = `perf-retention-scan:${dayKey()}`;
+      const claimed = await claimReminder(
+        db,
+        key,
+        `Scan retensi arsip data kinerja (${dayKey()}) — tandai-saja, penghapusan manual`,
+      );
+      if (!claimed) return; // sudah discan hari ini (siklus sebelumnya)
+      const r = await jobPerfRetentionScan(db);
+      jobs.perfRetentionArchived = r.archived;
+    } catch (e) {
+      // gagal scan → lepas marker harian agar siklus berikutnya mencoba ulang
+      try {
+        await db.activityLog.deleteMany({
+          where: { action: "Reminder", entity: "Scheduler", entityId: `perf-retention-scan:${dayKey()}` },
+        });
+      } catch { /* best-effort */ }
+      console.warn(`[scheduler] perf-retention-scan skip: ${e instanceof Error ? e.message : e}`);
+    }
+  });
+
   // F4-REC — offer: kedaluwarsa otomatis (Sent/Viewed lewat expiryDate) +
   // pengingat offer berakhir ≤3 hari ke officer rekrutmen (dedupe per tanggal).
   await guarded("offer-expiry", async () => {
@@ -2055,6 +2091,7 @@ export async function runAllJobs(
     (jobs.digestEmails > 0 ? `, ${jobs.digestEmails} ringkasan notifikasi harian terkirim` : "") +
     (jobs.metricsSnapshotRows > 0 ? `, ${jobs.metricsSnapshotRows} metrik disnapshot (F8)` : "") +
     (jobs.perfMetricsSnapshots > 0 ? `, ${jobs.perfMetricsSnapshots} metrik kinerja disnapshot (P8)` : "") +
+    (jobs.perfRetentionArchived > 0 ? `, ${jobs.perfRetentionArchived} data kinerja ditandai arsip (P9 retensi)` : "") +
     (jobs.reportDigestsSent > 0 ? `, ${jobs.reportDigestsSent} ringkasan laporan mingguan terkirim` : "") +
     (jobs.retentionAnonymized > 0 ? `, ${jobs.retentionAnonymized} pelamar dianonimkan (retensi UU PDP)` : "") +
     (jobs.retentionScanned > 0 && jobs.retentionAnonymized === 0 ? `, retensi UU PDP: ${jobs.retentionScanned} dipindai, ${jobs.retentionSkippedConsent} ditahan consent` : "") +

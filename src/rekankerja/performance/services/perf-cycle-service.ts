@@ -1,4 +1,5 @@
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { reservePerfNoRange } from "@/rekankerja/performance/services/perf-master-service";
 import { pushNotification } from "@/rekankerja/shared/services/notification-service";
 import { sendSystemEmail, employeeEmailOf } from "@/rekankerja/shared/services/email-service";
 import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
@@ -275,6 +276,58 @@ export async function enrollParticipants(
   const existingIds = new Set(existing.map((e) => e.employeeId));
 
   const year = cycle.periodStart.getFullYear();
+  const report: EnrollReport = { enrolled: [], skippedDuplicate: [], needManager: [], docNos: [] };
+  for (const e of emps) {
+    if (existingIds.has(e.id)) {
+      report.skippedDuplicate.push({ employeeNo: e.employeeNo, fullName: e.fullName });
+    }
+  }
+  const candidates = emps.filter((e) => !existingIds.has(e.id));
+  // resolusi nama atasan massal (P9 — dipakai jalur batch; jalur kecil tetap
+  // lazy-cache resolveMgrName di bawah)
+  const mgrNames = new Map<string, string>();
+  const resolveMgrName = async (id: string | null | undefined): Promise<string | null> => {
+    if (!id) return null;
+    if (!mgrNames.has(id)) {
+      const m = await db.employee.findUnique({ where: { id }, select: { fullName: true } });
+      mgrNames.set(id, m?.fullName ?? "—");
+    }
+    return mgrNames.get(id) ?? null;
+  };
+
+  // P9-PERF — uji beban enroll massal (§22 risiko "500 karyawan"): kandidat
+  // >50 → JALUR BATCH: 1 scan penomoran (reservePerfNoRange) + resolusi nama
+  // atasan massal (1 query) + createMany — menggantikan create + lookup nama
+  // per baris. Perilaku respons IDENTIK dengan jalur per-baris (idempoten —
+  // peserta yang sudah ada di-skip lewat filter candidates di atas).
+  const ENROLL_BATCH_THRESHOLD = 50;
+  if (candidates.length > ENROLL_BATCH_THRESHOLD) {
+    const managerIdSet = [...new Set(candidates.map((e) => mgrOf.get(e.id)).filter((x): x is string => !!x))];
+    const mgrs = await db.employee.findMany({
+      where: { id: { in: managerIdSet } },
+      select: { id: true, fullName: true },
+    });
+    for (const m of mgrs) mgrNames.set(m.id, m.fullName);
+    const docNos = await reservePerfNoRange(db, "PER", candidates.length, year);
+    const data = candidates.map((emp, i) => {
+      const managerId = mgrOf.get(emp.id) ?? null;
+      if (!managerId) report.needManager.push({ employeeNo: emp.employeeNo, fullName: emp.fullName });
+      return { docNo: docNos[i] as string, cycleId: cycle.id, employeeId: emp.id, managerId, status: "Enrolled" };
+    });
+    if (data.length > 0) {
+      await db.appraisalRecord.createMany({ data: data as never });
+    }
+    for (let i = 0; i < candidates.length; i++) {
+      const emp = candidates[i] as { id: string; employeeNo: string; fullName: string };
+      const managerId = mgrOf.get(emp.id) ?? null;
+      report.docNos.push(docNos[i] as string);
+      report.enrolled.push({
+        employeeNo: emp.employeeNo, fullName: emp.fullName, managerName: managerId ? (mgrNames.get(managerId) ?? "—") : null,
+      });
+    }
+    return report;
+  }
+
   // nomor dokumen peserta PER-YYYY-NNNN — UNIQUE LINTAS-SIKLUS: ambil max-suffix
   // global per tahun (bug: dulu hanya menghitung dalam 1 siklus → PER-2026-0001
   // tabrakan saat enroll ke siklus lain tahun sama → unique constraint gagal).
@@ -288,22 +341,8 @@ export async function enrollParticipants(
     const n = Number(u.docNo.slice(docPrefix.length));
     if (Number.isFinite(n) && n > maxSeq) maxSeq = n;
   }
-  const report: EnrollReport = { enrolled: [], skippedDuplicate: [], needManager: [], docNos: [] };
-  const mgrNames = new Map<string, string>();
-  const resolveMgrName = async (id: string | null | undefined): Promise<string | null> => {
-    if (!id) return null;
-    if (!mgrNames.has(id)) {
-      const m = await db.employee.findUnique({ where: { id }, select: { fullName: true } });
-      mgrNames.set(id, m?.fullName ?? "—");
-    }
-    return mgrNames.get(id) ?? null;
-  };
 
-  for (const e of emps) {
-    if (existingIds.has(e.id)) {
-      report.skippedDuplicate.push({ employeeNo: e.employeeNo, fullName: e.fullName });
-      continue;
-    }
+  for (const e of candidates) {
     const managerId = mgrOf.get(e.id) ?? null;
     // nomor dokumen peserta PER-YYYY-NNNN (max-suffix global per tahun — pemanggilan berurutan)
     maxSeq++;

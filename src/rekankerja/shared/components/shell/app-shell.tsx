@@ -361,6 +361,9 @@ const PERFORMANCE_NAV: NavGroup[] = [
     { id: "masters", label: "Master Kinerja", icon: Boxes },
     // P8 — katalog laporan pf11–pf44
     { id: "reports", label: "Laporan", icon: BarChart3 },
+    // P9 — kepatuhan UU PDP: DSR karyawan (data kinerja §7.3) + retensi arsip
+    // (performance:compliance)
+    { id: "compliance", label: "Kepatuhan", icon: ShieldCheck },
     // P0 — penomoran, bobot default, banding, retensi
     { id: "settings", label: "Pengaturan", icon: Settings },
   ] },

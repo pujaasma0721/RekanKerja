@@ -359,6 +359,9 @@ model Employee {
   // F9-REC — compliance: penangan DSR pelamar
   dsrHandled       DataSubjectRequest[]      @relation("DsrHandler")
 
+  // P9-PERF — compliance: DSR karyawan (data kinerja §7.3 UU PDP)
+  dsrRequests      DataSubjectRequest[]      @relation("EmployeeDsr")
+
   // P0-PERF — modul Performance (DEVELOPMENT-PLAN-PERFORMANCE.md §15):
   // peserta penilaian / atasan penilai / reviewer 360 / pembina PIP / subjek
   // evaluasi masa percobaan.
@@ -4390,10 +4393,13 @@ model SavedReportView {
 
 model DataSubjectRequest {
   id          String    @id @default(cuid())
-  applicantId String
-  type        String // Access | Export | Erase
+  // F9-REC: DSR pelamar (applicantId) — P9-PERF: DSR KARYAWAN (employeeId,
+  // data kinerja §7.3 UU PDP). SALAH SATU terisi; keduanya null = data rusak.
+  applicantId String?
+  employeeId  String?
+  type        String // Access | Export | Erase — pelamar (F9) & karyawan data kinerja (P9 §7.3)
   status      String    @default("New") // New | InProgress | Completed | Rejected
-  note        String? // permintaan/klarifikasi dari pelamar (via HR)
+  note        String? // permintaan/klarifikasi dari pelamar/karyawan (via HR)
   dueAt       DateTime // SLA (default +7 hari)
   handledById String? // Employee penangan
   handledAt   DateTime?
@@ -4401,11 +4407,13 @@ model DataSubjectRequest {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  applicant Applicant @relation("ApplicantDsr", fields: [applicantId], references: [id], onDelete: Cascade)
+  applicant Applicant? @relation("ApplicantDsr", fields: [applicantId], references: [id], onDelete: Cascade)
+  employee  Employee? @relation("EmployeeDsr", fields: [employeeId], references: [id], onDelete: SetNull)
   handledBy Employee? @relation("DsrHandler", fields: [handledById], references: [id])
 
   @@index([status, dueAt])
   @@index([applicantId])
+  @@index([employeeId])
 }
 
 // ============================================================================
@@ -4578,6 +4586,9 @@ model AppraisalRecord {
   appealStatus   String? // Submitted|Rejected|Adjusted|Withdrawn
   appealDecidedBy String?
   appealDecidedAt DateTime?
+  // P9-PERF — retensi arsip (§37; job perf-retention-scan menandai data melewati
+  // jendela retensi; PENGHAPUSAN PERMANEN TIDAK OTOMATIS — keputusan eksplisit HR).
+  archivedAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

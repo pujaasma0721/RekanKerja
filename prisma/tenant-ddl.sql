@@ -3149,7 +3149,8 @@ CREATE TABLE "SavedReportView" (
 -- CreateTable
 CREATE TABLE "DataSubjectRequest" (
     "id" TEXT NOT NULL,
-    "applicantId" TEXT NOT NULL,
+    "applicantId" TEXT,
+    "employeeId" TEXT,
     "type" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'New',
     "note" TEXT,
@@ -3304,6 +3305,7 @@ CREATE TABLE "AppraisalRecord" (
     "appealStatus" TEXT,
     "appealDecidedBy" TEXT,
     "appealDecidedAt" TIMESTAMP(3),
+    "archivedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -4304,6 +4306,9 @@ CREATE INDEX "DataSubjectRequest_status_dueAt_idx" ON "DataSubjectRequest"("stat
 CREATE INDEX "DataSubjectRequest_applicantId_idx" ON "DataSubjectRequest"("applicantId");
 
 -- CreateIndex
+CREATE INDEX "DataSubjectRequest_employeeId_idx" ON "DataSubjectRequest"("employeeId");
+
+-- CreateIndex
 CREATE INDEX "KpiDefinition_category_active_idx" ON "KpiDefinition"("category", "active");
 
 -- CreateIndex
@@ -5079,6 +5084,9 @@ ALTER TABLE "SavedReportView" ADD CONSTRAINT "SavedReportView_ownerId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "DataSubjectRequest" ADD CONSTRAINT "DataSubjectRequest_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataSubjectRequest" ADD CONSTRAINT "DataSubjectRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "DataSubjectRequest" ADD CONSTRAINT "DataSubjectRequest_handledById_fkey" FOREIGN KEY ("handledById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -409,6 +409,9 @@ const STEPS: Step[] = [
   // P1-PERF — seed demo siklus historis PER-2025 (sumber salin §18.2 + bukti
   // hidup E2E alur 1–2; idempoten — skip bila sudah ada)
   { key: "performance-p1", label: "P1 Kinerja — demo PER-2025 historis (12 peserta terkunci)", run: (s) => import("../../../../scripts/migrate-performance-p1").then((m) => m.main(s)) },
+  // P9-PERF — kepatuhan UU PDP: DSR karyawan (DataSubjectRequest.employeeId +
+  // applicantId nullable) + retensi arsip (AppraisalRecord.archivedAt).
+  { key: "performance-p9", label: "P9 Kinerja — kolom DSR karyawan (UU PDP §7.3) + archivedAt retensi", run: (s) => import("../../../../scripts/migrate-performance-p9").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -705,7 +708,23 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (perfMissing > 0)
       reasons.push(`${perfMissing} struktur tabel kinerja (Performance) hilang lintas tenant (P0 — rincian di log migrasi)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk) };
+    // P9-PERF — kepatuhan: kolom DSR karyawan + retensi arsip belum ada = gap
+    // (DSR karyawan §7.3 UU PDP; archivedAt ditandai job perf-retention-scan).
+    const dsrEmpOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'DataSubjectRequest' AND column_name = 'employeeId' AND table_schema = ANY($1::text[])`,
+      [schemas],
+    );
+    if (dsrEmpOk < schemas.length)
+      reasons.push(`${schemas.length - dsrEmpOk} tenant tanpa kolom DataSubjectRequest.employeeId (P9 — DSR karyawan UU PDP)`);
+    const perfArchOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'AppraisalRecord' AND column_name = 'archivedAt' AND table_schema = ANY($1::text[])`,
+      [schemas],
+    );
+    if (perfArchOk < schemas.length)
+      reasons.push(`${schemas.length - perfArchOk} tenant tanpa kolom AppraisalRecord.archivedAt (P9 — retensi arsip kinerja)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, dsrEmpOk, perfArchOk) };
   } finally {
     await c.end();
   }

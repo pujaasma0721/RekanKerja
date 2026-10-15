@@ -4,6 +4,9 @@
 // 3. seed data REFERENSI (komponen gaji, parameter pajak UU HPP/TER, akun, process type,
 //    lookup, template, jenis benefit) — TANPA company/karyawan (tenant onboarding sendiri).
 // Data perusahaan & karyawan kosong: tenant baru masuk alur onboarding.
+// P9-PERF — tenant baru juga memastikan PerformanceSetting ada (retentionYears
+// dipakai halaman Kepatuhan + job perf-retention-scan; tenant lama di-heal
+// ensureDsrInfrastructure saat menu dibuka — pola P6/P7 self-heal).
 import { Client } from "pg";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -1084,4 +1087,12 @@ export async function ensureTravelReference(db: TenantDb): Promise<void> {
       });
     }
   }
+
+  // P9-PERF — kepatuhan UU PDP: pastikan PerformanceSetting ada (retentionYears
+  // dipakai halaman Kepatuhan + job perf-retention-scan; tenant lama di-heal
+  // ensureDsrInfrastructure saat menu dibuka — pola P6/P7).
+  try {
+    const { ensureDsrInfrastructure } = await import("@/rekankerja/performance/services/perf-dsr-service");
+    await ensureDsrInfrastructure(db);
+  } catch { /* PerformanceSetting tunggal — race tenant bootstrap aman diabaikan */ }
 }

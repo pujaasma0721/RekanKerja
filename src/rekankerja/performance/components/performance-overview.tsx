@@ -2,7 +2,8 @@
 // RekanKerja Performance — Ringkasan modul. P0: kartu master aktif. P8 (§20):
 // KPI modul NYATA dari dashboard laporan (siklus aktif · peserta · selesai ·
 // terbit · PIP · percobaan · merit) + distribusi rating ringkas + tautan ke
-// Laporan & Analitik + status fase rencana eksekusi P0–P9 (kini s/d P8 selesai).
+// Laporan & Analitik + status fase rencana eksekusi P0–P9 (KINI LENGKAP s/d
+// P9 Kepatuhan & Hardening — 10/10 fase terverifikasi).
 import { useApi } from "@/rekankerja/shared/lib/api";
 import { PageHeader, EmptyState } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Target, ListChecks, Users, Scale, Grid3x3, Wallet, CalendarRange, CheckCircle2,
   Circle, Clock, BarChart3, ClipboardCheck, BadgeCheck, LifeBuoy, ChevronRight, Lock,
+  ShieldCheck,
 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -42,7 +44,7 @@ const PHASES: { id: string; label: string; labelEn: string; detail: string; deta
   { id: "P6", label: "PIP", labelEn: "PIP", detail: "Program perbaikan 30/60/90 + checkpoint", detailEn: "30/60/90 improvement plan + checkpoints" },
   { id: "P7", label: "Masa Percobaan", labelEn: "Probation", detail: "Trigger dari onboarding + keputusan 3 arah", detailEn: "Onboarding trigger + 3-way decision" },
   { id: "P8", label: "Laporan & Analitik", labelEn: "Reports & Analytics", detail: "16 laporan pf11–pf44 dwibahasa + snapshot metrik", detailEn: "16 bilingual reports pf11–pf44 + metric snapshots" },
-  { id: "P9", label: "Kepatuhan & Hardening", labelEn: "Compliance & Hardening", detail: "Visibility matrix + DSR + retensi + uji beban", detailEn: "Visibility matrix + DSR + retention + load tests" },
+  { id: "P9", label: "Kepatuhan & Hardening", labelEn: "Compliance & Hardening", detail: "DSR karyawan UU PDP + retensi arsip + matriks akses §11.3", detailEn: "Employee DSRs (UU PDP) + records retention + §11.3 access matrix" },
 ];
 
 export function PerformanceOverview() {
@@ -139,38 +141,65 @@ export function PerformanceOverview() {
             <div className="mt-4">
               <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
                 <span>{t("Penyelesaian modul (fase terverifikasi)", "Module completion (verified phases)")}</span>
-                <span className="tabular-nums">P0–P8 · 9/10</span>
+                <span className="tabular-nums">{t("P0–P9 · 10/10", "P0–P9 · 10/10")}</span>
               </div>
-              <Progress value={90} className="h-2" />
+              <Progress value={100} className="h-2" />
             </div>
           </CardContent>
         </Card>
 
-        {/* tautan ke Laporan & Analitik */}
-        <a
-          href="/?m=performance&v=reports"
-          className="group relative flex flex-col overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:border-emerald-500/30 dark:from-emerald-500/10 dark:to-slate-900"
-        >
-          <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-400 to-teal-500" />
-          <div className="flex items-start justify-between gap-2">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm transition-transform group-hover:scale-105">
-              <BarChart3 className="h-5 w-5" />
-            </span>
-            <ChevronRight className="h-4 w-4 text-emerald-600 transition-transform group-hover:translate-x-1 dark:text-emerald-400" />
-          </div>
-          <p className="mt-3 text-[13px] font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
-            {t("Laporan & Analitik", "Reports & Analytics")}
-          </p>
-          <p className="mt-1 flex-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
-            {t(
-              "14 laporan pf11–pf44 dwibahasa (XLSX/PDF) + ringkasan analitik + register riwayat per karyawan (PP 35/2021 §7.2).",
-              "14 bilingual reports pf11–pf44 (XLSX/PDF) + analytics summary + per-employee history register (PP 35/2021 §7.2).",
-            )}
-          </p>
-          <p className="mt-3 border-t border-dashed border-emerald-200 pt-2.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-700 dark:border-emerald-500/20 dark:text-emerald-300">
-            {t("Buka tab Laporan", "Open Reports tab")}
-          </p>
-        </a>
+        {/* tautan ke Laporan & Analitik + Kepatuhan (P9) */}
+        <div className="grid gap-4">
+          <a
+            href="/?m=performance&v=reports"
+            className="group relative flex flex-col overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:border-emerald-500/30 dark:from-emerald-500/10 dark:to-slate-900"
+          >
+            <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-400 to-teal-500" />
+            <div className="flex items-start justify-between gap-2">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm transition-transform group-hover:scale-105">
+                <BarChart3 className="h-5 w-5" />
+              </span>
+              <ChevronRight className="h-4 w-4 text-emerald-600 transition-transform group-hover:translate-x-1 dark:text-emerald-400" />
+            </div>
+            <p className="mt-3 text-[13px] font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
+              {t("Laporan & Analitik", "Reports & Analytics")}
+            </p>
+            <p className="mt-1 flex-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+              {t(
+                "14 laporan pf11–pf44 dwibahasa (XLSX/PDF) + ringkasan analitik + register riwayat per karyawan (PP 35/2021 §7.2).",
+                "14 bilingual reports pf11–pf44 (XLSX/PDF) + analytics summary + per-employee history register (PP 35/2021 §7.2).",
+              )}
+            </p>
+            <p className="mt-3 border-t border-dashed border-emerald-200 pt-2.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-700 dark:border-emerald-500/20 dark:text-emerald-300">
+              {t("Buka tab Laporan", "Open Reports tab")}
+            </p>
+          </a>
+          {/* P9 — kepatuhan UU PDP: DSR karyawan + retensi arsip + matriks akses */}
+          <a
+            href="/?m=performance&v=compliance"
+            className="group relative flex flex-col overflow-hidden rounded-2xl border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:border-fuchsia-500/30 dark:from-fuchsia-500/10 dark:to-slate-900"
+          >
+            <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-fuchsia-400 to-rose-500" />
+            <div className="flex items-start justify-between gap-2">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-fuchsia-600 text-white shadow-sm transition-transform group-hover:scale-105">
+                <ShieldCheck className="h-5 w-5" />
+              </span>
+              <ChevronRight className="h-4 w-4 text-fuchsia-600 transition-transform group-hover:translate-x-1 dark:text-fuchsia-400" />
+            </div>
+            <p className="mt-3 text-[13px] font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
+              {t("Kepatuhan (UU PDP)", "Compliance (UU PDP)")}
+            </p>
+            <p className="mt-1 flex-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+              {t(
+                "DSR karyawan atas data kinerja (akses/ekspor/hapus — SLA 7 hari) + retensi arsip + matriks akses §11.3.",
+                "Employee DSRs over performance data (access/export/erase — 7-day SLA) + records retention + §11.3 access matrix.",
+              )}
+            </p>
+            <p className="mt-3 border-t border-dashed border-fuchsia-200 pt-2.5 text-[10px] font-extrabold uppercase tracking-wide text-fuchsia-700 dark:border-fuchsia-500/20 dark:text-fuchsia-300">
+              {t("Buka tab Kepatuhan", "Open Compliance tab")}
+            </p>
+          </a>
+        </div>
       </div>
 
       <Card className="border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/80">
@@ -181,7 +210,7 @@ export function PerformanceOverview() {
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {PHASES.map((p, i) => {
-              const done = i <= 8; // P0..P8 selesai (P8 = laporan & analitik)
+              const done = i <= 9; // P0..P9 selesai (P9 = kepatuhan & hardening)
               return (
                 <div
                   key={p.id}

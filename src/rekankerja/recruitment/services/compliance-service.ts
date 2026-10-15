@@ -118,9 +118,11 @@ export interface DsrRow {
 
 const DSR_STATUS_RANK: Record<string, number> = { New: 0, InProgress: 1, Completed: 2, Rejected: 3 };
 
-/** Daftar DSR — status New dulu, lalu dueAt asc (inbox kepatuhan). */
+/** Daftar DSR PELAMAR (P9: employeeId null — DSR karyawan data kinerja ada
+ *  di modul Performance → Kepatuhan) — status New dulu, lalu dueAt asc. */
 export async function listDsr(db: TenantDb): Promise<DsrRow[]> {
   const rows = await db.dataSubjectRequest.findMany({
+    where: { applicantId: { not: null } },
     include: {
       applicant: { select: { applicantNo: true, firstName: true, middleName: true, lastName: true, displayName: true, status: true } },
       handledBy: { select: { fullName: true } },
@@ -138,11 +140,15 @@ export async function listDsr(db: TenantDb): Promise<DsrRow[]> {
       createdAt: r.createdAt.toISOString(),
       handledAt: iso(r.handledAt),
       resultNote: r.resultNote,
-      applicantId: r.applicantId,
-      applicantNo: r.applicant.applicantNo,
-      applicantName: r.applicant.status === "Anonymized"
-        ? `Anonim ${r.applicant.applicantNo}`
-        : fullNameOf(r.applicant),
+      // where applicantId not-null — ?? "" hanya jaga tipe di batas serializer
+      // (P9: applicantId kini nullable — DSR karyawan ditangani modul Performance)
+      applicantId: r.applicantId ?? "",
+      applicantNo: r.applicant?.applicantNo ?? "—",
+      applicantName: r.applicant
+        ? (r.applicant.status === "Anonymized"
+          ? `Anonim ${r.applicant.applicantNo}`
+          : fullNameOf(r.applicant))
+        : "—",
       handlerName: r.handledBy?.fullName ?? null,
       overdue: (r.status === "New" || r.status === "InProgress") && r.dueAt.getTime() < Date.now(),
     }))
@@ -152,14 +158,20 @@ export async function listDsr(db: TenantDb): Promise<DsrRow[]> {
     );
 }
 
-/** Ambil DSR + konteks pelamar (guard umum aksi status). */
+/** Ambil DSR pelamar + konteks (guard umum aksi status). P9: DSR karyawan
+ *  (employeeId — data kinerja) ditolak di sini — ditangani modul Performance
+ *  (performance:compliance); kembalikan tipe dgn applicant/applicantId NON-NULL
+ *  supaya pemanggil lama tetap type-safe. */
 async function dsrWithApplicant(db: TenantDb, id: string) {
   const dsr = await db.dataSubjectRequest.findUnique({
     where: { id },
     include: { applicant: { select: { id: true, applicantNo: true, status: true } } },
   });
   if (!dsr) throw new ComplianceError(404, "Permintaan data (DSR) tidak ditemukan");
-  return dsr;
+  if (!dsr.applicant || !dsr.applicantId) {
+    throw new ComplianceError(409, "DSR ini milik karyawan (data kinerja §7.3 UU PDP) — tangani melalui modul Performance → Kepatuhan");
+  }
+  return { ...dsr, applicant: dsr.applicant, applicantId: dsr.applicantId };
 }
 
 /** Naikkan status New → InProgress (mulai ditangani). */

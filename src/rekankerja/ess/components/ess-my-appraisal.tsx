@@ -14,6 +14,8 @@
 //   • Tab "Periode lalu" — riwayat siklus final (read-only §18.3 gaya).
 //   • P6 §33-3 — seksi "Program Perbaikan Kinerja (PIP)": progres program
 //     milik sendiri (sasaran + checkpoint 30/60/90 + capaian) — read-only.
+//   • P9 §7.3 — seksi "Permintaan Data Saya (UU PDP)": daftar DSR data kinerja
+//     milik sendiri + ajukan mandiri (Access/Export/Erase — SLA 7 hari).
 // Estimator dampak TIDAK ada di ESS (D21 — karyawan tidak melihat).
 // ============================================================================
 import { useEffect, useState } from "react";
@@ -26,13 +28,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ProgressTrackerBar, AiComposeDialog } from "@/rekankerja/performance/components/perf-form-kit";
 import { ESS_BASE } from "./ess-api";
 import {
   ClipboardCheck, AlertTriangle, Loader2, Sparkles, Send, RotateCcw, History,
-  ChevronDown, Info, ShieldAlert, CheckCircle2, Scale, Clock, Download,
+  ChevronDown, Info, ShieldAlert, CheckCircle2, Scale, Clock, Download, ShieldCheck,
 } from "lucide-react";
 
 // ---------- tipe (kontrak API) ----------
@@ -94,7 +97,7 @@ const fmtD = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "—"
 
 export function EssMyAppraisalPage() {
   const { t, lang } = useI18n();
-  const { data, loading, error, refresh } = useApi<{ current: CurrentBlock | null; published: PublishedData | null; previous: PrevRow[]; pips?: MyPipRow[] }>(`${ESS_BASE}/my-appraisal`);
+  const { data, loading, error, refresh } = useApi<{ current: CurrentBlock | null; published: PublishedData | null; previous: PrevRow[]; pips?: MyPipRow[]; dsrs?: MyDsrRow[] }>(`${ESS_BASE}/my-appraisal`);
   const [tab, setTab] = useState<"current" | "previous">("current");
   const [exporting, setExporting] = useState(false);
 
@@ -219,7 +222,169 @@ export function EssMyAppraisalPage() {
       )}
 
       {data && (data.pips ?? []).length > 0 && <MyPipSection pips={data.pips ?? []} />}
+
+      {/* P9 §7.3 UU PDP — Permintaan Data Saya: selalu tampil (hak subjek data
+          karyawan atas data kinerjanya — ajukan mandiri + pantau status SLA). */}
+      <MyDsrSection dsrs={data?.dsrs ?? []} onDone={refresh} />
     </div>
+  );
+}
+
+// ---------- P9 §7.3: Permintaan Data Saya (UU PDP — self-service DSR) ----------
+
+interface MyDsrRow {
+  id: string; type: string; status: string; note: string | null;
+  dueAt: string; createdAt: string; handledAt: string | null; resultNote: string | null;
+}
+
+const DSR_TYPE_OPTS: { key: string; label: string; labelEn: string }[] = [
+  { key: "Access", label: "Akses Data", labelEn: "Access" },
+  { key: "Export", label: "Ekspor Data", labelEn: "Export" },
+  { key: "Erase", label: "Hapus Data", labelEn: "Erase" },
+];
+const DSR_STATUS_LABEL: Record<string, [string, string]> = {
+  New: ["Baru", "New"],
+  InProgress: ["Diproses", "In Progress"],
+  Completed: ["Selesai", "Completed"],
+  Rejected: ["Ditolak", "Rejected"],
+};
+
+function MyDsrSection({ dsrs, onDone }: { dsrs: MyDsrRow[]; onDone: () => void }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [type, setType] = useState("Access");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const active = dsrs.filter((d) => d.status === "New" || d.status === "InProgress");
+  const st = (s: string) => {
+    const m = DSR_STATUS_LABEL[s] ?? [s, s] as [string, string];
+    return t(m[0], m[1]);
+  };
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await apiSend(`${ESS_BASE}/my-appraisal`, "POST", { action: "requestDsr", type, note: note.trim() || null });
+      toast.success(t(
+        "Permintaan data Anda dicatat — HR menangani maks. 7 hari kerja (UU PDP).",
+        "Your data request is recorded — HR will handle it within 7 days (UU PDP).",
+      ));
+      setFormOpen(false);
+      setNote("");
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal mengajukan permintaan", "Failed to submit the request"));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card className="border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/80">
+      <CardContent className="p-4 sm:p-5">
+        <button className="flex w-full items-center gap-2 text-left" onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}>
+          <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <span className="text-sm font-semibold">
+              {t("Permintaan Data Saya (UU PDP)", "My Data Requests (UU PDP)")}
+            </span>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {active.length > 0
+                ? t(`${active.length} permintaan aktif — SLA maks. 7 hari kerja.`, `${active.length} active request(s) — SLA max. 7 working days.`)
+                : t("Hak akses / ekspor / hapus data kinerja Anda (UU PDP No. 27/2022).", "Access / export / erase rights over your performance data (UU PDP No. 27/2022).")}
+            </p>
+          </div>
+          <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", open && "rotate-180")} aria-hidden />
+        </button>
+
+        {open && (
+          <div className="mt-3 space-y-3">
+            {!formOpen ? (
+              <Button size="sm" onClick={() => setFormOpen(true)} className="h-8 gap-1.5 text-xs">
+                <Send className="h-3.5 w-3.5" aria-hidden /> {t("Ajukan Permintaan Data", "Submit a Data Request")}
+              </Button>
+            ) : (
+              <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-900/40">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("Jenis permintaan *", "Request type *")}</Label>
+                  <Select value={type} onValueChange={setType}>
+                    <SelectTrigger className="h-9 w-full bg-white text-[12.5px] font-semibold dark:bg-slate-900" aria-label={t("Jenis permintaan", "Request type")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DSR_TYPE_OPTS.map((x) => (
+                        <SelectItem key={x.key} value={x.key} className="text-[12px] font-semibold">
+                          {t(x.label, x.labelEn)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] leading-snug text-slate-400">
+                    {t(
+                      "Akses = lihat data · Ekspor = paket XLSX identitas + riwayat kinerja · Hapus = keputusan ditangani HR (bukti kepegawaian PP 35/2021 §7.2).",
+                      "Access = view data · Export = XLSX package of identity + performance history · Erase = decision handled by HR (employment evidence PP 35/2021 §7.2).",
+                    )}
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("Catatan (opsional)", "Note (optional)")}</Label>
+                  <Textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    rows={2}
+                    placeholder={t("Konteks permintaan Anda…", "Context of your request…")}
+                    className="text-[12.5px]"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setFormOpen(false)} disabled={busy} className="h-8 text-xs">{t("Batal", "Cancel")}</Button>
+                  <Button size="sm" onClick={submit} disabled={busy} className="h-8 text-xs">
+                    {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+                    {t("Kirim (SLA 7 hari)", "Send (7-day SLA)")}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {dsrs.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-3 py-3 text-center text-[11px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+                {t("Belum ada permintaan data.", "No data requests yet.")}
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {dsrs.map((d) => {
+                  const tone = d.status === "Completed" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                    : d.status === "Rejected" ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
+                    : d.status === "InProgress" ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                    : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
+                  const overdue = (d.status === "New" || d.status === "InProgress") && new Date(d.dueAt).getTime() < Date.now();
+                  return (
+                    <div key={d.id} className="rounded-lg border border-slate-200 bg-white/70 px-2.5 py-2 dark:border-slate-800 dark:bg-slate-900/60">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", tone)}>{st(d.status)}</span>
+                        <span className="text-xs font-semibold">{t(
+                          DSR_TYPE_OPTS.find((x) => x.key === d.type)?.label ?? d.type,
+                          DSR_TYPE_OPTS.find((x) => x.key === d.type)?.labelEn ?? d.type,
+                        )}</span>
+                        {overdue && (
+                          <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{t("lewat SLA", "past SLA")}</span>
+                        )}
+                        <span className="ml-auto font-mono text-[10px] text-slate-400">{fmtD(d.createdAt)}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        {t(`Tenggat ${fmtD(d.dueAt)}`, `Due ${fmtD(d.dueAt)}`)}
+                        {d.resultNote ? ` — ${d.resultNote}` : ""}
+                      </p>
+                      {d.note && <p className="mt-0.5 text-[10px] text-slate-400">“{d.note}”</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

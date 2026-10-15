@@ -10,9 +10,14 @@ import { pushNotification } from "@/rekankerja/shared/services/notification-serv
 //     maupun ke konteks AI compose — hanya count + avg + komentar kolektif.
 //   • Agregasi tampil hanya bila ≥3 reviewer Submitted PER KATEGORI (§37).
 //   • Scheduler: undangan Invited lewat dueAt → Expired (job perf-360-expire).
+// P9 — rate-limit submit 10/jam per reviewer (ActivityLog 1 jam terakhir —
+// pola D20 ai-compose; karyawan ESS hanya bisa submit undangan miliknya).
 // ============================================================================
 
 const DAY_MS = 86_400_000;
+
+/** Rate-limit P9 (§37 hardening): maks 10 submit 360 per reviewer per jam. */
+const SUBMIT_360_RATE_LIMIT_PER_HOUR = 10;
 
 export interface Actor360 {
   employeeId: string | null;
@@ -161,6 +166,19 @@ export async function declineInvitation(db: TenantDb, employeeId: string, feedba
   await db.feedback360.update({ where: { id: feedbackId }, data: { status: "Declined" } });
 }
 
+/** Hitung submit 360 reviewer dalam 1 jam terakhir (pola ai-compose D20 —
+ *  ActivityLog ditulis oleh pemanggil ESS tepat setelah submit sukses, jadi
+ *  jumlah ini mencerminkan seluruh submit nyata reviewer tsb). */
+async function recent360SubmitCount(db: TenantDb, reviewerEmployeeId: string): Promise<number> {
+  const since = new Date(Date.now() - 3600 * 1000);
+  return db.activityLog.count({
+    where: {
+      action: "Submitted", entity: "Feedback360", employeeId: reviewerEmployeeId,
+      createdAt: { gte: since },
+    },
+  });
+}
+
 export interface Answer360Input {
   competencyId: string;
   score: number;
@@ -192,6 +210,12 @@ export async function submit360(
   if (fb.dueAt && fb.dueAt.getTime() < Date.now()) throw new Error("Undangan sudah lewat tenggat — status Expired");
   if (fb.appraisal.cycle.status !== "Assessment") {
     throw new Error(`Isian 360 hanya saat fase Assessment — siklus ${fb.appraisal.cycle.code} saat ini ${fb.appraisal.cycle.status}`);
+  }
+  // P9-PERF — rate-limit 10 submit/jam per reviewer (pola D20 ai-compose;
+  // ActivityLog submit ESS mencatat employeeId reviewer → hitung 1 jam terakhir)
+  const used = await recent360SubmitCount(db, employeeId);
+  if (used >= SUBMIT_360_RATE_LIMIT_PER_HOUR) {
+    throw new Error("Batas 10 submit 360 per jam tercapai — coba lagi nanti");
   }
 
   const validIds = new Set(fb.appraisal.comps.map((c) => c.competencyId));
