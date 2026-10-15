@@ -22,6 +22,7 @@ import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
+import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
 import {
   getEmployeeApprovalParams, resolveApprovalStructure, startApprovalChain,
   decideApprovalChain, getApprovalChain, type ChainView, type DecideActor,
@@ -575,9 +576,13 @@ async function performSend(db: TenantDb, offerId: string, actorName?: string | n
 
   // email kandidat eksternal (bila tersedia & terdekripsi)
   let candidateEmail: string | null = null;
+  let candidatePhone: string | null = null;
   if (o.candidate.applicantId) {
-    const a = await db.applicant.findUnique({ where: { id: o.candidate.applicantId }, select: { email: true, city: true } });
-    if (a) candidateEmail = tc.decryptText(a.email) || null;
+    const a = await db.applicant.findUnique({ where: { id: o.candidate.applicantId }, select: { email: true, city: true, phone: true } });
+    if (a) {
+      candidateEmail = tc.decryptText(a.email) || null;
+      candidatePhone = tc.decryptText(a.phone) || null;
+    }
   }
 
   const ctx: Record<string, string> = {
@@ -632,6 +637,20 @@ async function performSend(db: TenantDb, offerId: string, actorName?: string | n
     });
   }
 
+  // B6 — WhatsApp ke kandidat (paralel email; fire-and-forget, never-throw)
+  if (candidatePhone) {
+    void sendWa(db, {
+      event: "recruitment.offer.sent",
+      toPhone: candidatePhone,
+      placeholders: {
+        nama: o.candidate.fullName, docNo: o.offerNo,
+        posisi: o.candidate.pr.position?.title ?? "-",
+        perusahaan: company?.name ?? "RekanKerja HRIS",
+        gaji: fmtMoneyId(salary), mulaiKerja: fmtDateId(o.startDate), berlakuSampai: fmtDateId(o.expiryDate),
+      },
+    });
+  }
+
   // notif in-app officer rekrutmen
   const officer = o.candidate.pr.recruitmentOfficer;
   if (officer) {
@@ -649,6 +668,22 @@ async function performSend(db: TenantDb, offerId: string, actorName?: string | n
         data: { nama: officer.fullName, docNo: o.offerNo, posisi: o.candidate.pr.position?.title ?? "-", gaji: fmtMoneyId(salary), mulaiKerja: fmtDateId(o.startDate), berlakuSampai: fmtDateId(o.expiryDate), perusahaan: company?.name ?? "RekanKerja HRIS" },
       });
     }
+    // B6 — WhatsApp officer (paralel fallback email; never-throw)
+    void (async () => {
+      const phone = await employeePhoneOf(db, officer.id);
+      if (phone) {
+        void sendWa(db, {
+          event: "recruitment.offer.sent",
+          toPhone: phone,
+          placeholders: {
+            nama: officer.fullName, docNo: o.offerNo,
+            posisi: o.candidate.pr.position?.title ?? "-",
+            perusahaan: company?.name ?? "RekanKerja HRIS",
+            gaji: fmtMoneyId(salary), mulaiKerja: fmtDateId(o.startDate), berlakuSampai: fmtDateId(o.expiryDate),
+          },
+        });
+      }
+    })().catch(() => { /* never */ });
   }
 
   await db.activityLog.create({
@@ -808,6 +843,21 @@ export async function respondOffer(
         },
       });
     }
+    // B6 — WhatsApp officer (paralel email; fire-and-forget, never-throw)
+    void (async () => {
+      const phone = await employeePhoneOf(db, off.id);
+      if (phone) {
+        void sendWa(db, {
+          event: "recruitment.offer.responded",
+          toPhone: phone,
+          placeholders: {
+            nama: off.fullName, docNo: o.offerNo, kandidat: o.candidate.fullName,
+            posisi: officer.position?.title ?? "-", statusOffer: status === "Accepted" ? "DITERIMA" : "DITOLAK",
+            catatan: input.note?.trim() || "-",
+          },
+        });
+      }
+    })().catch(() => { /* never */ });
   }
 
   await db.activityLog.create({
@@ -894,6 +944,21 @@ export async function jobOfferExpiry(db: TenantDb): Promise<{ expired: number; r
           },
         });
       }
+      // B6 — WhatsApp target (officer PR / pembuat offer; paralel email)
+      void (async () => {
+        const phone = await employeePhoneOf(db, target.id);
+        if (phone) {
+          void sendWa(db, {
+            event: "recruitment.offer.reminder",
+            toPhone: phone,
+            placeholders: {
+              nama: target.fullName, docNo: o.offerNo, kandidat: o.candidate.fullName,
+              posisi: o.candidate.pr.position?.title ?? "-", statusOffer: o.status,
+              berlakuSampai: fmtDateId(o.expiryDate), sisaHari: `${diffDays} hari lagi`,
+            },
+          });
+        }
+      })().catch(() => { /* never */ });
     }
     await db.activityLog.create({
       data: {

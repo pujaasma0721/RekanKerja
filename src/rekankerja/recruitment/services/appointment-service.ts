@@ -23,6 +23,7 @@ import type { Prisma } from "@/generated/tenant";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
+import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
 import { createEmployeeWithAssignment, type AssignmentSeed } from "@/rekankerja/human-resource/api/employees";
 import {
   createOnboardingWithTasks, emailOnboardingChecklist,
@@ -626,6 +627,28 @@ export async function continueToOnboarding(
         },
       });
     }
+    // B6 — WhatsApp paralel (fire-and-forget, never-throw): officer
+    // rekrutmen + KARYAWAN BARU (sambutan onboarding — nomor Employee.phone).
+    const officerEmp = officer.recruitmentOfficer;
+    void (async () => {
+      const ph = (nama: string) => ({
+        nama,
+        kandidat: appt.candidate.fullName,
+        employeeNo: employee.employeeNo,
+        posisi: officer.position?.title ?? "-",
+        docNo: appt.offer.offerNo,
+      });
+      const [officerPhone, newHirePhone] = await Promise.all([
+        employeePhoneOf(db, officerEmp.id),
+        employeePhoneOf(db, employee.id),
+      ]);
+      if (officerPhone) {
+        void sendWa(db, { event: "recruitment.appointment.hired", toPhone: officerPhone, placeholders: ph(officerEmp.fullName) });
+      }
+      if (newHirePhone) {
+        void sendWa(db, { event: "recruitment.appointment.hired", toPhone: newHirePhone, placeholders: ph(employee.fullName) });
+      }
+    })().catch(() => { /* notifikasi tidak boleh mengganggu proses utama */ });
   }
 
   await db.activityLog.create({

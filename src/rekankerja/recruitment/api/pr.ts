@@ -4,6 +4,7 @@ import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { parseAdvSearchReq } from "@/rekankerja/shared/services/adv-search-server";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/rekankerja/shared/services/email-service";
+import { sendWa, employeePhoneOf, approverPhonesOf } from "@/rekankerja/shared/services/wa-service";
 import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-service";
 import {
   DecisionConflictError, DecisionForbiddenError,
@@ -265,6 +266,22 @@ async function fireSubmittedSideEffects(
           ...(firstApprover ? { approver: firstApprover } : {}),
         },
       });
+      // B6 — WhatsApp approver (mirror approverEmailsOf via approverPhonesOf;
+      // fire-and-forget, never-throw)
+      void (async () => {
+        const phones = await approverPhonesOf(db, ctx.requesterId);
+        for (const p of phones) {
+          void sendWa(db, {
+            event: "recruitment.pr.submitted",
+            toPhone: p,
+            placeholders: {
+              nama: ctx.requesterName, docNo: ctx.prNo, posisi: ctx.positionTitle,
+              jumlahOrang: String(ctx.requiredNo), statusKerja: ctx.employmentStatus,
+              alasan: ctx.reason || "-",
+            },
+          });
+        }
+      })().catch(() => { /* notifikasi tidak boleh mengganggu proses utama */ });
       dispatchWebhookEvent(db, null, "recruitment.pr.submitted", {
         prNo: ctx.prNo, position: ctx.positionTitle, requiredNo: ctx.requiredNo,
         employmentStatus: ctx.employmentStatus, requester: ctx.requesterName,
@@ -310,6 +327,21 @@ async function fireDecidedSideEffects(db: Parameters<typeof notifyEvent>[0], ctx
           jumlahOrang: String(ctx.requiredNo), catatan: ctx.note || "-",
         },
       });
+      // B6 — WhatsApp ke PENGAJU (template disasar ke pengaju — A1 brief;
+      // parallel email; fire-and-forget, never-throw)
+      void (async () => {
+        const phone = await employeePhoneOf(db, ctx.requesterId);
+        if (phone) {
+          void sendWa(db, {
+            event: ctx.status === "Approved" ? "recruitment.pr.approved" : "recruitment.pr.rejected",
+            toPhone: phone,
+            placeholders: {
+              nama: ctx.requesterName, docNo: ctx.prNo, posisi: ctx.positionTitle,
+              jumlahOrang: String(ctx.requiredNo), catatan: ctx.note || "-",
+            },
+          });
+        }
+      })().catch(() => { /* notifikasi tidak boleh mengganggu proses utama */ });
       dispatchWebhookEvent(db, null, ctx.status === "Approved" ? "recruitment.pr.approved" : "recruitment.pr.rejected", {
         prNo: ctx.prNo, status: ctx.status, decidedBy: ctx.actorName, note: ctx.note ?? null,
       }).catch(() => { /* never */ });

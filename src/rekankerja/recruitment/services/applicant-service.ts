@@ -26,6 +26,7 @@ import {
   saveAttachment, deleteAttachmentsByEntity, listAttachmentsByEntity,
 } from "@/rekankerja/shared/services/attachment-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
+import { sendWa } from "@/rekankerja/shared/services/wa-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import { emitWebhookEvent } from "@/rekankerja/recruitment/services/webhook-service";
 
@@ -961,6 +962,20 @@ export async function submitPublicApplication(
           tanggal: new Date().toISOString().slice(0, 10),
         },
       });
+      // B6 — WhatsApp konfirmasi ke PELAMAR (paralel email; nomor masih
+      // plain di payload pra-enkripsi — never-throw, konfigurasi MATI → Skipped)
+      if (input.payload.phone?.trim()) {
+        void sendWa(db, {
+          event: "recruitment.application.received",
+          toPhone: input.payload.phone,
+          placeholders: {
+            nama: nama || "Kandidat",
+            posisi: jo?.titleToShow ?? jo?.jobOpportunity?.title ?? "-",
+            perusahaan: company?.name ?? "RekanKerja HRIS",
+            tanggal: new Date().toISOString().slice(0, 10),
+          },
+        });
+      }
     }
   }
   return { id: pa.id };

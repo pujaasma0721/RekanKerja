@@ -40,7 +40,7 @@ import { AiScorePanel } from "./ai-score-dialogs";
 import {
   AlertTriangle, AlarmClock, ArrowUpRight, BadgeCheck, CalendarPlus, Check, ChevronLeft, ChevronRight,
   ChevronsUpDown, ClipboardCheck, Download, FileText, Info, ListChecks, MailCheck, Pencil, Plus, Settings2,
-  Trash2, UserPlus, UserRoundX,
+  Trash2, UserPlus, UserRoundX, Video,
 } from "lucide-react";
 
 // ============ helper kecil ============
@@ -84,6 +84,7 @@ export function ScheduleDialog({ step, employees, onClose, onDone }: {
   const [planDate, setPlanDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [evaluatorId, setEvaluatorId] = useState("");
+  const [meetingUrl, setMeetingUrl] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -91,6 +92,7 @@ export function ScheduleDialog({ step, employees, onClose, onDone }: {
     setPlanDate(step.planDate ? step.planDate.slice(0, 16) : "");
     setDueDate(step.dueDate ? step.dueDate.slice(0, 16) : "");
     setEvaluatorId(step.performedById ?? "");
+    setMeetingUrl(step.meetingUrl ?? "");
   }, [step]);
 
   const submit = async () => {
@@ -105,6 +107,7 @@ export function ScheduleDialog({ step, employees, onClose, onDone }: {
         action: "schedule", stepId: step.id, planDate,
         dueDate: dueDate || null,
         performedById: evaluatorId || null,
+        meetingUrl: meetingUrl.trim() || null,
       });
       toast.success(t(`Tahap ${step.stageName} dijadwalkan${dueDate ? ` — SLA s.d. ${fmtDate(dueDate)}` : ""}`, `Stage ${step.stageName} scheduled${dueDate ? ` — SLA until ${fmtDate(dueDate)}` : ""}`));
       onDone();
@@ -140,6 +143,21 @@ export function ScheduleDialog({ step, employees, onClose, onDone }: {
           <div className="space-y-1.5">
             <Label>{t("Evaluator", "Evaluator")}</Label>
             <EmployeeSelect value={evaluatorId} onChange={setEvaluatorId} employees={employees} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1">
+              {t("Link Meeting")}
+              <span title={t("Tautan video-call utk interview/wawancara online — disertakan di undangan WhatsApp/email kandidat", "Video-call link for online interviews — included in the candidate's WhatsApp/email invitation")}>
+                <Info className="h-3 w-3 text-slate-400" aria-hidden />
+              </span>
+            </Label>
+            <Input
+              type="url" value={meetingUrl} onChange={(e) => setMeetingUrl(e.target.value)}
+              placeholder="https://meet.google.com/abc-defg-hij"
+            />
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+              {t("Opsional — harus URL http/https (mis. Google Meet/Zoom).", "Optional — must be an http/https URL (e.g. Google Meet/Zoom).")}
+            </p>
           </div>
         </div>
         <DialogFooter>
@@ -1345,6 +1363,14 @@ export function CandidateDetailDialog({ candidateId, employees, stages, blind = 
                                 onClick={() => window.open(`${SELECTION_API}?letterPdf=${s.letters[0].id}`, "_blank")}>
                                 <FileText className="h-3.5 w-3.5" aria-hidden />{s.letters[0].letterNo}
                               </button>
+                            ) : "—"} />
+                            <Field label={t("Link Meeting", "Meeting Link")} value={s.meetingUrl ? (
+                              <a href={s.meetingUrl} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-teal-700 hover:underline dark:text-teal-400"
+                                title={s.meetingUrl}>
+                                <Video className="h-3.5 w-3.5" aria-hidden />
+                                {t("Buka Meeting", "Open Meeting")}
+                              </a>
                             ) : "—"} />
                             <Field label={t("Dilaksanakan", "Performed")} value={s.performedAt ? fmtDate(s.performedAt) : "—"} />
                             <Field label={t("Panel Scorecard", "Scorecard Panel")} value={

@@ -101,6 +101,8 @@ export interface StepRow {
   score: number | null;
   result: string | null;
   comment: string | null;
+  /** B6 — link meeting video-call tahap seleksi (opsional). */
+  meetingUrl: string | null;
   continueProcess: boolean;
   reportFileName: string | null;
   letterNo: string | null;

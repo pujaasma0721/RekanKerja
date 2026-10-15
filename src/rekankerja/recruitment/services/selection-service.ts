@@ -18,6 +18,7 @@ import type { Prisma } from "@/generated/tenant";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
+import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
 import { getStepScorecards, scorecardGateOk } from "@/rekankerja/recruitment/services/scorecard-service";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 
@@ -142,6 +143,8 @@ export interface StepRow {
   score: number | null;
   result: string | null;
   comment: string | null;
+  /** B6 — link meeting video-call tahap seleksi (opsional). */
+  meetingUrl: string | null;
   continueProcess: boolean;
   reportFileName: string | null;
   letterNo: string | null;
@@ -487,6 +490,7 @@ export async function getCandidateDetail(db: TenantDb, id: string, moneyVisible:
         planDate: iso(s.planDate), dueDate: iso(s.dueDate), acknowledgedAt: iso(s.acknowledgedAt),
         performedById: s.performedById, performerName: s.performedBy?.fullName ?? null, performedAt: iso(s.performedAt),
         status: s.status as StepStatus, score: s.score, result: s.result, comment: s.comment,
+        meetingUrl: s.meetingUrl ?? null,
         continueProcess: s.continueProcess, reportFileName: s.reportFileName,
         letterNo: s.letterNo,
         letters: s.letters.map((l) => ({ id: l.id, letterNo: l.letterNo, kind: l.kind, issuedAt: l.issuedAt.toISOString() })),
@@ -531,20 +535,42 @@ function parseDateInput(v: string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * B6 — validasi link meeting video-call: wajib URL http/https bila diisi.
+ * Kosong → null; tidak valid → throw (API merespons 400).
+ */
+function parseMeetingUrl(v: string | null | undefined): string | null {
+  const s = v?.trim() ?? "";
+  if (!s) return null;
+  let u: URL;
+  try {
+    u = new URL(s);
+  } catch {
+    throw new Error("Link meeting harus berupa URL http/https yang valid (contoh: https://meet.google.com/abc-defg-hij)");
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    throw new Error("Link meeting harus berupa URL http/https yang valid (contoh: https://meet.google.com/abc-defg-hij)");
+  }
+  return u.toString();
+}
+
 export interface ScheduleStepInput {
   stepId: string;
   planDate: string; // datetime-local ISO
   dueDate?: string | null; // override SLA (opsional)
   performedById?: string | null; // evaluator penanggung jawab
+  /** B6 — link meeting video-call (opsional, URL http/https). */
+  meetingUrl?: string | null;
   actorName?: string | null;
 }
 
-/** Jadwalkan tahap (plan + due SLA + evaluator) + notifikasi evaluator. */
+/** Jadwalkan tahap (plan + due SLA + evaluator + link meeting B6) + notifikasi evaluator/kandidat. */
 export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Promise<void> {
   const step = await stepCtx(db, input.stepId);
   assertStepEditable(step);
   const plan = parseDateInput(input.planDate);
   if (!plan) throw new Error("Jadwal (plan date) wajib diisi");
+  const meetingUrl = parseMeetingUrl(input.meetingUrl ?? null); // invalid → throw → 400
 
   const slaDays = step.selectionProcess.slaDays;
   const due = parseDateInput(input.dueDate ?? null) ?? (slaDays ? new Date(plan.getTime() + slaDays * 86_400_000) : null);
@@ -554,6 +580,7 @@ export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Prom
     data: {
       planDate: plan, dueDate: due,
       performedById: input.performedById ?? step.performedById ?? null,
+      meetingUrl,
       // reschedule → ack di-reset (undangan baru perlu konfirmasi baru)
       acknowledgedAt: null, status: "Planned",
     },
@@ -562,7 +589,7 @@ export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Prom
   await db.activityLog.create({
     data: {
       action: "Updated", entity: "CandidateSelectionStep", entityId: step.candidate.pr.prNo,
-      detail: `Tahap ${step.selectionProcess.name} kandidat ${step.candidate.fullName} (${step.candidate.pr.prNo}) dijadwalkan ${fmtDateTimeId(plan)}${due ? ` — SLA s.d. ${fmtDateId(due)}` : ""}${input.actorName ? ` oleh ${input.actorName}` : ""}`,
+      detail: `Tahap ${step.selectionProcess.name} kandidat ${step.candidate.fullName} (${step.candidate.pr.prNo}) dijadwalkan ${fmtDateTimeId(plan)}${due ? ` — SLA s.d. ${fmtDateId(due)}` : ""}${meetingUrl ? ` — link meeting ${meetingUrl}` : ""}${input.actorName ? ` oleh ${input.actorName}` : ""}`,
     },
   });
 
@@ -584,10 +611,38 @@ export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Prom
           kandidat: step.candidate.fullName, tahap: step.selectionProcess.name,
           urutan: String(step.seqNo), totalTahap: String(step.candidate.selectionSteps.length),
           jadwal: fmtDateTimeId(plan), batasSla: due ? fmtDateId(due) : "-",
+          linkMeeting: meetingUrl ?? "-",
         },
       });
     }
   }
+
+  // B6 — WhatsApp paralel (fire-and-forget, never-throw; pola shift-swap):
+  // undangan ke KANDIDAT (nomor Applicant terenkripsi — PII decrypt hanya
+  // di batas service) + info jadwal ke EVALUATOR (employeePhoneOf).
+  void (async () => {
+    const ph = (nama: string) => ({
+      nama, docNo: step.candidate.pr.prNo,
+      posisi: step.candidate.pr.position?.title ?? "-",
+      kandidat: step.candidate.fullName, tahap: step.selectionProcess.name,
+      jadwal: fmtDateTimeId(plan), batasSla: due ? fmtDateId(due) : "-",
+      linkMeeting: meetingUrl ?? "-",
+    });
+    const [evaluatorPhone, applicantRow] = await Promise.all([
+      employeePhoneOf(db, input.performedById ?? null),
+      step.candidate.applicantId
+        ? db.applicant.findUnique({ where: { id: step.candidate.applicantId }, select: { phone: true } })
+        : Promise.resolve(null),
+    ]);
+    if (evaluatorPhone && input.performedById) {
+      const ev = await db.employee.findUnique({ where: { id: input.performedById }, select: { fullName: true } }).catch(() => null);
+      void sendWa(db, { event: "recruitment.selection.scheduled", toPhone: evaluatorPhone, placeholders: ph(ev?.fullName ?? "Evaluator") });
+    }
+    const candPhone = applicantRow?.phone ? tenantCryptoForDb(db).decryptText(applicantRow.phone) : null;
+    if (candPhone) {
+      void sendWa(db, { event: "recruitment.selection.scheduled", toPhone: candPhone, placeholders: ph(step.candidate.fullName) });
+    }
+  })().catch(() => { /* notifikasi tidak boleh mengganggu proses utama */ });
 }
 
 /** Acknowledgement kandidat/peserta (RequestAcknowledge — HRX D3). */
@@ -974,7 +1029,7 @@ export async function jobSelectionReminders(db: TenantDb): Promise<{ reminded: n
       performedBy: { select: { id: true, fullName: true, email: true } },
       candidate: {
         select: {
-          id: true, fullName: true,
+          id: true, fullName: true, applicantId: true,
           pr: { select: { id: true, prNo: true, position: { select: { title: true } }, recruitmentOfficer: { select: { id: true, fullName: true, email: true } } } },
         },
       },
@@ -1014,9 +1069,34 @@ export async function jobSelectionReminders(db: TenantDb): Promise<{ reminded: n
             posisi: s.candidate.pr.position?.title ?? "-",
             kandidat: s.candidate.fullName, tahap: s.selectionProcess.name,
             jadwal: fmtDateTimeId(s.planDate), batasSla: fmtDateId(s.dueDate), statusSla,
+            linkMeeting: s.meetingUrl ?? "-",
           },
         });
       }
+      // B6 — WhatsApp paralel (fire-and-forget, never-throw): pengingat ke
+      // EVALUATOR (employeePhoneOf) + KANDIDAT (Applicant.phone terenkripsi).
+      void (async () => {
+        const ph = (nama: string) => ({
+          nama, docNo: s.candidate.pr.prNo,
+          posisi: s.candidate.pr.position?.title ?? "-",
+          kandidat: s.candidate.fullName, tahap: s.selectionProcess.name,
+          jadwal: fmtDateTimeId(s.planDate), batasSla: fmtDateId(s.dueDate),
+          linkMeeting: s.meetingUrl ?? "-",
+        });
+        const [targetPhone, applicantRow] = await Promise.all([
+          employeePhoneOf(db, target.id),
+          s.candidate.applicantId
+            ? db.applicant.findUnique({ where: { id: s.candidate.applicantId }, select: { phone: true } })
+            : Promise.resolve(null),
+        ]);
+        if (targetPhone) {
+          void sendWa(db, { event: "recruitment.selection.reminder", toPhone: targetPhone, placeholders: ph(target.fullName) });
+        }
+        const candPhone = applicantRow?.phone ? tenantCryptoForDb(db).decryptText(applicantRow.phone) : null;
+        if (candPhone) {
+          void sendWa(db, { event: "recruitment.selection.reminder", toPhone: candPhone, placeholders: ph(s.candidate.fullName) });
+        }
+      })().catch(() => { /* notifikasi tidak boleh mengganggu proses utama */ });
     }
     await db.activityLog.create({
       data: {

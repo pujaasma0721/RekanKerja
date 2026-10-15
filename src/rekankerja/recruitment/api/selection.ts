@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
             planDate: String(b.planDate ?? ""),
             dueDate: b.dueDate ? String(b.dueDate) : null,
             performedById: b.performedById ? String(b.performedById) : null,
+            meetingUrl: b.meetingUrl ? String(b.meetingUrl) : null, // B6 — URL invalid → 400
             actorName: m.actor.name,
           });
           return NextResponse.json({ ok: true });

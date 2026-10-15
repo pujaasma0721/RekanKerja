@@ -21,9 +21,9 @@
 //
 // Prinsip: kegagalan pengiriman TIDAK PERNAH mengganggu proses bisnis
 // utama; setiap percobaan dicatat ke WaLog (Sent/Failed/Skipped) untuk
-// audit tab "Riwayat Kirim". Urutan cek: config → template → nomor HP —
-// nomor kosong hanya tercatat Skipped saat config & template aktif
-// (menghindari spam log ketika kanal mati, menyalin semantik email).
+// audit tab "Riwayat Kirim". Urutan cek: config aktif → template → nomor HP
+// → render → provider siap — nomor kosong hanya tercatat Skipped saat
+// config & template aktif (menghindari spam log ketika kanal mati).
 // =====================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { WA_DEFAULT_TEMPLATES } from "@/rekankerja/shared/services/wa-defaults";
@@ -230,24 +230,22 @@ async function resolveTemplate(db: TenantDb, event: string): Promise<WaTemplateR
 /**
  * KIRIM SATU PESAN WHATSAPP — never-throw. Selalu resolve result + tulis
  * WaLog. Urutan cek (setiap langkah gagal → satu baris Skipped):
- *   1. config tidak aktif / tidak siap (token/endpoint) → Skipped
+ *   1. config tidak aktif → Skipped (tanpa body — kanal mati, anti spam log)
  *   2. template event tidak ada / dimatikan admin → Skipped
- *   3. nomor HP kosong / invalid → Skipped (hanya tercapai saat 1&2 lolos —
- *      nomor kosong tidak menambah log saat kanal mati)
- *   4. POST sukses → Sent; gagal → Failed + error.
+ *   3. nomor HP kosong / invalid → Skipped
+ *   4. render pesan → provider belum siap (token/endpoint kosong) → Skipped
+ *      DENGAN body ter-render (B6: pesan undangan tetap ter-audit di WaLog
+ *      saat kanal aktif tapi provider belum dikonfigurasi)
+ *   5. POST sukses → Sent; gagal → Failed + error.
  */
 export async function sendWa(db: TenantDb, input: SendWaInput): Promise<SendWaResult> {
   const phone = normalizePhone(input.toPhone);
   try {
-    // 1 — config
+    // 1 — config tidak aktif (kanal MATI — tanpa body)
     const cfg = await getWaConfig(db);
     if (!cfg.active) {
       await writeLog(db, { event: input.event, toPhone: phone || (input.toPhone ?? "-"), status: "Skipped", error: "Kanal WhatsApp belum aktif" });
       return { ok: false, status: "Skipped", phone, error: "Kanal WhatsApp belum aktif" };
-    }
-    if (!waReady(cfg)) {
-      await writeLog(db, { event: input.event, toPhone: phone || (input.toPhone ?? "-"), status: "Skipped", error: "Provider belum dikonfigurasi (token/endpoint kosong)" });
-      return { ok: false, status: "Skipped", phone, error: "Provider belum dikonfigurasi (token/endpoint kosong)" };
     }
 
     // 2 — template (self-heal; dimatikan admin → Skipped tercatat)
@@ -268,8 +266,15 @@ export async function sendWa(db: TenantDb, input: SendWaInput): Promise<SendWaRe
       return { ok: false, status: "Skipped", phone: input.toPhone ?? "", error: err };
     }
 
-    // 4 — render + kirim
+    // 4 — render + cek provider siap (aktif tapi token/endpoint kosong →
+    // Skipped DENGAN body ter-render — B6)
     const message = renderWaTemplate(tpl.body, input.placeholders ?? {});
+    if (!waReady(cfg)) {
+      await writeLog(db, { event: input.event, toPhone: phone, body: message, status: "Skipped", error: "Provider belum dikonfigurasi (token/endpoint kosong)" });
+      return { ok: false, status: "Skipped", phone, error: "Provider belum dikonfigurasi (token/endpoint kosong)" };
+    }
+
+    // 5 — kirim
     const res = await postToProvider(cfg, { phone, message, event: input.event });
     if (res.ok) {
       await writeLog(db, { event: input.event, toPhone: phone, body: message, status: "Sent" });

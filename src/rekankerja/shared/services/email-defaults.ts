@@ -134,12 +134,12 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
   {
     event: "recruitment.selection.scheduled", label: "Rekrutmen — Tahap Seleksi Dijadwalkan", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
     subject: "[Jadwal Baru] {{tahap}} — {{kandidat}} ({{docNo}})",
-    body: "Halo {{nama}},\n\nTahap seleksi berikut telah dijadwalkan dan ditugaskan kepada Anda:\n- Kandidat: {{kandidat}}\n- Permintaan: {{docNo}} ({{posisi}})\n- Tahap: {{tahap}} (ke-{{urutan}} dari {{totalTahap}})\n- Jadwal: {{jadwal}}\n- Batas SLA: {{batasSla}}\n\nSurat undangan kandidat dapat diterbitkan dari modul Rekrutmen > Kandidat & Seleksi.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+    body: "Halo {{nama}},\n\nTahap seleksi berikut telah dijadwalkan dan ditugaskan kepada Anda:\n- Kandidat: {{kandidat}}\n- Permintaan: {{docNo}} ({{posisi}})\n- Tahap: {{tahap}} (ke-{{urutan}} dari {{totalTahap}})\n- Jadwal: {{jadwal}}\n- Batas SLA: {{batasSla}}\n- Link meeting: {{linkMeeting}}\n\nSurat undangan kandidat dapat diterbitkan dari modul Rekrutmen > Kandidat & Seleksi.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
   },
   {
     event: "recruitment.selection.reminder", label: "Rekrutmen — Pengingat Tahap Seleksi", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
     subject: "[Pengingat] {{tahap}} {{kandidat}} — {{statusSla}}",
-    body: "Halo {{nama}},\n\nPengingat tahap seleksi yang menjadi tanggung jawab Anda:\n- Kandidat: {{kandidat}}\n- Permintaan: {{docNo}} ({{posisi}})\n- Tahap: {{tahap}}\n- Jadwal: {{jadwal}}\n- Batas SLA: {{batasSla}} ({{statusSla}})\n\nMohon segera tindak lanjuti penilaian/hasil tahap ini melalui modul Rekrutmen > Kandidat & Seleksi.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+    body: "Halo {{nama}},\n\nPengingat tahap seleksi yang menjadi tanggung jawab Anda:\n- Kandidat: {{kandidat}}\n- Permintaan: {{docNo}} ({{posisi}})\n- Tahap: {{tahap}}\n- Jadwal: {{jadwal}}\n- Batas SLA: {{batasSla}} ({{statusSla}})\n- Link meeting: {{linkMeeting}}\n\nMohon segera tindak lanjuti penilaian/hasil tahap ini melalui modul Rekrutmen > Kandidat & Seleksi.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
   },
   // F4-REC — modul Rekrutmen: offer & pengangkatan (DEVELOPMENT-PLAN-RECRUITMENT.md §7 F4)
   {
@@ -285,6 +285,8 @@ const PH_TOTALTAHAP: PlaceholderDef = { key: "totalTahap", label: "Total tahap s
 const PH_JADWAL: PlaceholderDef = { key: "jadwal", label: "Jadwal pelaksanaan tahap", contoh: "2026-10-20 09:00" };
 const PH_BATASSLA: PlaceholderDef = { key: "batasSla", label: "Batas SLA tahap", contoh: "2026-11-19" };
 const PH_STATUSSLA: PlaceholderDef = { key: "statusSla", label: "Status SLA", contoh: "3 hari lagi / TERLAMBAT 5 hari" };
+// B6-BL — link meeting video-call tahap seleksi (kompromi micro §1)
+const PH_LINKMEETING: PlaceholderDef = { key: "linkMeeting", label: "Tautan meeting video-call (opsional)", contoh: "https://meet.google.com/abc-defg-hij" };
 // F4-REC — placeholder template offer & pengangkatan
 const PH_PERUSAHAAN: PlaceholderDef = { key: "perusahaan", label: "Nama perusahaan", contoh: "PT Mitra Industri Internasional" };
 const PH_GAJI: PlaceholderDef = { key: "gaji", label: "Gaji final offer (Rp)", contoh: "Rp 8.500.000" };
@@ -319,8 +321,8 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "recruitment.pr.submitted": [PH_NAMA, PH_DOC, PH_POSISI, PH_JUMLAHORANG, PH_STATUSKERJA, PH_ALASAN],
   "recruitment.pr.approved": [PH_NAMA, PH_DOC, PH_POSISI, PH_JUMLAHORANG, PH_CATATAN],
   "recruitment.pr.rejected": [PH_NAMA, PH_DOC, PH_POSISI, PH_CATATAN],
-  "recruitment.selection.scheduled": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_TAHAP, PH_URUTAN, PH_TOTALTAHAP, PH_JADWAL, PH_BATASSLA],
-  "recruitment.selection.reminder": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_TAHAP, PH_JADWAL, PH_BATASSLA, PH_STATUSSLA],
+  "recruitment.selection.scheduled": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_TAHAP, PH_URUTAN, PH_TOTALTAHAP, PH_JADWAL, PH_BATASSLA, PH_LINKMEETING],
+  "recruitment.selection.reminder": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_TAHAP, PH_JADWAL, PH_BATASSLA, PH_STATUSSLA, PH_LINKMEETING],
   "recruitment.offer.sent": [PH_NAMA, PH_DOC, PH_POSISI, PH_PERUSAHAAN, PH_GAJI, PH_MULAIKERJA, PH_BERLAKUSAMPAI],
   "recruitment.offer.reminder": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_STATUSOFFER, PH_BERLAKUSAMPAI, PH_SISAHARI],
   "recruitment.offer.responded": [PH_NAMA, PH_DOC, PH_POSISI, PH_KANDIDAT, PH_STATUSOFFER, PH_CATATAN],

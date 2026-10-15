@@ -3857,6 +3857,10 @@ model CandidateSelectionStep {
   continueProcess    Boolean   @default(true) // gagal tapi lanjut (keputusan HR)
   reportFileName     String? // nama file laporan tes eksternal (Attachment)
   letterNo           String? // nomor surat undangan terakhir (display cepat)
+  // B6-BL — link meeting video-call tahap seleksi (kompromi micro §1 dok
+  // backlog: video interview platform penuh di-defer). Placeholder
+  // {{linkMeeting}} di email/WA undangan selection.scheduled/reminder.
+  meetingUrl         String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 

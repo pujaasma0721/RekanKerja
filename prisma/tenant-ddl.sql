@@ -2801,6 +2801,7 @@ CREATE TABLE "CandidateSelectionStep" (
     "continueProcess" BOOLEAN NOT NULL DEFAULT true,
     "reportFileName" TEXT,
     "letterNo" TEXT,
+    "meetingUrl" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -3618,6 +3619,11 @@ CREATE INDEX "SalaryBenchmark_year_gradeCode_idx" ON "SalaryBenchmark"("year", "
 
 -- AddForeignKey (B5-BL)
 ALTER TABLE "SalaryBenchmark" ADD CONSTRAINT "SalaryBenchmark_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddColumn (B6-BL — link meeting video-call tahap seleksi; idempoten utk tenant
+-- existing via scripts/migrate-recruitment-b6-wa-meeting.ts — INSERT kolom di
+-- CREATE TABLE di atas menjadikan ALTER ini no-op pada provisioning tenant baru)
+ALTER TABLE "CandidateSelectionStep" ADD COLUMN IF NOT EXISTS "meetingUrl" TEXT;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CompanyOffice_code_key" ON "CompanyOffice"("code");
