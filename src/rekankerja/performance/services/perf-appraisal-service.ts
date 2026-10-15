@@ -2,6 +2,7 @@ import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { APPRAISAL_LOCKED } from "@/rekankerja/performance/services/perf-cycle-service";
 import { pushNotification } from "@/rekankerja/shared/services/notification-service";
 import { aggregate360 } from "@/rekankerja/performance/services/perf-360-service";
+import { scanComments, type BiasFlag } from "@/rekankerja/performance/services/bias-lexicon";
 
 // ============================================================================
 // PERFORMANCE — Service penilaian akhir periode (P3 — DEVELOPMENT-PLAN-
@@ -534,10 +535,13 @@ export interface ManagerPatch {
 }
 
 /** AUTOSAVE draf penilaian atasan §18.7 — TIDAK mengubah status; return
- *  progress % utk ProgressTrackerBar. */
+ *  progress % utk ProgressTrackerBar.
+ *  B2-BL (D-BL7a): setiap compComment di-scan bias lexicon (deterministik,
+ *  nol biaya) → respons menambah biasWarnings ADVISORI (banner amber di form
+ *  atasan) — TIDAK disimpan flag, submit TIDAK pernah diblokir. */
 export async function saveManagerScore(
   db: TenantDb, actor: AppraisalActor, appraisalId: string, patch: ManagerPatch,
-): Promise<{ savedAt: string; progress: { pct: number; kpiFilled: number; kpiTotal: number; compScored: number; compTotal: number } }> {
+): Promise<{ savedAt: string; progress: { pct: number; kpiFilled: number; kpiTotal: number; compScored: number; compTotal: number }; biasWarnings?: (BiasFlag & { compName?: string })[] }> {
   const a = await mustAppraisal(db, appraisalId);
   if (!isManagerOf(actor, a)) throw new Error("Hanya atasan peserta (snapshot) atau HR yang dapat mengisi penilaian (§29-4)");
   assertMgrWindow(a);
@@ -588,10 +592,34 @@ export async function saveManagerScore(
   // catatan: komentar global atasan TIDAK punya kolom di skema §15 (komentar
   // atasan hidup per kompetensi) — patch.managerComment diabaikan dengan sengaja.
 
+  // B2-BL (D-BL7a) — scan bias advisori atas komentar yang barusan ditulis:
+  // deterministik lexicon; hasil hanya di respons (TIDAK disimpan flag).
+  const nameById = new Map(a.comps.map((c) => [c.competencyId, c.competency.name]));
+  const { bySource } = scanComments(
+    (patch.compComments ?? [])
+      .filter((c) => (c.comment ?? "").trim())
+      .map((c) => ({ source: String(c.compId ?? ""), text: c.comment ?? "" })),
+  );
+  const biasWarnings: (BiasFlag & { compName?: string })[] = [];
+  const warnSeen = new Set<string>();
+  for (const [compId, flags] of Object.entries(bySource)) {
+    const compName = nameById.get(compByKey.get(compId) ?? "") ?? undefined;
+    for (const f of flags) {
+      const key = `${f.phrase}::${compName ?? ""}`;
+      if (warnSeen.has(key)) continue;
+      warnSeen.add(key);
+      biasWarnings.push({ ...f, compName });
+    }
+  }
+
   // progress live (baca ulang ringan)
   const kpis = await db.appraisalKpi.findMany({ where: { appraisalId }, select: { finalActual: true } });
   const comps = await db.appraisalCompetencyScore.findMany({ where: { appraisalId }, select: { score: true } });
-  return { savedAt: new Date().toISOString(), progress: appraisalProgressOf(kpis, comps) };
+  return {
+    savedAt: new Date().toISOString(),
+    progress: appraisalProgressOf(kpis, comps),
+    ...(biasWarnings.length ? { biasWarnings } : {}),
+  };
 }
 
 /** Hitung managerScore §16 dari baris tersimpan (dipakai submitManager). */

@@ -4708,11 +4708,17 @@ model Feedback360Answer {
   score         Int // 1..5
   comment       String? // ditampilkan HANYA ter-agregasi ≥3 reviewer (§37)
   aiAssisted    Boolean @default(false) // AM3 §18.11 — anonimitas 360 tetap utuh
+  // B2-BL (D-BL7/D-BL9) — moderasi bias: flag menempel pada ANSWER (anonimitas
+  // reviewer utuh). flaggedJson = [{category, phrase}]; moderated:
+  // Pending|Approved|Redacted (NULL = legacy pra-B2 / bersih → dianggap Approved)
+  flaggedJson   String?
+  moderated     String?
 
   feedback    Feedback360 @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
   competency Competency  @relation(fields: [competencyId], references: [id])
 
   @@index([feedbackId, competencyId])
+  @@index([moderated])
 }
 
 model CalibrationSession {

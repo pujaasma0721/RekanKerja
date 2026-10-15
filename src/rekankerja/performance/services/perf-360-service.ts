@@ -1,5 +1,6 @@
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { pushNotification } from "@/rekankerja/shared/services/notification-service";
+import { scanBias, serializeFlags, type BiasFlag } from "@/rekankerja/performance/services/bias-lexicon";
 
 // ============================================================================
 // PERFORMANCE — Service 360-degree feedback (P3 — DEVELOPMENT-PLAN-
@@ -188,10 +189,14 @@ export interface Answer360Input {
 
 /** Submit isian 360 (§29-3) — reviewer sendiri; undangan Invited & belum lewat dueAt.
  *  ANONIMITAS: identitas reviewer tidak pernah keluar dari baris ini (hanya
- *  dibaca agregasi aggregate360). */
+ *  dibaca agregasi aggregate360).
+ *  B2-BL (D-BL7): SETIAP comment di-scan bias lexicon deterministik —
+ *  ter-flag → disimpan dgn flaggedJson + moderated="Pending" (masuk antrean
+ *  moderasi HR); bersih → "Approved". respons menambah biasWarnings ADVISORI
+ *  (submit TETAP berhasil — tidak pernah memblokir). */
 export async function submit360(
   db: TenantDb, employeeId: string, feedbackId: string, answers: Answer360Input[],
-): Promise<{ answered: number }> {
+): Promise<{ answered: number; biasWarnings?: BiasFlag[] }> {
   const fb = await db.feedback360.findUnique({
     where: { id: feedbackId },
     include: {
@@ -234,17 +239,35 @@ export async function submit360(
   }
 
   await db.feedback360Answer.deleteMany({ where: { feedbackId } }); // re-entry aman sebelum Submitted
+  const biasWarnings: BiasFlag[] = [];
+  const warnSeen = new Set<string>();
   for (const x of clean) {
+    // B2-BL (D-BL7) — scan NON-BLOKIR: advisori utk penulis + antrean HR
+    const flags = scanBias(x.comment ?? "");
+    for (const f of flags) {
+      if (!warnSeen.has(f.phrase)) { warnSeen.add(f.phrase); biasWarnings.push(f); }
+    }
     await db.feedback360Answer.create({
-      data: { feedbackId, competencyId: x.competencyId, score: x.score, comment: x.comment ?? null, aiAssisted: x.aiAssisted === true },
+      data: {
+        feedbackId, competencyId: x.competencyId, score: x.score, comment: x.comment ?? null, aiAssisted: x.aiAssisted === true,
+        flaggedJson: serializeFlags(flags),
+        moderated: flags.length ? "Pending" : "Approved",
+      },
     });
   }
   await db.feedback360.update({ where: { id: feedbackId }, data: { status: "Submitted", submittedAt: new Date() } });
-  return { answered: clean.length };
+  return { answered: clean.length, ...(biasWarnings.length ? { biasWarnings } : {}) };
 }
 
+/** String pengganti komentar ter-Redaksi HR — jangan bocorkan isi (D-BL7b).
+ *  UI mengenali marker ini & menerjemahkan via t() dwibahasa. */
+export const REDACTED_360_COMMENT = "[dikensorkan oleh HR — potensi bias]";
+
 /** Agregasi per kompetensi — avg + count; komentar TIDAK dikirim bila kategori
- *  <3 reviewer (§37 "anonimitas ≥3"). Dipakai appraisalDetail & hasil ESS. */
+ *  <3 reviewer (§37 "anonimitas ≥3"). Dipakai appraisalDetail & hasil ESS.
+ *  B2-BL (D-BL7b): komentar moderated="Pending" DIKECUALIKAN dari agregat
+ *  (sampai HR memutuskan); "Redacted" tampil sebagai string sensor tetap;
+ *  NULL/Approved tampil normal. Identitas reviewer TETAP tidak pernah muncul. */
 export async function aggregate360(db: TenantDb, appraisalId: string): Promise<{
   perCompetency: {
     competencyId: string; name: string; kind: string;
@@ -265,8 +288,10 @@ export async function aggregate360(db: TenantDb, appraisalId: string): Promise<{
   for (const x of answers) {
     if (!byComp.has(x.competencyId)) byComp.set(x.competencyId, { name: x.competency.name, kind: x.competency.kind, scores: [], comments: [] });
     const g = byComp.get(x.competencyId)!;
-    g.scores.push(x.score);
-    if (x.comment) g.comments.push(x.comment);
+    g.scores.push(x.score); // skor tetap dihitung — moderasi hanya komentar
+    if (x.moderated === "Pending") continue; // dikecualikan sampai HR memutuskan
+    if (x.moderated === "Redacted") { g.comments.push(REDACTED_360_COMMENT); continue; }
+    if (x.comment) g.comments.push(x.comment); // NULL/Approved → normal
   }
   const enough = submitted.length >= 3;
   const perCompetency = [...byComp.entries()]
@@ -335,6 +360,186 @@ export async function expireOverdue(db: TenantDb): Promise<number> {
     data: { status: "Expired" },
   });
   return r.count;
+}
+
+// ============================================================================
+// B2-BL — ANTREAN MODERASI HR (D-BL7b/D-BL9): komentar 360 ter-flag
+// (moderated="Pending") menunggu keputusan HR Setujui/Redaksi.
+// ANONIMITAS TIDAK BOLEH BOCOR: daftar & log TANPA nama reviewer — hanya
+// feedbackId, competencyId, comment, flaggedJson, docNo appraisal, submittedAt.
+// ============================================================================
+
+export interface FlaggedAnswerRow {
+  id: string;
+  feedbackId: string;
+  competencyId: string;
+  competencyName: string;
+  comment: string | null;
+  flagged: { category: string; phrase: string }[];
+  appraisalDocNo: string;
+  cycleCode: string;
+  submittedAt: string | null;
+}
+
+/** Daftar komentar ter-flag menunggu keputusan HR (opsional per siklus).
+ *  HR-only — dijaga pemanggil (route) via actor.superAdmin.
+ *  (Feedback360Answer tak punya kolom waktu — urut via feedback.submittedAt.) */
+export async function listFlaggedAnswers(db: TenantDb, cycleId?: string): Promise<FlaggedAnswerRow[]> {
+  const rows = await db.feedback360Answer.findMany({
+    where: {
+      moderated: "Pending",
+      ...(cycleId ? { feedback: { appraisal: { cycleId } } } : {}),
+    },
+    include: {
+      competency: { select: { id: true, name: true } },
+      feedback: {
+        select: {
+          id: true,
+          submittedAt: true,
+          appraisal: { select: { docNo: true, cycle: { select: { code: true } } } },
+        },
+      },
+    },
+    take: 200,
+  });
+  return rows
+    .sort((a, b) => (b.feedback.submittedAt?.getTime() ?? 0) - (a.feedback.submittedAt?.getTime() ?? 0))
+    .map((x) => ({
+      id: x.id,
+      feedbackId: x.feedbackId,
+      competencyId: x.competencyId,
+      competencyName: x.competency.name,
+      comment: x.comment,
+      flagged: (() => {
+        try { return JSON.parse(x.flaggedJson ?? "[]") as { category: string; phrase: string }[]; }
+        catch { return []; }
+      })(),
+      appraisalDocNo: x.feedback.appraisal.docNo,
+      cycleCode: x.feedback.appraisal.cycle.code,
+      submittedAt: x.feedback.submittedAt?.toISOString() ?? null,
+    }));
+}
+
+/** Keputusan HR atas komentar ter-flag (D-BL7b): Approved → tampil normal di
+ *  agregat; Redacted → tampil string sensor (isi tidak dibocorkan).
+ *  HR-only (actor.superAdmin). ActivityLog "Moderate360" — TANPA nama reviewer. */
+export async function moderateAnswer(
+  db: TenantDb, actor: Actor360, answerId: string, decision: "Approved" | "Redacted",
+): Promise<{ id: string; moderated: string }> {
+  if (!actor.superAdmin) {
+    throw new Error("Moderasi komentar 360 hanya oleh HR (D-BL7b)");
+  }
+  if (decision !== "Approved" && decision !== "Redacted") {
+    throw new Error("Keputusan moderasi harus Approved atau Redacted");
+  }
+  const ans = await db.feedback360Answer.findUnique({
+    where: { id: answerId },
+    include: {
+      competency: { select: { name: true } },
+      feedback: { select: { appraisal: { select: { docNo: true } } } },
+    },
+  });
+  if (!ans) throw new Error("Komentar tidak ditemukan");
+  if (ans.moderated !== "Pending") {
+    throw new Error(`Komentar sudah dimoderasi (${ans.moderated}) — tidak dapat diubah lagi`);
+  }
+  await db.feedback360Answer.update({ where: { id: answerId }, data: { moderated: decision } });
+  await db.activityLog.create({
+    data: {
+      action: "Moderate360",
+      entity: "Feedback360Answer",
+      entityId: answerId,
+      detail: `Keputusan HR: ${decision}; peserta-penilaian=${ans.feedback.appraisal.docNo}; kompetensi=${ans.competency.name} (D-BL7b — identitas reviewer tidak dicatat)`,
+    },
+  }).catch(() => { /* best effort */ });
+  return { id: answerId, moderated: decision };
+}
+
+// ============================================================================
+// B2-BL — AI DEEP-SCAN OLEH HR (D-BL8 — opsional, advisori): penilaian
+// konstruktif ya/tidak + saran penulisan ulang atas komentar Pending.
+// ANONIMITAS: hanya TEKS komentar + kategori flag yang dikirim ke model —
+// identitas reviewer TIDAK PERNAH dikirim (D-BL9). Rate-limit 20/jam/user via
+// ActivityLog "AiBiasScan" (pola aiCompose D20). Kegagalan TENANG.
+// ============================================================================
+
+const AI_BIAS_SCAN_RATE_LIMIT = 20;
+
+export interface AiBiasScanResult {
+  scan: string | null;
+  unavailable?: boolean;
+  error?: string;
+}
+
+/** Deep-scan AI satu komentar Pending (HR). STATELESS — hasil tidak disimpan;
+ *  murni advisori utk membantu keputusan Setujui/Redaksi. */
+export async function aiBiasScan(
+  db: TenantDb, actorKey: string, actorEmployeeId: string | null, answerId: string, lang: "id" | "en",
+): Promise<AiBiasScanResult> {
+  const since = new Date(Date.now() - 3600 * 1000);
+  const used = await db.activityLog.count({
+    where: { action: "AiBiasScan", employeeId: actorEmployeeId ?? actorKey, createdAt: { gte: since } },
+  });
+  if (used >= AI_BIAS_SCAN_RATE_LIMIT) {
+    throw new Error("Batas 20 pindai AI per jam tercapai — coba lagi nanti (D-BL8)");
+  }
+
+  const ans = await db.feedback360Answer.findUnique({
+    where: { id: answerId },
+    include: { competency: { select: { name: true } } },
+  });
+  if (!ans) throw new Error("Komentar tidak ditemukan");
+  if (!ans.comment?.trim()) throw new Error("Komentar kosong — tidak ada yang dapat dipindai");
+  let flags: { category: string; phrase: string }[] = [];
+  try { flags = JSON.parse(ans.flaggedJson ?? "[]"); } catch { /* rusak */ }
+
+  // ActivityLog per panggilan — TANPA isi teks komentar (privasi D-BL9);
+  // rate-limit via kolom employeeId (pola P9-360)
+  await db.activityLog.create({
+    data: {
+      action: "AiBiasScan",
+      entity: "Feedback360Answer",
+      entityId: answerId,
+      ...(actorEmployeeId ? { employeeId: actorEmployeeId } : {}),
+      detail: `deep-scan advisori HR; kategori-lexicon=${flags.map((f) => f.category).join(",") || "-"}; lang=${lang} (D-BL8 — isi teks tidak dicatat)`,
+    },
+  }).catch(() => { /* rate-limit best-effort */ });
+
+  const langLine = lang === "en" ? "Write the analysis in English." : "Tulis analisis dalam Bahasa Indonesia.";
+  const system =
+    "Anda peninjau bahasa umpan balik kinerja 360 di sistem HRIS. Tugas Anda SATU: menilai apakah komentar ini KONSTRUKTIF (berbasis perilaku, spesifik, dapat ditindaklanjuti) atau TIDAK, lalu menyarankan penulisan ulang. " +
+    "ATURAN KERAS: (1) JANGAN menambah fakta/angka/asumsi baru tentang orang yang dinilai; " +
+    "(2) JANGAN menilai kinerja orang — nilai hanya KUALITAS BAHASA komentar; " +
+    "(3) tetap SARA-safe; (4) format keluaran: baris 'Konstruktif: ya/tidak' singkat, alasan 1-2 kalimat, lalu 'Saran penulisan ulang:' satu paragraf netral berbasis perilaku. " +
+    "Ini advisori untuk HR — keputusan akhir tetap milik HR.";
+  const user =
+    `${langLine}\n\n` +
+    `Konteks: komentar reviewer 360 (anonim) untuk kompetensi "${ans.competency.name}".\n` +
+    `Frasa ter-flag lexicon: ${flags.map((f) => `${f.category}: "…${f.phrase}…"`).join("; ") || "(tidak ada)"}\n\n` +
+    `Teks komentar:\n"""${ans.comment.slice(0, 2000)}"""\n\n` +
+    `Analisis.`;
+
+  try {
+    const { createZaiClient } = await import("@/rekankerja/shared/services/zai-client");
+    const zai = await createZaiClient();
+    const res = await zai.chat.completions.create({
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      temperature: 0.3,
+    });
+    const scan = res.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!scan) return { scan: null, unavailable: true, error: "AI mengembalikan hasil kosong — coba lagi nanti" };
+    return { scan: scan.slice(0, 2000), unavailable: false };
+  } catch (e) {
+    // KEGAGALAN TENANG — advisori saja
+    return {
+      scan: null,
+      unavailable: true,
+      error: `AI sedang tidak tersedia — coba lagi nanti (${e instanceof Error ? e.message.slice(0, 160) : "unknown"})`,
+    };
+  }
 }
 
 /** Pengingat reviewer (§B-7) — in-app saja (bukan nudge formal). */

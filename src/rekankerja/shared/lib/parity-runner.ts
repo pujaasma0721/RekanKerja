@@ -415,6 +415,9 @@ const STEPS: Step[] = [
   // B1-BL (DEVELOPMENT-PLAN-BACKLOG.md §4 B1) — OKR kuartalan: tabel
   // OkrObjective/OkrKeyResult + PerformanceSetting.okrEnabled (default OFF).
   { key: "backlog-b1", label: "B1 Backlog — tabel OKR + okrEnabled", run: (s) => import("../../../../scripts/migrate-performance-b1-okr").then((m) => m.main(s)) },
+  // B2-BL (DEVELOPMENT-PLAN-BACKLOG.md §4 B2) — moderasi bias 360:
+  // kolom Feedback360Answer.flaggedJson + moderated (D-BL7/D-BL9).
+  { key: "backlog-b2", label: "B2 Backlog — kolom moderasi bias Feedback360Answer", run: (s) => import("../../../../scripts/migrate-performance-b2-bias").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============

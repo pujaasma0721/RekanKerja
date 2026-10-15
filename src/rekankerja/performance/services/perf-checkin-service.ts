@@ -1,5 +1,6 @@
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { APPRAISAL_LOCKED } from "@/rekankerja/performance/services/perf-cycle-service";
+import { scanBias } from "@/rekankerja/performance/services/bias-lexicon";
 
 // ============================================================================
 // PERFORMANCE — Service check-in & monitoring (P2 — DEVELOPMENT-PLAN-
@@ -442,6 +443,140 @@ export async function myCheckins(db: TenantDb, employeeId: string) {
     });
   }
   return out.filter((x) => (x.checkins as unknown[]).length > 0 || (x.midProgress as { total: number }).total > 0);
+}
+
+// ============================================================================
+// B2-BL — AI RINGKASAN CHECK-IN ON-DEMAND (D-BL6/D-BL8/D-BL9)
+// STATELESS: hasil TIDAK disimpan ke domain — hanya ActivityLog "AiCheckinSummary"
+// (entity CheckIn, detail TANPA isi teks). Rate-limit 20/jam/user via ActivityLog
+// (pola aiCompose D20). Kegagalan TENANG (unavailable — tidak throw ke UI).
+// ============================================================================
+
+/** Batas D-BL8: maks 20 ringkasan AI check-in per pengguna per jam. */
+const AI_CHECKIN_SUMMARY_RATE_LIMIT = 20;
+/** Batas panjang hasil ±2000 karakter (prompt + respons dibatasi). */
+const AI_SUMMARY_MAX_CHARS = 2000;
+
+export interface AiCheckinSummaryResult {
+  summary: string | null;
+  unavailable?: boolean;
+  error?: string;
+}
+
+/** Muat check-in utk diringkas — guard anti-IDOR dipanggil pemanggil:
+ *  `scope` menentukan siapa yang boleh (ESS: karyawan peserta sendiri;
+ *  admin: siapa pun dgn menu performance:checkins — dijaga route). */
+async function mustCheckinForSummary(db: TenantDb, checkInId: string) {
+  const ci = await db.checkIn.findUnique({
+    where: { id: checkInId },
+    include: {
+      appraisal: {
+        select: {
+          id: true, docNo: true, employeeId: true,
+          employee: { select: { employeeNo: true, fullName: true } },
+          cycle: { select: { code: true } },
+        },
+      },
+    },
+  });
+  if (!ci) throw new Error("Check-in tidak ditemukan");
+  return ci;
+}
+
+/** Ringkasan AI 1-on-1 (B2 — D-BL6): menyusun ulang ISI check-in saja — tema
+ *  utama 2–4 poin, hambatan, langkah lanjut — TANPA menambah fakta/angka/
+ *  penilaian. Bahasa ikut input.lang. Tidak menyimpan hasil ke domain. */
+export async function aiCheckinSummary(
+  db: TenantDb,
+  input: { checkInId: string; lang: "id" | "en"; actorKey: string; actorEmployeeId: string | null; isSelf: (employeeId: string) => boolean },
+): Promise<AiCheckinSummaryResult> {
+  // guard anti-IDOR — hanya karyawan peserta (ESS) / atasan / HR (admin route)
+  const ci = await mustCheckinForSummary(db, input.checkInId);
+  if (!input.isSelf(ci.appraisal.employeeId)) {
+    throw new Error("Bukan check-in penilaian milik Anda — akses ditolak (D-BL6)");
+  }
+  if (ci.status !== "Held") {
+    throw new Error("Ringkasan AI hanya untuk check-in yang sudah dicatat (Held)");
+  }
+
+  // rate-limit 20/jam/user via ActivityLog (D-BL8 — pola P9 rate-limit 360:
+  // hitung kolom employeeId; aktor admin/ESS selalu ber-employeeId di MII)
+  const since = new Date(Date.now() - 3600 * 1000);
+  const used = await db.activityLog.count({
+    where: { action: "AiCheckinSummary", employeeId: input.actorEmployeeId ?? input.actorKey, createdAt: { gte: since } },
+  });
+  if (used >= AI_CHECKIN_SUMMARY_RATE_LIMIT) {
+    throw new Error("Batas 20 ringkasan AI per jam tercapai — coba lagi nanti (D-BL8)");
+  }
+
+  // bahan: notesJson dua arah + managerComment + agenda + tanggal — SAJA
+  const notes = parseNotes(ci.notesJson);
+  const employeePart = parseEmployeePart(ci.notesJson);
+  const lines: string[] = [];
+  lines.push(`Tanggal: ${ci.heldAt.toISOString().slice(0, 10)}`);
+  if (ci.agenda) lines.push(`Agenda: ${ci.agenda}`);
+  const arr = (xs: string[] | undefined) => (xs ?? []).filter(Boolean).map((s) => `- ${s}`).join("\n");
+  const capai = arr(notes.wins); if (capai) lines.push(`Capaian sejauh ini (versi atasan):\n${capai}`);
+  const hamb = arr(notes.blockers); if (hamb) lines.push(`Hambatan (versi atasan):\n${hamb}`);
+  const lanjut = arr(notes.next); if (lanjut) lines.push(`Rencana lanjut (versi atasan):\n${lanjut}`);
+  if (employeePart) {
+    const ec = arr(employeePart.wins); if (ec) lines.push(`Capaian (versi karyawan):\n${ec}`);
+    const eb = arr(employeePart.blockers); if (eb) lines.push(`Hambatan (versi karyawan):\n${eb}`);
+    const en = arr(employeePart.next); if (en) lines.push(`Rencana lanjut (versi karyawan):\n${en}`);
+  }
+  if (ci.managerComment) lines.push(`Catatan atasan: ${ci.managerComment}`);
+  const material = lines.join("\n").slice(0, 6000);
+  if (!material.trim()) {
+    return { summary: null, unavailable: true, error: "Check-in belum berisi catatan untuk diringkas" };
+  }
+
+  // ActivityLog per panggilan — TANPA isi teks (privasi D-BL9); audit entity
+  // CheckIn/entityId checkInId; rate-limit via kolom employeeId (pola P9-360)
+  await db.activityLog.create({
+    data: {
+      action: "AiCheckinSummary",
+      entity: "CheckIn",
+      entityId: ci.id,
+      ...(input.actorEmployeeId ? { employeeId: input.actorEmployeeId } : {}),
+      detail: `checkIn=${ci.id}; appraisal=${ci.appraisal.docNo}; lang=${input.lang}; stateless on-demand (D-BL6 — isi teks tidak dicatat)`,
+    },
+  }).catch(() => { /* rate-limit best-effort */ });
+
+  const langLine = input.lang === "en" ? "Write the summary in English." : "Tulis ringkasan dalam Bahasa Indonesia.";
+  const system =
+    "Anda editor ringkasan 1-on-1 di sistem HRIS. Rangkum HANYA dari isi check-in: tema utama (2-4 poin), hambatan, dan langkah lanjut. " +
+    "ATURAN KERAS: (1) JANGAN menambah fakta, angka, metrik, atau penilaian baru yang tidak ada di isi check-in; " +
+    "(2) JANGAN menilai kinerja atau memberi skor/rating/rekomendasi keputusan; " +
+    "(3) tetap SARA-safe — tanpa referensi agama, suku, gender, usia, kondisi fisik; " +
+    "(4) gunakan HANYA bahan yang diberikan; bila satu bagian kosong, lewati — jangan mengarang.";
+  const user =
+    `${langLine}\nPanjang: 4–8 baris poin.\n\n` +
+    `Isi check-in 1-on-1 (${ci.appraisal.employee.employeeNo} ${ci.appraisal.employee.fullName}, siklus ${ci.appraisal.cycle.code}):\n\n${material}\n\n` +
+    `Rangkum check-in di atas.`;
+
+  try {
+    const { createZaiClient } = await import("@/rekankerja/shared/services/zai-client");
+    const zai = await createZaiClient();
+    const res = await zai.chat.completions.create({
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      temperature: 0.3,
+    });
+    const summary = res.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!summary) {
+      return { summary: null, unavailable: true, error: "AI mengembalikan hasil kosong — coba lagi nanti" };
+    }
+    return { summary: summary.slice(0, AI_SUMMARY_MAX_CHARS), unavailable: false };
+  } catch (e) {
+    // KEGAGALAN TENANG — AI tidak pernah memblokir UI
+    return {
+      summary: null,
+      unavailable: true,
+      error: `AI sedang tidak tersedia — coba lagi nanti (${e instanceof Error ? e.message.slice(0, 160) : "unknown"})`,
+    };
+  }
 }
 
 // ============================================================================

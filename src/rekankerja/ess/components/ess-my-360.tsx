@@ -42,6 +42,12 @@ interface F360Draft {
   aiAssistedIds: string[];
 }
 
+interface BiasWarning {
+  category: string;
+  phrase: string;
+  suggestion: string;
+}
+
 const fmtD = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "—");
 
 export function EssMy360Page() {
@@ -109,6 +115,9 @@ function InvitationForm({ inv, onDone }: { inv: Invitation; onDone: () => void }
   const [busy, setBusy] = useState(false);
   const [aiFor, setAiFor] = useState<InvComp | null>(null);
   const [open, setOpen] = useState(true);
+  // B2-BL (D-BL7a) — advisori bias pasca-submit: submit TETAP berhasil; kartu
+  // tetap terbuka menampilkan banner amber sampai pengguna menutupnya.
+  const [biasWarn, setBiasWarn] = useState<BiasWarning[] | null>(null);
 
   useEffect(() => {
     try {
@@ -129,7 +138,8 @@ function InvitationForm({ inv, onDone }: { inv: Invitation; onDone: () => void }
     }
     setBusy(true);
     try {
-      await apiSend(`${ESS_BASE}/my-360`, "POST", {
+      // B2-BL — respons menambah biasWarnings ADVISORI (submit tetap 201)
+      const out = await apiSend<{ answered: number; biasWarnings?: BiasWarning[] }>(`${ESS_BASE}/my-360`, "POST", {
         action: "submit",
         id: inv.feedbackId,
         answers: inv.comps.map((c) => ({
@@ -139,9 +149,15 @@ function InvitationForm({ inv, onDone }: { inv: Invitation; onDone: () => void }
           aiAssisted: draft.aiAssistedIds.includes(c.competencyId),
         })),
       });
-      toast.success(t("Isian 360 terkirim — terima kasih. Identitas Anda dirahasiakan.", "360 feedback submitted — thank you. Your identity stays anonymous."));
       try { localStorage.removeItem(storageKey); } catch { /* never */ }
-      onDone();
+      if (out.biasWarnings?.length) {
+        // ADVISORI — tidak memblokir: banner amber, form tetap terkirim
+        setBiasWarn(out.biasWarnings);
+        toast.info(t("Isian terkirim — ada frasa yang perlu diperiksa (lihat peringatan)", "Feedback submitted — some phrases need review (see warnings)"));
+      } else {
+        toast.success(t("Isian 360 terkirim — terima kasih. Identitas Anda dirahasiakan.", "360 feedback submitted — thank you. Your identity stays anonymous."));
+        onDone();
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "unknown");
     } finally {
@@ -180,10 +196,41 @@ function InvitationForm({ inv, onDone }: { inv: Invitation; onDone: () => void }
 
         {open && (
           <div className="mt-3 space-y-3">
-            <div className="flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50/60 px-3 py-2 text-[11px] text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-400">
-              <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>{t("Identitas Anda dirahasiakan — atasan hanya melihat agregat ≥3 reviewer. Tulis komentar yang profesional & berbasis perilaku (§37).", "Your identity stays anonymous — the manager only sees aggregates of ≥3 reviewers. Write professional, behavior-based comments (§37).")}</span>
-            </div>
+            {biasWarn ? (
+              // B2-BL (D-BL7a) — ADVISORI pasca-submit: submit TETAP berhasil;
+              // komentar ter-flag masuk antrean moderasi HR (anonim).
+              <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900/60 dark:bg-amber-950/30">
+                <p className="flex items-start gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {t("Isian terkirim — namun ada frasa yang berpotensi bias", "Feedback submitted — however some phrases may be biased")}
+                </p>
+                <p className="mt-1 text-[11px] text-amber-700/90 dark:text-amber-400/90">
+                  {t(
+                    "Isian Anda tetap tersimpan (tidak diblokir). Komentar ter-flag menunggu tinjauan HR sebelum tampil ter-agregat — identitas Anda tetap dirahasiakan (D-BL7).",
+                    "Your submission is saved (not blocked). Flagged comments await HR review before appearing in aggregates — your identity remains anonymous (D-BL7).",
+                  )}
+                </p>
+                <ul className="mt-2 space-y-1">
+                  {biasWarn.map((w) => (
+                    <li key={w.phrase} className="rounded-lg border border-amber-200 bg-white/70 px-2.5 py-1.5 text-[11px] dark:border-amber-900/50 dark:bg-slate-900/60">
+                      <span className="font-semibold text-amber-800 dark:text-amber-300">“{w.phrase}”</span>
+                      <span className="ml-1 text-slate-500 dark:text-slate-400">({t("kategori", "category")}: {w.category})</span>
+                      <p className="mt-0.5 text-slate-600 dark:text-slate-300">{w.suggestion}</p>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-2 flex justify-end">
+                  <Button size="sm" variant="outline" className="h-7 border-amber-300 text-amber-800 dark:border-amber-800 dark:text-amber-300" onClick={onDone}>
+                    {t("Saya mengerti", "Got it")}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50/60 px-3 py-2 text-[11px] text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-400">
+                <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{t("Identitas Anda dirahasiakan — atasan hanya melihat agregat ≥3 reviewer. Tulis komentar yang profesional & berbasis perilaku (§37).", "Your identity stays anonymous — the manager only sees aggregates of ≥3 reviewers. Write professional, behavior-based comments (§37).")}</span>
+              </div>
+            )}
             <div className="space-y-3">
               {inv.comps.map((c) => {
                 const score = draft.scores[c.competencyId] ?? 0;
@@ -237,15 +284,17 @@ function InvitationForm({ inv, onDone }: { inv: Invitation; onDone: () => void }
                 );
               })}
             </div>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button variant="outline" onClick={decline} disabled={busy}>
-                <XCircle className="h-4 w-4" />{t("Tolak Undangan", "Decline")}
-              </Button>
-              <Button onClick={submit} disabled={busy || filled < inv.comps.length}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                {t("Kirim Isian 360", "Submit 360 Feedback")}
-              </Button>
-            </div>
+            {!biasWarn && (
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="outline" onClick={decline} disabled={busy}>
+                  <XCircle className="h-4 w-4" />{t("Tolak Undangan", "Decline")}
+                </Button>
+                <Button onClick={submit} disabled={busy || filled < inv.comps.length}>
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {t("Kirim Isian 360", "Submit 360 Feedback")}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

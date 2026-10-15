@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ESS_BASE } from "./ess-api";
-import { MessagesSquare, Loader2, UserRound, ChevronDown, TrendingUp } from "lucide-react";
+import { MessagesSquare, Loader2, UserRound, ChevronDown, TrendingUp, Sparkles } from "lucide-react";
 
 interface MyCheckinNotes { wins: string[]; blockers: string[]; next: string[]; employee?: { wins: string[]; blockers: string[]; next: string[] } }
 interface MyCheckin {
@@ -117,12 +117,39 @@ export function EssMyCheckinsPage() {
 }
 
 function CheckinItem({ c, onFill }: { c: MyCheckin; onFill: () => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [open, setOpen] = useState(false);
+  // B2-BL (D-BL6) — hasil ringkasan AI EPHEMERAL: state lokal kartu, hilang
+  // saat kartu ditutup (STATELESS — tidak pernah disimpan ke domain).
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const hasEmployee = !!c.notes.employee && !!(c.notes.employee.wins?.length || c.notes.employee.blockers?.length || c.notes.employee.next?.length);
+
+  const summarize = async () => {
+    setAiBusy(true);
+    setAiError(null);
+    try {
+      const res = await apiSend<{ summary: string | null; unavailable?: boolean; error?: string }>(
+        `${ESS_BASE}/my-checkins`, "POST",
+        { action: "aiSummary", id: c.id, lang: locale.startsWith("en") ? "en" : "id" },
+      );
+      if (res.unavailable || !res.summary) {
+        setAiError(res.error ?? t("AI sedang tidak tersedia — coba lagi nanti", "AI is currently unavailable — try again later"));
+        setAiSummary(null);
+      } else {
+        setAiSummary(res.summary);
+      }
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   return (
     <div className={cn("rounded-lg border p-3", c.status === "Held" ? "border-emerald-200 dark:border-emerald-900/50" : c.status === "Missed" ? "border-rose-200 dark:border-rose-900/50" : "border-slate-200 dark:border-slate-800")}>
-      <button className="flex w-full items-center gap-2 text-left" onClick={() => setOpen(!open)} aria-expanded={open}>
+      <button className="flex w-full items-center gap-2 text-left" onClick={() => { const next = !open; setOpen(next); if (!next) { setAiSummary(null); setAiError(null); } }} aria-expanded={open}>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{fmtD(c.heldAt)} {c.agenda ? <span className="font-normal text-slate-500">— {c.agenda}</span> : ""}</p>
           <p className="text-[11px] text-slate-500"><StatusPill status={c.status} />{hasEmployee ? ` · ${t("bagian Anda terisi", "your part filled")}` : ""}</p>
@@ -131,6 +158,31 @@ function CheckinItem({ c, onFill }: { c: MyCheckin; onFill: () => void }) {
       </button>
       {open && (
         <div className="mt-2 space-y-1.5 text-xs">
+          {c.status === "Held" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" className="h-7" onClick={summarize} disabled={aiBusy}>
+                {aiBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-brand" />}
+                {t("Ringkas (AI)", "Summarize (AI)")}
+              </Button>
+              <span className="text-[10px] text-slate-400">{t("tanpa evaluasi baru (D-BL6)", "no new evaluation (D-BL6)")}</span>
+            </div>
+          )}
+          {aiError && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50/70 px-2.5 py-1.5 text-[11px] text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-400" role="status">
+              {aiError}
+            </p>
+          )}
+          {aiSummary && (
+            <div className="rounded-lg border border-brand/30 bg-brand/5 p-2.5">
+              <p className="mb-1 font-semibold text-brand">
+                <Sparkles className="mr-1 inline h-3 w-3" />{t("Ringkasan 1-on-1", "1-on-1 Summary")}
+              </p>
+              <p className="whitespace-pre-wrap text-slate-700 dark:text-slate-200">{aiSummary}</p>
+              <p className="mt-1.5 text-[10px] text-slate-400">
+                {t("disusun AI — periksa sebelum dipakai · tidak disimpan", "AI-generated — review before use · not stored")}
+              </p>
+            </div>
+          )}
           <List label={t("Capaian sejauh ini", "Wins so far")} items={c.notes.wins} cls="text-emerald-700 dark:text-emerald-400" />
           <List label={t("Hambatan", "Blockers")} items={c.notes.blockers} cls="text-rose-700 dark:text-rose-400" />
           <List label={t("Rencana lanjut", "Next steps")} items={c.notes.next} cls="text-slate-600 dark:text-slate-300" />

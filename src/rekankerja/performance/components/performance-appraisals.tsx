@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApi, apiSend, apiUpload } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows, StatusPill } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import {
 import {
   ClipboardCheck, Search, AlertTriangle, Loader2, Zap, FileSpreadsheet, Upload, Download,
   FileWarning, CheckCircle2, Sparkles, Send, Users, ChevronDown, Info, Coins, ShieldAlert, UserPlus,
+  ShieldCheck, EyeOff,
 } from "lucide-react";
 
 // ---------- tipe (kontrak API §17) ----------
@@ -115,8 +117,29 @@ interface Invite360Row {
   reviewerName: string; reviewerType: string; status: string;
   dueAt: string | null; submittedAt: string | null;
 }
+// B2-BL — advisori bias (D-BL7a) + antrean moderasi HR (D-BL7b)
+interface BiasWarningRow {
+  category: string;
+  phrase: string;
+  suggestion: string;
+  compName?: string;
+}
+interface FlaggedAnswerCard {
+  id: string;
+  feedbackId: string;
+  competencyId: string;
+  competencyName: string;
+  comment: string | null;
+  flagged: { category: string; phrase: string }[];
+  appraisalDocNo: string;
+  cycleCode: string;
+  submittedAt: string | null;
+}
 
 const fmtD = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "—");
+// B2-BL — marker komentar ter-Redaksi HR (PERSIS REDACTED_360_COMMENT service;
+// didefinisikan lokal agar client tidak mengimpor service server-only).
+const REDACTED_360_COMMENT = "[dikensorkan oleh HR — potensi bias]";
 const num = (v: string | number | null | undefined, fb = 0): number => {
   const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
   return Number.isFinite(n) ? n : fb;
@@ -295,19 +318,28 @@ function AppraisalForm({ appraisalId, cycleId, onBack }: { appraisalId: string; 
   const [busy, setBusy] = useState(false);
   const [impact, setImpact] = useState<ImpactData | null>(null);
   const impactTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // B2-BL (D-BL7a) — advisori bias dari respons autosave (NON-BLOKIR)
+  const [biasWarnings, setBiasWarnings] = useState<BiasWarningRow[]>([]);
+  // B2-BL (D-BL7b) — dialog antrean moderasi komentar 360 (HR)
+  const [moderateOpen, setModerateOpen] = useState(false);
 
   const d = detail.data;
   const canEdit = !!d && d.cycle.status === "Assessment" && ["GoalApproved", "Ongoing", "SelfDone"].includes(d.appraisal.status);
 
   const patch = useCallback(async (v: ManagerDraft) => {
-    await apiSend("/api/rekankerja/performance/appraisals", "POST", {
-      action: "saveManagerScore",
-      appraisalId,
-      kpiFinals: Object.entries(v.kpiFinals).filter(([, x]) => x != null).map(([kpiId, finalActual]) => ({ kpiId, finalActual })),
-      compScores: Object.entries(v.compScores).map(([compId, score]) => ({ compId, score })),
-      compComments: Object.entries(v.compComments).filter(([, x]) => x !== "").map(([compId, comment]) => ({ compId, comment })),
-      aiAssistedIds: v.aiAssistedIds,
-    });
+    // B2-BL (D-BL7a) — respons autosave membawa biasWarnings ADVISORI
+    const out = await apiSend<{ biasWarnings?: BiasWarningRow[] }>(
+      "/api/rekankerja/performance/appraisals", "POST",
+      {
+        action: "saveManagerScore",
+        appraisalId,
+        kpiFinals: Object.entries(v.kpiFinals).filter(([, x]) => x != null).map(([kpiId, finalActual]) => ({ kpiId, finalActual })),
+        compScores: Object.entries(v.compScores).map(([compId, score]) => ({ compId, score })),
+        compComments: Object.entries(v.compComments).filter(([, x]) => x !== "").map(([compId, comment]) => ({ compId, comment })),
+        aiAssistedIds: v.aiAssistedIds,
+      },
+    );
+    setBiasWarnings(out.biasWarnings ?? []);
   }, [appraisalId]);
 
   const autosave = useDraftAutosave<ManagerDraft>(`mgr:${appraisalId}`, patch, {
@@ -493,6 +525,32 @@ function AppraisalForm({ appraisalId, cycleId, onBack }: { appraisalId: string; 
         </div>
       )}
 
+      {/* B2-BL — ADVISORI BIAS (D-BL7a): dari respons autosave; NON-BLOKIR */}
+      {biasWarnings.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900/60 dark:bg-amber-950/30" role="status">
+          <p className="flex items-start gap-1.5 text-sm font-semibold text-amber-800 dark:text-amber-300">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            {t("Periksa bahasa ulasan Anda — potensi bias terdeteksi", "Review your wording — potential bias detected")}
+          </p>
+          <p className="mt-1 text-[11px] text-amber-700/90 dark:text-amber-400/90">
+            {t(
+              "Draf tetap tersimpan & submit tidak diblokir — peringatan advisori. Pertimbangkan menulis ulang agar berbasis perilaku terukur (D-BL7).",
+              "Your draft stays saved and submission is not blocked — this is an advisory. Consider rewording to focus on observable behavior (D-BL7).",
+            )}
+          </p>
+          <ul className="mt-2 space-y-1">
+            {biasWarnings.map((w) => (
+              <li key={`${w.phrase}-${w.compName ?? ""}`} className="rounded-lg border border-amber-200 bg-white/70 px-2.5 py-1.5 text-[11px] dark:border-amber-900/50 dark:bg-slate-900/60">
+                <span className="font-semibold text-amber-800 dark:text-amber-300">“{w.phrase}”</span>
+                {w.compName ? <span className="text-slate-500 dark:text-slate-400"> · {w.compName}</span> : null}
+                <span className="ml-1 text-slate-500 dark:text-slate-400">({t("kategori", "category")}: {w.category})</span>
+                <p className="mt-0.5 text-slate-600 dark:text-slate-300">{w.suggestion}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
           {/* ===== KPI ===== */}
@@ -669,13 +727,15 @@ function AppraisalForm({ appraisalId, cycleId, onBack }: { appraisalId: string; 
                       `${d.feedback360.reviewers.submitted} submitted · ${d.feedback360.reviewers.invited} pending · ${d.feedback360.reviewers.declined} declined · ${d.feedback360.reviewers.expired} expired`,
                     )}
                   </span>
-                  {canEdit && (
-                    <div className="ml-auto flex flex-wrap justify-end gap-2">
+                  <div className="ml-auto flex flex-wrap justify-end gap-2">
+                    {/* B2-BL — antrean moderasi komentar ter-flag (HR; D-BL7b) */}
+                    <ModerationQueueButton cycleId={cycleId} onOpen={() => setModerateOpen(true)} />
+                    {canEdit && (
                       <Button size="sm" variant="outline" onClick={() => setInviteOpen(true)}>
                         <UserPlus className="h-4 w-4" /> {t("Undang reviewer", "Invite reviewers")}
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
                 {d.feedback360.hidden ? (
                   <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-400">
@@ -692,7 +752,11 @@ function AppraisalForm({ appraisalId, cycleId, onBack }: { appraisalId: string; 
                         </div>
                         {p.comments && p.comments.length > 0 && (
                           <ul className="mt-1.5 space-y-0.5 pl-3 text-[11px] text-slate-500 dark:text-slate-400">
-                            {p.comments.slice(0, 4).map((c, i) => (<li key={i} className="line-clamp-2">“{c}”</li>))}
+                            {p.comments.slice(0, 4).map((c, i) => (
+                              <li key={i} className={cn("line-clamp-2", c === REDACTED_360_COMMENT && "italic text-slate-400")}>
+                                “{c === REDACTED_360_COMMENT ? t(c, "[redacted by HR — potential bias]") : c}”
+                              </li>
+                            ))}
                           </ul>
                         )}
                         <p className="mt-1 text-[10px] text-slate-400">{t(`anonim · ${p.count} reviewer`, `anonymous · ${p.count} reviewers`)}</p>
@@ -730,6 +794,7 @@ function AppraisalForm({ appraisalId, cycleId, onBack }: { appraisalId: string; 
       {pullOpen && <PullDialog appraisalId={appraisalId} onClose={() => setPullOpen(false)} onDone={detail.refresh} />}
       {importOpen && <ImportActualsDialog cycleId={cycleId} onClose={() => setImportOpen(false)} onDone={detail.refresh} />}
       {inviteOpen && <Invite360Dialog appraisalId={appraisalId} onClose={() => setInviteOpen(false)} onDone={detail.refresh} />}
+      {moderateOpen && <ModerationDialog cycleId={cycleId} onClose={() => setModerateOpen(false)} onDecided={detail.refresh} />}
       {aiFor && (
         <AiComposeDialog
           title={t(`Ulasan kompetensi — ${aiFor.name}`, `Competency review — ${aiFor.name}`)}
@@ -1371,6 +1436,144 @@ function Invite360Dialog({ appraisalId, onClose, onDone }: { appraisalId: string
             </DialogFooter>
           </div>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================================
+// B2-BL — MODERASI KOMENTAR 360 (D-BL7b): tombol badge Pending + dialog antrean
+// HR (Setujui / Redaksi / Pindai AI advisori). ANONIMITAS: kartu TIDAK
+// memuat identitas reviewer — hanya kompetensi, docNo peserta, teks & flag.
+// ============================================================================
+
+/** Tombol "Moderasi (N)" — hanya render utk HR (superadmin); badge jumlah Pending. */
+function ModerationQueueButton({ cycleId, onOpen }: { cycleId: string; onOpen: () => void }) {
+  const { t } = useI18n();
+  const perms = useMenuPerms();
+  // non-HR (bukan superadmin & config siap) → sembunyikan (API tetap 403-guard)
+  const mayModerate = !perms.ready || perms.all || perms.isSuperAdmin;
+  const { data } = useApi<{ rows: FlaggedAnswerCard[] }>(
+    mayModerate ? `/api/rekankerja/performance/feedback360?flagged=1&cycleId=${cycleId}` : null,
+    [cycleId, mayModerate],
+  );
+  if (!mayModerate) return null;
+  const n = (data?.rows ?? []).length;
+  return (
+    <Button size="sm" variant="outline" className={cn(n > 0 && "border-amber-300 text-amber-800 dark:border-amber-800 dark:text-amber-300")} onClick={onOpen}>
+      <ShieldCheck className="h-4 w-4" />
+      {n > 0
+        ? t(`Moderasi (${n})`, `Moderation (${n})`)
+        : t("Moderasi", "Moderation")}
+    </Button>
+  );
+}
+
+/** Dialog antrean moderasi komentar ter-flag (HR — D-BL7b/D-BL8). */
+function ModerationDialog({ cycleId, onClose, onDecided }: { cycleId: string; onClose: () => void; onDecided: () => void }) {
+  const { t, locale } = useI18n();
+  const { data, loading, refresh } = useApi<{ rows: FlaggedAnswerCard[] }>(
+    `/api/rekankerja/performance/feedback360?flagged=1&cycleId=${cycleId}`,
+    [cycleId],
+  );
+  const [busy, setBusy] = useState<string | null>(null);
+  // hasil deep-scan AI per kartu — advisori ephemeral (tidak disimpan)
+  const [scanFor, setScanFor] = useState<string | null>(null);
+  const [scans, setScans] = useState<Record<string, string>>({});
+
+  const decide = async (answerId: string, decision: "Approved" | "Redacted") => {
+    setBusy(answerId);
+    try {
+      await apiSend("/api/rekankerja/performance/feedback360", "POST", { action: "moderate", answerId, decision });
+      toast.success(decision === "Approved"
+        ? t("Komentar disetujui — tampil normal ter-agregat", "Comment approved — appears normally in aggregates")
+        : t("Komentar ter-redaksi — tampil string sensor", "Comment redacted — shows a censored placeholder"));
+      refresh();
+      onDecided();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runScan = async (answerId: string) => {
+    setScanFor(answerId);
+    try {
+      const out = await apiSend<{ scan: string | null; unavailable?: boolean; error?: string }>(
+        "/api/rekankerja/performance/feedback360", "POST",
+        { action: "aiScan", answerId, lang: locale.startsWith("en") ? "en" : "id" },
+      );
+      setScans((s) => ({ ...s, [answerId]: out.scan ?? (out.error ?? t("AI tidak tersedia — coba lagi nanti", "AI unavailable — try again later")) }));
+    } catch (e) {
+      setScans((s) => ({ ...s, [answerId]: e instanceof Error ? e.message : "unknown" }));
+    } finally {
+      setScanFor(null);
+    }
+  };
+
+  const rows = data?.rows ?? [];
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex flex-wrap items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-brand" />{t("Moderasi Komentar 360", "360 Comment Moderation")}
+            {rows.length > 0 && <Badge variant="outline" className="border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-400">{rows.length} {t("menunggu", "pending")}</Badge>}
+          </DialogTitle>
+          <DialogDescription>
+            {t(
+              "Komentar ter-flag lexicon bias menunggu keputusan HR: Setujui → tampil normal ter-agregat; Redaksi → tampil string sensor (isi tidak dibocorkan). Identitas reviewer TIDAK PERNAH tampil (D-BL7b).",
+              "Comments flagged by the bias lexicon await HR decisions: Approve → appear normally in aggregates; Redact → show a censored placeholder (content is not revealed). Reviewer identities NEVER appear (D-BL7b).",
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading && <LoadingRows rows={2} />}
+        {!loading && rows.length === 0 && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-400">
+            <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" />
+            {t("Tidak ada komentar menunggu moderasi — antrean bersih.", "No comments awaiting moderation — the queue is clear.")}
+          </div>
+        )}
+        <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+          {rows.map((r) => (
+            <div key={r.id} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="font-mono">{r.appraisalDocNo}</span>
+                <span>· {r.competencyName}</span>
+                {r.submittedAt ? <span>· {t("submit", "submitted")} {fmtD(r.submittedAt)}</span> : null}
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {r.flagged.map((f) => (
+                  <Badge key={f.phrase} variant="outline" className="h-5 border-amber-300 px-1.5 text-[10px] text-amber-700 dark:border-amber-800 dark:text-amber-400">
+                    {f.category}: “{f.phrase}”
+                  </Badge>
+                ))}
+              </div>
+              <p className="mt-1.5 rounded-lg bg-slate-50 p-2 text-xs text-slate-700 dark:bg-slate-900/40 dark:text-slate-200">“{r.comment ?? "—"}”</p>
+              {scans[r.id] && (
+                <div className="mt-1.5 rounded-lg border border-brand/30 bg-brand/5 p-2 text-[11px] text-slate-700 dark:text-slate-200">
+                  <p className="font-semibold text-brand"><Sparkles className="mr-1 inline h-3 w-3" />{t("Pindai AI (advisori)", "AI scan (advisory)")}</p>
+                  <p className="whitespace-pre-wrap">{scans[r.id]}</p>
+                  <p className="mt-1 text-[10px] text-slate-400">{t("saran AI — keputusan akhir tetap milik HR (D-BL8)", "AI suggestion — the final decision remains HR's (D-BL8)")}</p>
+                </div>
+              )}
+              <div className="mt-2 flex flex-wrap justify-end gap-2">
+                <Button size="sm" variant="outline" className="h-7" disabled={scanFor === r.id} onClick={() => runScan(r.id)}>
+                  {scanFor === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-brand" />}
+                  {t("Pindai AI", "Scan with AI")}
+                </Button>
+                <Button size="sm" variant="outline" className="h-7" disabled={busy === r.id} onClick={() => decide(r.id, "Redacted")}>
+                  <EyeOff className="h-3.5 w-3.5" />{t("Redaksi", "Redact")}
+                </Button>
+                <Button size="sm" className="h-7 bg-emerald-600 hover:bg-emerald-700" disabled={busy === r.id} onClick={() => decide(r.id, "Approved")}>
+                  {busy === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}{t("Setujui", "Approve")}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
       </DialogContent>
     </Dialog>
   );

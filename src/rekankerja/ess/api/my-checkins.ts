@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireEss } from "@/rekankerja/ess/api/ess-auth";
-import { myCheckins, fillEmployeePart } from "@/rekankerja/performance/services/perf-checkin-service";
+import { myCheckins, fillEmployeePart, aiCheckinSummary } from "@/rekankerja/performance/services/perf-checkin-service";
 
 // ============================================================================
 // PERFORMANCE — ESS "Check-in Saya" (P2 — §17 ess/my-checkins + §27-2/3):
@@ -10,6 +10,9 @@ import { myCheckins, fillEmployeePart } from "@/rekankerja/performance/services/
 //          dua arah (§27-2 — catatan karyawan digabung; hasil final dicatat
 //          atasan). Ekstensi kecil di luar blueprint GET (dibutuhkan alur
 //          dua arah §27-2 — dicatat worklog).
+//   POST {action: aiSummary, id, lang} → B2-BL ringkasan AI on-demand STATELESS
+//          (D-BL6) — HANYA check-in penilaian milik karyawan sendiri
+//          (anti-IDOR); rate-limit 20/jam (D-BL8); ActivityLog tanpa isi teks.
 // Guard: requireEss (self-scope anti-IDOR).
 // ============================================================================
 export async function GET(req: Request) {
@@ -26,10 +29,21 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const m = await requireEss(req);
   if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-  const { db, employeeId } = m.actor;
+  const { db, employeeId, appUserId } = m.actor;
   try {
     const b = (await req.json()) as Record<string, unknown>;
     const action = String(b.action ?? "");
+    if (action === "aiSummary") {
+      // B2-BL — self-scope keras: hanya check-in penilaian MILIK SENDIRI
+      const out = await aiCheckinSummary(db, {
+        checkInId: String(b.id ?? ""),
+        lang: b.lang === "en" ? "en" : "id",
+        actorKey: appUserId ?? employeeId,
+        actorEmployeeId: employeeId,
+        isSelf: (ownerId) => ownerId === employeeId, // anti-IDOR
+      });
+      return NextResponse.json(out);
+    }
     if (action !== "fill") return NextResponse.json({ error: `Aksi tidak dikenal: ${action}` }, { status: 400 });
     const out = await fillEmployeePart(db, employeeId, String(b.id ?? ""), {
       wins: Array.isArray(b.wins) ? b.wins.map(String) : [],
@@ -44,6 +58,10 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(out);
   } catch (e) {
+    // guard anti-IDOR → 403 eksplisit (bukan 400)
+    if (e instanceof Error && /akses ditolak/i.test(e.message)) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
 }

@@ -3395,6 +3395,8 @@ CREATE TABLE "Feedback360Answer" (
     "score" INTEGER NOT NULL,
     "comment" TEXT,
     "aiAssisted" BOOLEAN NOT NULL DEFAULT false,
+    "flaggedJson" TEXT,
+    "moderated" TEXT,
 
     CONSTRAINT "Feedback360Answer_pkey" PRIMARY KEY ("id")
 );
@@ -4407,6 +4409,7 @@ CREATE UNIQUE INDEX "Feedback360_appraisalId_reviewerId_reviewerType_key" ON "Fe
 
 -- CreateIndex
 CREATE INDEX "Feedback360Answer_feedbackId_competencyId_idx" ON "Feedback360Answer"("feedbackId", "competencyId");
+CREATE INDEX "Feedback360Answer_moderated_idx" ON "Feedback360Answer"("moderated");
 
 -- CreateIndex
 CREATE INDEX "CalibrationSession_cycleId_idx" ON "CalibrationSession"("cycleId");

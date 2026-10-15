@@ -3,7 +3,7 @@ import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/servi
 import { goalActorOf } from "@/rekankerja/performance/api/cycles";
 import {
   listCheckIns, scheduleCheckIn, logCheckIn, markMissed, saveMidActual, midProgress,
-  reviseTarget, pendingRevisions, decideRevision,
+  reviseTarget, pendingRevisions, decideRevision, aiCheckinSummary,
 } from "@/rekankerja/performance/services/perf-checkin-service";
 
 // ============================================================================
@@ -54,13 +54,27 @@ export async function POST(req: NextRequest) {
   try {
     const b = (await req.json()) as Record<string, unknown>;
     const action = String(b.action ?? "");
-    const act = action === "revise" ? "op:revise" : action === "approveRevision" || action === "rejectRevision" ? "op:revise" : "update";
+    const act = action === "revise" ? "op:revise" : action === "approveRevision" || action === "rejectRevision" ? "op:revise" : action === "aiSummary" ? "view" : "update";
     const m = await requireMenuAction(req, "performance:checkins", act as never);
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
     const actor = goalActorOf(m.actor);
+    // kunci rate-limit AI per pengguna (pola appraisals.ts aiCompose)
+    const actorKey = m.actor.appUserId ?? m.actor.employeeId ?? m.actor.userId;
 
     switch (action) {
+      case "aiSummary": {
+        // B2-BL (D-BL6) — admin (menu performance:checkins) boleh meringkas
+        // check-in peserta mana pun; STATELESS + ActivityLog + rate-limit 20/jam.
+        const out = await aiCheckinSummary(db, {
+          checkInId: String(b.checkInId ?? b.id ?? ""),
+          lang: b.lang === "en" ? "en" : "id",
+          actorKey,
+          actorEmployeeId: m.actor.employeeId,
+          isSelf: () => true, // guard menu sudah membatasi ke admin check-in
+        });
+        return NextResponse.json(out);
+      }
       case "schedule": {
         const id = await scheduleCheckIn(db, actor, {
           appraisalId: String(b.appraisalId ?? ""),

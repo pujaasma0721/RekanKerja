@@ -55,6 +55,21 @@ export const SERVER_ERR_EN: Record<string, string> = {
   "Karyawan tidak ditemukan": "Employee not found",
   // P9-PERF — kepatuhan UU PDP (DSR karyawan + rate-limit 360 §37):
   "Batas 10 submit 360 per jam tercapai — coba lagi nanti": "The limit of 10 360-feedback submissions per hour has been reached — please try again later",
+  // B2-BL — AI ringkasan check-in + deteksi bias (D-BL6/D-BL7/D-BL8):
+  "Batas 20 ringkasan AI per jam tercapai — coba lagi nanti (D-BL8)":
+    "The limit of 20 AI summaries per hour has been reached — please try again later (D-BL8)",
+  "Bukan check-in penilaian milik Anda — akses ditolak (D-BL6)":
+    "This check-in does not belong to your appraisal — access denied (D-BL6)",
+  "Ringkasan AI hanya untuk check-in yang sudah dicatat (Held)":
+    "AI summaries are only available for logged (Held) check-ins",
+  "Check-in belum berisi catatan untuk diringkas": "The check-in has no notes to summarize yet",
+  "Moderasi komentar 360 hanya oleh HR (D-BL7b)": "360 comment moderation is HR-only (D-BL7b)",
+  "Antrean moderasi komentar 360 hanya untuk HR (D-BL7b)": "The 360 comment moderation queue is HR-only (D-BL7b)",
+  "Keputusan moderasi harus Approved atau Redacted": "The moderation decision must be Approved or Redacted",
+  "Komentar tidak ditemukan": "Comment not found",
+  "Komentar kosong — tidak ada yang dapat dipindai": "The comment is empty — nothing to scan",
+  "Batas 20 pindai AI per jam tercapai — coba lagi nanti (D-BL8)":
+    "The limit of 20 AI scans per hour has been reached — please try again later (D-BL8)",
   "Permintaan data (DSR) tidak ditemukan": "Data subject request (DSR) not found",
   "Alasan penolakan DSR wajib diisi (minimal 10 karakter)": "The DSR rejection reason is required (at least 10 characters)",
   "Ringkasan hasil penyelesaian DSR wajib diisi": "A DSR resolution summary is required",
