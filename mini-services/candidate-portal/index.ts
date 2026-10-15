@@ -68,6 +68,78 @@ async function fetchOpenings(tenantSlug: string | null): Promise<OpeningsRespons
   }
 }
 
+// ============ B7 — branding portal (CareerSiteConfig per tenant) ============
+
+interface SiteConfig {
+  brandColor: string;
+  logoUrl: string | null;
+  heroTitle: string | null;
+  heroSub: string | null;
+  companyName: string | null;
+}
+
+/** Branding portal per tenant (fallback tenang bila utama mati — pola openings). */
+async function fetchSiteConfig(tenantSlug: string | null): Promise<SiteConfig | null> {
+  const url = new URL("/api/public/recruitment/site-config", MAIN_APP);
+  if (tenantSlug) url.searchParams.set("t", tenantSlug);
+  try {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
+    const res = await fetch(url, { signal: ac.signal, headers: { accept: "application/json" } });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    return (await res.json()) as SiteConfig;
+  } catch {
+    return null;
+  }
+}
+
+/** Palet brand valid (hex #rrggbb) — invalid → null (fallback default). */
+function validBrand(hex: string | null | undefined): string | null {
+  return hex && /^#[0-9a-fA-F]{6}$/.test(hex) ? hex.toLowerCase() : null;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const c = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+  return `#${c(r)}${c(g)}${c(b)}`;
+}
+
+/** Campur 2 warna hex — wa = bobot warna A (0..1). */
+function mixHex(a: string, b: string, wa: number): string {
+  const [r1, g1, b1] = hexToRgb(a);
+  const [r2, g2, b2] = hexToRgb(b);
+  return rgbToHex(r1 * wa + r2 * (1 - wa), g1 * wa + g2 * (1 - wa), b1 * wa + b2 * (1 - wa));
+}
+
+/**
+ * Palet turunan dari warna brand (dark/tint/deep) — dipakai CSS :root.
+ * Tanpa branding → literal default persis seperti portal F2 (orange).
+ */
+interface BrandPalette { brand: string; dark: string; t95: string; t91: string; t87: string; t65: string; deep: string; deep2: string; rgb: string }
+function brandPalette(brandHex: string | null): BrandPalette {
+  const brand = brandHex ?? "#ea580c";
+  if (!brandHex) {
+    return { brand, dark: "#c2410c", t95: "#fff7ed", t91: "#ffedd5", t87: "#fed7aa", t65: "#fdba74", deep: "#9a3412", deep2: "#7c2d12", rgb: "234,88,12" };
+  }
+  const [r, g, b] = hexToRgb(brand);
+  return {
+    brand,
+    dark: mixHex(brand, "#000000", 0.84),
+    t95: mixHex(brand, "#ffffff", 0.05),
+    t91: mixHex(brand, "#ffffff", 0.11),
+    t87: mixHex(brand, "#ffffff", 0.24),
+    t65: mixHex(brand, "#ffffff", 0.35),
+    deep: mixHex(brand, "#000000", 0.66),
+    deep2: mixHex(brand, "#000000", 0.53),
+    rgb: `${r},${g},${b}`,
+  };
+}
+
 // ============ PROXY server-side /api/public/recruitment/* → MAIN_APP ============
 // Alasan: mode akses (a) direct 127.0.0.1:3010 — fetch relatif dari browser TIDAK
 // bisa menemukan API aplikasi utama, maka portal me-relay-nya sendiri. Body POST
@@ -267,13 +339,22 @@ const FORM_EXP_FIELDS = [
 
 // ============ halaman penuh ============
 
-function renderPage(data: OpeningsResponse | null, tenantSlug: string | null): string {
+function renderPage(data: OpeningsResponse | null, tenantSlug: string | null, site: SiteConfig | null): string {
   const companyName = data?.tenant?.companyName ?? null;
   const openings = data?.openings ?? [];
   const tenants = data?.tenants ?? [];
   const activeSlug = data?.tenant?.slug ?? tenantSlug;
   const live = data != null;
   const year = new Date().getFullYear();
+
+  // B7 — branding per tenant: warna (palet turunan), logo, hero. Tanpa
+  // branding → palet default persis portal F2 (orange) — tidak mengubah look.
+  const brandHex = validBrand(site?.brandColor);
+  const pal = brandPalette(brandHex);
+  const logoUrl = site?.logoUrl && /^https?:\/\//.test(site.logoUrl) ? site.logoUrl : null;
+  const heroTitleCustom = site?.heroTitle?.trim() || null;
+  const heroSubCustom = site?.heroSub?.trim() || null;
+  const faviconColor = pal.brand.slice(1);
 
   // data untuk client JS (kartu klik → dialog; ?t= untuk POST apply)
   const dataJson = JSON.stringify({
@@ -321,6 +402,18 @@ ${listHtml}
         <p class="genbox-sub" data-id="Kirim lamaran umum — profil Anda akan tersimpan di talent pool kami." data-en="Send a general application — your profile will be kept in our talent pool.">Kirim lamaran umum — profil Anda akan tersimpan di talent pool kami.</p>
       </div>
       <button type="button" class="btn warm" id="apply-general" data-id="Lamar Umum" data-en="General Application">Lamar Umum</button>
+    </section>
+    <section class="statusbox" id="cek-status" aria-labelledby="cek-status-h">
+      <h2 id="cek-status-h" class="list-title"><span data-id="Cek Status Lamaran" data-en="Check Application Status">Cek Status Lamaran</span></h2>
+      <p class="statusbox-sub" data-id="Sudah mengirim lamaran? Masukkan email Anda — kami mengirim tautan sekali-pakai untuk melihat status lamaran (berlaku 6 jam)." data-en="Already applied? Enter your email — we'll send a one-time link to view your application status (valid for 6 hours).">Sudah mengirim lamaran? Masukkan email Anda — kami mengirim tautan sekali-pakai untuk melihat status lamaran (berlaku 6 jam).</p>
+      <form id="status-form" class="statusform" novalidate>
+        <input id="st-email" name="email" type="email" maxlength="120" autocomplete="email" inputmode="email"
+          placeholder="nama@email.com" data-id-ph="nama@email.com" data-en-ph="you@email.com" aria-label="Email / Email">
+        <button type="submit" class="btn primary" id="st-submit" data-id="Kirim Tautan" data-en="Send Link">Kirim Tautan</button>
+        <!-- HONEYPOT — tersembunyi; bot yang mengisinya diabaikan server (respons tetap netral). -->
+        <div class="hp" aria-hidden="true"><label for="st-website">Website</label><input id="st-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+      </form>
+      <p class="st-msg" id="st-msg" role="status" aria-live="polite"></p>
     </section>`
     : "";
 
@@ -334,6 +427,19 @@ ${listHtml}
     ? `<strong>${esc(companyName)}</strong>`
     : `<strong data-id="perusahaan" data-en="the company">perusahaan</strong>`;
 
+  // B7 — hero: judul/sub custom (CareerSiteConfig) atau default dwibahasa F2
+  const heroTitleHtml = heroTitleCustom
+    ? `<h1>${esc(heroTitleCustom)}</h1>`
+    : `<h1 data-id="Berkarir <em>bersama kami</em>" data-en="Build your career <em>with us</em>">Berkarir <em>bersama kami</em></h1>`;
+  const heroSubHtml = heroSubCustom
+    ? `<p class="sub">${esc(heroSubCustom)}</p>`
+    : `<p class="sub" data-id="Lamar langsung tanpa membuat akun — cukup satu formulir, CV, dan konfirmasi email. Data Anda kami perlakukan sesuai UU PDP No. 27/2022." data-en="Apply directly without creating an account — just one form, your CV, and an email confirmation. Your data is handled under Indonesia's PDP Law No. 27/2022.">Lamar langsung tanpa membuat akun — cukup satu formulir, CV, dan konfirmasi email. Data Anda kami perlakukan sesuai UU PDP No. 27/2022.</p>`;
+
+  // B7 — logo tenant (bila diatur) menggantikan titik wordmark default
+  const wordmarkHtml = logoUrl
+    ? `<img class="logo-img" src="${esc(logoUrl)}" alt="${companyName ? esc(companyName) : "Logo"}" loading="lazy">`
+    : `<span class="dot" aria-hidden="true"></span>`;
+
   return `<!doctype html>
 <html lang="id">
 <head>
@@ -342,9 +448,9 @@ ${listHtml}
 <meta name="robots" content="index,follow">
 <title>${companyName ? `Karir — ${esc(companyName)}` : "Portal Karir"} · RekanKerja</title>
 <meta name="description" content="${companyName ? `Lowongan terbuka di ${esc(companyName)}.` : "Portal karir publik."} Lamar tanpa akun — konfirmasi via email.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23ea580c'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23${faviconColor}'/%3E%3C/svg%3E">
 <style>
-  :root { --accent:#ea580c; --accent-dark:#c2410c; --ink:#1c1917; --muted:#78716c; --bg:#faf9f5; --card:#ffffff; --line:#e7e5e0; --bad:#dc2626; --ok:#059669; }
+  :root { --brand:${pal.brand}; --accent:var(--brand); --accent-dark:${pal.dark}; --t95:${pal.t95}; --t91:${pal.t91}; --t87:${pal.t87}; --t65:${pal.t65}; --deep:${pal.deep}; --deep2:${pal.deep2}; --ink:#1c1917; --muted:#78716c; --bg:#faf9f5; --card:#ffffff; --line:#e7e5e0; --bad:#dc2626; --ok:#059669; }
   * { box-sizing:border-box; margin:0; padding:0; }
   html,body { height:100%; }
   body { font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:var(--ink); display:flex; flex-direction:column; min-height:100vh; line-height:1.55; }
@@ -357,11 +463,11 @@ ${listHtml}
   .lang:hover { border-color:var(--accent); color:var(--accent); }
   main { flex:1; width:100%; max-width:56rem; margin:0 auto; padding:2.25rem 1.25rem 3rem; }
   a { color:var(--accent); }
-  .hero-tag { display:inline-flex; align-items:center; gap:.4rem; border:1px solid #fed7aa; background:#fff7ed; color:#9a3412; border-radius:9999px; padding:.28rem .8rem; font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.12em; margin-bottom:.85rem; }
+  .hero-tag { display:inline-flex; align-items:center; gap:.4rem; border:1px solid var(--t87); background:var(--t95); color:var(--deep); border-radius:9999px; padding:.28rem .8rem; font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.12em; margin-bottom:.85rem; }
   .hero h1 { font-size:clamp(1.6rem,4vw,2.3rem); letter-spacing:-.03em; line-height:1.15; }
   .hero h1 em { font-style:normal; color:var(--accent); }
   .hero p.sub { color:var(--muted); margin-top:.6rem; max-width:38rem; }
-  .notice { margin-top:1.25rem; border:1px dashed var(--accent); background:#fff7ed; color:#7c2d12; border-radius:.85rem; padding:.85rem 1rem; font-size:.85rem; }
+  .notice { margin-top:1.25rem; border:1px dashed var(--accent); background:var(--t95); color:var(--deep2); border-radius:.85rem; padding:.85rem 1rem; font-size:.85rem; }
   .retry-row { margin-top:.8rem; }
   .chips { margin-top:1.75rem; display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
   .chips-label { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-right:.2rem; }
@@ -373,18 +479,18 @@ ${listHtml}
   .count { color:var(--accent); font-size:.95rem; font-weight:700; }
   .grid { margin-top:1rem; display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(19rem,1fr)); }
   .card { background:var(--card); border:1px solid var(--line); border-radius:1rem; padding:1.15rem 1.2rem; display:flex; flex-direction:column; gap:.5rem; cursor:pointer; transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
-  .card:hover, .card:focus-visible { transform:translateY(-2px); box-shadow:0 10px 24px -14px rgba(28,25,23,.25); border-color:#fdba74; outline:none; }
+  .card:hover, .card:focus-visible { transform:translateY(-2px); box-shadow:0 10px 24px -14px rgba(28,25,23,.25); border-color:var(--t65); outline:none; }
   .card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; }
   .ct-txt { min-width:0; }
   .refno { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--accent); }
   .card h3 { font-size:1.02rem; letter-spacing:-.01em; margin-top:.1rem; }
-  .chip { flex-shrink:0; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); border:1px solid #fed7aa; background:#fff7ed; border-radius:9999px; padding:.22rem .6rem; }
+  .chip { flex-shrink:0; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); border:1px solid var(--t87); background:var(--t95); border-radius:9999px; padding:.22rem .6rem; }
   .meta { font-size:.83rem; color:var(--muted); }
   .summary { font-size:.86rem; color:#44403c; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   .empty { grid-column:1/-1; text-align:center; border:1px dashed var(--line); border-radius:1rem; padding:3rem 1.5rem; background:var(--card); }
   .empty-title { font-weight:700; }
   .empty-sub { color:var(--muted); font-size:.9rem; margin-top:.4rem; }
-  .genbox { margin-top:1.6rem; border:1px dashed #fed7aa; background:#fff7ed; border-radius:1rem; padding:1.2rem 1.3rem; display:flex; flex-wrap:wrap; gap:.9rem 1.5rem; align-items:center; justify-content:space-between; }
+  .genbox { margin-top:1.6rem; border:1px dashed var(--t87); background:var(--t95); border-radius:1rem; padding:1.2rem 1.3rem; display:flex; flex-wrap:wrap; gap:.9rem 1.5rem; align-items:center; justify-content:space-between; }
   .genbox-title { font-weight:700; }
   .genbox-sub { color:var(--muted); font-size:.85rem; margin-top:.15rem; }
   .btn { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; font:inherit; font-size:.88rem; font-weight:700; border-radius:.75rem; padding:.6rem 1.1rem; cursor:pointer; border:1px solid transparent; transition:background .15s ease, border-color .15s ease, color .15s ease; min-height:44px; }
@@ -392,12 +498,23 @@ ${listHtml}
   .btn.primary:hover { background:var(--accent-dark); }
   .btn.ghost { background:var(--card); border-color:var(--line); color:#44403c; }
   .btn.ghost:hover { border-color:var(--accent); color:var(--accent); }
-  .btn.warm { background:#fff7ed; border-color:#fdba74; color:var(--accent-dark); }
-  .btn.warm:hover { background:#ffedd5; border-color:var(--accent); }
+  .btn.warm { background:var(--t95); border-color:var(--t65); color:var(--accent-dark); }
+  .btn.warm:hover { background:var(--t91); border-color:var(--accent); }
   .btn.block { width:100%; margin-top:.6rem; }
   .btn[disabled] { opacity:.6; cursor:not-allowed; }
   footer.site { margin-top:auto; background:var(--card); border-top:1px solid var(--line); padding:1rem 1.25rem; padding-bottom:calc(1rem + env(safe-area-inset-bottom)); display:flex; flex-wrap:wrap; gap:.5rem 1.25rem; align-items:center; justify-content:space-between; font-size:.75rem; color:var(--muted); }
   footer.site .pdp { max-width:34rem; }
+  .logo-img { height:2rem; width:auto; max-width:9rem; object-fit:contain; border-radius:.4rem; flex-shrink:0; }
+
+  /* ---------- B7 — cek status lamaran ---------- */
+  .statusbox { margin-top:1.6rem; border:1px solid var(--t87); background:var(--card); border-radius:1rem; padding:1.2rem 1.3rem; }
+  .statusbox-sub { color:var(--muted); font-size:.85rem; margin-top:.4rem; }
+  .statusform { margin-top:.9rem; display:flex; flex-wrap:wrap; gap:.6rem; }
+  .statusform input { flex:1 1 14rem; font:inherit; font-size:.9rem; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:.6rem; padding:.6rem .75rem; min-height:44px; }
+  .statusform input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(${pal.rgb},.14); }
+  .statusform input.bad { border-color:var(--bad); }
+  .st-msg { margin-top:.75rem; font-size:.82rem; font-weight:600; color:var(--deep); }
+  .st-msg.err { color:var(--bad); }
 
   /* ---------- dialog lamaran ---------- */
   .overlay { position:fixed; inset:0; z-index:60; background:rgba(28,25,23,.52); display:none; padding:1rem; }
@@ -414,14 +531,14 @@ ${listHtml}
   .banner.show { display:block; }
   .sect { display:flex; align-items:center; gap:.5rem; font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin:1.25rem 0 .75rem; }
   form .sect:first-child { margin-top:0; }
-  .sect .ico { width:1.55rem; height:1.55rem; display:inline-flex; align-items:center; justify-content:center; background:#ffedd5; border-radius:.5rem; font-size:.75rem; flex-shrink:0; }
+  .sect .ico { width:1.55rem; height:1.55rem; display:inline-flex; align-items:center; justify-content:center; background:var(--t91); border-radius:.5rem; font-size:.75rem; flex-shrink:0; }
   .fgrid { display:grid; grid-template-columns:1fr; gap:.7rem 1rem; }
   @media (min-width:640px) { .fgrid { grid-template-columns:1fr 1fr; } .span2 { grid-column:1 / -1; } }
   .field { display:flex; flex-direction:column; gap:.28rem; min-width:0; }
   .field label { font-size:.78rem; font-weight:600; color:#44403c; }
   .req { color:var(--accent); }
   .field input, .field select, .field textarea { font:inherit; font-size:.9rem; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:.6rem; padding:.55rem .7rem; width:100%; }
-  .field input:focus, .field select:focus, .field textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(234,88,12,.14); }
+  .field input:focus, .field select:focus, .field textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(${pal.rgb},.14); }
   .field input.bad, .field select.bad, .field textarea.bad { border-color:var(--bad); }
   .ferr { font-size:.72rem; color:var(--bad); font-weight:600; }
   .hint { font-size:.72rem; color:#a8a29e; }
@@ -432,7 +549,7 @@ ${listHtml}
   input[type=file]::file-selector-button { font:inherit; font-size:.72rem; font-weight:700; color:#fff; background:var(--accent); border:0; border-radius:.5rem; padding:.45rem .8rem; margin-right:.7rem; cursor:pointer; }
   input[type=file]::file-selector-button:hover { background:var(--accent-dark); }
   .cap-row { display:flex; gap:.5rem; align-items:stretch; }
-  .cap-q { flex:1; min-width:0; display:flex; align-items:center; background:#fff7ed; border:1px solid #fed7aa; border-radius:.6rem; padding:.55rem .8rem; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.95rem; font-weight:700; letter-spacing:.05em; color:#7c2d12; }
+  .cap-q { flex:1; min-width:0; display:flex; align-items:center; background:var(--t95); border:1px solid var(--t87); border-radius:.6rem; padding:.55rem .8rem; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.95rem; font-weight:700; letter-spacing:.05em; color:var(--deep2); }
   .cap-in { flex-shrink:0; width:5.2rem; text-align:center; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-weight:700; }
   .cap-btn { flex-shrink:0; width:44px; border:1px solid var(--line); background:var(--card); border-radius:.6rem; cursor:pointer; font-size:1.05rem; color:var(--muted); }
   .cap-btn:hover { border-color:var(--accent); color:var(--accent); }
@@ -453,21 +570,21 @@ ${listHtml}
   .actions { display:flex; gap:.6rem; justify-content:flex-end; margin-top:1.3rem; flex-wrap:wrap; }
   .okwrap { display:none; text-align:center; padding:1.6rem .5rem 1rem; flex-direction:column; gap:.7rem; align-items:center; }
   .okwrap.show { display:flex; }
-  .okcircle { width:4rem; height:4rem; border-radius:9999px; background:#ffedd5; color:var(--accent); font-size:2rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .okcircle { width:4rem; height:4rem; border-radius:9999px; background:var(--t91); color:var(--accent); font-size:2rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
   .okwrap h3 { font-size:1.25rem; letter-spacing:-.02em; }
   .okwrap p { color:var(--muted); font-size:.88rem; max-width:26rem; }
 </style>
 </head>
 <body>
   <header class="site">
-    <div class="wordmark" aria-label="Portal Karir"><span class="dot" aria-hidden="true"></span><span class="co">Karir${companyName ? ` · ${esc(companyName)}` : ""}</span></div>
+    <div class="wordmark" aria-label="Portal Karir">${wordmarkHtml}<span class="co">Karir${companyName ? ` · ${esc(companyName)}` : ""}</span></div>
     <button class="lang" id="lang-toggle" type="button" aria-label="Ganti bahasa / switch language">EN</button>
   </header>
   <main>
     <section class="hero">
       <span class="hero-tag" data-id="Rekrutmen Terbuka" data-en="We're Hiring">Rekrutmen Terbuka</span>
-      <h1 data-id="Berkarir <em>bersama kami</em>" data-en="Build your career <em>with us</em>">Berkarir <em>bersama kami</em></h1>
-      <p class="sub" data-id="Lamar langsung tanpa membuat akun — cukup satu formulir, CV, dan konfirmasi email. Data Anda kami perlakukan sesuai UU PDP No. 27/2022." data-en="Apply directly without creating an account — just one form, your CV, and an email confirmation. Your data is handled under Indonesia's PDP Law No. 27/2022.">Lamar langsung tanpa membuat akun — cukup satu formulir, CV, dan konfirmasi email. Data Anda kami perlakukan sesuai UU PDP No. 27/2022.</p>
+      ${heroTitleHtml}
+      ${heroSubHtml}
       ${noticeHtml}
     </section>
     ${listSectionHtml}
@@ -821,6 +938,62 @@ ${FORM_EXP_FIELDS}
       var retryBtn = document.getElementById("retry-btn");
       if (retryBtn) retryBtn.addEventListener("click", function () { location.reload(); });
 
+      // ---- B7 — cek status lamaran: minta tautan magic-link via email ----
+      // Respons server NETRAL (anti-enumerasi): pesan berikut SELALU sama
+      // baik email terdaftar maupun tidak.
+      var statusForm = document.getElementById("status-form");
+      var stEmail = document.getElementById("st-email");
+      var stMsg = document.getElementById("st-msg");
+      var stBtn = document.getElementById("st-submit");
+      var stHp = document.getElementById("st-website");
+      var ST_NEUTRAL_ID = "Terima kasih! Jika email Anda terdaftar, tautan untuk mengecek status lamaran telah dikirim ke email Anda.";
+      var ST_NEUTRAL_EN = "Thank you! If your email is registered, a link to check your application status has been sent to your email.";
+      function setStMsg(msg, isErr) {
+        if (!stMsg) return;
+        stMsg.textContent = msg;
+        stMsg.className = "st-msg" + (isErr ? " err" : "");
+      }
+      if (statusForm && stEmail && stBtn) {
+        statusForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var em = stEmail.value.trim();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+            stEmail.classList.add("bad");
+            setStMsg(t("Masukkan alamat email yang valid.", "Please enter a valid email address."), true);
+            return;
+          }
+          stEmail.classList.remove("bad");
+          var qs = ACTIVE_SLUG ? "?t=" + encodeURIComponent(ACTIVE_SLUG) : "";
+          stBtn.disabled = true;
+          stBtn.textContent = t("Mengirim…", "Sending…");
+          fetch("/api/public/recruitment/status-link" + qs, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ email: em, website: stHp ? stHp.value : "" }) // honeypot ikut dikirim
+          }).then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, status: r.status, j: j }; });
+          }).then(function (res) {
+            if (res.status === 429) {
+              setStMsg(serverMsg((res.j && res.j.error) || "Terlalu banyak permintaan. Coba lagi nanti."), true);
+              return;
+            }
+            if (res.status === 400) {
+              stEmail.classList.add("bad");
+              setStMsg(serverMsg((res.j && res.j.error) || "Email valid wajib diisi"), true);
+              return;
+            }
+            // 200/201 — respons netral SAMA (email terdaftar maupun tidak)
+            setStMsg(t(ST_NEUTRAL_ID, ST_NEUTRAL_EN), false);
+            stEmail.value = "";
+          }).catch(function () {
+            setStMsg(t("Gagal mengirim permintaan. Periksa koneksi internet Anda lalu coba lagi.", "Failed to send the request. Check your internet connection and try again."), true);
+          }).then(function () {
+            stBtn.disabled = false;
+            stBtn.textContent = t("Kirim Tautan", "Send Link");
+          });
+        });
+      }
+
       // ---- validasi klien (per-field: border merah + teks kecil) ----
       function validate() {
         var bad = false;
@@ -926,8 +1099,20 @@ const server = Bun.serve({
     }
     if (url.pathname === "/" || url.pathname === "/index.html") {
       const t = url.searchParams.get("t");
-      const data = await fetchOpenings(t);
-      return new Response(renderPage(data, t), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+      const [data, site] = await Promise.all([fetchOpenings(t), fetchSiteConfig(t)]);
+      return new Response(renderPage(data, t, site), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+    }
+    // B7 — halaman cek status lamaran (magic-link sekali-pakai): /status/<token>
+    if (url.pathname.startsWith("/status/")) {
+      const token = url.pathname.slice("/status/".length).split("/")[0] ?? "";
+      const t = url.searchParams.get("t");
+      if (!/^\d{10,16}\.[a-f0-9]{64}$/.test(token)) {
+        return new Response("Not found", { status: 404 });
+      }
+      const [payload, site] = await Promise.all([fetchStatusInfo(token, t), fetchSiteConfig(t)]);
+      return new Response(renderStatusPage(payload, token, t, site), {
+        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+      });
     }
     // F7 — halaman tanda tangan elektronik kandidat: /sign/<token>
     if (url.pathname.startsWith("/sign/")) {
@@ -1192,6 +1377,279 @@ function renderSignPage(info: EsignInfo | null, token: string, tenantSlug: strin
       errEl.textContent = t("Koneksi gagal — periksa jaringan Anda dan coba lagi.", "Connection failed — check your network and try again.");
     });
   });
+})();
+</script>
+</body>
+</html>`;
+}
+
+// ============================================================================
+// B7 — HALAMAN CEK STATUS LAMARAN  /status/<token>?t=<slug>
+// (magic-link sekali-pakai 6 jam — tanpa password. SSR fetch server-side ke
+// aplikasi utama /api/public/recruitment/status — pola fetchEsignInfo /sign.)
+// Payload = data yang boleh dilihat pelamar: identitas terbatas, slot terakhir,
+// status, tahapan (TANPA nama evaluator/catatan internal), offer (TANPA
+// nominal), lampiran. Dwibahasa: ?lang + toggle + localStorage (pola /sign).
+// ============================================================================
+
+interface StatusStepItem { name: string; status: string; planDate: string | null }
+interface StatusPayload {
+  applicantNo: string;
+  fullName: string;
+  status: string;
+  appliedCount: number;
+  latestApplication: { joRefNo: string; title: string; dateApplied: string; status: string } | null;
+  selection: { prNo: string | null; steps: StatusStepItem[] } | null;
+  offer: { offerNo: string; status: string; date: string | null } | null;
+  attachments: { title: string; fileName: string; sizeBytes: number }[];
+}
+
+/** Hasil fetch status: payload sukses ATAU kode error netral. */
+type StatusInfo = { ok: true; payload: StatusPayload } | { ok: false; code: 400 | 410 | 404 | 429 | 0 };
+
+async function fetchStatusInfo(token: string, tenantSlug: string | null): Promise<StatusInfo> {
+  const url = new URL("/api/public/recruitment/status", MAIN_APP);
+  url.searchParams.set("token", token);
+  if (tenantSlug) url.searchParams.set("t", tenantSlug);
+  try {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 8000); // verifikasi memindai HMAC — beri napas
+    const res = await fetch(url, { signal: ac.signal, headers: { accept: "application/json" } });
+    clearTimeout(timer);
+    if (res.ok) return { ok: true, payload: (await res.json()) as StatusPayload };
+    if (res.status === 410) return { ok: false, code: 410 };
+    if (res.status === 429) return { ok: false, code: 429 };
+    return { ok: false, code: res.status === 400 ? 400 : 404 };
+  } catch {
+    return { ok: false, code: 0 }; // aplikasi utama mati
+  }
+}
+
+// label dwibahasa [ID, EN] — status sistem → teks manusia
+const APPLICANT_STATUS_LABEL: Record<string, [string, string]> = {
+  Active: ["Talent Pool Aktif", "Active Talent Pool"],
+  Rejected: ["Tidak Lolos", "Not Selected"],
+  Outdated: ["Arsip (retensi)", "Archived (retention)"],
+  Employed: ["Menjadi Karyawan", "Employed"],
+};
+const APP_STATUS_LABEL: Record<string, [string, string]> = {
+  Received: ["Diterima", "Received"],
+  Screening: ["Penyaringan", "Screening"],
+  Rejected: ["Tidak Lolos", "Rejected"],
+  Hired: ["Dipekerjakan", "Hired"],
+};
+const STEP_STATUS_LABEL: Record<string, [string, string]> = {
+  Planned: ["Direncanakan", "Planned"],
+  Acknowledged: ["Dikonfirmasi Kandidat", "Acknowledged"],
+  Performed: ["Selesai Dilaksanakan", "Performed"],
+  Passed: ["Lulus", "Passed"],
+  Failed: ["Tidak Lulus", "Failed"],
+  Cancelled: ["Dibatalkan", "Cancelled"],
+};
+const OFFER_STATUS_LABEL: Record<string, [string, string]> = {
+  Draft: ["Draf", "Draft"],
+  PendingApproval: ["Menunggu Persetujuan", "Pending Approval"],
+  Sent: ["Terkirim", "Sent"],
+  Viewed: ["Sudah Dilihat", "Viewed"],
+  Accepted: ["Diterima", "Accepted"],
+  Declined: ["Ditolak", "Declined"],
+  Expired: ["Kedaluwarsa", "Expired"],
+};
+
+function lbl(map: Record<string, [string, string]>, key: string): [string, string] {
+  return map[key] ?? [key, key];
+}
+
+/** <span data-id="…" data-en="…">ID</span> — bahasa diganti toggle klien. */
+function biSpan(map: Record<string, [string, string]>, key: string): string {
+  const [id, en] = lbl(map, key);
+  return `<span data-id="${esc(id)}" data-en="${esc(en)}">${esc(id)}</span>`;
+}
+
+function biDate(iso: string | null): string {
+  if (!iso) return "—";
+  const id = fmtDate(iso, "id-ID") ?? "—";
+  const en = fmtDate(iso, "en-US") ?? id;
+  return `<span data-id="${esc(id)}" data-en="${esc(en)}">${esc(id)}</span>`;
+}
+
+function fmtBytes(n: number): string {
+  if (n >= 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  if (n >= 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${n} B`;
+}
+
+function renderStatusPage(info: StatusInfo, _token: string, tenantSlug: string | null, site: SiteConfig | null): string {
+  const brandHex = validBrand(site?.brandColor);
+  const pal = brandPalette(brandHex);
+  const logoUrl = site?.logoUrl && /^https?:\/\//.test(site.logoUrl) ? site.logoUrl : null;
+  const company = site?.companyName ?? null;
+  const homeHref = tenantSlug ? `/?t=${encodeURIComponent(tenantSlug)}#cek-status` : "/#cek-status";
+  const year = new Date().getFullYear();
+
+  const wordmarkHtml = logoUrl
+    ? `<img class="logo-img" src="${esc(logoUrl)}" alt="${company ? esc(company) : "Logo"}" loading="lazy">`
+    : `<div class="logo-dot" aria-hidden="true"></div>`;
+
+  // ---- isi kartu sesuai hasil verifikasi ----
+  let bodyHtml: string;
+  if (info.ok) {
+    const p = info.payload;
+    const appStatus = p.latestApplication;
+    const steps = p.selection?.steps ?? [];
+    const timelineHtml = steps.length
+      ? `<ol class="timeline">${steps.map((s) => {
+          const good = s.status === "Passed";
+          const bad = s.status === "Failed";
+          return `<li class="tl-item${good ? " good" : ""}${bad ? " bad" : ""}">
+            <span class="tl-dot" aria-hidden="true"></span>
+            <div class="tl-txt">
+              <p class="tl-name">${esc(s.name)}</p>
+              <p class="tl-meta">${biSpan(STEP_STATUS_LABEL, s.status)}${s.planDate ? ` · <span data-id="Jadwal" data-en="Scheduled">Jadwal</span>: ${biDate(s.planDate)}` : ""}</p>
+            </div>
+          </li>`;
+        }).join("")}</ol>`
+      : `<p class="muted" data-id="Belum ada tahap seleksi yang terjadwal." data-en="No selection stages scheduled yet.">Belum ada tahap seleksi yang terjadwal.</p>`;
+
+    const offerHtml = p.offer
+      ? `<div class="offerbox">
+          <p class="box-title"><span data-id="Penawaran Terakhir" data-en="Latest Offer">Penawaran Terakhir</span></p>
+          <p class="offer-no mono">${esc(p.offer.offerNo)} · ${biSpan(OFFER_STATUS_LABEL, p.offer.status)}${p.offer.date ? ` · ${biDate(p.offer.date)}` : ""}</p>
+        </div>`
+      : "";
+
+    const attachHtml = p.attachments.length
+      ? `<ul class="attachlist">${p.attachments.map((a) =>
+          `<li><span class="att-ic" aria-hidden="true">📎</span> <b>${esc(a.title)}</b> <span class="mono">${esc(a.fileName)}</span> <span class="muted">(${fmtBytes(a.sizeBytes)})</span></li>`,
+        ).join("")}</ul>`
+      : `<p class="muted" data-id="Belum ada lampiran." data-en="No attachments yet.">Belum ada lampiran.</p>`;
+
+    bodyHtml = `
+      <div class="who">
+        <div>
+          <p class="who-name">${esc(p.fullName)}</p>
+          <p class="mono who-no">${esc(p.applicantNo)}</p>
+        </div>
+        <span class="st st-big">${biSpan(APPLICANT_STATUS_LABEL, p.status)}</span>
+      </div>
+
+      ${appStatus ? `
+      <div class="meta">
+        <div><span data-id="Posisi Terakhir Dilamar" data-en="Latest Application">Posisi Terakhir Dilamar</span>: <b>${esc(appStatus.title)}</b> <span class="mono">(${esc(appStatus.joRefNo)})</span></div>
+        <div><span data-id="Tanggal" data-en="Date">Tanggal</span>: ${biDate(appStatus.dateApplied)} · ${biSpan(APP_STATUS_LABEL, appStatus.status)}</div>
+        <div><span data-id="Total Lamaran" data-en="Total Applications">Total Lamaran</span>: ${p.appliedCount}</div>
+      </div>` : `
+      <div class="meta"><div data-id="Belum ada lamaran ke slot lowongan — profil Anda tersimpan di talent pool." data-en="No applications to specific openings yet — your profile is kept in the talent pool.">Belum ada lamaran ke slot lowongan — profil Anda tersimpan di talent pool.</div></div>`}
+
+      <div class="sect-h"><span data-id="Tahapan Seleksi" data-en="Selection Stages">Tahapan Seleksi</span>${p.selection?.prNo ? ` <span class="mono muted">· ${esc(p.selection.prNo)}</span>` : ""}</div>
+      ${timelineHtml}
+      ${offerHtml}
+      <div class="sect-h"><span data-id="Lampiran" data-en="Attachments">Lampiran</span></div>
+      ${attachHtml}
+
+      <p class="muted tiny" data-id="Tampilan ini sengaja tidak memuat catatan internal, penilaian evaluator, atau nominal — hanya status yang berhak Anda lihat. Tautan ini sekali-pakai; untuk melihat lagi, minta tautan baru." data-en="This view intentionally omits internal notes, evaluator scores, and salary figures — only the status you are entitled to see. This link is one-time; request a new link to view again.">Tampilan ini sengaja tidak memuat catatan internal, penilaian evaluator, atau nominal — hanya status yang berhak Anda lihat. Tautan ini sekali-pakai; untuk melihat lagi, minta tautan baru.</p>
+      <a class="btn" href="${esc(homeHref)}" data-id="Minta Tautan Baru" data-en="Request a New Link">Minta Tautan Baru</a>`;
+  } else if (info.code === 410) {
+    bodyHtml = `
+      <p class="lead" data-id="Tautan ini sudah kedaluwarsa atau pernah digunakan." data-en="This link has expired or has already been used.">Tautan ini sudah kedaluwarsa atau pernah digunakan.</p>
+      <p class="muted" data-id="Silakan minta tautan baru dengan memasukkan email Anda di portal karier." data-en="Please request a new link by entering your email on the career portal.">Silakan minta tautan baru dengan memasukkan email Anda di portal karier.</p>
+      <a class="btn" href="${esc(homeHref)}" data-id="Minta Tautan Baru" data-en="Request a New Link">Minta Tautan Baru</a>`;
+  } else if (info.code === 429) {
+    bodyHtml = `
+      <p class="lead" data-id="Terlalu banyak permintaan. Coba lagi nanti." data-en="Too many requests. Please try again later.">Terlalu banyak permintaan. Coba lagi nanti.</p>`;
+  } else if (info.code === 0) {
+    bodyHtml = `
+      <p class="lead" data-id="Layanan status lamaran sementara tidak dapat dihubungi. Silakan coba lagi beberapa saat." data-en="The application status service is temporarily unreachable. Please try again in a moment.">Layanan status lamaran sementara tidak dapat dihubungi. Silakan coba lagi beberapa saat.</p>
+      <p class="muted" data-id="Halaman ini adalah Portal Kandidat — aplikasi terpisah dari sistem HR internal." data-en="This page is the Candidate Portal — a separate application from the internal HR system.">Halaman ini adalah Portal Kandidat — aplikasi terpisah dari sistem HR internal.</p>`;
+  } else {
+    bodyHtml = `
+      <p class="lead" data-id="Tautan status lamaran tidak valid atau tidak dikenali." data-en="The application status link is invalid or unrecognized.">Tautan status lamaran tidak valid atau tidak dikenali.</p>
+      <p class="muted" data-id="Periksa kembali tautan dari email Anda, atau minta tautan baru di portal karier." data-en="Double-check the link from your email, or request a new one on the career portal.">Periksa kembali tautan dari email Anda, atau minta tautan baru di portal karier.</p>
+      <a class="btn" href="${esc(homeHref)}" data-id="Minta Tautan Baru" data-en="Request a New Link">Minta Tautan Baru</a>`;
+  }
+
+  return `<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>${info.ok ? `${esc(info.payload.fullName)} — Status` : "Status"} · RekanKerja</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23${pal.brand.slice(1)}'/%3E%3C/svg%3E">
+<style>
+  :root { --brand:${pal.brand}; --accent:var(--brand); --accent-dark:${pal.dark}; --t95:${pal.t95}; --t91:${pal.t91}; --t87:${pal.t87}; --deep:${pal.deep}; --deep2:${pal.deep2}; --ink:#1c1917; --muted:#78716c; --bg:#faf9f5; --card:#ffffff; --line:#e7e5e0; --bad:#dc2626; --ok:#059669; }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; line-height:1.55; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:.9rem 1.25rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; position:sticky; top:0; z-index:5; }
+  .wordmark { font-weight:800; letter-spacing:-.02em; font-size:1.05rem; display:flex; align-items:center; gap:.55rem; min-width:0; }
+  .logo-img { height:2rem; width:auto; max-width:9rem; object-fit:contain; border-radius:.4rem; flex-shrink:0; }
+  .logo-dot { width:.65rem; height:.65rem; border-radius:9999px; background:var(--accent); flex-shrink:0; }
+  .wordmark .co { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lang { background:transparent; border:1px solid var(--line); border-radius:.6rem; padding:.35rem .7rem; font-size:.78rem; font-weight:600; color:var(--muted); cursor:pointer; min-height:44px; }
+  .lang:hover { border-color:var(--accent); color:var(--accent); }
+  main { flex:1; width:100%; max-width:40rem; margin:0 auto; padding:2rem 1.25rem 3rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:1rem; padding:1.6rem 1.5rem; display:flex; flex-direction:column; gap:1.05rem; }
+  h1 { font-size:1.3rem; letter-spacing:-.02em; }
+  .who { display:flex; align-items:flex-start; justify-content:space-between; gap:.9rem; flex-wrap:wrap; }
+  .who-name { font-weight:800; font-size:1.15rem; letter-spacing:-.01em; }
+  .who-no { font-size:.78rem; color:var(--muted); margin-top:.15rem; }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.82rem; }
+  .muted { color:var(--muted); font-size:.85rem; line-height:1.6; }
+  .tiny { font-size:.75rem; }
+  .st { align-self:flex-start; font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:.28rem .7rem; border-radius:9999px; background:var(--t95); color:var(--accent); border:1px solid var(--t87); }
+  .st-big { font-size:.78rem; }
+  .lead { font-size:.95rem; line-height:1.6; }
+  .meta { display:flex; flex-direction:column; gap:.4rem; font-size:.85rem; color:#44403c; background:var(--t95); border:1px solid var(--t87); border-radius:.7rem; padding:.8rem .9rem; }
+  .sect-h { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-top:.25rem; }
+  .timeline { list-style:none; display:flex; flex-direction:column; gap:.65rem; margin:0; padding:0; }
+  .tl-item { display:flex; gap:.7rem; align-items:flex-start; }
+  .tl-dot { width:.85rem; height:.85rem; border-radius:9999px; border:2px solid var(--t87); background:var(--card); flex-shrink:0; margin-top:.2rem; }
+  .tl-item.good .tl-dot { background:var(--ok); border-color:var(--ok); }
+  .tl-item.bad .tl-dot { background:var(--bad); border-color:var(--bad); }
+  .tl-name { font-weight:700; font-size:.9rem; }
+  .tl-meta { font-size:.78rem; color:var(--muted); margin-top:.1rem; }
+  .offerbox { background:var(--t91); border:1px solid var(--t87); border-radius:.7rem; padding:.8rem .9rem; }
+  .box-title { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--deep); }
+  .offer-no { margin-top:.25rem; color:var(--deep2); font-size:.85rem; }
+  .attachlist { list-style:none; display:flex; flex-direction:column; gap:.4rem; font-size:.85rem; margin:0; padding:0; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; font:inherit; font-size:.88rem; font-weight:700; border-radius:.75rem; padding:.6rem 1.1rem; cursor:pointer; border:1px solid transparent; min-height:44px; background:var(--accent); color:#fff; text-decoration:none; align-self:flex-start; }
+  .btn:hover { background:var(--accent-dark); }
+  footer { margin-top:auto; background:var(--card); border-top:1px solid var(--line); padding:1rem 1.25rem calc(1rem + env(safe-area-inset-bottom)); text-align:center; color:var(--muted); font-size:.72rem; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="wordmark" aria-label="Portal Karir">${wordmarkHtml}<span class="co">Karir${company ? ` · ${esc(company)}` : ""}</span></div>
+    <button class="lang" id="lang-toggle" type="button" aria-label="Ganti bahasa / switch language">EN</button>
+  </header>
+  <main>
+    <div class="card">
+      <h1 data-id="Status Lamaran Anda" data-en="Your Application Status">Status Lamaran Anda</h1>
+      ${bodyHtml}
+    </div>
+  </main>
+  <footer><span>© ${year} ${company ? esc(company) : "Portal Karir"} — RekanKerja · <span data-id="Data pribadi dilindungi sesuai UU No. 27/2022 (UU PDP)." data-en="Personal data is protected under Law No. 27/2022 (Indonesian PDP Law).">Data pribadi dilindungi sesuai UU No. 27/2022 (UU PDP).</span></span></footer>
+<script>
+(function () {
+  "use strict";
+  var KEY = "portal-lang", cur = "id";
+  try { cur = localStorage.getItem(KEY) || "id"; } catch (e) {}
+  var ql = null;
+  try { ql = new URLSearchParams(location.search).get("lang"); } catch (e) {}
+  if (ql === "id" || ql === "en") cur = ql; // ?lang= menimpa preferensi tersimpan
+  var langBtn = document.getElementById("lang-toggle");
+  function apply(lang) {
+    cur = lang;
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-id]").forEach(function (el) {
+      var v = el.getAttribute(lang === "id" ? "data-id" : "data-en");
+      if (v != null) el.innerHTML = v;
+    });
+    langBtn.textContent = lang === "id" ? "EN" : "ID";
+    try { localStorage.setItem(KEY, lang); } catch (e) {}
+  }
+  langBtn.addEventListener("click", function () { apply(cur === "id" ? "en" : "id"); });
+  apply(cur);
 })();
 </script>
 </body>

@@ -178,6 +178,12 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     subject: "[Ringkasan] {{jumlah}} notifikasi belum dibaca",
     body: "Halo {{nama}},\n\nAnda memiliki {{jumlah}} notifikasi belum dibaca dalam 24 jam terakhir:\n\n{{ringkasan}}\n\nBuka RekanKerja HRIS untuk melihat seluruh notifikasi Anda.\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
   },
+  // B7-BL — magic-link cek status lamaran portal pelamar (tanpa password)
+  {
+    event: "recruitment.status.link", label: "Rekrutmen — Tautan Cek Status Lamaran (→ Pelamar)", notifyEmployee: false, notifyApprover: false, notifyHrd: false,
+    subject: "Tautan cek status lamaran Anda",
+    body: "Halo {{nama}},\n\nAnda meminta tautan untuk melihat status lamaran Anda.\n\nBuka tautan berikut di portal karier kami:\n{{link}}\n\nTautan ini berlaku sampai {{berlaku}} dan hanya dapat digunakan satu kali. Bila tautan sudah kedaluwarsa atau pernah digunakan, Anda dapat meminta tautan baru di halaman portal.\n\nAnda tidak perlu membalas email ini.\n\n---\nEmail otomatis RekanKerja HRIS.",
+  },
   {
     event: "user.created", label: "Pengguna Baru Dibuat", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
     subject: "Akun RekanKerja HRIS Anda telah dibuat",
@@ -344,6 +350,12 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
     PH_NAMA,
     { key: "jumlah", label: "Jumlah notifikasi belum dibaca", contoh: "5" },
     { key: "ringkasan", label: "Ringkasan judul notifikasi", contoh: "• Offer OFF-… diterima\n• …" },
+  ],
+  // B7-BL — magic-link cek status lamaran portal pelamar (tanpa password)
+  "recruitment.status.link": [
+    { ...PH_NAMA, label: "Nama pelamar penerima tautan", contoh: "Fajar Nugraha" },
+    { key: "link", label: "Tautan cek status portal kandidat", contoh: "http://…/status/<token>" },
+    { key: "berlaku", label: "Batas berlaku tautan (6 jam, sekali pakai)", contoh: "21 Okt 2026, 15.30 WIB" },
   ],
   "user.created": [
     { key: "nama", label: "Nama pengguna baru", contoh: "Tri Handayani" },

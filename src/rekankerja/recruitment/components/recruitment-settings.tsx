@@ -32,7 +32,7 @@ import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { OFFERS_API } from "./offer-dialogs";
 import {
   AlertTriangle, Check, Copy, FileSignature, Info, KeyRound, Loader2, Pencil, PenLine,
-  Plus, RefreshCw, Send, Trash2, Webhook,
+  Palette, Plus, RefreshCw, Send, Trash2, Webhook,
 } from "lucide-react";
 
 export const SETTINGS_API = "/api/rekankerja/recruitment/settings";
@@ -84,6 +84,17 @@ export interface RecruitmentSettingsResp {
   settingKeys: string[];
   myPref: { inApp: boolean; email: boolean; digest: boolean };
   esignRequests: EsignRequestUI[];
+  siteConfig: SiteConfigUI | null;
+  siteTenantSlug: string | null;
+}
+
+/** B7 — branding portal karier (mirror serializer CareerSiteConfig). */
+export interface SiteConfigUI {
+  brandColor: string;
+  logoUrl: string | null;
+  heroTitle: string | null;
+  heroSub: string | null;
+  updatedAt: string | null;
 }
 
 // ============ kunci otomasi (5 — retention.* sengaja TIDAK tampil: F9) ============
@@ -126,8 +137,152 @@ const AUTO_KEYS: { key: string; label: string; labelEn: string; desc: string; de
   },
 ];
 
-// ============ pill kecil ============
+// ============ B7 — kartu branding portal karier ============
 
+function BrandingCard({ siteConfig, slug, onDone }: { siteConfig: SiteConfigUI | null; slug: string | null; onDone: () => void }) {
+  const { t } = useI18n();
+  const [brandColor, setBrandColor] = useState(siteConfig?.brandColor ?? "#0f766e");
+  const [logoUrl, setLogoUrl] = useState(siteConfig?.logoUrl ?? "");
+  const [heroTitle, setHeroTitle] = useState(siteConfig?.heroTitle ?? "");
+  const [heroSub, setHeroSub] = useState(siteConfig?.heroSub ?? "");
+  const [busy, setBusy] = useState(false);
+
+  const hexOk = /^#[0-9a-fA-F]{6}$/.test(brandColor);
+  const logoOk = logoUrl.trim() === "" || /^https?:\/\//.test(logoUrl.trim());
+  const titleOk = heroTitle.length <= 120;
+  const subOk = heroSub.length <= 200;
+  const canSave = hexOk && logoOk && titleOk && subOk && !busy;
+
+  const preview = hexOk ? brandColor : "#0f766e";
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await apiSend(SETTINGS_API, "POST", {
+        action: "site-config-save",
+        brandColor,
+        logoUrl: logoUrl.trim() || null,
+        heroTitle: heroTitle.trim() || null,
+        heroSub: heroSub.trim() || null,
+      });
+      toast.success(t("Branding portal karier disimpan.", "Career portal branding saved."));
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan branding", "Failed to save the branding"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+            <Palette className="h-4 w-4 ov-text-accent" aria-hidden />
+            {t("Branding Portal Karier", "Career Portal Branding")}
+          </CardTitle>
+          <CardDescription className="text-xs">
+            {t(
+              "Warna brand, logo, dan hero di portal karier publik (karir.<perusahaan>). Kosong = default dwibahasa. Perubahan langsung tampil di portal.",
+              "Brand color, logo, and hero on the public career portal (careers.<company>). Empty = bilingual defaults. Changes show up on the portal immediately.",
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="sb-color">{t("Warna brand (hex 6)", "Brand color (6-digit hex)")}</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="sb-color" type="color" value={hexOk ? brandColor : "#0f766e"}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="h-9 w-12 shrink-0 cursor-pointer rounded-md border border-slate-300 bg-white p-0.5 dark:border-slate-600 dark:bg-slate-800"
+                  aria-label={t("Pilih warna brand", "Pick brand color")}
+                />
+                <Input
+                  className="w-32 font-mono" value={brandColor} maxLength={7}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  placeholder="#0f766e" aria-invalid={!hexOk}
+                />
+              </div>
+              {!hexOk && (
+                <p className="text-[11px] font-medium text-rose-600 dark:text-rose-400">
+                  {t("Format harus #rrggbb (contoh #0f766e).", "Format must be #rrggbb (e.g. #0f766e).")}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sb-logo">{t("URL Logo (http/https, opsional)", "Logo URL (http/https, optional)")}</Label>
+              <Input id="sb-logo" className="font-mono text-[13px]" value={logoUrl} maxLength={500}
+                onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://contoh.co.id/logo.png" aria-invalid={!logoOk} />
+              {!logoOk && (
+                <p className="text-[11px] font-medium text-rose-600 dark:text-rose-400">
+                  {t("Logo harus URL http(s).", "The logo must be an http(s) URL.")}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sb-herotitle">{t("Judul hero (maks 120)", "Hero title (max 120)")}</Label>
+              <Input id="sb-herotitle" value={heroTitle} maxLength={120} onChange={(e) => setHeroTitle(e.target.value)}
+                placeholder={t("Jelajahi Karier Bersama Kami", "Explore Careers With Us")} />
+              <p className="text-[11px] text-slate-400">{heroTitle.length}/120</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sb-herosub">{t("Sub judul hero (maks 200)", "Hero subtitle (max 200)")}</Label>
+              <Textarea id="sb-herosub" rows={2} value={heroSub} maxLength={200} onChange={(e) => setHeroSub(e.target.value)}
+                placeholder={t("Cari peran yang cocok untuk Anda…", "Find the role that fits you…")} />
+              <p className="text-[11px] text-slate-400">{heroSub.length}/200</p>
+            </div>
+          </div>
+
+          {/* pratinjau kartu mini ber-brandColor */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+            <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <Info className="h-3 w-3" aria-hidden /> {t("Pratinjau portal (perkiraan)", "Portal preview (approximate)")}
+            </p>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+              {logoUrl.trim() && logoOk ? (
+                <img src={logoUrl.trim()} alt="" className="h-8 w-auto max-w-[140px] object-contain" />
+              ) : (
+                <span className="grid h-8 w-8 place-items-center rounded-lg text-[11px] font-extrabold text-white" style={{ background: preview }} aria-hidden>RK</span>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-extrabold leading-tight" style={{ color: preview }}>
+                  {heroTitle.trim() || t("Jelajahi Karier Bersama Kami", "Explore Careers With Us")}
+                </p>
+                <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-500 dark:text-slate-400">
+                  {heroSub.trim() || t("Lamar langsung tanpa membuat akun — satu formulir, CV, dan konfirmasi email.", "Apply directly without an account — one form, your CV, and an email confirmation.")}
+                </p>
+              </div>
+              <span className="ml-auto shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold text-white" style={{ background: preview }}>
+                {t("Lamar Sekarang", "Apply Now")}
+              </span>
+            </div>
+            <p className="mt-2 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+              {t(
+                `Slug tenant portal: ${slug ?? "—"} (portal dibuka di /?t=${slug ?? "slug"}).`,
+                `Portal tenant slug: ${slug ?? "—"} (the portal opens at /?t=${slug ?? "slug"}).`,
+              )}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            {siteConfig?.updatedAt && (
+              <span className="mr-auto text-[11px] text-slate-400">
+                {t("Terakhir disimpan", "Last saved")}: {fmtDateTime(siteConfig.updatedAt)}
+              </span>
+            )}
+            <Button onClick={save} disabled={!canSave}>
+              {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+              {t("Simpan Branding", "Save Branding")}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+  );
+}
+
+// ============ pill kecil ============
 function DeliveryStatusPill({ status }: { status: string }) {
   const cls = status === "Success"
     ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"
@@ -659,6 +814,7 @@ export function RecruitmentSettingsPage() {
           <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-slate-100 p-1 dark:bg-slate-900">
             {canWebhook && <TabsTrigger value="webhook">{t("Webhook Outbound", "Outbound Webhooks")}</TabsTrigger>}
             {canUpdate && <TabsTrigger value="automation">{t("Otomasi Rekrutmen", "Recruitment Automation")}</TabsTrigger>}
+            {canUpdate && <TabsTrigger value="branding">{t("Branding Portal", "Portal Branding")}</TabsTrigger>}
             <TabsTrigger value="prefs">{t("Preferensi Notifikasi Saya", "My Notification Preferences")}</TabsTrigger>
             {canEsign && <TabsTrigger value="esign">{t("E-sign Kandidat", "Candidate E-sign")}</TabsTrigger>}
           </TabsList>
@@ -893,6 +1049,18 @@ export function RecruitmentSettingsPage() {
                   })}
                 </CardContent>
               </Card>
+            </TabsContent>
+          )}
+
+          {/* ==================== TAB: BRANDING (B7) ==================== */}
+          {canUpdate && (
+            <TabsContent value="branding" className="mt-4">
+              <BrandingCard
+                key={api.data?.siteConfig?.updatedAt ?? "none"}
+                siteConfig={api.data?.siteConfig ?? null}
+                slug={api.data?.siteTenantSlug ?? null}
+                onDone={refresh}
+              />
             </TabsContent>
           )}
 

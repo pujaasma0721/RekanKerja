@@ -2626,6 +2626,7 @@ CREATE TABLE "Applicant" (
     "suspend" BOOLEAN NOT NULL DEFAULT false,
     "suspendNote" TEXT,
     "suspendUntil" TIMESTAMP(3),
+    "statusLinkUsedAt" TIMESTAMP(3),
     "dateApplied" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "dateAvailable" TIMESTAMP(3),
     "expectedSalary" TEXT,
@@ -3624,6 +3625,28 @@ ALTER TABLE "SalaryBenchmark" ADD CONSTRAINT "SalaryBenchmark_positionId_fkey" F
 -- existing via scripts/migrate-recruitment-b6-wa-meeting.ts — INSERT kolom di
 -- CREATE TABLE di atas menjadikan ALTER ini no-op pada provisioning tenant baru)
 ALTER TABLE "CandidateSelectionStep" ADD COLUMN IF NOT EXISTS "meetingUrl" TEXT;
+
+-- CreateTable (B7-BL — branding portal karier per tenant; row ABSEN = fallback
+-- kode default — migrasi TIDAK menge-seed default)
+CREATE TABLE "CareerSiteConfig" (
+    "id" TEXT NOT NULL,
+    "tenantSlug" TEXT NOT NULL,
+    "brandColor" TEXT NOT NULL DEFAULT '#0f766e',
+    "logoUrl" TEXT,
+    "heroTitle" TEXT,
+    "heroSub" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CareerSiteConfig_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex (B7-BL)
+CREATE UNIQUE INDEX "CareerSiteConfig_tenantSlug_key" ON "CareerSiteConfig"("tenantSlug");
+
+-- AddColumn (B7-BL — magic-link cek status lamaran sekali-pakai; idempoten utk
+-- tenant existing via scripts/migrate-recruitment-b7-status-link.ts — INSERT
+-- kolom di CREATE TABLE di atas menjadikan ALTER ini no-op pada tenant baru)
+ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "statusLinkUsedAt" TIMESTAMP(3);
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CompanyOffice_code_key" ON "CompanyOffice"("code");

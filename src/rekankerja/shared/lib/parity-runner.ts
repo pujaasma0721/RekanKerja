@@ -427,6 +427,10 @@ const STEPS: Step[] = [
   // B6-BL (DEVELOPMENT-PLAN-BACKLOG.md §4 B6) — rekrutmen quick wins:
   // kolom CandidateSelectionStep.meetingUrl + seed WaTemplate rekrutmen.
   { key: "backlog-b6", label: "B6 Backlog — kolom meetingUrl + WaTemplate rekrutmen", run: (s) => import("../../../../scripts/migrate-recruitment-b6-wa-meeting").then((m) => m.main(s)) },
+  // B7-BL (DEVELOPMENT-PLAN-BACKLOG.md §4 B7) — portal pelamar: kolom
+  // Applicant.statusLinkUsedAt (magic-link sekali-pakai) + tabel
+  // CareerSiteConfig (branding per tenant) + seed EmailTemplate status.link.
+  { key: "backlog-b7", label: "B7 Backlog — kolom statusLinkUsedAt + tabel CareerSiteConfig + template status.link", run: (s) => import("../../../../scripts/migrate-recruitment-b7-status-link").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============

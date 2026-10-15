@@ -245,11 +245,10 @@ export function tenantCrypto(schema: string): FieldCrypto {
 }
 
 /**
- * Konteks crypto dari instance client Prisma tenant — membaca brand symbol
- * yang ditempel getTenantClient(). Client transaksi Prisma TIDAK membawa
- * brand: tangkap konteks dari client luar SEBELUM db.$transaction.
+ * Schema tenant dari brand symbol client Prisma (throw bila tanpa brand —
+ * client transaksi Prisma TIDAK membawa brand; tangkap dari client luar).
  */
-export function tenantCryptoForDb(db: object): FieldCrypto {
+export function tenantSchemaOfDb(db: object): string {
   const schema = (db as Record<string, unknown>)[TENANT_SCHEMA_BRAND];
   if (typeof schema !== "string" || !schema) {
     throw new Error(
@@ -257,7 +256,16 @@ export function tenantCryptoForDb(db: object): FieldCrypto {
         "(getTenantClient) sebelum masuk $transaction, atau pakai tenantCrypto(schema) eksplisit.",
     );
   }
-  return tenantCrypto(schema);
+  return schema;
+}
+
+/**
+ * Konteks crypto dari instance client Prisma tenant — membaca brand symbol
+ * yang ditempel getTenantClient(). Client transaksi Prisma TIDAK membawa
+ * brand: tangkap konteks dari client luar SEBELUM db.$transaction.
+ */
+export function tenantCryptoForDb(db: object): FieldCrypto {
+  return tenantCrypto(tenantSchemaOfDb(db));
 }
 
 // ============ HELPER KUNCI EKSPLISIT (engine re-key / migrasi) ============

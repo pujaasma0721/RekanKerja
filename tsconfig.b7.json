@@ -1,0 +1,36 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "allowJs": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/recruitment/services/status-link-service.ts",
+    "src/rekankerja/recruitment/services/recruitment-setting-service.ts",
+    "src/rekankerja/recruitment/services/public-recruitment-service.ts",
+    "src/rekankerja/recruitment/api/public-status-link.ts",
+    "src/rekankerja/recruitment/api/public-status.ts",
+    "src/rekankerja/recruitment/api/public-site-config.ts",
+    "src/rekankerja/recruitment/api/recruitment-settings.ts",
+    "src/rekankerja/recruitment/components/recruitment-settings.tsx",
+    "src/rekankerja/shared/lib/menu-perms.ts",
+    "src/rekankerja/shared/lib/i18n-core.ts",
+    "src/rekankerja/shared/lib/parity-runner.ts",
+    "src/rekankerja/shared/lib/server-errors.ts",
+    "src/rekankerja/shared/lib/tenant-db.ts",
+    "src/rekankerja/shared/lib/menu-perms-context.tsx",
+    "src/rekankerja/shared/lib/field-crypto.ts",
+    "src/rekankerja/shared/services/menu-access.ts",
+    "src/rekankerja/shared/services/access-scope.ts",
+    "src/rekankerja/shared/services/email-service.ts",
+    "src/rekankerja/shared/services/email-defaults.ts",
+    "src/rekankerja/shared/components/ui-kit.tsx",
+    "src/app/api/public/recruitment/status-link/route.ts",
+    "src/app/api/public/recruitment/status/route.ts",
+    "src/app/api/public/recruitment/site-config/route.ts",
+    "src/app/api/rekankerja/recruitment/settings/route.ts",
+    "scripts/e2e-b7-portal-magic.ts",
+    "scripts/migrate-recruitment-b7-status-link.ts"
+  ]
+}

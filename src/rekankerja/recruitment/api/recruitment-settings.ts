@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db as platformDb } from "@/lib/db";
+import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { requireMenuViewAny, requireMenuAction, type MenuActionRef } from "@/rekankerja/shared/services/menu-access";
+import { tenantSchemaOfDb } from "@/rekankerja/shared/lib/field-crypto";
 import {
   getRecruitmentSetting, setRecruitmentSetting, listRecruitmentSettings,
-  RECRUITMENT_SETTING_KEYS,
+  RECRUITMENT_SETTING_KEYS, getSiteConfig, saveSiteConfig, type SiteConfigRow,
 } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import {
   upsertWebhookEndpoint, deleteWebhookEndpoint, listWebhookEndpoints,
@@ -16,12 +19,25 @@ import {
 // ============================================================================
 // RECRUITMENT F7 — API Pengaturan Rekrutmen (webhook + otomasi + preferensi
 // notifikasi + e-sign kandidat). Guard: menu recruitment:settings
-//   GET  → { webhooks, events, deliveries, settings, myPref, esignRequests }
+//   GET  → { webhooks, events, deliveries, settings, myPref, esignRequests,
+//          siteConfig } (B7 — branding portal karier)
 //   POST { action: webhook-save|webhook-delete|webhook-test (op:webhook) |
-//                 automation-set|pref-set (op:update) |
+//                 automation-set|pref-set|site-config-save (op:update) |
 //                 esign-request|esign-resend|esign-cancel (op:esign) }
 // pref-set SELALU utk aktor sendiri (upsert NotificationPref employeeId).
 // ============================================================================
+
+/** Slug registry Tenant milik client Prisma tenant (CareerSiteConfig key). */
+async function tenantSlugOf(db: TenantDb): Promise<string | null> {
+  try {
+    const row = await platformDb.tenant.findUnique({
+      where: { schemaName: tenantSchemaOfDb(db) }, select: { slug: true },
+    });
+    return row?.slug ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -35,6 +51,10 @@ export async function GET(req: NextRequest) {
       listRecruitmentSettings(db),
       listEsignRequests(db, 20),
     ]);
+
+    // B7 — branding portal karier (row absen → default; slug tenant aktif)
+    const slug = await tenantSlugOf(db);
+    const siteConfig = slug ? await getSiteConfig(db, slug).catch(() => null) : null;
 
     let myPref = { inApp: true, email: true, digest: false };
     if (m.actor.employeeId) {
@@ -50,6 +70,8 @@ export async function GET(req: NextRequest) {
       settingKeys: RECRUITMENT_SETTING_KEYS,
       myPref,
       esignRequests,
+      siteConfig: siteConfig ?? null,
+      siteTenantSlug: slug,
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
@@ -142,6 +164,26 @@ export async function POST(req: NextRequest) {
           update: data,
         });
         return NextResponse.json({ myPref: { inApp: row.inApp, email: row.email, digest: row.digest } });
+      }
+      case "site-config-save": {
+        // B7 — branding portal karier (warna/logo/hero per tenant)
+        const m = await guard("update");
+        const slug = await tenantSlugOf(m.db);
+        if (!slug) {
+          return NextResponse.json({ error: "Tenant aktif tidak teridentifikasi — branding tidak tersimpan" }, { status: 400 });
+        }
+        let row: SiteConfigRow;
+        try {
+          row = await saveSiteConfig(m.db, slug, {
+            brandColor: String(b.brandColor ?? ""),
+            logoUrl: b.logoUrl == null ? null : String(b.logoUrl ?? ""),
+            heroTitle: b.heroTitle == null ? null : String(b.heroTitle ?? ""),
+            heroSub: b.heroSub == null ? null : String(b.heroSub ?? ""),
+          }, { employeeId: m.actor.employeeId, name: m.actor.name });
+        } catch (e) {
+          return NextResponse.json({ error: e instanceof Error ? e.message : "Validasi branding gagal" }, { status: 400 });
+        }
+        return NextResponse.json({ siteConfig: row });
       }
       case "esign-request": {
         const m = await guard("esign");

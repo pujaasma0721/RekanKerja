@@ -87,3 +87,103 @@ export async function listRecruitmentSettings(db: TenantDb): Promise<Record<stri
     return {};
   }
 }
+
+// ============================================================================
+// B7-BL — BRANDING PORTAL KARIER (CareerSiteConfig per tenant)
+// Row ABSEN = fallback kode (default berikut) — migrasi TIDAK menge-seed.
+// ============================================================================
+
+export interface SiteConfigInput {
+  brandColor: string;
+  logoUrl: string | null;
+  heroTitle: string | null;
+  heroSub: string | null;
+}
+
+export interface SiteConfigRow extends SiteConfigInput {
+  updatedAt: string | null;
+}
+
+export const SITE_CONFIG_DEFAULTS: SiteConfigInput = {
+  brandColor: "#0f766e",
+  logoUrl: null,
+  heroTitle: null,
+  heroSub: null,
+};
+
+const HEX6_RE = /^#[0-9a-fA-F]{6}$/;
+
+/** Baca branding portal (row absen → default; tabel belum termigrasi → default). */
+export async function getSiteConfig(db: TenantDb, tenantSlug: string): Promise<SiteConfigRow> {
+  try {
+    const row = await db.careerSiteConfig.findUnique({ where: { tenantSlug } });
+    if (row) {
+      return {
+        brandColor: HEX6_RE.test(row.brandColor) ? row.brandColor : SITE_CONFIG_DEFAULTS.brandColor,
+        logoUrl: row.logoUrl ?? null,
+        heroTitle: row.heroTitle ?? null,
+        heroSub: row.heroSub ?? null,
+        updatedAt: row.updatedAt.toISOString(),
+      };
+    }
+  } catch {
+    // tabel/kolom belum termigrasi → jalur fallback (never-throw baca)
+  }
+  return { ...SITE_CONFIG_DEFAULTS, updatedAt: null };
+}
+
+/**
+ * Simpan branding portal + jejak audit ActivityLog "CareerSiteConfigSaved"
+ * (menu recruitment:settings op update — HR/admin).
+ * Validasi: brandColor hex 6 (#rrggbb), logoUrl http(s), heroTitle ≤120,
+ * heroSub ≤200 — invalid → throw Error (dipetakan 400 oleh API).
+ */
+export async function saveSiteConfig(
+  db: TenantDb,
+  tenantSlug: string,
+  input: SiteConfigInput,
+  actor?: { employeeId?: string | null; name?: string | null } | null,
+): Promise<SiteConfigRow> {
+  const brandColor = input.brandColor.trim();
+  if (!HEX6_RE.test(brandColor)) {
+    throw new Error("Warna brand harus kode hex 6 digit (contoh #0f766e)");
+  }
+  let logoUrl = input.logoUrl?.trim() || null;
+  if (logoUrl && !/^https?:\/\//.test(logoUrl)) {
+    throw new Error("Logo harus URL http(s)");
+  }
+  if (logoUrl && logoUrl.length > 500) logoUrl = logoUrl.slice(0, 500);
+  const heroTitle = input.heroTitle?.trim() || null;
+  if (heroTitle && heroTitle.length > 120) {
+    throw new Error("Judul hero maksimal 120 karakter");
+  }
+  const heroSub = input.heroSub?.trim() || null;
+  if (heroSub && heroSub.length > 200) {
+    throw new Error("Sub judul hero maksimal 200 karakter");
+  }
+
+  const row = await db.careerSiteConfig.upsert({
+    where: { tenantSlug },
+    create: { tenantSlug, brandColor, logoUrl, heroTitle, heroSub },
+    update: { brandColor, logoUrl, heroTitle, heroSub },
+  });
+  await db.activityLog.create({
+    data: {
+      actorType: actor?.employeeId || actor?.name ? "user" : "system",
+      employeeId: actor?.employeeId ?? null,
+      action: "CareerSiteConfigSaved",
+      entity: "CareerSiteConfig",
+      entityId: tenantSlug,
+      detail: `Branding portal karier disimpan — warna ${brandColor}, logo ${logoUrl ? "diatur" : "tanpa logo"}, hero ${heroTitle ?? "(default)"}`,
+    },
+  }).catch(() => {
+    // jejak audit gagal ditulis — nilai tetap tersimpan (never-throw)
+  });
+  return {
+    brandColor: row.brandColor,
+    logoUrl: row.logoUrl ?? null,
+    heroTitle: row.heroTitle ?? null,
+    heroSub: row.heroSub ?? null,
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}

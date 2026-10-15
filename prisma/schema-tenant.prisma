@@ -3585,6 +3585,11 @@ model Applicant {
   suspend            Boolean   @default(false)
   suspendNote        String? // alasan suspend — WAJIB
   suspendUntil       DateTime?
+  // B7-BL — magic-link cek status lamaran (tanpa password): token HMAC
+  // sekali-pakai 6 jam — kolom ini diisi saat VERIFIKASI sukses (waktu pakai
+  // terakhir); token diterbitkan SETELAH momen ini tetap valid (link baru
+  // bekerja), token yang lebih lama → 410 (lihat status-link-service).
+  statusLinkUsedAt   DateTime?
   dateApplied        DateTime  @default(now()) // masuk talent pool
   dateAvailable      DateTime? // tanggal siap mulai bekerja
   expectedSalary     String? // TERENKRIPSI vault uang (enc:v1:n:…)
@@ -4987,4 +4992,17 @@ model SalaryBenchmark {
 
   @@unique([year, sourceLabel, gradeCode, positionId])
   @@index([year, gradeCode])
+}
+
+// B7-BL — branding portal karier per tenant (kompromi §1: career site builder
+// no-code penuh di-defer; branding config ringkas). Row ABSEN = fallback kode
+// (default #0f766e + hero dwibahasa) — migrasi TIDAK menge-seed default.
+model CareerSiteConfig {
+  id         String   @id @default(cuid())
+  tenantSlug String   @unique // slug registry Tenant platform (key lookup API publik)
+  brandColor String   @default("#0f766e") // hex 6 — di-validasi admin API
+  logoUrl    String? // http(s) — tampil di header portal
+  heroTitle  String? // ≤120 char — fallback default dwibahasa portal
+  heroSub    String? // ≤200 char — fallback default dwibahasa portal
+  updatedAt  DateTime @updatedAt
 }
