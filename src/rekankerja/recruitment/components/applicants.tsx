@@ -141,7 +141,7 @@ interface FormState {
   firstName: string; middleName: string; lastName: string; displayName: string;
   status: string; dateApplied: string; dateAvailable: string;
   expectedSalary: string; keepOnFileMonths: string;
-  source: string; adMediaTypeId: string; agencyId: string; institutionName: string; referralEmployeeId: string;
+  source: string; adMediaTypeId: string; agencyId: string; institutionName: string; referralEmployeeId: string; referralNote: string;
   email: string; phone: string; address: string; city: string;
   placeOfBirth: string; identityNo: string; birthDate: string; gender: string; maritalStatus: string;
   notes: string;
@@ -151,7 +151,7 @@ const emptyForm = (): FormState => ({
   firstName: "", middleName: "", lastName: "", displayName: "",
   status: "Active", dateApplied: new Date().toISOString().slice(0, 10), dateAvailable: "",
   expectedSalary: "", keepOnFileMonths: "12",
-  source: "Web", adMediaTypeId: "", agencyId: "", institutionName: "", referralEmployeeId: "",
+  source: "Web", adMediaTypeId: "", agencyId: "", institutionName: "", referralEmployeeId: "", referralNote: "",
   email: "", phone: "", address: "", city: "",
   placeOfBirth: "", identityNo: "", birthDate: "", gender: "", maritalStatus: "",
   notes: "",
@@ -305,6 +305,7 @@ export function ApplicantsPage() {
         agencyId: findId(agencyApi.data?.rows, d.agencyName),
         institutionName: d.institutionName ?? "",
         referralEmployeeId: referralId,
+        referralNote: d.referralNote ?? "",
         email: d.email ?? "", phone: d.phone ?? "", address: d.address ?? "", city: d.city ?? "",
         placeOfBirth: d.placeOfBirth ?? "", identityNo: "", birthDate: d.birthDate ? d.birthDate.slice(0, 10) : "",
         gender: d.gender ?? "", maritalStatus: d.maritalStatus ?? "",
@@ -348,6 +349,7 @@ export function ApplicantsPage() {
         agencyId: form.agencyId || null,
         institutionName: form.institutionName || null,
         referralEmployeeId: form.referralEmployeeId || null,
+        referralNote: form.referralEmployeeId ? (form.referralNote || null) : null,
         email: form.email || null,
         phone: form.phone || null,
         address: form.address || null,
@@ -675,6 +677,13 @@ export function ApplicantsPage() {
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-xs">
                         {r.source ? t(SRC_LABEL[r.source] ?? r.source, SRC_LABEL_EN[r.source] ?? r.source) : "—"}
+                        {r.referralName && (
+                          <div className="mt-0.5">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-400">
+                              {t("Perujuk", "Referrer")}: {r.referralName}
+                            </span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-xs">{fmtDay(r.dateApplied, locale)}</TableCell>
                       <TableCell className="hidden xl:table-cell text-xs">{fmtDay(r.keepOnFileUntil, locale)}</TableCell>
@@ -875,7 +884,21 @@ export function ApplicantsPage() {
                         <SelectItem key={e.id} value={e.id}>{e.employeeNo} — {e.fullName}</SelectItem>
                       ))}
                     </SelectContent>
-                  </Select></div>
+                  </Select>
+                  {/* B8-BL — catatan perujuk (kenapa merujuk); tampil hanya bila perujuk dipilih */}
+                  {form.referralEmployeeId && (
+                    <div className="mt-1.5 space-y-1.5">
+                      <Label htmlFor="referral-note-input">{t("Catatan Perujuk", "Referrer Note")}</Label>
+                      <Textarea
+                        id="referral-note-input"
+                        rows={2}
+                        value={form.referralNote}
+                        onChange={(e) => setForm({ ...form, referralNote: e.target.value })}
+                        placeholder={t("mis. Teman kuliah, rajin — konteks kenapa merujuk", "e.g. College friend, hardworking — context for the referral")}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </section>
 
@@ -1037,6 +1060,8 @@ export function ApplicantsPage() {
                     [t("Agency", "Agency"), detail.agencyName ?? "—"],
                     [t("Institusi Asal", "Source Institution"), detail.institutionName ?? "—"],
                     [t("Direferensikan", "Referred By"), detail.referralName ?? "—"],
+                    [t("Catatan Perujuk", "Referrer Note"), detail.referralNote ?? "—"],
+                    [t("Insentif Referral (manual)", "Referral Reward (manual)"), detail.referralRewardNote ?? t("—"),],
                     [t("Email", "Email"), detail.email ?? "—"],
                     [t("Telepon", "Phone"), detail.phone ?? "—"],
                     [t("Alamat", "Address"), detail.address ?? "—"],

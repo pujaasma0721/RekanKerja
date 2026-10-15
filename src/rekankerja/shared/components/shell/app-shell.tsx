@@ -304,6 +304,8 @@ const RECRUITMENT_NAV: NavGroup[] = [
   { section: "recruitment", label: "Lowongan & Kandidat", children: [
     { id: "openings", label: "Lowongan", icon: Megaphone },
     { id: "applicants", label: "Talent Pool", icon: UsersRound },
+    // B8-BL — referral tracker: register referral (insentif = catatan manual HR — di luar payroll)
+    { id: "referral", label: "Referral Karyawan", icon: UserPlus },
     { id: "public-staging", label: "Lamaran Publik", icon: Inbox },
   ] },
   { section: "recruitment", label: "Seleksi & Penawaran", children: [

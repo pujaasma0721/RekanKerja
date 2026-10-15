@@ -6975,3 +6975,22 @@ Work Log:
 Stage Summary:
 - Backlog item 7 (Portal pelamar) SELESAI: magic-link cek status lamaran tanpa password (request netral anti-enumerasi + token HMAC sekali-pakai 6 jam + rate-limit 3/jam email & 10/jam IP per tenant schema + email transaksional + halaman status portal dwibahasa dgn timeline/offer/lampiran TANPA data internal) + branding CareerSiteConfig per tenant (schema+migrasi+parity, admin tab Branding dgn pratinjau + ActivityLog, API publik fallback, portal ber-brand: warna/logo/hero). Semua gate hijau (E2E 48/48; tsc scoped + portal 0; lint baseline 6; bilingual 150; browser EN/ID + mobile 375 hscroll=0 + console 0 baru).
 - Fase berikutnya per §4: B8 — referral tracker (ESS "Referral Saya" + register HR + kolom perujuk; D-BL §3 B8).
+
+---
+Task ID: B8
+Agent: full-stack subagent (B8 core impl — sesi terputus MAX-TURNS saat fase verifikasi; diverifikasi, difinalisasi & di-push oleh orchestrator)
+Task: DEVELOPMENT-PLAN-BACKLOG.md §4 B8 — Referral tracker: ESS "Referral Saya" + register HR + kolom perujuk di pelamar + insentif manual ter-audit (D-BL18; §5 insentif = catatan manual DI LUAR payroll).
+
+Work Log:
+- IMPLEMENTASI (subagent, diverifikasi orchestrator): schema Applicant.referralNote + referralRewardNote + tenant-ddl + migrasi scripts/migrate-recruitment-b8-referral.ts idempoten 3 tenant (dijalankan — kolom ada; re-run OK) + parity step backlog-b8.
+- referral-service.ts 324 baris: listReferrals register HR (q/status/rewardOnly; perujuk + unit assignment aktif; slot terakhir; status pipeline ringkas TANPA evaluator/skor internal) + updateRewardNote HR-saja (trim ≤500, ActivityLog ReferralReward) + myReferrals ESS self-scope (TANPA rewardNote — internal HR; stats per status).
+- API recruitment/api/referrals.ts + route (menu key BARU recruitment:referral view-only + op reward; requireMenuViewAny/requireMenuAction) + ess/api/my-referrals.ts + route (requireEss self-scope pola my-selection).
+- UI referral-register.tsx 420 baris (tab BARU modul Rekrutmen "Referral Karyawan/Employee Referrals" — banner amber GANDA tegas §5 "dicatat MANUAL oleh HR — TIDAK otomatis masuk payroll" + stats tile + tabel register dgn kolom Reward (manual) + filter q/status + switch hanya-ber-insentif + dialog edit reward + mobile kartu) + ess-my-referrals.tsx 197 baris (nav "Referral Saya/My Referrals" + stats + kartu + empty state + banner insentif-ditur-HR; read-only) + kolom perujuk & field referralNote di pelamar admin (applicants.tsx/api).
+- E2E scripts/e2e-b8-referral.ts = 48/48 PASS: seed 3 applicant referral via db (2 yusuf + 1 perujuk lain); ESS self-scope 2 baris + rewardNote TIDAK ada di payload; register HR + filter q/rewardOnly; catat insentif → db + ActivityLog + edit ke-2; guard ESS POST 403 + applicantId 404 + payload >500 char 400; tak-bocor lintas schema (applicant cahaya tak muncul di register MII); cleanup 3+1 dihapus + referral count kembali 1 + ActivityLog DIPERTAHANKAN (audit trail).
+- INSIDEN SUBAGENT: sesi terputus MAX-TURNS (200) PASCA implementasi + browser (4 screenshot tersimpan) tetapi SEBELUM worklog/commit — orchestrator melanjutkan: migrasi re-run OK, E2E 48/48 re-run independen, tsc tsconfig.b8.json 0 error (heap 2000MB), lint 0/6 baseline, bilingual 150, dev.log bersih (satu insiden dev-server OOM saat tsc paralel — watchdog pulih otomatis <1 mnt).
+- BROWSER (subagent 4 screenshot + orchestrator re-verify live): register HR EN ("Employee Referrals" + banner "recorded MANUALLY by HR — NOT automatically added to payroll" + kolom Reward (manual) + filter) + ID penuh ("Referral Karyawan" + "Insentif referral dicatat MANUAL oleh HR — TIDAK otomatis masuk payroll"); ESS yusuf "Referral Saya/My Referrals" + stats 5 status + dwibahasa; mobile 375×812 hscroll=0 (register) + console 0 error baru (3 error console sesi awal = baseline dup-key "Male" halaman login ter-render berulang — verifikasi fresh-load 0); 5 screenshot audit/e2e-b8.
+- Data uji browser/E2E dibersihkan (register kembali 1 referral demo pra-uji).
+
+Stage Summary:
+- Backlog item Rekrutmen referral tracker SELESAI: karyawan melihat referral-nya sendiri di ESS (status pipeline ikut proses rekrutmen), HR punya register lengkap + catatan insentif manual ter-ActivityLog (di luar payroll — ditegaskan banner ganda EN/ID), kolom perujuk + catatan konteks di pelamar admin. TANPA modul Training; insentif TIDAK menyentuh payroll sama sekali.
+- Fase berikutnya per §4: B9 — agregator `bun run test:e2e` (runner urut suite + ringkasan per-suite + --reset fixture + daftar suite stabil).

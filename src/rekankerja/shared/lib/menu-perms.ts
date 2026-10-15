@@ -134,6 +134,11 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "verify", label: "Memverifikasi lamaran publik", hint: "Verifikasi (upload ke talent pool), tolak, atau tandai spam" },
   ],
 
+  // B8-BL — referral tracker: register referral (view-only) + op catat insentif
+  "recruitment:referral": [
+    { key: "reward", label: "Mencatat insentif referral (manual)", hint: "Mengubah catatan insentif perujuk — catatan manual DI LUAR payroll (B8 §5)" },
+  ],
+
   // Recruitment F3 — kandidat & proses seleksi terstruktur
   "recruitment:candidates": [
     { key: "nominate", label: "Transfer / nominasi kandidat", hint: "Menambahkan pelamar talent pool atau karyawan internal sebagai kandidat PR" },

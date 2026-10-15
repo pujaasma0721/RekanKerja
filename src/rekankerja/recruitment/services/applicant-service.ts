@@ -102,6 +102,8 @@ export interface ApplicantInput {
   agencyId?: string | null;
   institutionName?: string | null;
   referralEmployeeId?: string | null;
+  // B8-BL — konteks/pesan perujuk (kenapa merujuk) di form admin pelamar.
+  referralNote?: string | null;
   // PII (plain di input — dienkripsi saat disimpan)
   email?: string | null;
   phone?: string | null;
@@ -155,6 +157,10 @@ export interface ApplicantDetail extends ApplicantRow {
   identityNoMasked: string | null;
   maritalStatus: string | null;
   notes: string | null;
+  // B8-BL — referral tracker: konteks perujuk + catatan insentif MANUAL HR
+  // (di luar payroll — detail admin saja; ESS myReferrals TANPA rewardNote).
+  referralNote: string | null;
+  referralRewardNote: string | null;
   adMediaName: string | null;
   agencyName: string | null;
   institutionName: string | null;
@@ -449,6 +455,8 @@ export async function getApplicant(db: TenantDb, id: string, moneyVisible: boole
     identityNoMasked: maskIdNo(tc.decryptText(a.identityNo)),
     maritalStatus: a.maritalStatus,
     notes: a.notes,
+    referralNote: a.referralNote,
+    referralRewardNote: a.referralRewardNote,
     adMediaName: a.adMediaType?.name ?? null,
     agencyName: a.agency?.name ?? null,
     institutionName: a.institutionName,
@@ -507,6 +515,7 @@ export async function createApplicant(
       agencyId: input.agencyId || null,
       institutionName: input.institutionName?.trim() || null,
       referralEmployeeId: input.referralEmployeeId || null,
+      referralNote: input.referralNote?.trim() || null,
       email: input.email?.trim() ? tc.encryptText(input.email.trim()) : null,
       phone: input.phone?.trim() ? tc.encryptText(input.phone.trim()) : null,
       address: input.address?.trim() ? tc.encryptText(input.address.trim()) : null,
@@ -573,6 +582,7 @@ export async function updateApplicant(
       agencyId: input.agencyId !== undefined ? (input.agencyId || null) : undefined,
       institutionName: input.institutionName !== undefined ? (input.institutionName?.trim() || null) : undefined,
       referralEmployeeId: input.referralEmployeeId !== undefined ? (input.referralEmployeeId || null) : undefined,
+      referralNote: input.referralNote !== undefined ? (input.referralNote?.trim() || null) : undefined,
       email: input.email !== undefined ? (input.email?.trim() ? tc.encryptText(input.email.trim()) : null) : undefined,
       phone: input.phone !== undefined ? (input.phone?.trim() ? tc.encryptText(input.phone.trim()) : null) : undefined,
       address: input.address !== undefined ? (input.address?.trim() ? tc.encryptText(input.address.trim()) : null) : undefined,

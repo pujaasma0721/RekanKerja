@@ -30,6 +30,8 @@ export type EssView =
   | "pr-approval"
   // F3 — modul Rekrutmen: seleksi saya (MySelectionProcess §2.10)
   | "my-selection"
+  // B8-BL — Referral Saya: pelamar yang saya rujuk (self-scope, read-only)
+  | "my-referrals"
   // F5-REC — lowongan internal (MyJobOpportunity) + rencana rekrutmen
   // (MysRecruitmentPlanning) §2.10
   | "my-jobs"

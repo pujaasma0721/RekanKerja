@@ -2635,6 +2635,8 @@ CREATE TABLE "Applicant" (
     "keepOnFileMonths" INTEGER NOT NULL DEFAULT 12,
     "keepOnFileUntil" TIMESTAMP(3),
     "source" TEXT,
+    "referralNote" TEXT,
+    "referralRewardNote" TEXT,
     "adMediaTypeId" TEXT,
     "agencyId" TEXT,
     "institutionName" TEXT,
@@ -3647,6 +3649,13 @@ CREATE UNIQUE INDEX "CareerSiteConfig_tenantSlug_key" ON "CareerSiteConfig"("ten
 -- tenant existing via scripts/migrate-recruitment-b7-status-link.ts — INSERT
 -- kolom di CREATE TABLE di atas menjadikan ALTER ini no-op pada tenant baru)
 ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "statusLinkUsedAt" TIMESTAMP(3);
+
+-- AddColumn (B8-BL — referral tracker: referralNote = konteks/pesan perujuk;
+-- referralRewardNote = catatan insentif MANUAL HR DI LUAR payroll §5. Idempoten
+-- utk tenant existing via scripts/migrate-recruitment-b8-referral.ts — INSERT
+-- kolom di CREATE TABLE di atas menjadikan ALTER ini no-op pada tenant baru)
+ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "referralNote" TEXT;
+ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "referralRewardNote" TEXT;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CompanyOffice_code_key" ON "CompanyOffice"("code");

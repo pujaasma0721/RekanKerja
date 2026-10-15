@@ -557,6 +557,10 @@ export const BASE_EN: Record<string, string> = {
   "Lowongan & Kandidat": "Openings & Candidates",
   "Lowongan": "Job Openings",
   "Lamaran Publik": "Public Applications",
+  "Referral Karyawan": "Employee Referrals",
+  // B8-BL — referral tracker: op menu recruitment:referral (menu-perms)
+  "Mencatat insentif referral (manual)": "Record referral rewards (manual)",
+  "Mengubah catatan insentif perujuk — catatan manual DI LUAR payroll (B8 §5)": "Change the referrer's reward note — a manual note OUTSIDE payroll (B8 §5)",
   "Seleksi & Penawaran": "Selection & Offers",
   "Kandidat & Seleksi": "Candidates & Selection",
   "Offer & Pengangkatan": "Offers & Appointments",

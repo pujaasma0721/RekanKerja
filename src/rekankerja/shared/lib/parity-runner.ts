@@ -431,6 +431,10 @@ const STEPS: Step[] = [
   // Applicant.statusLinkUsedAt (magic-link sekali-pakai) + tabel
   // CareerSiteConfig (branding per tenant) + seed EmailTemplate status.link.
   { key: "backlog-b7", label: "B7 Backlog — kolom statusLinkUsedAt + tabel CareerSiteConfig + template status.link", run: (s) => import("../../../../scripts/migrate-recruitment-b7-status-link").then((m) => m.main(s)) },
+  // B8-BL (DEVELOPMENT-PLAN-BACKLOG.md §4 B8) — referral tracker: kolom
+  // Applicant.referralNote (konteks perujuk) + Applicant.referralRewardNote
+  // (catatan insentif MANUAL HR — di luar payroll §5; tanpa model baru).
+  { key: "backlog-b8", label: "B8 Backlog — kolom Applicant referralNote + referralRewardNote", run: (s) => import("../../../../scripts/migrate-recruitment-b8-referral").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============

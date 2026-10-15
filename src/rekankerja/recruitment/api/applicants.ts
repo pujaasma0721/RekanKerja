@@ -99,6 +99,7 @@ function parseInput(b: Record<string, unknown>): ApplicantInput {
     agencyId: b.agencyId ? String(b.agencyId) : null,
     institutionName: b.institutionName ? String(b.institutionName) : null,
     referralEmployeeId: b.referralEmployeeId ? String(b.referralEmployeeId) : null,
+    referralNote: b.referralNote != null ? String(b.referralNote) : null,
     email: b.email ? String(b.email) : null,
     phone: b.phone ? String(b.phone) : null,
     address: b.address ? String(b.address) : null,

@@ -3598,6 +3598,15 @@ model Applicant {
   keepOnFileMonths   Int       @default(12)
   keepOnFileUntil    DateTime? // dateApplied + months — scheduler auto-Outdated
   source             String? // Advertisement|Agency|Referral|Web|Internal|Other
+  // B8-BL — referral tracker (§4 B8): konteks/pesan perujuk — kenapa merujuk
+  // (diisi HR/pelamar; TIDAK pernah dikirim ke ESS selain myReferrals tanpa
+  // rewardNote — lihat referral-service).
+  referralNote       String?
+  // B8-BL — catatan insentif referral MANUAL HR — DI LUAR payroll (§5 risiko
+  // "Insentif referral disalahpahami otomatis": kolom ini CATATAN saja,
+  // tidak pernah masuk perhitungan gaji; UI tegas "catatan manual — di luar
+  // payroll"; mutasi ter-audit ActivityLog "ReferralRewardNote").
+  referralRewardNote String?
   adMediaTypeId      String?
   agencyId           String?
   institutionName    String? // institusi sumber (kampus/vendor)

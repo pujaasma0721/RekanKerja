@@ -14,7 +14,7 @@ import {
   LayoutDashboard, UserRound, Palmtree, Fingerprint, ReceiptText, HeartPulse, ClipboardList, ClipboardCheck, FileText,
   Bell, Moon, Sun, LogOut, KeyRound, X, CheckCheck, MoreHorizontal, ArrowRight, Check,
   Waypoints, ChevronDown, Building2, Clock as ClockIcon, UserRoundSearch, ListChecks,
-  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package, CalendarPlus, Target, Users,
+  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package, CalendarPlus, Target, Users, UserRoundCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, initials, fmtDateTime } from "@/rekankerja/shared/lib/api";
@@ -52,6 +52,8 @@ import { EssPrPage } from "./ess-pr";
 import { EssPrApprovalPage } from "./ess-pr-approval";
 // F3 — modul Rekrutmen ESS: seleksi saya (kandidat internal)
 import { EssMySelectionPage } from "./ess-my-selection";
+// B8-BL — Referral Saya: riwayat pelamar yang saya rujuk (read-only)
+import { EssMyReferralsPage } from "./ess-my-referrals";
 // F5 — modul Rekrutmen ESS: lowongan internal + rencana rekrutmen
 import { EssMyJobsPage } from "./ess-my-jobs";
 import { EssMyPlanPage } from "./ess-my-plan";
@@ -83,6 +85,9 @@ const ESS_NAV: EssNavItem[] = [
   // F3 — Seleksi Saya (MySelectionProcess §2.10): tahapan seleksi
   // karyawan sebagai kandidat internal (ack jadwal + timeline).
   { id: "my-selection", label: "Seleksi Saya", en: "My Selection", short: "Seleksi", shortEn: "Selection", icon: ListChecks },
+  // B8-BL — Referral Saya: pelamar yang saya rujuk (self-scope, read-only;
+  // insentif manual di luar payroll diatur HR terpisah)
+  { id: "my-referrals", label: "Referral Saya", en: "My Referrals", short: "Referral", shortEn: "Referrals", icon: UserRoundCheck },
   // F5 — Lowongan Internal (MyJobOpportunity §2.10) + Rencana
   // Rekrutmen (MysRecruitmentPlanning §2.10).
   { id: "my-jobs", label: "Lowongan Internal", en: "Internal Jobs", short: "Lowongan", shortEn: "Jobs", icon: Megaphone },
@@ -671,6 +676,8 @@ export function EssShell() {
             {view === "pr-approval" && <EssPrApprovalPage />}
             {/* F3 — Seleksi Saya (kandidat internal) */}
             {view === "my-selection" && <EssMySelectionPage />}
+
+            {view === "my-referrals" && <EssMyReferralsPage />}
             {/* F5 — Rekrutmen ESS: lowongan internal + rencana rekrutmen */}
             {view === "my-jobs" && <EssMyJobsPage />}
             {view === "my-plan" && <EssMyPlanPage />}

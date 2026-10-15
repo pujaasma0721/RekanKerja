@@ -13,6 +13,8 @@ import { PrListPage } from "@/rekankerja/recruitment/components/pr-list";
 import { PrApprovalPage } from "@/rekankerja/recruitment/components/pr-approval";
 import { OpeningsPage } from "@/rekankerja/recruitment/components/openings";
 import { ApplicantsPage } from "@/rekankerja/recruitment/components/applicants";
+// B8-BL — referral tracker: register referral HR (insentif = catatan manual — di luar payroll)
+import { ReferralRegisterPage } from "@/rekankerja/recruitment/components/referral-register";
 import { PublicStagingPage } from "@/rekankerja/recruitment/components/public-staging";
 import { SelectionPage } from "@/rekankerja/recruitment/components/selection";
 import { OffersPage } from "@/rekankerja/recruitment/components/offers";
@@ -29,6 +31,7 @@ export function RecruitmentModule({ view }: { view: string }) {
     case "pr-approval": return <PrApprovalPage />;
     case "openings": return <OpeningsPage />;
     case "applicants": return <ApplicantsPage />;
+    case "referral": return <ReferralRegisterPage />;
     case "public-staging": return <PublicStagingPage />;
     case "selection": return <SelectionPage />;
     case "offers": return <OffersPage />;
