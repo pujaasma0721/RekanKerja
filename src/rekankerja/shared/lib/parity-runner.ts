@@ -412,6 +412,9 @@ const STEPS: Step[] = [
   // P9-PERF — kepatuhan UU PDP: DSR karyawan (DataSubjectRequest.employeeId +
   // applicantId nullable) + retensi arsip (AppraisalRecord.archivedAt).
   { key: "performance-p9", label: "P9 Kinerja — kolom DSR karyawan (UU PDP §7.3) + archivedAt retensi", run: (s) => import("../../../../scripts/migrate-performance-p9").then((m) => m.main(s)) },
+  // B1-BL (DEVELOPMENT-PLAN-BACKLOG.md §4 B1) — OKR kuartalan: tabel
+  // OkrObjective/OkrKeyResult + PerformanceSetting.okrEnabled (default OFF).
+  { key: "backlog-b1", label: "B1 Backlog — tabel OKR + okrEnabled", run: (s) => import("../../../../scripts/migrate-performance-b1-okr").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -724,7 +727,22 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (perfArchOk < schemas.length)
       reasons.push(`${schemas.length - perfArchOk} tenant tanpa kolom AppraisalRecord.archivedAt (P9 — retensi arsip kinerja)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, dsrEmpOk, perfArchOk) };
+    // B1-BL — OKR kuartalan: 2 tabel baru + kolom okrEnabled (default OFF).
+    const okrTblOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'OkrObjective' AND table_schema = ANY($1::text[])`,
+      [schemas],
+    );
+    if (okrTblOk < schemas.length)
+      reasons.push(`${schemas.length - okrTblOk} tenant tanpa tabel OkrObjective (B1 — OKR kuartalan)`);
+    const okrColOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'PerformanceSetting' AND column_name = 'okrEnabled' AND table_schema = ANY($1::text[])`,
+      [schemas],
+    );
+    if (okrColOk < schemas.length)
+      reasons.push(`${schemas.length - okrColOk} tenant tanpa kolom PerformanceSetting.okrEnabled (B1 — mode OKR default OFF)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, dsrEmpOk, perfArchOk, okrTblOk, okrColOk) };
   } finally {
     await c.end();
   }

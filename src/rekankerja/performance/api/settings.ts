@@ -40,13 +40,15 @@ export async function POST(req: NextRequest) {
       defWeights: b.defWeights != null ? String(b.defWeights) : undefined,
       appealDays: b.appealDays != null ? Number(b.appealDays) : undefined,
       retentionYears: b.retentionYears != null ? Number(b.retentionYears) : undefined,
+      // B1-BL (D-BL2) — mode OKR kuartalan per-tenant (default OFF).
+      okrEnabled: b.okrEnabled != null ? b.okrEnabled === true : undefined,
     });
     await db.activityLog.create({
       data: {
         action: "Updated",
         entity: "PerformanceSetting",
         entityId: setting.id,
-        detail: `Pengaturan kinerja: prefix=${setting.docPrefixes} bobot=${setting.defWeights} banding=${setting.appealDays}hari retensi=${setting.retentionYears}th`,
+        detail: `Pengaturan kinerja: prefix=${setting.docPrefixes} bobot=${setting.defWeights} banding=${setting.appealDays}hari retensi=${setting.retentionYears}th okr=${setting.okrEnabled ? "AKTIF" : "off"}`,
       },
     });
     return NextResponse.json({ setting });

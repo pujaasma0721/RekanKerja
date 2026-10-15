@@ -60,6 +60,8 @@ import { EssMyCheckinsPage } from "./ess-my-checkins";
 // P3-PERF — Penilaian Saya + 360 Saya (§14.6 ESS nav)
 import { EssMyAppraisalPage } from "./ess-my-appraisal";
 import { EssMy360Page } from "./ess-my-360";
+// B1-BL — OKR Saya: objective kuartalan + board transparan (D-BL3)
+import { EssMyOkrPage } from "./ess-my-okr";
 // Task 52-f — kanal whistleblowing TPKS (anonim) utk semua pekerja.
 import { WhistleblowForm, WB_CATEGORIES } from "@/rekankerja/whistleblow/components/whistleblow-form";
 import { Siren, Ticket, MessagesSquare } from "lucide-react";
@@ -93,6 +95,8 @@ const ESS_NAV: EssNavItem[] = [
   { id: "my-appraisal", label: "Penilaian Saya", en: "My Appraisal", short: "Penilaian", shortEn: "Appraisal", icon: ClipboardCheck },
   // P3-PERF — 360 Saya: undangan reviewer anonim (§29-3)
   { id: "my-360", label: "360 Saya", en: "My 360", short: "360", shortEn: "360", icon: Users },
+  // B1-BL — OKR Saya (kuartalan, D-BL2/D-BL3): nav DIFILTER bila !me.okrEnabled
+  { id: "my-okr", label: "OKR Saya", en: "My OKR", short: "OKR", shortEn: "OKR", icon: Target },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)
   { id: "letters", label: "Surat", en: "Letters", short: "Surat", shortEn: "Letters", icon: FileText },
   // Task 27-f/g/b — pengumuman / tukar shift / aset saya
@@ -114,9 +118,16 @@ const ESS_TABS: EssView[] = ["dashboard", "leave", "attendance", "payslips"];
 // horizontal di SEMUA lebar desktop (1024/1280/1440) — tidak proporsional dengan
 // konten max-w-7xl. Pola cermin mobile (4 tab + sheet): 6 tab + dropdown.
 const ESS_TABS_DESKTOP: EssView[] = ["dashboard", "leave", "attendance", "payslips", "claims", "requests"];
-const ESS_OVERFLOW_DESKTOP = ESS_NAV.filter((n) => !ESS_TABS_DESKTOP.includes(n.id));
+// (B1-BL: daftar overflow dihitung per-render dari nav efektif — item "OKR
+// Saya" tampil hanya saat okrEnabled, lih. essNavOf di bawah.)
 
 const subscribeNoop = () => () => {};
+
+/** B1-BL — nav ESS efektif: item "my-okr" tampil HANYA bila mode OKR aktif
+ * (okrEnabled dari /ess/me — D-BL2 default OFF; dipanggil setelah me siap). */
+function essNavOf(me: { okrEnabled?: boolean } | null): EssNavItem[] {
+  return me?.okrEnabled ? ESS_NAV : ESS_NAV.filter((n) => n.id !== "my-okr");
+}
 
 // Task 103-e — label dwibahasa utk role akun ESS di menu avatar. Mencakup
 // platform role (OWNER|ADMIN|HR|VIEWER) maupun AppUser.role tenant
@@ -459,7 +470,11 @@ export function EssShell() {
 
   const me: EssMe = meState.me;
   const sessionTenant = session.info?.tenant;
-  const activeItem = ESS_NAV.find((n) => n.id === view) ?? ESS_NAV[0];
+  // B1-BL — nav efektif ("OKR Saya" hanya saat okrEnabled) — dipakai semua
+  // titik render nav (topnav desktop, dropdown Lainnya, sheet mobile).
+  const essNav = essNavOf(me);
+  const overflowDesktop = essNav.filter((n) => !ESS_TABS_DESKTOP.includes(n.id));
+  const activeItem = essNav.find((n) => n.id === view) ?? essNav[0];
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -533,7 +548,7 @@ export function EssShell() {
             semua lebar desktop). Label pendek di md–lg, penuh di lg+. */}
         <nav className="hidden border-t border-slate-100/80 dark:border-slate-800/60 md:block" aria-label={t("Navigasi utama Self Service", "Self Service main navigation")}>
           <div className="mx-auto flex w-full max-w-7xl items-center gap-1 px-4 sm:px-6">
-            {ESS_NAV.filter((n) => ESS_TABS_DESKTOP.includes(n.id)).map((item) => {
+            {essNav.filter((n) => ESS_TABS_DESKTOP.includes(n.id)).map((item) => {
               const active = view === item.id;
               const Icon = item.icon;
               return (
@@ -593,7 +608,7 @@ export function EssShell() {
                     <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
                       {t("Menu Lainnya", "More Menu")}
                     </DropdownMenuLabel>
-                    {ESS_OVERFLOW_DESKTOP.map((item) => {
+                    {overflowDesktop.map((item) => {
                       const active = view === item.id;
                       const Icon = item.icon;
                       return (
@@ -663,6 +678,8 @@ export function EssShell() {
             {view === "my-checkins" && <EssMyCheckinsPage />}
             {view === "my-appraisal" && <EssMyAppraisalPage />}
             {view === "my-360" && <EssMy360Page />}
+            {/* B1-BL — OKR Saya: objective kuartalan + board transparan */}
+            {view === "my-okr" && <EssMyOkrPage />}
             {view === "assets" && <EssAssets />}
             {view === "whistleblow" && (
               <div className="mx-auto max-w-2xl">
@@ -709,7 +726,7 @@ export function EssShell() {
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.375rem)" }}
         >
           {ESS_TABS.map((id) => {
-            const item = ESS_NAV.find((n) => n.id === id)!;
+            const item = essNav.find((n) => n.id === id) ?? essNav[0];
             const active = view === id;
             const Icon = item.icon;
             return (
@@ -790,7 +807,7 @@ export function EssShell() {
                 </button>
               </div>
               <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.03 } } }}>
-                {ESS_NAV.map((item) => {
+                {essNav.map((item) => {
                   const current = view === item.id;
                   const Icon = item.icon;
                   return (

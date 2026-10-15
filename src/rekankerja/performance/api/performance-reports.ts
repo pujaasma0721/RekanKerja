@@ -4,6 +4,7 @@ import { resolveAccessScope, scopeWhere } from "@/rekankerja/shared/services/acc
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { currentQuarter, objectiveScore } from "@/rekankerja/performance/services/okr-service";
 
 // =============================================================================
 // P8-PERF — DASHBOARD LAPORAN & ANALITIK KINERJA =================================
@@ -200,6 +201,30 @@ export async function GET(req: NextRequest) {
       snapshotHistoryOf(db, "pip_recovery_rate").catch(() => []),
     ]);
 
+    // ---- B1-BL: ringkasan OKR kuartal berjalan (HANYA bila okrEnabled —
+    // D-BL2; terpisah dari penilaian — D-BL1, tidak menyentuh KPI di atas) ----
+    let okrSummary: { quarter: string; posted: number; closed: number; avgProgressPct: number | null } | null = null;
+    try {
+      const okrOn = (await db.performanceSetting.findFirst({ select: { okrEnabled: true } }))?.okrEnabled === true;
+      if (okrOn) {
+        const q = currentQuarter();
+        const objs = await db.okrObjective.findMany({
+          where: { quarter: q },
+          select: { status: true, keyResults: { select: { weight: true, polarity: true, baseline: true, target: true, current: true } } },
+          take: 200,
+        });
+        const posted = objs.filter((o) => o.status === "Posted");
+        okrSummary = {
+          quarter: q,
+          posted: posted.length,
+          closed: objs.filter((o) => o.status === "Closed").length,
+          avgProgressPct: posted.length
+            ? Math.round((posted.reduce((s, o) => s + objectiveScore(o.keyResults), 0) / posted.length) * 100)
+            : null,
+        };
+      }
+    } catch { okrSummary = null; /* kolom belum termigrasi — overview tanpa kartu OKR */ }
+
     return NextResponse.json({
       kpi: {
         activeCycles: activeCycles.length,
@@ -214,6 +239,7 @@ export async function GET(req: NextRequest) {
         meritAppliedTotalAmount,
         money: { canSee: mv.canSee },
       },
+      okrSummary,
       distribution: {
         latestCycle: latestFinal ? { id: latestFinal.id, code: latestFinal.code } : null,
         latest: distLatest,

@@ -371,6 +371,9 @@ model Employee {
   pipSubjected         PipPlan[]             @relation("PipEmployee")
   pipReviewed          PipPlan[]             @relation("PipReviewer")
   probEvaluations      ProbationEvaluation[] @relation("ProbEmployee")
+  // B1-BL — OKR kuartalan: pemilik objective / pencatat progres KR terakhir.
+  okrObjectives        OkrObjective[]        @relation("OkrOwner")
+  okrKeyResults        OkrKeyResult[]        @relation("OkrUpdater")
 
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
@@ -4434,6 +4437,8 @@ model PerformanceSetting {
   defWeights     String   @default("70|20|10") // wKPI|wKomp|wCore default
   appealDays     Int      @default(7) // jendela banding setelah publikasi
   retentionYears Int      @default(5) // retensi arsip hasil
+  // B1-BL (D-BL2) — mode OKR kuartalan per-tenant, default OFF.
+  okrEnabled     Boolean  @default(false)
   updatedAt      DateTime @updatedAt
 }
 
@@ -4851,4 +4856,51 @@ model ProbationEvaluation {
 
   @@index([employeeId, status])
   @@index([dueDate])
+}
+
+// B1-BL — OKR kuartalan (DEVELOPMENT-PLAN-BACKLOG.md D-BL1…D-BL5): alat
+// transparansi tujuan TERPISAH dari mesin penilaian — TIDAK menyentuh
+// AppraisalRecord/skor/rating/merit (D-BL1). Ritme kuartalan "YYYY-Qn"
+// (D-BL2), per-tenant default OFF via PerformanceSetting.okrEnabled.
+model OkrObjective {
+  id              String    @id @default(cuid())
+  quarter         String // "2026-Q1" — ^\d{4}-Q[1-4]$ (kuartal, bukan siklus tahunan)
+  title           String
+  ownerEmployeeId String // pemilik objective (karyawan)
+  alignToId       String? // pohon dukungan — align ke objective lain (1 level cukup)
+  status          String    @default("Draft") // Draft|Posted|Closed (D-BL3)
+  weight          Int       @default(100) // Σ KR weight = 100 per objective (D-BL5)
+  closedScore     Float? // skor final 0.00–1.00 saat Closed (server otoritatif — D-BL5)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  owner         Employee        @relation("OkrOwner", fields: [ownerEmployeeId], references: [id])
+  alignParent   OkrObjective?   @relation("OkrAlign", fields: [alignToId], references: [id], onDelete: SetNull)
+  alignChildren OkrObjective[]  @relation("OkrAlign")
+  keyResults    OkrKeyResult[]
+
+  @@index([quarter, status])
+  @@index([ownerEmployeeId])
+}
+
+model OkrKeyResult {
+  id          String    @id @default(cuid())
+  objectiveId String
+  title       String
+  unit        String // "%|Rp|hari|unit|…"
+  polarity    String    @default("HigherIsBetter") // HigherIsBetter|LowerIsBetter (D-BL5)
+  baseline    Float
+  target      Float
+  current     Float     @default(0)
+  weight      Int       @default(20) // Σ per objective = 100 (D-BL5)
+  confidence  String    @default("Yellow") // Red|Yellow|Green — subjektif pemilik, beda dari skor
+  note        String? // update progres ringan (bukan check-in formal)
+  updatedById String? // pencatat progres terakhir (owner/HR)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  objective OkrObjective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  updatedBy Employee?    @relation("OkrUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([objectiveId])
 }

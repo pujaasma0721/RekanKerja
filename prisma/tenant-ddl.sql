@@ -3171,6 +3171,7 @@ CREATE TABLE "PerformanceSetting" (
     "defWeights" TEXT NOT NULL DEFAULT '70|20|10',
     "appealDays" INTEGER NOT NULL DEFAULT 7,
     "retentionYears" INTEGER NOT NULL DEFAULT 5,
+    "okrEnabled" BOOLEAN NOT NULL DEFAULT false,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "PerformanceSetting_pkey" PRIMARY KEY ("id")
@@ -3520,6 +3521,42 @@ CREATE TABLE "ProbationEvaluation" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "ProbationEvaluation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OkrObjective" (
+    "id" TEXT NOT NULL,
+    "quarter" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "ownerEmployeeId" TEXT NOT NULL,
+    "alignToId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Draft',
+    "weight" INTEGER NOT NULL DEFAULT 100,
+    "closedScore" DOUBLE PRECISION,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OkrObjective_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OkrKeyResult" (
+    "id" TEXT NOT NULL,
+    "objectiveId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "unit" TEXT NOT NULL,
+    "polarity" TEXT NOT NULL DEFAULT 'HigherIsBetter',
+    "baseline" DOUBLE PRECISION NOT NULL,
+    "target" DOUBLE PRECISION NOT NULL,
+    "current" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "weight" INTEGER NOT NULL DEFAULT 20,
+    "confidence" TEXT NOT NULL DEFAULT 'Yellow',
+    "note" TEXT,
+    "updatedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OkrKeyResult_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -4404,6 +4441,15 @@ CREATE INDEX "ProbationEvaluation_employeeId_status_idx" ON "ProbationEvaluation
 -- CreateIndex
 CREATE INDEX "ProbationEvaluation_dueDate_idx" ON "ProbationEvaluation"("dueDate");
 
+-- CreateIndex
+CREATE INDEX "OkrObjective_quarter_status_idx" ON "OkrObjective"("quarter", "status");
+
+-- CreateIndex
+CREATE INDEX "OkrObjective_ownerEmployeeId_idx" ON "OkrObjective"("ownerEmployeeId");
+
+-- CreateIndex
+CREATE INDEX "OkrKeyResult_objectiveId_idx" ON "OkrKeyResult"("objectiveId");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -5162,4 +5208,16 @@ ALTER TABLE "ProbationEvaluation" ADD CONSTRAINT "ProbationEvaluation_employeeId
 
 -- AddForeignKey
 ALTER TABLE "ProbationEvaluation" ADD CONSTRAINT "ProbationEvaluation_cycleId_fkey" FOREIGN KEY ("cycleId") REFERENCES "PerformanceCycle"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OkrObjective" ADD CONSTRAINT "OkrObjective_ownerEmployeeId_fkey" FOREIGN KEY ("ownerEmployeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OkrObjective" ADD CONSTRAINT "OkrObjective_alignToId_fkey" FOREIGN KEY ("alignToId") REFERENCES "OkrObjective"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OkrKeyResult" ADD CONSTRAINT "OkrKeyResult_objectiveId_fkey" FOREIGN KEY ("objectiveId") REFERENCES "OkrObjective"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OkrKeyResult" ADD CONSTRAINT "OkrKeyResult_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

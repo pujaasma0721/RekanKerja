@@ -9,9 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Settings, FileText, Percent, Clock, Archive } from "lucide-react";
+import { Settings, FileText, Percent, Clock, Archive, Telescope } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
 interface Setting {
@@ -20,6 +21,7 @@ interface Setting {
   defWeights: string;
   appealDays: number;
   retentionYears: number;
+  okrEnabled: boolean;
 }
 
 export function PerformanceSettingsPage() {
@@ -29,6 +31,24 @@ export function PerformanceSettingsPage() {
   const [form, setForm] = useState<null | { docPrefixes: string; defWeights: string; appealDays: string; retentionYears: string }>(null);
   const [busy, setBusy] = useState(false);
   const [nextNo, setNextNo] = useState<Record<string, string>>({});
+  // B1-BL — toggle mode OKR kuartalan (D-BL2, default OFF; simpan terpisah
+  // dari form angka supaya satu klik langsung berlaku)
+  const [okrOn, setOkrOn] = useState(false);
+  const [okrBusy, setOkrBusy] = useState(false);
+
+  const toggleOkr = async (v: boolean) => {
+    setOkrBusy(true);
+    try {
+      const res = await apiSend<{ setting: Setting }>("/api/rekankerja/performance/settings", "POST", { okrEnabled: v });
+      setOkrOn(res.setting.okrEnabled);
+      setSetting(res.setting);
+      toast.success(v
+        ? t("Mode OKR kuartalan diaktifkan — tab OKR & “OKR Saya” (ESS) kini tersedia", "Quarterly OKR mode enabled — the OKR tab & ESS “My OKR” are now available")
+        : t("Mode OKR kuartalan dimatikan", "Quarterly OKR mode disabled"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    } finally { setOkrBusy(false); }
+  };
 
   useEffect(() => {
     (async () => {
@@ -45,6 +65,7 @@ export function PerformanceSettingsPage() {
             retentionYears: String(j.setting.retentionYears),
           });
         }
+        setOkrOn(j.setting?.okrEnabled === true);
         // preview nomor berikutnya per prefix
         const prefixes = (j.setting?.docPrefixes ?? "PER|PRB|PIP|MER").split("|");
         const previews: Record<string, string> = {};
@@ -162,6 +183,28 @@ export function PerformanceSettingsPage() {
                   <Input type="number" value={form.retentionYears} onChange={(e) => setForm({ ...form, retentionYears: e.target.value })} />
                   <p className="text-xs text-slate-500">{t("Riwayat hasil penilaian disimpan (default 5).", "Appraisal result history kept (default 5).")}</p>
                 </div>
+              </div>
+
+              {/* B1-BL — mode OKR kuartalan (D-BL2) */}
+              <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                <div className="min-w-0">
+                  <Label className="flex items-center gap-1.5">
+                    <Telescope className="h-3.5 w-3.5" />
+                    {t("Mode OKR Kuartalan", "Quarterly OKR Mode")}
+                  </Label>
+                  <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                    {t(
+                      "Mengaktifkan tab “OKR Kuartalan” di modul Kinerja dan menu “OKR Saya” di portal karyawan: objective per kuartal (YYYY-Qn) dengan 3–5 key result ber-bobot, board transparan lintas tim (Posted terlihat seluruh karyawan), pohon dukungan antar-objective, dan skor server yang dihitung on-read lalu disimpan final saat HR menutup kuartal. OKR adalah alat penyelarasan tujuan — SEPENUHNYA terpisah dari mesin penilaian (skor/rating/merit/PIP tidak pernah membaca OKR).",
+                      "Enables the “Quarterly OKR” tab in the Performance module and “My OKR” in the employee portal: per-quarter objectives (YYYY-Qn) with 3–5 weighted key results, a cross-team transparent board (Posted is visible to every employee), a support tree between objectives, and a server score computed on-read then saved as final when HR closes the quarter. OKR is a goal-alignment tool — FULLY separate from the appraisal engine (scores/ratings/merit/PIP never read OKR data).",
+                    )}
+                  </p>
+                </div>
+                <Switch
+                  checked={okrOn}
+                  disabled={okrBusy}
+                  onCheckedChange={toggleOkr}
+                  aria-label={t("Mode OKR Kuartalan", "Quarterly OKR Mode")}
+                />
               </div>
 
               <div className="flex justify-end">

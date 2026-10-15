@@ -40,7 +40,7 @@ import {
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
   MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
-  UsersRound, UserRoundCheck, Handshake, PieChart, Settings, Target, ListChecks, MessagesSquare, Grid3x3, LifeBuoy, Hourglass} from "lucide-react";
+  UsersRound, UserRoundCheck, Handshake, PieChart, Settings, Target, ListChecks, MessagesSquare, Grid3x3, LifeBuoy, Hourglass, Telescope} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanySwitcher } from "./company-switcher";
 
@@ -339,6 +339,9 @@ const PERFORMANCE_NAV: NavGroup[] = [
     { id: "cycles", label: "Siklus Penilaian", icon: CalendarRange },
     // P1 — KPI Builder AM1 §18.1 + salin periode sebelumnya §18.2
     { id: "goals", label: "Target & KPI", icon: ListChecks },
+    // B1-BL — OKR kuartalan + board transparan (D-BL1…D-BL5 — terpisah dari
+    // mesin penilaian; per-tenant default OFF via okrEnabled)
+    { id: "okr", label: "OKR Kuartalan", icon: Telescope },
     // P2 — check-in 1-on-1
     { id: "checkins", label: "Check-in", icon: MessagesSquare },
   ] },

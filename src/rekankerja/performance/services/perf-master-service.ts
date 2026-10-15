@@ -504,6 +504,7 @@ export async function getPerfSetting(db: TenantDb) {
 
 export async function updatePerfSetting(db: TenantDb, input: {
   docPrefixes?: string; defWeights?: string; appealDays?: number; retentionYears?: number;
+  okrEnabled?: boolean;
 }) {
   const cur = await getPerfSetting(db);
   const docPrefixes = input.docPrefixes != null
@@ -527,9 +528,11 @@ export async function updatePerfSetting(db: TenantDb, input: {
   const retentionYears = input.retentionYears != null
     ? (() => { const n = Number(input.retentionYears); if (!Number.isFinite(n) || n < 1 || n > 25) throw new Error("Retensi 1–25 tahun"); return Math.round(n); })()
     : cur.retentionYears;
+  // B1-BL (D-BL2) — mode OKR kuartalan per-tenant (default OFF).
+  const okrEnabled = input.okrEnabled != null ? input.okrEnabled === true : cur.okrEnabled;
   return db.performanceSetting.update({
     where: { id: cur.id },
-    data: { docPrefixes, defWeights, appealDays, retentionYears },
+    data: { docPrefixes, defWeights, appealDays, retentionYears, okrEnabled },
   });
 }
 

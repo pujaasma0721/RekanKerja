@@ -226,6 +226,16 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "retention", label: "Mengelola retensi arsip", hint: "Menjalankan scan retensi & memulihkan data terarsip (tandai-saja — penghapusan manual §37)" },
   ],
 
+  // B1-BL — OKR kuartalan (DEVELOPMENT-PLAN-BACKLOG.md §4 B1; D-BL1…D-BL5):
+  // alat transparansi tujuan TERPISAH dari mesin penilaian. Posting ke board
+  // org-wide (D-BL3) & penutupan kuartal dgn skor final server (D-BL5) = op
+  // khusus; create/update/delete objective Draft + update progres KR ikut
+  // aksi CRUD bawaan (owner objective / HR — guard di service).
+  "performance:okr": [
+    { key: "post", label: "Memosting objective OKR", hint: "Menerbitkan objective Draft ke board transparan yang terlihat seluruh karyawan (D-BL3)" },
+    { key: "close", label: "Menutup objective kuartal", hint: "Menutup objective Posted di akhir kuartal — skor final dihitung server (D-BL5, hanya HR)" },
+  ],
+
   "recruitment:settings": [
     { key: "webhook", label: "Mengelola webhook", hint: "Menambah/mengubah/menguji endpoint webhook rekrutmen (event PR, lamaran, offer, hired)" },
     { key: "esign", label: "Permintaan e-sign kandidat", hint: "Membuat/mengirim ulang OTP/membatalkan permintaan tanda tangan elektronik kandidat eksternal" },

@@ -1147,6 +1147,9 @@ const MENU_OPS_LABEL_EN: Record<string, string> = {
   "Settlement klaim": "Settle claims",
   "Menyetujui / menolak penyesuaian saldo": "Approve / reject balance adjustments",
   "Mengirim email uji": "Send test emails",
+  // B1-BL — OKR kuartalan (performance:okr)
+  "Memosting objective OKR": "Post an OKR objective",
+  "Menutup objective kuartal": "Close a quarterly objective",
 };
 const MENU_OPS_HINT_EN: Record<string, string> = {
   "Aksi Setujui & Tolak di kotak persetujuan": "The Approve & Reject actions in the approval inbox",
@@ -1176,6 +1179,9 @@ const MENU_OPS_HINT_EN: Record<string, string> = {
   "Menyelesaikan klaim (dibayarkan ke provider)": "Settles a claim (paid to the provider)",
   "Memutuskan penyesuaian saldo medis": "Decides medical balance adjustments",
   "Tombol Tes Kirim pada konfigurasi SMTP": "The Test Send button in the SMTP configuration",
+  // B1-BL — OKR kuartalan (performance:okr)
+  "Menerbitkan objective Draft ke board transparan yang terlihat seluruh karyawan (D-BL3)": "Publishes a Draft objective onto the transparent board visible to all employees (D-BL3)",
+  "Menutup objective Posted di akhir kuartal — skor final dihitung server (D-BL5, hanya HR)": "Closes a Posted objective at quarter end — the final score is computed server-side (D-BL5, HR only)",
 };
 
 function PermSummaryBadge({ perm, menuKey }: { perm: MenuPerm; menuKey: string }) {

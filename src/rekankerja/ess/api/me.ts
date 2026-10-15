@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { requireEss, fmtIsoDate, essCanAdmin } from "@/rekankerja/ess/api/ess-auth";
+import { okrFeatureOn } from "@/rekankerja/performance/services/okr-service";
 
 export async function GET(req: Request) {
   const m = await requireEss(req);
@@ -35,6 +36,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Data karyawan tidak ditemukan" }, { status: 404 });
     }
     const a = emp.assignments[0];
+    // B1-BL — mode OKR kuartalan tenant (nav "OKR Saya" tampil HANYA bila
+    // aktif; D-BL2 default OFF — kegagalan baca setting → anggap off).
+    let okrEnabled = false;
+    try { okrEnabled = await okrFeatureOn(db); } catch { okrEnabled = false; }
 
     return NextResponse.json({
       employee: {
@@ -62,6 +67,7 @@ export async function GET(req: Request) {
       companyName: emp.company?.name ?? null,
       role: m.actor.appUserRole,
       canAdmin: essCanAdmin(m.actor),
+      okrEnabled,
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

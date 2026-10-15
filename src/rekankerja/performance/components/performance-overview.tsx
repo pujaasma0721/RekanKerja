@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Target, ListChecks, Users, Scale, Grid3x3, Wallet, CalendarRange, CheckCircle2,
   Circle, Clock, BarChart3, ClipboardCheck, BadgeCheck, LifeBuoy, ChevronRight, Lock,
-  ShieldCheck,
+  ShieldCheck, Telescope,
 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,8 @@ interface DashboardKpi {
     probationsOpen: number; meritAppliedCount: number; meritAppliedTotalAmount: number | null;
     money: { canSee: boolean };
   };
+  /** B1-BL — ringkasan OKR kuartal berjalan (hanya bila okrEnabled — D-BL2) */
+  okrSummary?: { quarter: string; posted: number; closed: number; avgProgressPct: number | null } | null;
 }
 
 const PHASES: { id: string; label: string; labelEn: string; detail: string; detailEn: string }[] = [
@@ -199,6 +201,43 @@ export function PerformanceOverview() {
               {t("Buka tab Kepatuhan", "Open Compliance tab")}
             </p>
           </a>
+          {/* B1-BL — kartu OKR kuartal (HANYA bila okrEnabled — ringkasan dari
+              dashboard laporan; terpisah dari penilaian D-BL1) */}
+          {dash.data?.okrSummary && (
+            <a
+              href="/?m=performance&v=okr"
+              className="group relative flex flex-col overflow-hidden rounded-2xl border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:border-fuchsia-500/30 dark:from-fuchsia-500/10 dark:to-slate-900"
+            >
+              <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-fuchsia-400 to-pink-500" />
+              <div className="flex items-start justify-between gap-2">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-fuchsia-600 text-white shadow-sm transition-transform group-hover:scale-105">
+                  <Telescope className="h-5 w-5" />
+                </span>
+                <span className="text-right">
+                  <span className="block font-mono text-[10px] font-bold text-fuchsia-600 dark:text-fuchsia-300">{dash.data.okrSummary.quarter}</span>
+                  <span className="block text-lg font-black tabular-nums text-slate-900 dark:text-slate-50">{dash.data.okrSummary.posted}</span>
+                </span>
+              </div>
+              <p className="mt-3 text-[13px] font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
+                {t("OKR Kuartalan", "Quarterly OKR")}
+              </p>
+              <p className="mt-1 flex-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                {dash.data.okrSummary.avgProgressPct != null
+                  ? t(
+                      "{n} objective Posted · rata-rata progres {p}% — board transparan, alat penyelarasan (bukan penilaian).",
+                      "{n} posted objectives · average progress {p}% — a transparent board, an alignment tool (not an appraisal).",
+                      { n: String(dash.data.okrSummary.posted), p: String(dash.data.okrSummary.avgProgressPct) },
+                    )
+                  : t(
+                      "Belum ada objective Posted di kuartal ini — board transparan menunggu posting pertama.",
+                      "No posted objectives in this quarter yet — the transparent board awaits its first post.",
+                    )}
+              </p>
+              <p className="mt-3 border-t border-dashed border-fuchsia-200 pt-2.5 text-[10px] font-extrabold uppercase tracking-wide text-fuchsia-700 dark:border-fuchsia-500/20 dark:text-fuchsia-300">
+                {t("Buka tab OKR", "Open OKR tab")}
+              </p>
+            </a>
+          )}
         </div>
       </div>
 

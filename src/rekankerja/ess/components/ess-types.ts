@@ -41,7 +41,10 @@ export type EssView =
   // P3-PERF — Penilaian Saya (self-assessment §29-2 + hasil published)
   | "my-appraisal"
   // P3-PERF — 360 Saya (undangan reviewer anonim §29-3/§37)
-  | "my-360";
+  | "my-360"
+  // B1-BL — OKR Saya: objective kuartalan milik saya + board transparan
+  // (nav tampil HANYA bila okrEnabled — cek /ess/me, D-BL2)
+  | "my-okr";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;
@@ -71,6 +74,8 @@ export interface EssMe {
   companyName: string | null;
   role: string | null;
   canAdmin: boolean;
+  /** B1-BL — mode OKR kuartalan tenant aktif? (nav "OKR Saya" tampil bila true — D-BL2 default OFF) */
+  okrEnabled?: boolean;
 }
 
 // ============ 2. GET /ess/dashboard ============
