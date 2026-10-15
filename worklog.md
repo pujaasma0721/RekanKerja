@@ -6825,3 +6825,15 @@ Work Log:
 
 Stage Summary:
 - Tidak ada pekerjaan terjadwal yang tersisa — kedua dokumen development (Rekrutmen F0–F9, Kinerja P0–P9) tuntas & ter-push. Menunggu keputusan user untuk backlog (OKR/Training/succession/benchmark gaji/AI-analitik lanjutan) atau modul baru.
+
+---
+Task ID: B0
+Agent: main (Z.ai Code) — orchestrator
+Task: Permintaan user "kerjakan sisa backlog diatas exclude poin no 3 (module training)" — tulis dokumen jangkar eksekusi backlog sebelum mulai fase.
+
+Work Log:
+- Recon: schema-tenant.prisma (PerformanceCycle/AppraisalRecord/CheckIn/Feedback360Answer/CandidateSelectionStep/MetricSnapshot/Grade/Position), wa-service.ts + wa-defaults.ts (pola WA_DEFAULT_TEMPLATES), email-service.notifyEmailEvent (fire-and-forget), email-defaults recruitment.* events, zai-client.ts (gateway AI), menu-perms (performance:* & payroll:*), mini-services (candidate-portal, postgres, smtp-catcher).
+- Tulis DEVELOPMENT-PLAN-BACKLOG.md: cakupan 4 item backlog Kinerja + 9 item SB-REC rekrutmen; §1 batas eksekusi (exclude Training per user; defer multi-posting/psikotest/video-penuh/ML; kompromi link-meeting + branding); §2 register keputusan D-BL1…D-BL18; §3 data model (OkrObjective/OkrKeyResult, Feedback360Answer flagged+moderated, SuccessionPosition/SuccessorCandidate, SalaryBenchmark, CareerSiteConfig, meetingUrl, referralNote); §4 fase B1–B9+BF dengan DoD per fase; §5 risiko.
+
+Stage Summary:
+- Jangkar eksekusi backlog siap: OKR & Talent = tab modul Kinerja; benchmark = tab modul Payroll; portal pelamar dapat magic-link + branding; WA wiring rekrutmen. Urutan: B1 OKR → B2 AI → B3 attrisi → B4 succession → B5 benchmark → B6 WA+meeting → B7 magic-link+branding → B8 referral → B9 test agregator.
