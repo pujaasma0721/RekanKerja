@@ -32,42 +32,25 @@ interface SuiteDef {
   exclude?: string;
 }
 
-// Urutan eksekusi: fondasi (fixture-agnostik) → modul → backlog.
-// Suite yang saling bergantung secara historis diletakkan berdekatan
-// (medical wave berurutan; esign core sebelum turunannya).
+// Urutan eksekusi: modul → backlog. Kurasi B9 "stabil" = suite yang MENARGET
+// fixture demo localhost:3000 (BASE hardcoded + akun demo MII) dan self-cleaning.
+// Suite era-Task SayOne (BASE argv default URL PROD + kredensial deployment
+// puja.asmara@sayone.com) TIDAK bisa dijalankan di fixture lokal — dicatat
+// sebagai excluded dgn alasan (bukti riwayat verifikasi deployment, bukan
+// suite lokal).
 const SUITES: SuiteDef[] = [
-  // --- Payroll & Attendance ---
-  { file: "e2e-basic-periodend", group: "Payroll" },
-  { file: "e2e-bulk-periods", group: "Payroll" },
-  { file: "e2e-recalc-partial", group: "Payroll" },
-  { file: "e2e-payroll-sort", group: "Payroll" },
-  // --- Keamanan ---
-  { file: "e2e-menu-guard-403", group: "Keamanan" },
-  // --- HR ---
-  { file: "e2e-directory-sort", group: "HR" },
-  { file: "e2e-transfer-no-pa", group: "HR" },
-  { file: "e2e-server-sort-audit", group: "HR" },
-  { file: "e2e-checklist", group: "HR" },
-  { file: "e2e-checklist-recipients", group: "HR" },
-  // --- Cuti ---
-  { file: "e2e-leave-notify", group: "Cuti" },
-  // --- Medis (wave berurutan — rangkaian klaim demo) ---
+  // --- Medis (wave berurutan — rangkaian klaim demo; localhost-native) ---
   { file: "e2e-medical-wave1", group: "Medis" },
   { file: "e2e-medical-wave1-settle2", group: "Medis" },
   { file: "e2e-medical-wave2", group: "Medis" },
   { file: "e2e-medical-wave3", group: "Medis" },
   { file: "e2e-medical-wave4", group: "Medis" },
   { file: "e2e-medical-umc-chain", group: "Medis" },
-  // --- eSign ---
-  { file: "e2e-esign", group: "eSign" },
-  { file: "e2e-esign-pdf", group: "eSign" },
-  { file: "e2e-esign-pa", group: "eSign" },
-  { file: "e2e-esign-payroll", group: "eSign" },
-  // --- Kinerja P0–P9 ---
+  // --- Kinerja P7–P9 (localhost-native) ---
   { file: "e2e-p7-probation", group: "Kinerja" },
   { file: "e2e-p8-reports", group: "Kinerja" },
   { file: "e2e-p9-compliance", group: "Kinerja" },
-  // --- Backlog B1–B8 ---
+  // --- Backlog B1–B8 (localhost-native) ---
   { file: "e2e-b1-okr", group: "Backlog" },
   { file: "e2e-b2-ai-bias", group: "Backlog" },
   { file: "e2e-b3-attrition", group: "Backlog" },
@@ -80,6 +63,21 @@ const SUITES: SuiteDef[] = [
   { file: "e2e-smtp-connect", group: "—", exclude: "menarget PROD URL eksternal (Task 64m) — bukan fixture lokal" },
   { file: "e2e-browser-subdomain", group: "—", exclude: "skrip browser (.mjs) subdomain — butuh setup DNS eksternal" },
   { file: "e2e-subdomain-tenant", group: "—", exclude: "menarget resolusi subdomain lintas-host — lingkungan spesifik" },
+  { file: "e2e-basic-periodend", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment (bukan akun demo MII)" },
+  { file: "e2e-bulk-periods", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-recalc-partial", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-payroll-sort", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-menu-guard-403", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-directory-sort", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-transfer-no-pa", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-server-sort-audit", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-checklist", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-checklist-recipients", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-leave-notify", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-esign", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD (sayone.sayone.my.id) + kredensial deployment" },
+  { file: "e2e-esign-pdf", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-esign-pa", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
+  { file: "e2e-esign-payroll", group: "—", exclude: "era-Task SayOne — BASE argv default URL PROD + kredensial deployment" },
 ];
 
 // Urutan reset fixture — persis prosedur pemulihan terdokumentasi worklog

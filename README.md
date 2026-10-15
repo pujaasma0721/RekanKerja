@@ -37,11 +37,14 @@ mematikan dev server — urutan: `restore-demo` → `migrate-password-security` 
 → backlog (B1→B2→B4→B5→B6→B7→B8; B3 stateless tanpa migrasi). Semua langkah
 idempoten — aman dijalankan berulang.
 
-**Suite stabil vs dikurasi keluar**: suite yang menarget lingkungan lain
-(PROD URL, browser eksternal, DNS subdomain) dicatat di `--list` beserta alasannya
-dan tidak dijalankan agregator. Menambah suite baru: tambahkan entri di
+**Suite stabil vs dikurasi keluar**: suite yang menarget lingkungan lain —
+era-Task SayOne (BASE argv default URL PROD + kredensial deployment, bukan akun
+demo MII), PROD URL, browser eksternal, atau DNS subdomain — dicatat di `--list`
+beserta alasannya dan tidak dijalankan agregator (mereka adalah bukti riwayat
+verifikasi deployment). Menambah suite baru: tambahkan entri di
 `scripts/test-e2e-all.ts` (array `SUITES`, urut grup) — pastikan skripnya
-self-cleaning dan lolos berulang sebelum masuk daftar stabil.
+self-cleaning, menarget `localhost:3000` dengan akun demo, dan lolos berulang
+sebelum masuk daftar stabil.
 
 **Diagnosis kegagalan**: agregator mencetak 6 baris output terakhir tiap suite
 yang gagal + durasi per-suite; jalankan langsung `bun scripts/e2e-<nama>.ts`

@@ -2,8 +2,9 @@
 // RekanKerja Performance — Ringkasan modul. P0: kartu master aktif. P8 (§20):
 // KPI modul NYATA dari dashboard laporan (siklus aktif · peserta · selesai ·
 // terbit · PIP · percobaan · merit) + distribusi rating ringkas + tautan ke
-// Laporan & Analitik + status fase rencana eksekusi P0–P9 (KINI LENGKAP s/d
-// P9 Kepatuhan & Hardening — 10/10 fase terverifikasi).
+// Laporan & Analitik + status fase rencana eksekusi P0–P9 + BACKLOG B1–B4
+// (KINI LENGKAP s/d B4 Succession — 14/14 fase terverifikasi; B5 benchmark
+// = modul Payroll, B6–B8 = modul Rekrutmen — di luar overview modul ini).
 import { useApi } from "@/rekankerja/shared/lib/api";
 import { PageHeader, EmptyState } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +48,12 @@ const PHASES: { id: string; label: string; labelEn: string; detail: string; deta
   { id: "P7", label: "Masa Percobaan", labelEn: "Probation", detail: "Trigger dari onboarding + keputusan 3 arah", detailEn: "Onboarding trigger + 3-way decision" },
   { id: "P8", label: "Laporan & Analitik", labelEn: "Reports & Analytics", detail: "16 laporan pf11–pf44 dwibahasa + snapshot metrik", detailEn: "16 bilingual reports pf11–pf44 + metric snapshots" },
   { id: "P9", label: "Kepatuhan & Hardening", labelEn: "Compliance & Hardening", detail: "DSR karyawan UU PDP + retensi arsip + matriks akses §11.3", detailEn: "Employee DSRs (UU PDP) + records retention + §11.3 access matrix" },
+  // B1–B4 — backlog ekstensi modul Kinerja (DEVELOPMENT-PLAN-BACKLOG.md §4;
+  // B5 benchmark = tab Payroll, B6–B8 = Rekrutmen — bukan fase modul ini)
+  { id: "B1", label: "OKR Kuartalan", labelEn: "Quarterly OKR", detail: "Objective+KR ber-bobot + board transparan silang-tim (terpisah dari penilaian)", detailEn: "Weighted objectives+KRs + cross-team transparent board (separate from appraisal)" },
+  { id: "B2", label: "AI Ringkasan & Deteksi Bias", labelEn: "AI Summary & Bias Detection", detail: "Ringkasan check-in stateless + moderasi komentar 360 (lexicon dwibahasa)", detailEn: "Stateless check-in summaries + 360 comment moderation (bilingual lexicon)" },
+  { id: "B3", label: "Talent & Risiko Attrisi", labelEn: "Talent & Attrition Risk", detail: "Heuristik explainable 6 faktor — bukan ML; faktor data-terbatas dinetralkan", detailEn: "Explainable 6-factor heuristic — not ML; missing-data factors neutralized" },
+  { id: "B4", label: "Succession Planning", labelEn: "Succession Planning", detail: "Peran kritis + kandidat ber-saran 9-box + coverage + laporan XLSX", detailEn: "Critical roles + 9-box-seeded candidates + coverage + XLSX report" },
 ];
 
 export function PerformanceOverview() {
@@ -147,7 +154,7 @@ export function PerformanceOverview() {
             <div className="mt-4">
               <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
                 <span>{t("Penyelesaian modul (fase terverifikasi)", "Module completion (verified phases)")}</span>
-                <span className="tabular-nums">{t("P0–P9 · 10/10", "P0–P9 · 10/10")}</span>
+                <span className="tabular-nums">{t("P0–P9 + B1–B4 · 14/14", "P0–P9 + B1–B4 · 14/14")}</span>
               </div>
               <Progress value={100} className="h-2" />
             </div>
@@ -282,11 +289,11 @@ export function PerformanceOverview() {
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-slate-500" />
-            <h3 className="text-sm font-semibold">{t("Rencana Eksekusi Fase P0–P9", "Execution Plan Phases P0–P9")}</h3>
+            <h3 className="text-sm font-semibold">{t("Rencana Eksekusi Fase P0–P9 + Backlog B1–B4", "Execution Plan Phases P0–P9 + Backlog B1–B4")}</h3>
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {PHASES.map((p, i) => {
-              const done = i <= 9; // P0..P9 selesai (P9 = kepatuhan & hardening)
+            {PHASES.map((p) => {
+              const done = true; // P0..P9 + B1..B4 selesai (B4 = succession; B5–B8 di modul lain)
               return (
                 <div
                   key={p.id}
