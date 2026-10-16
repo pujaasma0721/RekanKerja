@@ -21,15 +21,17 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ESS_BASE } from "./ess-api";
-import { ListChecks, History, Sparkles, Loader2, ChevronDown, Copy, CheckCircle2, Info } from "lucide-react";
+import { ListChecks, History, Sparkles, Loader2, ChevronDown, Copy, CheckCircle2, Info, Gauge } from "lucide-react";
 
 // ---------- tipe (mirror kontrak GET /ess/my-goals) ----------
 
 interface MyGoalKpi {
   id: string; title: string; polarity: string; unit: string;
+  metricText: string | null;
   thresholdMin: number | null; target: number; stretchValue: number | null;
   weight: number; isCritical: boolean; origin: string; proposedBy: string;
 }
@@ -123,6 +125,14 @@ export function EssMyGoalsPage() {
                               <span className="font-medium">{k.title}</span>
                               {k.isCritical && <Badge variant="outline" className="ml-1 h-4 px-1 text-[9px] text-rose-600">{t("kritis", "critical")}</Badge>}
                               <span className="block text-[10px] text-slate-400">{k.unit} · {k.polarity}</span>
+                              {k.metricText && (
+                                <details className="mt-1">
+                                  <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[10px] font-medium text-brand hover:underline">
+                                    <Gauge className="h-3 w-3" />{t("Metric / Measure of Success", "Metric / Measure of Success")}
+                                  </summary>
+                                  <p className="mt-1 max-w-md whitespace-pre-line rounded-lg border border-slate-200 bg-slate-50/60 p-2 text-[10px] leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">{k.metricText}</p>
+                                </details>
+                              )}
                             </td>
                             <td className="py-1.5 pr-2 tabular-nums">{k.thresholdMin ?? (k.polarity === "Boolean" ? "—" : "—")}</td>
                             <td className="py-1.5 pr-2 tabular-nums font-medium">{k.target}</td>
@@ -243,11 +253,11 @@ function PrevPeriodCard({ block }: { block: MyGoalBlock }) {
 /** Dialog usulan KPI MBO (§26-4 — dari ESS; guard §35-4 di server). */
 function ProposeDialog({ block, onClose, onDone }: { block: MyGoalBlock; onClose: () => void; onDone: () => void }) {
   const { t } = useI18n();
-  const [items, setItems] = useState<{ title: string; polarity: string; unit: string; target: string; weight: string }[]>([
-    { title: "", polarity: "Higher", unit: "%", target: "", weight: "10" },
+  const [items, setItems] = useState<{ title: string; polarity: string; unit: string; target: string; weight: string; metric: string }[]>([
+    { title: "", polarity: "Higher", unit: "%", target: "", weight: "10", metric: "" },
   ]);
   const [busy, setBusy] = useState(false);
-  const kpiLib = useApi<{ rows: { id: string; name: string; polarity: string; unit: string }[] }>(
+  const kpiLib = useApi<{ rows: { id: string; name: string; polarity: string; unit: string; metricText: string | null }[] }>(
     "/api/rekankerja/performance/masters?type=kpi",
   );
 
@@ -261,6 +271,7 @@ function ProposeDialog({ block, onClose, onDone }: { block: MyGoalBlock; onClose
         appraisalId: block.appraisalId,
         items: valid.map((i) => ({
           title: i.title.trim(), polarity: i.polarity, unit: i.unit || "%",
+          metricText: i.metric.trim() || null,
           target: i.target === "" ? 0 : Number(i.target),
           weight: i.weight === "" ? 10 : Number(i.weight),
         })),
@@ -297,7 +308,12 @@ function ProposeDialog({ block, onClose, onDone }: { block: MyGoalBlock; onClose
             <div key={i} className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 p-2.5 dark:border-slate-800">
               <div className="col-span-2 space-y-1">
                 <Label className="text-[10px]">{t("Judul / pilih dari pustaka", "Title / pick from library")}</Label>
-                <Input list="kpi-lib-list" value={it.title} onChange={(e) => setItem(i, { title: e.target.value })}
+                <Input list="kpi-lib-list" value={it.title} onChange={(e) => {
+                  const picked = (kpiLib.data?.rows ?? []).find((k) => k.name === e.target.value);
+                  setItem(i, picked
+                    ? { title: e.target.value, polarity: picked.polarity, unit: picked.unit, metric: picked.metricText ?? it.metric }
+                    : { title: e.target.value });
+                }}
                   placeholder={t("ketik bebas / pilih KPI baku", "free text / pick a standard KPI")} aria-label={t("Judul KPI", "KPI title")} />
                 <datalist id="kpi-lib-list">
                   {(kpiLib.data?.rows ?? []).map((k) => (<option key={k.id} value={k.name} />))}
@@ -326,9 +342,21 @@ function ProposeDialog({ block, onClose, onDone }: { block: MyGoalBlock; onClose
                 <Label className="text-[10px]">{t("Bobot % (usulan)", "Weight % (proposed)")}</Label>
                 <Input type="number" inputMode="decimal" value={it.weight} onChange={(e) => setItem(i, { weight: e.target.value })} aria-label={t("Bobot", "Weight")} />
               </div>
+              <div className="col-span-2 space-y-1">
+                <Label className="text-[10px]">
+                  <Gauge className="mr-1 inline h-3 w-3" />
+                  {t("Metric / Measure of Success (opsional)", "Metric / Measure of Success (optional)")}
+                </Label>
+                <Textarea rows={4} maxLength={2000} value={it.metric} onChange={(e) => setItem(i, { metric: e.target.value })}
+                  placeholder={t(
+                    "mis. 1: tidak submit · 2: usulan disetujui, kurang berkualitas · 3: disetujui, berkualitas & berdampak · 4: terimplementasi lingkup departemen · 5: terimplementasi luas, terukur, tepat guna",
+                    "e.g. 1: no submission · 2: approved, low quality · 3: approved, good impact · 4: implemented department-wide · 5: implemented broadly, measurable, effective",
+                  )}
+                  aria-label={t("Metric / Measure of Success", "Metric / Measure of Success")} />
+              </div>
             </div>
           ))}
-          <Button size="sm" variant="ghost" onClick={() => setItems((xs) => [...xs, { title: "", polarity: "Higher", unit: "%", target: "", weight: "10" }])}>
+          <Button size="sm" variant="ghost" onClick={() => setItems((xs) => [...xs, { title: "", polarity: "Higher", unit: "%", target: "", weight: "10", metric: "" }])}>
             {t("+ Tambah baris", "+ Add row")}
           </Button>
         </div>

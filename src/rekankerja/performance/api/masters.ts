@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
           dataSource: str(b.dataSource),
           sourceKey: b.sourceKey != null && b.sourceKey !== "" ? String(b.sourceKey) : null,
           description: b.description != null ? String(b.description) : null,
+          metricText: b.metricText != null ? String(b.metricText) : null,
           active: b.active !== false,
           asNewVersion: b.asNewVersion === true,
           effectiveYear: nnum(b.effectiveYear) ?? undefined,

@@ -3192,6 +3192,7 @@ CREATE TABLE "KpiDefinition" (
     "dataSource" TEXT NOT NULL DEFAULT 'Manual',
     "sourceKey" TEXT,
     "description" TEXT,
+    "metricText" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "versionNo" INTEGER NOT NULL DEFAULT 1,
     "effectiveYear" INTEGER NOT NULL,
@@ -3325,6 +3326,7 @@ CREATE TABLE "AppraisalKpi" (
     "title" TEXT NOT NULL,
     "polarity" TEXT NOT NULL,
     "unit" TEXT NOT NULL,
+    "metricText" TEXT,
     "thresholdMin" DOUBLE PRECISION,
     "target" DOUBLE PRECISION NOT NULL,
     "stretchValue" DOUBLE PRECISION,
@@ -3656,6 +3658,14 @@ ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "statusLinkUsedAt" TIMESTAMP(3)
 -- kolom di CREATE TABLE di atas menjadikan ALTER ini no-op pada tenant baru)
 ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "referralNote" TEXT;
 ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "referralRewardNote" TEXT;
+
+-- AddColumn (KPI-METRIC — Metric / Measure of Success: rubrik ukuran keberhasilan
+-- per KPI, diisi saat penetapan target [snapshot AppraisalKpi] + default pustaka
+-- [KpiDefinition]. Idempoten utk tenant existing via
+-- scripts/migrate-kpi-metric-text.ts — INSERT kolom di CREATE TABLE di atas
+-- menjadikan ALTER ini no-op pada provisioning tenant baru)
+ALTER TABLE "KpiDefinition" ADD COLUMN IF NOT EXISTS "metricText" TEXT;
+ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "metricText" TEXT;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CompanyOffice_code_key" ON "CompanyOffice"("code");

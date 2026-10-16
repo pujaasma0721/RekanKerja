@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "allowJs": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/performance/**/*",
+    "src/rekankerja/ess/api/my-appraisal.ts",
+    "src/rekankerja/ess/api/my-360.ts",
+    "src/rekankerja/ess/api/my-goals.ts",
+    "src/rekankerja/ess/components/ess-my-appraisal.tsx",
+    "src/rekankerja/ess/components/ess-my-goals.tsx",
+    "src/rekankerja/shared/lib/parity-runner.ts",
+    "scripts/migrate-kpi-metric-text.ts"
+  ]
+}

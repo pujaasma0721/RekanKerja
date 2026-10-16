@@ -4479,6 +4479,11 @@ model KpiDefinition {
   dataSource      String    @default("Manual") // Manual | Attendance | Payroll | Recruitment | Leave
   sourceKey      String? // binding data otomatis, mis. "attendance_presence_pct"
   description    String?
+  // Metric / Measure of Success — rubrik bebas (umumnya skala 1–5) yang
+  // menjelaskan ukuran keberhasilan KPI; menjadi DEFAULT baris snapshot
+  // AppraisalKpi.metricText saat KPI pustaka dipilih saat penetapan target.
+  // Perubahan tergolong MINOR (setara description — snapshot melindungi riwayat).
+  metricText     String?
   active         Boolean   @default(true)
   // AM2 §18.9 — versioning pustaka: ubah definisi tahun ini tanpa merusak
   // data tahun lalu (lapis-2 di atas snapshot baris penilaian)
@@ -4647,6 +4652,11 @@ model AppraisalKpi {
   title         String
   polarity      String
   unit          String
+  // Metric / Measure of Success (permintaan user — snapshot rubrik ukuran
+  // keberhasilan, mis. deskriptor peringkat 1–5; diisi atasan saat penetapan
+  // target, default dari pustaka, bebas diedit per baris, terlihat karyawan
+  // di Target Saya & saat penilaian; SALIN ikut §18.2 bila berasal salinan).
+  metricText    String?
   thresholdMin  Float? // ambang gagal (F)
   target        Float // target (T)
   stretchValue  Float? // opsional — skor bisa sampai 120

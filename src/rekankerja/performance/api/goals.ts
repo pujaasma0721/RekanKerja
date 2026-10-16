@@ -52,6 +52,8 @@ export async function GET(req: NextRequest) {
         stretch: sample?.kpis[0]?.stretchValue != null ? String(sample.kpis[0].stretchValue) : "100",
         weight: sample?.kpis[0]?.weight != null ? String(sample.kpis[0].weight) : "20",
         critical: sample?.kpis[0]?.isCritical ? "Ya" : "Tidak",
+        metric: sample?.kpis[0]?.metricText ??
+          "1: Tidak submit / submit ulang usulan.\n2: Usulan disetujui atasan & DivMan/Direktur, kurang berkualitas/berdampak.\n3: Disetujui, berkualitas baik & berdampak.\n4: Terimplementasi dalam lingkup departemen.\n5: Terimplementasi lingkup lebih luas, terukur, tepat guna.",
       };
       const buf = await buildTargetTemplateXlsx(cycle.code, example);
       return new NextResponse(new Uint8Array(buf), {
@@ -158,7 +160,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(out);
       }
       case "patchDraft": {
-        const rows = (Array.isArray(b.rows) ? b.rows : []) as { id: string; target?: number | null; thresholdMin?: number | null; stretchValue?: number | null; weight?: number; isCritical?: boolean }[];
+        const rows = (Array.isArray(b.rows) ? b.rows : []) as { id: string; target?: number | null; thresholdMin?: number | null; stretchValue?: number | null; weight?: number; isCritical?: boolean; metricText?: string | null }[];
         const removedIds = (Array.isArray(b.removedIds) ? b.removedIds : []).map(String);
         const out = await patchDraft(db, actor, String(b.appraisalId ?? ""), rows, removedIds);
         // autosave §18.7 — log RINGKAS (bukan per ketikan: satu baris per batch)

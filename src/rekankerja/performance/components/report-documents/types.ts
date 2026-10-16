@@ -70,7 +70,7 @@ export interface PF13Row {
   employeeNo: string; fullName: string; unit: string | null;
   title: string; category: string; polarity: string;
   weight: number; thresholdMin: number | null; target: number; stretchValue: number | null;
-  measure: string; origin: string;
+  measure: string; metric: string | null; origin: string;
   source: string; // "AUTO: <sourceKey>" | "Manual"
   isCritical: boolean;
 }
@@ -123,6 +123,7 @@ export interface PF23HistoryRow {
 }
 export interface PF23Kpi {
   title: string; weight: number;
+  metric: string | null;
   thresholdMin: number | null; target: number; stretchValue: number | null;
   actual: number | null; midActual: number | null;
   source: string; evidence: boolean;

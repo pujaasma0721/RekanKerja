@@ -56,8 +56,8 @@ interface SelfData {
   selfWindowOpen: boolean;
   canSubmit: boolean;
   comps: SelfComp[];
-  manualKpis: { id: string; title: string; unit: string; target: number; midActual: number | null; finalActual: number | null; evidenceJson: string | null }[];
-  autoKpis: { id: string; title: string; unit: string; target: number; finalActual: number | null }[];
+  manualKpis: { id: string; title: string; unit: string; target: number; midActual: number | null; finalActual: number | null; evidenceJson: string | null; metricText: string | null }[];
+  autoKpis: { id: string; title: string; unit: string; target: number; finalActual: number | null; metricText: string | null }[];
   progress: { total: number; filled: number };
 }
 interface PublishedData {
@@ -710,6 +710,11 @@ function SelfAssessmentForm({ d, onDone }: { d: SelfData; onDone: () => void }) 
                       {k.midActual != null ? ` · ${t("tengah tahun", "mid")} ${k.midActual}` : ""}
                     </span>
                   </div>
+                  {k.metricText && (
+                    <p className="mt-1 line-clamp-3 whitespace-pre-line text-[10px] text-slate-500 dark:text-slate-400" title={k.metricText}>
+                      <span className="font-semibold">{t("Metric / Measure of Success:", "Metric / Measure of Success:")}</span> {k.metricText}
+                    </p>
+                  )}
                   <div className="mt-2 grid gap-2 sm:grid-cols-[140px_1fr]">
                     <div className="space-y-1">
                       <Label className="text-xs">{t("Capaian akhir", "Final actual")}</Label>
@@ -741,7 +746,10 @@ function SelfAssessmentForm({ d, onDone }: { d: SelfData; onDone: () => void }) 
           </summary>
           <div className="px-4 pb-3 text-xs text-slate-500">
             {d.autoKpis.map((k) => (
-              <p key={k.id}>• {k.title} — {t("target", "target")} {k.target} {k.unit} · {t("nilai ditarik atasan saat penilaian", "value pulled by the manager during appraisal")}</p>
+              <div key={k.id}>
+                <p>• {k.title} — {t("target", "target")} {k.target} {k.unit} · {t("nilai ditarik atasan saat penilaian", "value pulled by the manager during appraisal")}</p>
+                {k.metricText && <p className="ml-3 line-clamp-2 max-w-lg whitespace-pre-line text-[10px] text-slate-400" title={k.metricText}>{k.metricText}</p>}
+              </div>
             ))}
           </div>
         </details>

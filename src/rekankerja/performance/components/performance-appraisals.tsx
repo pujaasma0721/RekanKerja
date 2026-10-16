@@ -53,6 +53,7 @@ interface ParticipantRow {
 }
 interface DetailKpi {
   id: string; kpiDefId: string | null; title: string; polarity: string; unit: string;
+  metricText: string | null;
   thresholdMin: number | null; target: number; stretchValue: number | null;
   weight: number; isCritical: boolean; dataSource: string;
   autoValueJson: string | null; midActual: number | null; finalActual: number | null;
@@ -592,6 +593,11 @@ function AppraisalForm({ appraisalId, cycleId, onBack }: { appraisalId: string; 
                             <span>{k.unit} · {k.polarity}</span>
                             {k.dataSource !== "Manual" && <AutoChip k={k} />}
                           </div>
+                          {k.metricText && (
+                            <p className="mt-0.5 line-clamp-2 max-w-md whitespace-pre-line text-[10px] text-slate-500 dark:text-slate-400" title={k.metricText}>
+                              <span className="font-semibold">{t("Metric:", "Metric:")}</span> {k.metricText}
+                            </p>
+                          )}
                         </td>
                         <td className="py-1.5 pr-2 tabular-nums text-xs">
                           {k.target}{k.thresholdMin != null ? ` / ${k.thresholdMin}` : ""}{k.stretchValue != null ? ` / ${k.stretchValue}` : ""}
@@ -616,6 +622,11 @@ function AppraisalForm({ appraisalId, cycleId, onBack }: { appraisalId: string; 
                     <p className="mt-1 text-[11px] text-slate-500">
                       {t("Target", "Target")} {k.target} · {t("ambang", "threshold")} {k.thresholdMin ?? "—"} · {t("bobot", "weight")} {k.weight}% · {t("tengah tahun", "mid")} {k.midActual ?? "—"}
                     </p>
+                    {k.metricText && (
+                      <p className="mt-1 line-clamp-3 whitespace-pre-line text-[10px] text-slate-500 dark:text-slate-400" title={k.metricText}>
+                        <span className="font-semibold">{t("Metric / Measure of Success:", "Metric / Measure of Success:")}</span> {k.metricText}
+                      </p>
+                    )}
                     <div className="mt-2">
                       <KpiFinalCell k={k} draft={draft} canEdit={canEdit} busy={busy} onChange={setKpiFinal} onPull={pullRow} />
                     </div>

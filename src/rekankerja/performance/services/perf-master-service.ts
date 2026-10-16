@@ -116,7 +116,7 @@ export async function versionHistory(
     return rows.map((r) => ({
       id: r.id, versionNo: r.versionNo, effectiveYear: r.effectiveYear,
       status: r.status, changeNote: r.changeNote, name: r.name,
-      unit: r.unit, polarity: r.polarity, category: r.category,
+      unit: r.unit, polarity: r.polarity, category: r.category, metricText: r.metricText,
     }));
   }
   const rows = await db.competency.findMany({
@@ -143,6 +143,9 @@ export interface KpiUpsertInput {
   dataSource?: string;
   sourceKey?: string | null;
   description?: string | null;
+  /** Metric / Measure of Success — rubrik default pustaka (perubahan MINOR:
+   *  setara description; snapshot AppraisalKpi.metricText melindungi riwayat). */
+  metricText?: string | null;
   active?: boolean;
   // AM2 §18.9 — mode versi baru
   asNewVersion?: boolean;
@@ -162,6 +165,8 @@ export async function upsertKpi(db: TenantDb, input: KpiUpsertInput): Promise<st
   if (!DATA_SOURCES.includes(dataSource)) throw new Error(`Sumber data tidak valid: ${dataSource}`);
   if (dataSource === "Manual" && input.sourceKey) throw new Error("sourceKey hanya untuk sumber data otomatis");
   const active = input.active !== false;
+  const metricText = input.metricText != null ? input.metricText.trim() || null : null;
+  if (metricText && metricText.length > 2000) throw new Error("Metric / Measure of Success maksimal 2000 karakter");
 
   if (input.id) {
     // ---------- UPDATE ----------
@@ -185,6 +190,7 @@ export async function upsertKpi(db: TenantDb, input: KpiUpsertInput): Promise<st
           code, name, category, polarity, unit, dataSource,
           sourceKey: input.sourceKey ?? null,
           description: input.description ?? null,
+          metricText,
           active, versionNo: next, effectiveYear, status: "Active",
           changeNote,
         },
@@ -204,7 +210,7 @@ export async function upsertKpi(db: TenantDb, input: KpiUpsertInput): Promise<st
     await db.kpiDefinition.update({
       where: { id: cur.id },
       data: {
-        name, description: input.description ?? null, active,
+        name, description: input.description ?? null, metricText, active,
         changeNote: input.changeNote ?? cur.changeNote,
       },
     });
@@ -219,6 +225,7 @@ export async function upsertKpi(db: TenantDb, input: KpiUpsertInput): Promise<st
       code, name, category, polarity, unit, dataSource,
       sourceKey: input.sourceKey ?? null,
       description: input.description ?? null,
+      metricText,
       active,
       versionNo: 1,
       effectiveYear: num(input.effectiveYear) ?? new Date().getFullYear(),

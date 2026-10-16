@@ -257,6 +257,7 @@ export async function GET(req: NextRequest) {
       db.appraisalKpi.findMany({
         select: {
           id: true, appraisalId: true, kpiDefId: true, title: true, polarity: true, unit: true,
+          metricText: true,
           thresholdMin: true, target: true, stretchValue: true, weight: true, isCritical: true,
           dataSource: true, autoValueJson: true, midActual: true, finalActual: true, evidenceJson: true,
           origin: true, proposedBy: true,
@@ -450,6 +451,7 @@ interface Ctx {
   }[];
   kpiAll: {
     id: string; appraisalId: string; kpiDefId: string | null; title: string; polarity: string; unit: string;
+    metricText: string | null;
     thresholdMin: number | null; target: number; stretchValue: number | null; weight: number; isCritical: boolean;
     dataSource: string; autoValueJson: string | null; midActual: number | null; finalActual: number | null;
     evidenceJson: string | null; origin: string; proposedBy: string;
@@ -662,6 +664,7 @@ function pf13KpiRegister(ctx: Ctx): { periodLabel: string; payload: PF13Data } {
         weight: k.weight,
         thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
         measure: k.unit,
+        metric: k.metricText,
         origin: ORIGIN_LABELS[k.origin]?.[0] ?? k.origin,
         source: isAuto ? `AUTO${sourceKey ? `: ${sourceKey}` : ""}` : "Manual",
         isCritical: k.isCritical,
@@ -824,6 +827,7 @@ function pf23EmployeeDetail(ctx: Ctx): { periodLabel: string; payload: PF23Data 
           if (k.evidenceJson) { try { evidence = (JSON.parse(k.evidenceJson) as unknown[]).length > 0; } catch { evidence = false; } }
           return {
             title: k.title, weight: k.weight,
+            metric: k.metricText,
             thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
             actual: k.finalActual, midActual: k.midActual,
             source: k.dataSource !== "Manual" ? "AUTO" : "Manual",
@@ -1345,6 +1349,7 @@ function buildSheets(
             { header: "Bobot (%)", width: 10 }, { header: "Ambang (F)", width: 11 }, { header: "Target (T)", width: 11 },
             { header: "Stretch", width: 10 }, { header: "Satuan", width: 9 }, { header: "Asal", width: 15 },
             { header: "Sumber Data", width: 18 }, { header: "Kritis", width: 8 },
+            { header: "Metric / Measure of Success", width: 60 },
           ],
           rows: [
             ...rows.map((r) => [
@@ -1352,8 +1357,9 @@ function buildSheets(
               (r.weight as number) ?? 0, r.thresholdMin == null ? "—" : r.thresholdMin as number,
               (r.target as number) ?? 0, r.stretchValue == null ? "—" : r.stretchValue as number,
               s(r.measure), s(r.origin), s(r.source), r.isCritical ? "✓" : "–",
+              r.metric == null || r.metric === "" ? "—" : s(r.metric),
             ]),
-            ["TOTAL", `${(p.total as number) ?? 0} baris`, "", "", "", "", "", "", "", "", "", "", "", ""],
+            ["TOTAL", `${(p.total as number) ?? 0} baris`, "", "", "", "", "", "", "", "", "", "", "", "", ""],
           ],
         },
         {
@@ -1443,12 +1449,14 @@ function buildSheets(
             { header: "Judul KPI", width: 32 }, { header: "Bobot (%)", width: 10 }, { header: "Ambang (F)", width: 11 },
             { header: "Target (T)", width: 11 }, { header: "Stretch", width: 10 }, { header: "Realisasi", width: 11 },
             { header: "Realisasi Mid", width: 12 }, { header: "Sumber", width: 10 }, { header: "Bukti", width: 8 },
+            { header: "Metric / Measure of Success", width: 60 },
           ],
           rows: ((det.kpis as AnyRec[]) ?? []).map((k) => [
             s(k.title), (k.weight as number) ?? 0, k.thresholdMin == null ? "—" : k.thresholdMin as number,
             (k.target as number) ?? 0, k.stretchValue == null ? "—" : k.stretchValue as number,
             k.actual == null ? "—" : k.actual as number, k.midActual == null ? "—" : k.midActual as number,
             s(k.source), yn(k.evidence),
+            k.metric == null || k.metric === "" ? "—" : s(k.metric),
           ]),
         });
         sheets.push({

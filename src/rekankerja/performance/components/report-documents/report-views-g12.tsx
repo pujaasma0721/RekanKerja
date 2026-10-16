@@ -209,6 +209,7 @@ export function PF13View({ data, meta }: { data: PF13Data; meta: DocMeta }) {
               <TH align="center">Polaritas</TH><TH align="number">Bobot (%)</TH><TH align="number">Ambang (F)</TH>
               <TH align="number">Target (T)</TH><TH align="number">Stretch</TH><TH align="center">Satuan</TH>
               <TH align="center">Asal</TH><TH>Sumber Data</TH><TH align="center">Kritis</TH>
+              <TH>Metric / Measure of Success</TH>
             </tr>
           </thead>
           <tbody>
@@ -228,12 +229,13 @@ export function PF13View({ data, meta }: { data: PF13Data; meta: DocMeta }) {
                 <TD align="center" className="text-[9.5px]">{r.origin}</TD>
                 <TD align="center">{r.source.startsWith("AUTO") ? <DocBadge tone="sky">{r.source}</DocBadge> : <span className="text-[9.5px] text-slate-500">{r.source}</span>}</TD>
                 <TD align="center">{r.isCritical ? <span className="font-black text-red-600">✓</span> : <span className="text-slate-300">–</span>}</TD>
+                <TD className="max-w-[260px] whitespace-pre-line text-[9px] leading-snug text-slate-600">{r.metric ?? <Dash />}</TD>
               </tr>
             ))}
             {data.rows.length === 0 && (
-              <tr><TD colSpan={14} className="py-6 text-center text-[11px] font-bold text-slate-400">{t("Belum ada penetapan KPI pada siklus ini.", "No KPI assignments in this cycle yet.")}</TD></tr>
+              <tr><TD colSpan={15} className="py-6 text-center text-[11px] font-bold text-slate-400">{t("Belum ada penetapan KPI pada siklus ini.", "No KPI assignments in this cycle yet.")}</TD></tr>
             )}
-            <TotalRow label={`TOTAL — ${data.total} ${t("baris", "rows")}`} cells={[]} spanLabel={14} />
+            <TotalRow label={`TOTAL — ${data.total} ${t("baris", "rows")}`} cells={[]} spanLabel={15} />
           </tbody>
         </table>
       </div>
@@ -440,6 +442,7 @@ export function PF23View({ data, meta }: { data: PF23Data; meta: DocMeta }) {
             <TH align="center">#</TH><TH>Judul KPI</TH><TH align="number">Bobot (%)</TH><TH align="number">Ambang (F)</TH>
             <TH align="number">Target (T)</TH><TH align="number">Stretch</TH><TH align="number">Realisasi</TH>
             <TH align="number">Realisasi Mid</TH><TH align="center">Sumber</TH><TH align="center">Bukti</TH>
+            <TH>Metric / Measure of Success</TH>
           </>}>
             {data.detail.kpis.map((k, i) => (
               <tr key={i} className="hover:bg-slate-50">
@@ -453,10 +456,11 @@ export function PF23View({ data, meta }: { data: PF23Data; meta: DocMeta }) {
                 <TD align="number">{k.midActual == null ? <Dash /> : f.num(k.midActual)}</TD>
                 <TD align="center">{k.source === "AUTO" ? <DocBadge tone="sky">AUTO</DocBadge> : <span className="text-[9.5px] text-slate-500">Manual</span>}</TD>
                 <TD align="center"><CheckMark v={k.evidence} /></TD>
+                <TD className="max-w-[280px] whitespace-pre-line text-[9px] leading-snug text-slate-600">{k.metric ?? <Dash />}</TD>
               </tr>
             ))}
             {data.detail.kpis.length === 0 && (
-              <tr><TD colSpan={10} className="py-4 text-center text-[11px] font-bold text-slate-400">{t("Tidak ada KPI pada penilaian ini.", "No KPIs in this appraisal.")}</TD></tr>
+              <tr><TD colSpan={11} className="py-4 text-center text-[11px] font-bold text-slate-400">{t("Tidak ada KPI pada penilaian ini.", "No KPIs in this appraisal.")}</TD></tr>
             )}
           </DocTable>
 

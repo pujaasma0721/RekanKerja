@@ -36,6 +36,15 @@ function numOrNull(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Metric / Measure of Success — normalisasi teks rubrik (trim; null saat kosong;
+ *  cap 2000 karakter — UI pakai maxLength sama sehingga tak pernah memicu). */
+function metricOrNull(v: unknown): string | null {
+  const s = v != null ? String(v).trim() : "";
+  if (!s) return null;
+  if (s.length > 2000) throw new Error("Metric / Measure of Success maksimal 2000 karakter");
+  return s;
+}
+
 function dayOf(v: unknown): Date | null {
   if (v == null || v === "") return null;
   const d = v instanceof Date ? v : new Date(String(v));
@@ -168,7 +177,7 @@ export async function goalDetail(db: TenantDb, appraisalId: string) {
 
 /** Validasi RAMAH §18.1-4 — warning per baris (bukan guard keras). */
 export function validateDraft(kpis: {
-  id: string; title: string; polarity: string; unit: string; thresholdMin: number | null;
+  id: string; title: string; polarity: string; unit: string; metricText: string | null; thresholdMin: number | null;
   target: number; stretchValue: number | null; weight: number; isCritical: boolean;
 }[]): string[] {
   const errs: string[] = [];
@@ -179,6 +188,13 @@ export function validateDraft(kpis: {
   const sumW = kpis.reduce((s, k) => s + (k.weight ?? 0), 0);
   if (n > 0 && Math.abs(sumW - 100) > 0.01) {
     errs.push(`Total bobot ${formatNum(sumW)}% — harus tepat 100% (sisa ${formatNum(100 - sumW)}%${Math.abs(100 - sumW) % (n || 1) === 0 ? "" : ""})`);
+  }
+  // Metric / Measure of Success — pengingat lembut (BUKAN guard keras submit):
+  // karyawan dinilai berdasarkan ukuran keberhasilan; tanpa rubrik, angka target
+  // saja bisa ambigu (permintaan user: field wajib tersedia saat pengisian KPI).
+  const noMetric = kpis.filter((k) => !(k.metricText ?? "").trim());
+  if (noMetric.length > 0) {
+    errs.push(`${noMetric.length} KPI belum memiliki Metric / Measure of Success (mis. deskriptor peringkat 1–5) — disarankan diisi agar karyawan paham ukuran keberhasilannya`);
   }
   for (const k of kpis) {
     if (k.polarity !== "Boolean" && k.thresholdMin == null) errs.push(`"${k.title}": ambang gagal belum diisi`);
@@ -265,6 +281,7 @@ export async function copyPreview(db: TenantDb, actor: GoalActor, appraisalId: s
   const rows = src.kpis.map((k) => ({
     sourceKpiId: k.id,
     title: k.title, polarity: k.polarity, unit: k.unit,
+    metricText: k.metricText,
     thresholdMin: k.thresholdMin, oldTarget: k.target, target: k.target,
     stretchValue: k.stretchValue, weight: k.weight, isCritical: k.isCritical,
     dataSource: k.dataSource, kpiDefId: k.kpiDefId,
@@ -315,6 +332,7 @@ export async function copyFromCycle(
         appraisalId,
         kpiDefId: src.kpiDefId,
         title: src.title, polarity: src.polarity, unit: src.unit,
+        metricText: src.metricText,
         thresholdMin: src.thresholdMin,
         target: w.target != null ? w.target : src.target,
         stretchValue: src.stretchValue,
@@ -369,6 +387,7 @@ export async function copyTeam(
         data: {
           appraisalId: p.id, kpiDefId: k.kpiDefId,
           title: k.title, polarity: k.polarity, unit: k.unit,
+          metricText: k.metricText,
           thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
           weight: k.weight, isCritical: k.isCritical, dataSource: k.dataSource,
           origin: "CopiedFromCycle", copiedFromId: k.id,
@@ -395,7 +414,7 @@ export async function prefillFromPrevious(
     take: 500,
   });
   // template items (fallback tanpa sumber)
-  let tplItems: { kpiDefId: string | null; title: string; polarity: string; unit: string; weight: number }[] = [];
+  let tplItems: { kpiDefId: string | null; title: string; polarity: string; unit: string; metricText: string | null; weight: number }[] = [];
   if (templateId) {
     const tpl = await db.performanceTemplate.findUnique({
       where: { id: templateId },
@@ -404,13 +423,13 @@ export async function prefillFromPrevious(
     if (!tpl) throw new Error("Template tidak ditemukan");
     const defs = await db.kpiDefinition.findMany({
       where: { status: "Active" },
-      select: { id: true, code: true, name: true, polarity: true, unit: true },
+      select: { id: true, code: true, name: true, polarity: true, unit: true, metricText: true },
     });
     const defById = new Map(defs.map((d) => [d.id, d]));
     tplItems = tpl.items
       .map((it) => {
         const d = defById.get(it.refId);
-        return d ? { kpiDefId: d.id, title: d.name, polarity: d.polarity, unit: d.unit, weight: it.weight } : null;
+        return d ? { kpiDefId: d.id, title: d.name, polarity: d.polarity, unit: d.unit, metricText: d.metricText, weight: it.weight } : null;
       })
       .filter((x): x is NonNullable<typeof x> => !!x);
   }
@@ -432,7 +451,8 @@ export async function prefillFromPrevious(
         await db.appraisalKpi.create({
           data: {
             appraisalId: p.id, kpiDefId: k.kpiDefId, title: k.title, polarity: k.polarity,
-            unit: k.unit, thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
+            unit: k.unit, metricText: k.metricText,
+            thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
             weight: k.weight, isCritical: k.isCritical, dataSource: k.dataSource,
             origin: "CopiedFromCycle", copiedFromId: k.id,
           },
@@ -445,7 +465,8 @@ export async function prefillFromPrevious(
         await db.appraisalKpi.create({
           data: {
             appraisalId: p.id, kpiDefId: t.kpiDefId, title: t.title, polarity: t.polarity,
-            unit: t.unit, target: 0, weight: t.weight, dataSource: "Manual", origin: "Template",
+            unit: t.unit, metricText: t.metricText,
+            target: 0, weight: t.weight, dataSource: "Manual", origin: "Template",
           },
         });
       }
@@ -466,6 +487,8 @@ export interface KpiItemInput {
   title: string;
   polarity?: string;
   unit?: string;
+  /** Metric / Measure of Success — kosong/undefined + kpiDefId ada → default pustaka. */
+  metricText?: string | null;
   thresholdMin?: number | null;
   target?: number | null;
   stretchValue?: number | null;
@@ -505,11 +528,13 @@ export async function assignBatch(
     let defPolarity: string | null = null;
     let defUnit: string | null = null;
     let defTitle: string | null = null;
+    let defMetric: string | null = null;
     if (it.kpiDefId) {
       const def = await resolveDef(db, it.kpiDefId);
       defPolarity = def.polarity;
       defUnit = def.unit;
       defTitle = def.name;
+      defMetric = def.metricText;
     }
     const title = reqStr(it.title ?? defTitle, "Judul KPI");
     let polarity = it.polarity ?? defPolarity ?? "Higher";
@@ -518,9 +543,12 @@ export async function assignBatch(
     if (!unit) throw new Error(`Satuan wajib untuk "${title}"`);
     const weight = it.weight ?? 0;
     if (!(weight > 0) || weight > 100) throw new Error(`Bobot "${title}" harus 1–100`);
+    // metric: eksplisit pemanggil menang; kosong → default pustaka (snapshot)
+    const metricText = metricOrNull(it.metricText) ?? defMetric;
     await db.appraisalKpi.create({
       data: {
         appraisalId, kpiDefId: it.kpiDefId ?? null, title, polarity, unit,
+        metricText,
         thresholdMin: it.thresholdMin ?? null,
         target: it.target ?? 0,
         stretchValue: it.stretchValue ?? null,
@@ -535,10 +563,10 @@ export async function assignBatch(
 }
 
 /** Autosave draf §18.7 — PATCH perubahan baris (target/ambang/stretch/bobot/
- *  kritis) + hapus baris. Sah selama Enrolled/GoalProposed & fase GoalSetting. */
+ *  kritis/metric) + hapus baris. Sah selama Enrolled/GoalProposed & fase GoalSetting. */
 export async function patchDraft(
   db: TenantDb, actor: GoalActor, appraisalId: string,
-  rows: { id: string; target?: number | null; thresholdMin?: number | null; stretchValue?: number | null; weight?: number; isCritical?: boolean }[],
+  rows: { id: string; target?: number | null; thresholdMin?: number | null; stretchValue?: number | null; weight?: number; isCritical?: boolean; metricText?: string | null }[],
   removedIds: string[] = [],
 ): Promise<{ updated: number; removed: number; savedAt: string }> {
   const a = await mustAppraisal(db, appraisalId);
@@ -563,6 +591,7 @@ export async function patchDraft(
         ...(r.stretchValue !== undefined ? { stretchValue: r.stretchValue ?? null } : {}),
         ...(r.weight !== undefined ? { weight: r.weight } : {}),
         ...(r.isCritical !== undefined ? { isCritical: r.isCritical } : {}),
+        ...(r.metricText !== undefined ? { metricText: metricOrNull(r.metricText) } : {}),
       },
     });
     updated++;
@@ -591,15 +620,17 @@ export async function proposeMbo(
     const title = reqStr(it.title, "Judul KPI usulan");
     let polarity = it.polarity ?? "Higher";
     let unit = it.unit ?? "";
+    let defMetric: string | null = null;
     if (it.kpiDefId) {
       const def = await resolveDef(db, it.kpiDefId);
-      polarity = def.polarity; unit = def.unit;
+      polarity = def.polarity; unit = def.unit; defMetric = def.metricText;
     }
     if (!["Higher", "Lower", "Boolean"].includes(polarity)) throw new Error(`Polaritas tidak valid: ${polarity}`);
     if (!unit) unit = "%";
     await db.appraisalKpi.create({
       data: {
         appraisalId, kpiDefId: it.kpiDefId ?? null, title, polarity, unit,
+        metricText: metricOrNull(it.metricText) ?? defMetric,
         thresholdMin: it.thresholdMin ?? null, target: it.target ?? 0,
         stretchValue: it.stretchValue ?? null,
         weight: it.weight ?? 10, isCritical: false,
@@ -696,12 +727,14 @@ export const TARGET_COLUMNS = [
   { key: "stretch", id: "Stretch (opsional)", en: "Stretch (optional)" },
   { key: "weight", id: "Bobot (%)", en: "Weight (%)" },
   { key: "critical", id: "Kritis (Ya/Tidak)", en: "Critical (Yes/No)" },
+  { key: "metric", id: "Metric / Ukuran Keberhasilan (opsional)", en: "Metric / Measure of Success (optional)" },
 ] as const;
 
 /** Buat workbook template .xlsx dwibahasa (sheet instruksi + data + contoh + dropdown). */
 export async function buildTargetTemplateXlsx(cycleCode: string, example: {
   employeeNo: string; fullName: string; kpi: string; polarity: string; unit: string;
   threshold: string; target: string; stretch: string; weight: string; critical: string;
+  metric: string;
 }): Promise<Buffer> {
   // dinamis: exceljs di-import di route (server) — di sini dipakai via dynamic import
   // supaya service tetap murni logika.
@@ -717,8 +750,8 @@ export async function buildTargetTemplateXlsx(cycleCode: string, example: {
   // langkah instruksi pasangan dwibahasa [ID, EN] — konvensi R3 audit
   const INSTR_STEPS: Record<string, [string, string]> = {
     s1: [
-      "1. Isi sheet \"Data\" — maksimal 500 baris; hanya kolom A–J yang boleh diisi.",
-      "1. Fill the \"Data\" sheet — max 500 rows; only columns A–J.",
+      "1. Isi sheet \"Data\" — maksimal 500 baris; hanya kolom A–K yang boleh diisi.",
+      "1. Fill the \"Data\" sheet — max 500 rows; only columns A–K.",
     ],
     s2: [
       "2. Kolom \"Kode Karyawan\" wajib sesuai data HR (employeeNo).",
@@ -733,12 +766,16 @@ export async function buildTargetTemplateXlsx(cycleCode: string, example: {
       "4. Weights per employee must total exactly 100 — the preview warns; the manager submit enforces it.",
     ],
     s5: [
-      "5. Hasil impor = DRAF (belum submit). Setiap peserta tetap menunggu review + submit oleh atasan.",
-      "5. Import results are DRAFT rows (not submitted). Each participant still awaits manager review + submit.",
+      "5. Kolom \"Metric / Ukuran Keberhasilan\" opsional — rubrik ukuran sukses (umumnya deskriptor peringkat 1–5); kosong + kode pustaka → default pustaka.",
+      "5. The \"Metric / Measure of Success\" column is optional — a success-measure rubric (usually level 1–5 descriptors); blank + a library code → the library default applies.",
     ],
     s6: [
-      "6. Baris yang tidak valid TIDAK membatalkan baris lain — perbaiki baris merah lalu unggah ulang.",
-      "6. Invalid rows never cancel other rows — fix the red rows and re-upload.",
+      "6. Hasil impor = DRAF (belum submit). Setiap peserta tetap menunggu review + submit oleh atasan.",
+      "6. Import results are DRAFT rows (not submitted). Each participant still awaits manager review + submit.",
+    ],
+    s7: [
+      "7. Baris yang tidak valid TIDAK membatalkan baris lain — perbaiki baris merah lalu unggah ulang.",
+      "7. Invalid rows never cancel other rows — fix the red rows and re-upload.",
     ],
   };
   for (const steps of Object.values(INSTR_STEPS)) {
@@ -760,11 +797,12 @@ export async function buildTargetTemplateXlsx(cycleCode: string, example: {
     { header: TARGET_COLUMNS[7].id + "\n" + TARGET_COLUMNS[7].en, width: 14 },
     { header: TARGET_COLUMNS[8].id + "\n" + TARGET_COLUMNS[8].en, width: 12 },
     { header: TARGET_COLUMNS[9].id + "\n" + TARGET_COLUMNS[9].en, width: 14 },
+    { header: TARGET_COLUMNS[10].id + "\n" + TARGET_COLUMNS[10].en, width: 48 },
   ];
   data.getRow(1).font = { bold: true };
   data.getRow(1).alignment = { wrapText: true, vertical: "middle" };
   data.addRow([example.employeeNo, example.fullName, example.kpi, example.polarity, example.unit,
-    example.threshold, example.target, example.stretch, example.weight, example.critical]);
+    example.threshold, example.target, example.stretch, example.weight, example.critical, example.metric]);
   data.getRow(2).font = { italic: true, color: { argb: "FF6B7280" } };
 
   // dropdown validasi: polaritas + kritis
@@ -792,6 +830,7 @@ export interface ImportTargetRow {
   stretch: string;
   weight: string;
   critical: string;
+  metric: string;
   valid: boolean;
   errors: { field: string; message: string }[];
   // terisi server saat valid:
@@ -819,6 +858,7 @@ const HEADER_KEYS: Record<string, string[]> = {
   stretch: "stretch stretchopsional".split(" "),
   weight: "bobot weight bobotpersen".split(" "),
   critical: "kritis critical krisisyatidak".split(" "),
+  metric: "metric ukurankeberhasilan measureofsuccess metricukurankeberhasilan metricmeasureofsuccess".split(" "),
 };
 
 /** Pratinjau impor: parse .xlsx + validasi per sel (D16). */
@@ -881,6 +921,7 @@ export async function importTargetsPreview(
       rowNo: rn, employeeNo, fullName: get("fullName"), kpi: get("kpi"),
       polarity: get("polarity"), unit: get("unit"), threshold: get("threshold"),
       target: get("target"), stretch: get("stretch"), weight: get("weight"), critical: get("critical"),
+      metric: get("metric"),
       valid: true, errors: [],
     };
     const err = (field: string, message: string) => { r.valid = false; r.errors.push({ field, message }); };
@@ -916,6 +957,8 @@ export async function importTargetsPreview(
     if (r.threshold !== "" && threshold == null) err("threshold", `Ambang bukan angka: "${r.threshold}"`);
     const stretch = numOrNull(r.stretch);
     if (r.stretch !== "" && stretch == null) err("stretch", `Stretch bukan angka: "${r.stretch}"`);
+    // 4b — metric rubrik (opsional; cap 2000 karakter paritas metricOrNull)
+    if (r.metric.length > 2000) err("metric", `Metric maksimal 2000 karakter (${r.metric.length})`);
 
     // 5 — duplikat dalam file (karyawan+KPI)
     const dkey = `${employeeNo.toUpperCase()}|${r.kpi.toUpperCase()}`;
@@ -944,7 +987,7 @@ export async function importTargetsPreview(
 /** Commit impor — HANYA baris valid (D16); hasil draf menunggu review+submit. */
 export async function importTargetsCommit(
   db: TenantDb, actor: GoalActor, cycleId: string,
-  rows: (Pick<ImportTargetRow, "employeeNo" | "kpi" | "kpiDefId" | "polarity" | "unit" | "threshold" | "target" | "stretch" | "weight" | "critical"> & { rowNo: number })[],
+  rows: (Pick<ImportTargetRow, "employeeNo" | "kpi" | "kpiDefId" | "polarity" | "unit" | "threshold" | "target" | "stretch" | "weight" | "critical" | "metric"> & { rowNo: number })[],
 ): Promise<{ created: number; skipped: number; cycleCode: string }> {
   const cycle = await db.performanceCycle.findUnique({ where: { id: cycleId } });
   if (!cycle) throw new Error("Siklus tidak ditemukan");
@@ -964,12 +1007,19 @@ export async function importTargetsCommit(
     if ((APPRAISAL_LOCKED as readonly string[]).includes(ap.status) || ap.kpis.length > 0) { skipped++; continue; }
     const pol = ["Higher", "Lower", "Boolean"].includes(r.polarity) ? r.polarity : "Higher";
     const critRaw = norm(r.critical ?? "");
+    // metric: eksplisit Excel menang; kosong + kode pustaka → default pustaka
+    let metricText = metricOrNull(r.metric);
+    if (metricText == null && r.kpiDefId) {
+      const def = await db.kpiDefinition.findUnique({ where: { id: r.kpiDefId }, select: { metricText: true } });
+      metricText = def?.metricText ?? null;
+    }
     await db.appraisalKpi.create({
       data: {
         appraisalId: ap.id,
         kpiDefId: r.kpiDefId ?? null,
         title: r.kpi, polarity: pol,
         unit: r.unit || "%",
+        metricText,
         thresholdMin: numOrNull(r.threshold),
         target: numOrNull(r.target) ?? 0,
         stretchValue: numOrNull(r.stretch),

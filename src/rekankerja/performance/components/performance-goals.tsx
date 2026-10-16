@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -32,7 +33,7 @@ import {
 import {
   ListChecks, ChevronLeft, Search, Copy, Upload, Download, FileSpreadsheet, Zap, CheckCircle2,
   AlertTriangle, Loader2, Trash2, Scale as ScaleIcon, ChevronDown, Sparkles, Send, Undo2, BookOpen,
-  LayoutTemplate, ArrowRightLeft, FileWarning,
+  LayoutTemplate, ArrowRightLeft, FileWarning, Gauge,
 } from "lucide-react";
 
 // ---------- tipe (kontrak API §17) ----------
@@ -53,6 +54,7 @@ interface ParticipantRow {
 
 interface KpiRow {
   id: string; kpiDefId: string | null; title: string; polarity: string; unit: string;
+  metricText: string | null;
   thresholdMin: number | null; target: number; stretchValue: number | null;
   weight: number; isCritical: boolean; dataSource: string;
   origin: string; proposedBy: string; copiedFromId: string | null;
@@ -74,6 +76,7 @@ interface GoalDetail {
 interface CopySource { appraisalId: string; cycleId: string; code: string; name: string; kpiCount: number; status: string; suggested: boolean }
 interface CopyPreviewRow {
   sourceKpiId: string; title: string; polarity: string; unit: string;
+  metricText: string | null;
   thresholdMin: number | null; oldTarget: number; target: number; stretchValue: number | null;
   weight: number; isCritical: boolean; kpiDefId: string | null; defCode: string | null;
   auto: boolean; defInactive: boolean; unitChanged: boolean; duplicate: boolean;
@@ -86,6 +89,7 @@ interface CopyPreviewData {
 interface ImportRow {
   rowNo: number; employeeNo: string; fullName: string; kpi: string; polarity: string;
   unit: string; threshold: string; target: string; stretch: string; weight: string; critical: string;
+  metric: string;
   valid: boolean; errors: { field: string; message: string }[]; kpiDefId?: string | null; skip?: string | null;
 }
 
@@ -286,6 +290,7 @@ function GoalBuilder({ appraisalId, onBack, onChanged }: { appraisalId: string; 
       rows: rows
         .map((r) => ({
           id: r.id,
+          metricText: r.metricText ?? null,
           target: r.target, thresholdMin: r.thresholdMin, stretchValue: r.stretchValue,
           weight: r.weight, isCritical: r.isCritical,
         })),
@@ -316,7 +321,7 @@ function GoalBuilder({ appraisalId, onBack, onChanged }: { appraisalId: string; 
     try {
       await apiSend("/api/rekankerja/performance/goals", "POST", { action: "patchDraft", appraisalId, rows: [], removedIds: [id] });
       toast.info(t("Baris dihapus", "Row removed"), {
-        action: { label: t("Urungkan", "Undo"), onClick: () => { autosave.setDraft(prev); void apiSend("/api/rekankerja/performance/goals", "POST", { action: "assignBatch", appraisalId, mode: "append", items: prev.filter((p) => p.id === id).map((p) => ({ kpiDefId: p.kpiDefId, title: p.title, polarity: p.polarity, unit: p.unit, thresholdMin: p.thresholdMin, target: p.target, stretchValue: p.stretchValue, weight: p.weight, isCritical: p.isCritical })) }).then(load); } },
+        action: { label: t("Urungkan", "Undo"), onClick: () => { autosave.setDraft(prev); void apiSend("/api/rekankerja/performance/goals", "POST", { action: "assignBatch", appraisalId, mode: "append", items: prev.filter((p) => p.id === id).map((p) => ({ kpiDefId: p.kpiDefId, title: p.title, polarity: p.polarity, unit: p.unit, metricText: p.metricText, thresholdMin: p.thresholdMin, target: p.target, stretchValue: p.stretchValue, weight: p.weight, isCritical: p.isCritical })) }).then(load); } },
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "unknown");
@@ -516,7 +521,7 @@ function GoalBuilder({ appraisalId, onBack, onChanged }: { appraisalId: string; 
             {!detail.locked && draftWarnings.length > 0 && (
               <div className="mt-3 space-y-1">
                 {draftWarnings.map((w, i) => (
-                  <p key={i} className={cn("text-xs", w.startsWith("Total bobot") || w.includes("ideal") || w.includes("terlalu banyak") ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-slate-400")}>
+                  <p key={i} className={cn("text-xs", w.startsWith("Total bobot") || w.includes("ideal") || w.includes("terlalu banyak") || w.includes("Metric / Measure of Success") ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-slate-400")}>
                     <AlertTriangle className="mr-1 inline h-3 w-3" />{w}
                   </p>
                 ))}
@@ -588,6 +593,11 @@ function clientValidate(rows: KpiRow[]): string[] {
   const sumW = rows.reduce((s, r) => s + (num(r.weight) || 0), 0);
   if (n > 0 && Math.abs(sumW - 100) > 0.01) {
     errs.push(`Total bobot ${Math.round(sumW * 10) / 10}% — sisakan ${Math.round((100 - sumW) * 10) / 10}% atau bagi rata?`);
+  }
+  // mirror server validateDraft — pengingat lembut metric (bukan guard keras)
+  const noMetric = rows.filter((r) => !(r.metricText ?? "").trim());
+  if (noMetric.length > 0) {
+    errs.push(`${noMetric.length} KPI belum memiliki Metric / Measure of Success (mis. deskriptor peringkat 1–5) — disarankan diisi agar karyawan paham ukuran keberhasilannya`);
   }
   for (const r of rows) {
     if (r.polarity !== "Boolean" && r.thresholdMin == null) errs.push(`"${r.title}": ambang gagal belum diisi`);
@@ -684,6 +694,7 @@ function KpiRowEditor({ r, editable, onChange, onRemove }: {
   onChange: (patch: Partial<KpiRow>) => void; onRemove: () => void;
 }) {
   const { t } = useI18n();
+  const [metricOpen, setMetricOpen] = useState(false);
   return (
     <tr className="border-b border-slate-100 last:border-0 dark:border-slate-800/60">
       <td className="py-2 pr-2">
@@ -698,6 +709,41 @@ function KpiRowEditor({ r, editable, onChange, onRemove }: {
           {r.isCritical ? t(" · kritis", " · critical") : ""}
           {r.origin === "CopiedFromCycle" ? t(" · salinan periode lalu", " · copied from previous") : ""}
         </p>
+        {/* Metric / Measure of Success — rubrik ukuran keberhasilan (permintaan user) */}
+        <div className="mt-1">
+          {editable ? (
+            <>
+              <button type="button" onClick={() => setMetricOpen(!metricOpen)}
+                aria-expanded={metricOpen}
+                className="inline-flex items-center gap-1 text-[10px] font-medium text-brand hover:underline">
+                <Gauge className="h-3 w-3" />
+                {t("Metric / Measure of Success", "Metric / Measure of Success")}
+                {!r.metricText && <span className="text-amber-500" title={t("belum diisi", "not filled yet")}>•</span>}
+                <ChevronDown className={cn("h-3 w-3 transition", metricOpen && "rotate-180")} />
+              </button>
+              {metricOpen ? (
+                <Textarea
+                  className="mt-1 w-72 max-w-full text-xs"
+                  rows={6}
+                  maxLength={2000}
+                  value={r.metricText ?? ""}
+                  onChange={(e) => onChange({ metricText: e.target.value })}
+                  placeholder={t(
+                    "mis. 1: tidak submit · 2: usulan disetujui, kurang berkualitas · 3: disetujui, berkualitas & berdampak · 4: terimplementasi lingkup departemen · 5: terimplementasi luas, terukur, tepat guna",
+                    "e.g. 1: no submission · 2: approved, low quality · 3: approved, good impact · 4: implemented department-wide · 5: implemented broadly, measurable, effective",
+                  )}
+                  aria-label={t(`Metric / Measure of Success ${r.title}`, `Metric / Measure of Success ${r.title}`)}
+                />
+              ) : r.metricText ? (
+                <p className="line-clamp-1 w-72 max-w-full whitespace-pre-line text-[10px] text-slate-400" title={r.metricText}>{r.metricText}</p>
+              ) : null}
+            </>
+          ) : r.metricText ? (
+            <p className="line-clamp-2 w-72 max-w-full whitespace-pre-line text-[10px] text-slate-500 dark:text-slate-400" title={r.metricText}>
+              <Gauge className="mr-1 inline h-3 w-3" />{r.metricText}
+            </p>
+          ) : null}
+        </div>
       </td>
       <td className="py-2 pr-2">
         {r.polarity === "Boolean"
@@ -794,6 +840,24 @@ function MobileKpiCard({ r, editable, onChange, onRemove }: {
             <Checkbox checked={r.isCritical} disabled={!editable} onCheckedChange={(v) => onChange({ isCritical: v === true })} aria-label={t("Kritis", "Critical")} />
             {t("KPI kritis (gagal = rating maks 2)", "Critical KPI (fail = rating max 2)")}
           </label>
+          <div className="col-span-2 space-y-1">
+            <Label className="text-[10px]">
+              <Gauge className="mr-1 inline h-3 w-3" />
+              {t("Metric / Measure of Success", "Metric / Measure of Success")}
+            </Label>
+            <Textarea
+              disabled={!editable}
+              rows={4}
+              maxLength={2000}
+              value={r.metricText ?? ""}
+              onChange={(e) => onChange({ metricText: e.target.value })}
+              placeholder={t(
+                "mis. 1: tidak submit · 2: usulan disetujui, kurang berkualitas · 3: disetujui, berkualitas & berdampak · 4: terimplementasi lingkup departemen · 5: terimplementasi luas, terukur, tepat guna",
+                "e.g. 1: no submission · 2: approved, low quality · 3: approved, good impact · 4: implemented department-wide · 5: implemented broadly, measurable, effective",
+              )}
+              aria-label={t(`Metric / Measure of Success ${r.title}`, `Metric / Measure of Success ${r.title}`)}
+            />
+          </div>
           {editable && (
             <div className="flex justify-end">
               <Button size="sm" variant="ghost" className="h-7 text-rose-600" onClick={onRemove}>
@@ -964,6 +1028,7 @@ function CopyDialog({ appraisalId, onClose, onDone }: { appraisalId: string; onC
                             <div className="flex flex-wrap items-center gap-1">
                               {r.auto && <Badge className="h-4 bg-sky-100 px-1 text-[9px] text-sky-700 dark:bg-sky-950/60 dark:text-sky-400">AUTO</Badge>}
                               <span className="font-medium">{r.title}</span>
+                              {r.metricText && <Badge variant="outline" className="h-4 px-1 text-[9px] text-brand border-brand/40" title={r.metricText}><Gauge className="mr-0.5 h-2.5 w-2.5" />{t("metric", "metric")}</Badge>}
                             </div>
                             <div className="mt-0.5 flex flex-wrap gap-1">
                               {r.defInactive && <Badge variant="outline" className="h-4 px-1 text-[9px] text-amber-600 border-amber-300 dark:border-amber-800">{t("pustaka non-aktif — periksa penggantinya", "library inactive — check a replacement")}</Badge>}
@@ -1031,7 +1096,7 @@ function LibraryPicker({ appraisalId, excludeTitles, onClose, onDone }: {
   const [cat, setCat] = useState("all");
   const [sel, setSel] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const lib = useApi<{ rows: { id: string; code: string; name: string; category: string; unit: string; polarity: string; dataSource: string; sourceKey: string | null }[] }>(
+  const lib = useApi<{ rows: { id: string; code: string; name: string; category: string; unit: string; polarity: string; dataSource: string; sourceKey: string | null; metricText: string | null }[] }>(
     `/api/rekankerja/performance/masters?type=kpi`,
   );
 
@@ -1059,6 +1124,7 @@ function LibraryPicker({ appraisalId, excludeTitles, onClose, onDone }: {
         action: "assignBatch", appraisalId, mode: "append",
         items: chosen.map((c, i) => ({
           kpiDefId: c.id, title: c.name, polarity: c.polarity, unit: c.unit,
+          metricText: c.metricText ?? null,
           thresholdMin: null, target: 0, weight: w[i], isCritical: false,
         })),
       });
@@ -1106,8 +1172,10 @@ function LibraryPicker({ appraisalId, excludeTitles, onClose, onDone }: {
                   <p className="truncate font-medium">
                     {r.name}
                     {r.sourceKey && <Badge className="ml-1.5 h-4 bg-sky-100 px-1 text-[9px] text-sky-700 dark:bg-sky-950/60 dark:text-sky-400">AUTO</Badge>}
+                    {r.metricText && <Badge variant="outline" className="ml-1 h-4 px-1 text-[9px] text-brand border-brand/40" title={r.metricText}><Gauge className="mr-0.5 h-2.5 w-2.5" />{t("metric", "metric")}</Badge>}
                   </p>
                   <p className="font-mono text-[10px] text-slate-400">{r.code} · {r.unit} · {r.polarity}</p>
+                  {r.metricText && <p className="line-clamp-1 text-[10px] text-slate-400" title={r.metricText}>{r.metricText}</p>}
                 </div>
               </button>
             );
@@ -1211,7 +1279,7 @@ function TemplatePicker({ appraisalId, onClose, onDone }: { appraisalId: string;
 
 function QuickAddDialog({ appraisalId, onClose, onDone }: { appraisalId: string; onClose: () => void; onDone: () => void }) {
   const { t } = useI18n();
-  const [form, setForm] = useState({ title: "", polarity: "Higher", unit: "%", threshold: "", target: "", weight: "10", critical: false });
+  const [form, setForm] = useState({ title: "", polarity: "Higher", unit: "%", threshold: "", target: "", weight: "10", critical: false, metric: "" });
   const [busy, setBusy] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   useEffect(() => { titleRef.current?.focus(); }, []);
@@ -1223,6 +1291,7 @@ function QuickAddDialog({ appraisalId, onClose, onDone }: { appraisalId: string;
         action: "assignBatch", appraisalId, mode: "append",
         items: [{
           title: form.title.trim(), polarity: form.polarity, unit: form.unit || "%",
+          metricText: form.metric.trim() || null,
           thresholdMin: form.threshold === "" ? null : Number(form.threshold),
           target: form.target === "" ? 0 : Number(form.target),
           weight: Number(form.weight) || 10, isCritical: form.critical,
@@ -1230,7 +1299,7 @@ function QuickAddDialog({ appraisalId, onClose, onDone }: { appraisalId: string;
       });
       toast.success(t("Baris KPI ditambahkan", "KPI row added"));
       if (out.created > 0) { onDone(); }
-      setForm({ ...form, title: "", target: "" });
+      setForm({ ...form, title: "", target: "", metric: "" });
       titleRef.current?.focus();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "unknown");
@@ -1285,6 +1354,26 @@ function QuickAddDialog({ appraisalId, onClose, onDone }: { appraisalId: string;
               <Checkbox checked={form.critical} onCheckedChange={(v) => setForm((f) => ({ ...f, critical: v === true }))} aria-label={t("Kritis", "Critical")} />
               {t("Kritis", "Critical")}
             </label>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">
+              <Gauge className="mr-1 inline h-3.5 w-3.5" />
+              {t("Metric / Measure of Success (opsional)", "Metric / Measure of Success (optional)")}
+            </Label>
+            <Textarea
+              rows={5}
+              maxLength={2000}
+              value={form.metric}
+              onChange={(e) => setForm((f) => ({ ...f, metric: e.target.value }))}
+              placeholder={t(
+                "mis. 1: tidak submit · 2: usulan disetujui, kurang berkualitas · 3: disetujui, berkualitas & berdampak · 4: terimplementasi lingkup departemen · 5: terimplementasi luas, terukur, tepat guna",
+                "e.g. 1: no submission · 2: approved, low quality · 3: approved, good impact · 4: implemented department-wide · 5: implemented broadly, measurable, effective",
+              )}
+              aria-label={t("Metric / Measure of Success", "Metric / Measure of Success")}
+            />
+            <p className="text-[10px] text-slate-400">
+              {t("Ukuran keberhasilan — bagaimana capaian KPI dinilai (umumnya deskriptor peringkat 1–5).", "The success measure — how KPI attainment is judged (usually level 1–5 descriptors).")}
+            </p>
           </div>
         </div>
         <DialogFooter>
@@ -1525,7 +1614,10 @@ function ImportDialog({ cycleId, onClose, onDone }: { cycleId: string; onClose: 
                     )}>
                       <td className="p-1.5 tabular-nums text-slate-400">{r.rowNo}</td>
                       <td className="p-1.5"><span className="font-mono">{r.employeeNo}</span> {r.fullName}</td>
-                      <td className="p-1.5">{r.kpi}</td>
+                      <td className="p-1.5">
+                        {r.kpi}
+                        {r.metric && <p className="line-clamp-1 max-w-56 text-[10px] text-slate-400" title={r.metric}>{r.metric}</p>}
+                      </td>
                       <td className="p-1.5 tabular-nums">{r.target}</td>
                       <td className="p-1.5 tabular-nums">{r.weight}</td>
                       <td className="p-1.5">

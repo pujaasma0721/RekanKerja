@@ -22,7 +22,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ListChecks, Users, Scale, Grid3x3, Wallet, History, GitBranch, Zap, Plus, Pencil, Trash2 } from "lucide-react";
+import { ListChecks, Users, Scale, Grid3x3, Wallet, History, GitBranch, Zap, Plus, Pencil, Trash2, Gauge } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 interface KpiRowUI {
   id: string; code: string; name: string; category: string; polarity: string;
   unit: string; dataSource: string; sourceKey: string | null; description: string | null;
+  metricText: string | null;
   active: boolean; versionNo: number; effectiveYear: number; status: string;
   supersededById: string | null; changeNote: string | null;
 }
@@ -147,7 +148,7 @@ function KpiTab() {
   );
   const [form, setForm] = useState<null | {
     id?: string; code: string; name: string; category: string; polarity: string;
-    unit: string; dataSource: string; sourceKey: string; description: string; active: boolean;
+    unit: string; dataSource: string; sourceKey: string; description: string; metric: string; active: boolean;
     asNewVersion?: boolean; effectiveYear: string; changeNote: string;
   }>(null);
   const [hist, setHist] = useState<null | { code: string; versions: Record<string, unknown>[] }>(null);
@@ -161,7 +162,7 @@ function KpiTab() {
   const openNew = () =>
     setForm({
       code: "", name: "", category: "InternalProcess", polarity: "Higher", unit: "%",
-      dataSource: "Manual", sourceKey: "", description: "", active: true,
+      dataSource: "Manual", sourceKey: "", description: "", metric: "", active: true,
       effectiveYear: String(new Date().getFullYear()), changeNote: "",
     });
 
@@ -169,7 +170,7 @@ function KpiTab() {
     setForm({
       id: r.id, code: r.code, name: r.name, category: r.category, polarity: r.polarity,
       unit: r.unit, dataSource: r.dataSource, sourceKey: r.sourceKey ?? "",
-      description: r.description ?? "", active: r.active,
+      description: r.description ?? "", metric: r.metricText ?? "", active: r.active,
       asNewVersion: false,
       effectiveYear: String(new Date().getFullYear() + 1), changeNote: "",
     });
@@ -195,7 +196,9 @@ function KpiTab() {
         code: form.code, name: form.name, category: form.category, polarity: form.polarity,
         unit: form.unit, dataSource: form.dataSource,
         sourceKey: form.sourceKey || null,
-        description: form.description || null, active: form.active,
+        description: form.description || null,
+        metricText: form.metric || null,
+        active: form.active,
         asNewVersion: form.asNewVersion === true,
         effectiveYear: Number(form.effectiveYear) || undefined,
         changeNote: form.changeNote || null,
@@ -295,6 +298,11 @@ function KpiTab() {
                       <div className="font-medium">{r.name}</div>
                       {r.description ? (
                         <div className="max-w-xs truncate text-xs text-slate-500">{r.description}</div>
+                      ) : null}
+                      {r.metricText ? (
+                        <div className="max-w-xs truncate text-[10px] text-brand" title={r.metricText}>
+                          <Gauge className="mr-0.5 inline h-3 w-3" />{t("metric tersedia", "metric available")}
+                        </div>
                       ) : null}
                     </TableCell>
                     <TableCell>
@@ -421,6 +429,29 @@ function KpiTab() {
               <div className="grid gap-1.5">
                 <Label>{t("Deskripsi", "Description")}</Label>
                 <Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>
+                  <Gauge className="mr-1 inline h-3.5 w-3.5" />
+                  {t("Metric / Measure of Success", "Metric / Measure of Success")}
+                </Label>
+                <Textarea
+                  rows={5}
+                  maxLength={2000}
+                  value={form.metric}
+                  onChange={(e) => setForm({ ...form, metric: e.target.value })}
+                  placeholder={t(
+                    "mis. 1: tidak submit · 2: usulan disetujui, kurang berkualitas · 3: disetujui, berkualitas & berdampak · 4: terimplementasi lingkup departemen · 5: terimplementasi luas, terukur, tepat guna",
+                    "e.g. 1: no submission · 2: approved, low quality · 3: approved, good impact · 4: implemented department-wide · 5: implemented broadly, measurable, effective",
+                  )}
+                  aria-label={t("Metric / Measure of Success", "Metric / Measure of Success")}
+                />
+                <p className="text-[10px] text-slate-400">
+                  {t(
+                    "Default ukuran keberhasilan saat KPI ini dipilih pada penetapan target (perubahan minor — snapshot baris penilaian menjaga riwayat §18.9).",
+                    "The default success measure when this KPI is picked during goal setting (a minor change — per-appraisal snapshots preserve history §18.9).",
+                  )}
+                </p>
               </div>
 
               {form.id && dirtyVs(editingOrig) && !form.asNewVersion && (
