@@ -343,11 +343,11 @@ export function AuthScreen() {
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
-                className="mt-4 text-[42px] font-bold leading-[1.07] tracking-tight text-white xl:text-[52px]"
+                className="mt-4 text-[31px] font-bold leading-[1.15] tracking-tight text-white xl:text-[38px]"
               >
-                {t("Bagian rumit dari HR,", "The messy part of HR,")}
+                {t("Kelola aktivitas dan informasi kepegawaian Anda", "Manage your employee activities and information")}
                 <br />
-                <span className="italic text-blue-200">{t("biar kami yang pikirkan.", "we've already figured out.")}</span>
+                <span className="italic text-blue-200">{t("dalam satu platform terintegrasi.", "in one integrated platform.")}</span>
               </motion.h1>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -374,8 +374,6 @@ export function AuthScreen() {
 
             <div className="relative">
               <div className="mb-3 hidden items-center gap-6 text-[10px] font-bold uppercase tracking-[0.22em] text-blue-200/70 lg:flex">
-                <span>{t("86 tabel siap", "86 tables ready")}</span>
-                <span aria-hidden className="h-1 w-1 rotate-45 bg-blue-300/60" />
                 <span>{t("Ter-isolasi per tenant", "Isolated per tenant")}</span>
                 <span aria-hidden className="h-1 w-1 rotate-45 bg-blue-300/60" />
                 <span>PPh21 · BPJS · SPT 1721-A1</span>
@@ -403,9 +401,9 @@ export function AuthScreen() {
 
             <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-8 sm:px-8 lg:py-12">
               {/* tagline — mobile (panel kiri tersembunyi) */}
-              <p className="mb-5 max-w-[300px] text-center text-[20px] italic leading-snug text-slate-700 lg:hidden dark:text-slate-300">
-                {t("Bagian rumit dari HR,", "The messy part of HR,")}{" "}
-                <span className="text-brand-deep dark:text-brand">{t("biar kami yang pikirkan.", "we've already figured out.")}</span>
+              <p className="mb-5 max-w-[300px] text-center text-[17px] italic leading-snug text-slate-700 lg:hidden dark:text-slate-300">
+                {t("Kelola aktivitas dan informasi kepegawaian Anda", "Manage your employee activities and information")}{" "}
+                <span className="text-brand-deep dark:text-brand">{t("dalam satu platform terintegrasi.", "in one integrated platform.")}</span>
               </p>
 
               <motion.div

@@ -7103,3 +7103,22 @@ Stage Summary:
 - Login page split-screen kiri kini berlatar ilustrasi 3D kolaborasi HR dari user (auth-hero.jpg 167KB) + scrim biru brand — bukan lagi gradient polos; teks hero/testimoni/marquee tetap kontras & estetika biru RekanKerja terjaga.
 - Perubahan 1 file UI (auth-screen.tsx) + 1 aset (public/brand/auth-hero.jpg): nol perubahan skema/API/logika auth; gates penuh hijau; desktop & mobile terverifikasi.
 - Aset dinamai auth-hero.jpg & ditaruh di public/brand/ bersanding dengan aset lockup lain — mudah diganti cukap timpa file yang sama.
+
+---
+Task ID: AUTHBG-2
+Agent: main (Z.ai Code)
+Task: "hapus kata2 '86 tables ready' pada login page, dan ganti headline 'The messy part of HR, we've already figured out' menjadi 'Kelola aktivitas dan informasi kepegawaian Anda dalam satu platform terintegrasi.' (EN/ID)"
+
+Work Log:
+- EDIT auth-screen.tsx (murni copywriting, 1 file UI):
+  · Headline desktop (panel kiri): "Bagian rumit dari HR, / biar kami yang pikirkan." → "Kelola aktivitas dan informasi kepegawaian Anda / dalam satu platform terintegrasi." (EN: "Manage your employee activities and information / in one integrated platform.") — ekor preposisi tetap italic text-blue-200. Kalimat baru jauh lebih panjang dari yang lama → ukuran disesuaikan 42/52px → 31/38px + leading 1.15 agar hero tetap proporsional (3–4 baris).
+  · Tagline mobile (lg:hidden, atas kartu form): kalimat sama, ekor warna brand; 20px → 17px agar kompak di 375px.
+  · Baris stats bawah panel kiri: item "86 tabel siap / 86 tables ready" DIHAPUS beserta 1 pemisah diamond-nya — sisa "Ter-isolasi per tenant · PPh21 · BPJS · SPT 1721-A1" tanpa separator menggantung.
+  · auth-design-lab.tsx (mockup ?mockup=auth) TIDAK disentuh — bukan login page asli.
+- GATES: tsc tsconfig.p9.json FULL 0 error (heap 2000); lint 0 error/6 warning baseline; audit-bilingual TOTAL_GAP=150 baseline (pasangan bahasa dihapus dua-duanya, pasangan baru lengkap EN+ID); dev.log bersih.
+- BROWSER (agent-browser): DESKTOP 1440 EN — heading baru terbaca, "86 tables ready" hilang, stats row sisa "ISOLATED PER TENANT · PPH21 · BPJS · SPT 1721-A1", heading proporsional di atas ilustrasi, 0 defect (VLM konfirmasi). DESKTOP ID (klik saklar bahasa) — h1 persis "Kelola aktivitas dan informasi kepegawaian Anda dalam satu platform terintegrasi." (get text h1), "86 tabel siap" hilang, kontras baik. MOBILE 375×812 ID — tagline italic baru benar, kartu form (EMAIL/KATA SANDI/MASUK KE WORKSPACE) utuh & usable setelah dialog PWA "Instal aplikasi" ditutup, scrollWidth=375 (0 h-overflow), 0 defect. Console 0 error.
+- GIT: commit + push origin main.
+
+Stage Summary:
+- Login page: headline lama yang "punchy" diganti value-proposition deskriptif dwibahasa (EN/ID) di desktop + mobile; stat teknis internal "86 tabel siap" dihapus dari mata pengunjung (sisa stat masih bermakna: isolasi tenant + fitur pajak).
+- Perubahan 1 file (auth-screen.tsx), nol perubahan logika auth/skema/API; gates penuh hijau; verifikasi dwibahasa desktop+mobile VIA VLM & a11y tree.
