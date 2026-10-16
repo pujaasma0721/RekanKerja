@@ -5,6 +5,7 @@ import {
   getBoard, getCandidateDetail, getSelectionCalendar, selectionSummaries,
   scheduleStep, acknowledgeStep, recordStepResult, advanceCandidate,
   cancelStep, addStep, withdrawCandidate, issueInvitation, letterPdf,
+  getPrStageConfig, setPrStages,
 } from "@/rekankerja/recruitment/services/selection-service";
 import {
   listTemplates, upsertTemplate, deactivateTemplate,
@@ -21,9 +22,11 @@ import {
 //   GET  ?candidateId=             → { row } detail kandidat + tahap + panel
 //   GET  ?stepId=&scorecards=1      → { panel } scorecard step
 //   GET  ?templates=1               → { templates } katalog rubrik
+//   GET  ?prStages=1&prId=          → { config } tahapan kustom PR + katalog (SB-RC-BL)
 //   GET  ?letterPdf=ID              → PDF surat undangan (stream)
 //   POST { action: schedule|ack|result|advance|cancel-step|add-step
-//          |withdraw|invite|scorecard-save|template-upsert|template-deactivate }
+//          |withdraw|invite|scorecard-save|template-upsert|template-deactivate
+//          |pr-stages-save }
 // Guard: recruitment:selection (view + op:schedule/op:result/op:invite +
 // create/update utk scorecard) · op:withdraw → recruitment:candidates.
 // ============================================================================
@@ -81,6 +84,15 @@ export async function GET(req: NextRequest) {
 
     if (sp.get("templates")) {
       return NextResponse.json({ templates: await listTemplates(db), recommendations: SCORECARD_RECOMMENDATIONS });
+    }
+
+    // SB-RC-BL — konfigurasi tahapan seleksi kustom per PR (dialog Tahapan PR)
+    if (sp.get("prStages")) {
+      const prId = sp.get("prId");
+      if (!prId) return NextResponse.json({ error: "prId wajib" }, { status: 400 });
+      const config = await getPrStageConfig(db, prId);
+      if (!config) return NextResponse.json({ error: "PR tidak ditemukan" }, { status: 404 });
+      return NextResponse.json({ config });
     }
 
     return NextResponse.json({ error: "Parameter query tidak dikenal" }, { status: 400 });
@@ -238,6 +250,19 @@ export async function POST(req: NextRequest) {
           const m = await guard("recruitment:selection", "update");
           await deactivateTemplate(m.db, String(b.id ?? ""), m.actor.name);
           return NextResponse.json({ ok: true });
+        }
+        case "pr-stages-save": {
+          // SB-RC-BL — simpan daftar tahapan kustom per PR (kosong = reset standar)
+          const m = await guard("recruitment:selection", "update");
+          const processIds = Array.isArray(b.processIds)
+            ? (b.processIds as unknown[]).map(String).filter(Boolean)
+            : [];
+          const res = await setPrStages(m.db, {
+            prId: String(b.prId ?? ""),
+            processIds,
+            actorName: m.actor.name,
+          });
+          return NextResponse.json(res);
         }
         default:
           return NextResponse.json({ error: `Aksi tidak dikenal: ${action}` }, { status: 400 });

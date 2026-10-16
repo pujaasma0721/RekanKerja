@@ -107,6 +107,8 @@ export interface SelectionBoard {
   pr: {
     id: string; prNo: string; status: string; positionTitle: string | null;
     requiredNo: number; employmentStatus: string;
+    /** SB-RC-BL — PR ini punya daftar tahapan kustom (PrSelectionStage). */
+    stageCustomized: boolean;
   };
   columns: BoardColumn[];
   /** badge IncompleteEvaluation per PR — tahap aktif yang lewat SLA. */
@@ -221,15 +223,24 @@ function stepOverdue(s: StepWithProc | null): boolean {
 }
 
 /**
- * Buat rantai tahap per kandidat dari katalog master (aktif, urut
- * processOrder) — difilter berlaku utk sumber kandidat. Dipanggil saat
- * nominasi (candidate-service).
+ * Buat rantai tahap per kandidat — SB-RC-BL: bila PR punya daftar tahapan
+ * kustom (PrSelectionStage, user-defined) pakai URUTAN itu (tetap difilter
+ * appliesInternal/appliesExternal); PR tanpa kustom → katalog aktif standar
+ * tenant urut processOrder (perilaku F3 lama). Dipanggil saat nominasi
+ * (candidate-service).
  */
-export async function ensureStepsForCandidate(db: TenantDb, candidate: { id: string; source: string }): Promise<number> {
-  const stages = await db.selectionProcess.findMany({
-    where: { active: true },
-    orderBy: { processOrder: "asc" },
+export async function ensureStepsForCandidate(db: TenantDb, candidate: { id: string; source: string; prId: string }): Promise<number> {
+  const prStages = await db.prSelectionStage.findMany({
+    where: { prId: candidate.prId },
+    orderBy: { seqNo: "asc" },
+    include: { selectionProcess: true },
   });
+  const stages = prStages.length > 0
+    ? prStages.map((ps) => ps.selectionProcess)
+    : await db.selectionProcess.findMany({
+      where: { active: true },
+      orderBy: { processOrder: "asc" },
+    });
   const applicable = stages.filter((s) =>
     candidate.source === "Internal" ? s.appliesInternal : s.appliesExternal,
   );
@@ -306,6 +317,8 @@ export async function getBoard(db: TenantDb, prId: string): Promise<SelectionBoa
       id: true, prNo: true, status: true, requiredNo: true, employmentStatus: true,
       position: { select: { title: true } },
       recruitmentOfficer: { select: { fullName: true } },
+      // SB-RC-BL — deteksi daftar tahapan kustom per PR
+      stages: { select: { id: true, seqNo: true } },
     },
   });
   if (!pr) return null;
@@ -323,7 +336,8 @@ export async function getBoard(db: TenantDb, prId: string): Promise<SelectionBoa
   });
 
   // kolom = tahap yang dipakai rantai kandidat PR ini (urut processOrder);
-  // bila belum ada kandidat → katalog aktif penuh (empty state informatif).
+  // bila belum ada kandidat → SB-RC-BL: daftar kustom PR bila ada, selain itu
+  // katalog aktif penuh (empty state informatif).
   const stageIds = new Set<string>();
   for (const c of candidates) for (const s of c.selectionSteps) stageIds.add(s.selectionProcessId);
   let stages: { id: string; name: string; code: string; processOrder: number; slaDays: number | null; resultType: string; needAcknowledgement: boolean; mandatory: boolean }[];
@@ -333,7 +347,14 @@ export async function getBoard(db: TenantDb, prId: string): Promise<SelectionBoa
       orderBy: { processOrder: "asc" },
     });
   } else {
-    stages = await db.selectionProcess.findMany({ where: { active: true }, orderBy: { processOrder: "asc" } });
+    const prStages = await db.prSelectionStage.findMany({
+      where: { prId },
+      orderBy: { seqNo: "asc" },
+      include: { selectionProcess: true },
+    });
+    stages = prStages.length > 0
+      ? prStages.map((ps) => ps.selectionProcess)
+      : await db.selectionProcess.findMany({ where: { active: true }, orderBy: { processOrder: "asc" } });
   }
 
   const columns: BoardColumn[] = stages.map((st, i) => {
@@ -366,7 +387,7 @@ export async function getBoard(db: TenantDb, prId: string): Promise<SelectionBoa
   });
 
   return {
-    pr: { id: pr.id, prNo: pr.prNo, status: pr.status, positionTitle: pr.position?.title ?? null, requiredNo: pr.requiredNo, employmentStatus: pr.employmentStatus },
+    pr: { id: pr.id, prNo: pr.prNo, status: pr.status, positionTitle: pr.position?.title ?? null, requiredNo: pr.requiredNo, employmentStatus: pr.employmentStatus, stageCustomized: pr.stages.length > 0 },
     columns,
     overdueCount: cards.filter((c) => c.overdue).length,
     stats: {
@@ -397,6 +418,113 @@ export async function listCandidates(db: TenantDb, opts: { prId?: string | null;
     }),
   };
 }
+
+// ============ SB-RC-BL — tahapan seleksi kustom per PR (user-defined) ============
+
+/** Baris katalog utk dialog Tahapan PR (mirror ProcessOpt service masters). */
+export interface PrStageCatalogRow {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+  resultType: string;
+  slaDays: number | null;
+  mandatory: boolean;
+  needAcknowledgement: boolean;
+  appliesInternal: boolean;
+  appliesExternal: boolean;
+}
+
+/** Konfigurasi tahapan PR utk dialog (standar vs kustom + katalog pilihan). */
+export interface PrStageConfig {
+  prId: string;
+  prNo: string;
+  customized: boolean; // PR punya daftar kustom (PrSelectionStage)
+  /** urutan id tahap terpilih (kosong bila standar). */
+  stageIds: string[];
+  /** kandidat sudah ternominasi di PR ini (warning: perubahan hanya utk nominasi BARU). */
+  candidateCount: number;
+  catalog: PrStageCatalogRow[];
+}
+
+/** Baca konfigurasi tahapan PR + katalog lengkap (dialog "Tahapan PR"). */
+export async function getPrStageConfig(db: TenantDb, prId: string): Promise<PrStageConfig | null> {
+  const pr = await db.personnelRequisition.findUnique({
+    where: { id: prId },
+    select: {
+      id: true, prNo: true,
+      stages: { orderBy: { seqNo: "asc" }, select: { selectionProcessId: true } },
+      _count: { select: { candidates: true } },
+    },
+  });
+  if (!pr) return null;
+  const catalog = await db.selectionProcess.findMany({
+    orderBy: [{ active: "desc" }, { processOrder: "asc" }],
+  });
+  return {
+    prId: pr.id,
+    prNo: pr.prNo,
+    customized: pr.stages.length > 0,
+    stageIds: pr.stages.map((s) => s.selectionProcessId),
+    candidateCount: pr._count.candidates,
+    catalog: catalog.map((c) => ({
+      id: c.id, code: c.code, name: c.name, active: c.active,
+      resultType: c.resultType, slaDays: c.slaDays, mandatory: c.mandatory,
+      needAcknowledgement: c.needAcknowledgement,
+      appliesInternal: c.appliesInternal, appliesExternal: c.appliesExternal,
+    })),
+  };
+}
+
+/**
+ * Simpan daftar tahapan kustom PR (replace-all dalam satu transaksi).
+ * `processIds` kosong = reset ke standar tenant (hapus semua baris kustom).
+ * Rantai kandidat yang SUDAH dibuat tidak disentuh (snapshot audit-safe) —
+ * hanya nominasi berikutnya yang membaca daftar baru.
+ */
+export async function setPrStages(
+  db: TenantDb,
+  input: { prId: string; processIds: string[]; actorName?: string | null },
+): Promise<{ customized: boolean; count: number }> {
+  const pr = await db.personnelRequisition.findUnique({
+    where: { id: input.prId },
+    select: { id: true, prNo: true, stages: { select: { selectionProcessId: true } } },
+  });
+  if (!pr) throw new Error("Permintaan karyawan (PR) tidak ditemukan");
+
+  // dedupe + validasi: semua id harus ada di katalog
+  const ids = [...new Set(input.processIds)];
+  if (ids.length > 0) {
+    const found = await db.selectionProcess.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+    if (found.length !== ids.length) throw new Error("Ada tahap seleksi yang tidak dikenal — muat ulang daftar tahapan");
+  }
+
+  await db.$transaction([
+    db.prSelectionStage.deleteMany({ where: { prId: pr.id } }),
+    ...ids.map((selectionProcessId, i) =>
+      db.prSelectionStage.create({
+        data: { prId: pr.id, selectionProcessId, seqNo: i + 1 },
+      }),
+    ),
+  ]);
+
+  const found = await db.selectionProcess.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(found.map((f) => [f.id, f.name]));
+  const names = ids.map((id) => nameById.get(id)).filter((n): n is string => !!n);
+  await db.activityLog.create({
+    data: {
+      action: "Updated", entity: "PrSelectionStage", entityId: pr.prNo,
+      detail: ids.length > 0
+        ? `Tahapan seleksi PR ${pr.prNo} dikustomisasi: ${ids.length} tahap (${names.join(" → ")}) — berlaku utk nominasi kandidat BARU${input.actorName ? ` oleh ${input.actorName}` : ""}`
+        : `Tahapan seleksi PR ${pr.prNo} direset ke standar tenant${input.actorName ? ` oleh ${input.actorName}` : ""}`,
+    },
+  });
+  return { customized: ids.length > 0, count: ids.length };
+}
+
 
 /** Badge IncompleteEvaluation per PR (dipakai picker PR + overview). */
 export async function selectionSummaries(db: TenantDb): Promise<{ prId: string; prNo: string; candidates: number; active: number; overdue: number; invitations: number }[]> {

@@ -5355,3 +5355,31 @@ ALTER TABLE "OkrKeyResult" ADD CONSTRAINT "OkrKeyResult_objectiveId_fkey" FOREIG
 -- AddForeignKey
 ALTER TABLE "OkrKeyResult" ADD CONSTRAINT "OkrKeyResult_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+
+-- CreateTable (SB-RC-BL — tahapan seleksi kustom per PR / user-defined
+-- selection process per requisition: HR memilih tahap + urutannya per PR;
+-- kosong = standar tenant. Rantai kandidat existing TIDAK diubah — hanya
+-- nominasi baru membaca daftar ini. Idempoten utk tenant existing via
+-- scripts/migrate-recruitment-sb-stages.ts)
+CREATE TABLE "PrSelectionStage" (
+    "id" TEXT NOT NULL,
+    "prId" TEXT NOT NULL,
+    "selectionProcessId" TEXT NOT NULL,
+    "seqNo" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PrSelectionStage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex (SB-RC-BL)
+CREATE UNIQUE INDEX "PrSelectionStage_prId_selectionProcessId_key" ON "PrSelectionStage"("prId", "selectionProcessId");
+
+-- CreateIndex (SB-RC-BL)
+CREATE INDEX "PrSelectionStage_prId_idx" ON "PrSelectionStage"("prId");
+
+-- AddForeignKey (SB-RC-BL)
+ALTER TABLE "PrSelectionStage" ADD CONSTRAINT "PrSelectionStage_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PersonnelRequisition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey (SB-RC-BL)
+ALTER TABLE "PrSelectionStage" ADD CONSTRAINT "PrSelectionStage_selectionProcessId_fkey" FOREIGN KEY ("selectionProcessId") REFERENCES "SelectionProcess"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

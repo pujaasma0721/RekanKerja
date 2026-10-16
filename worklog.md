@@ -7194,3 +7194,27 @@ Stage Summary:
 - 13 file service/API diubah + 4 file UI + 2 shared lib + schema tenant (+1 kolom, migrasi idempoten scripts/migrate-recruitment-audit-fix.ts terdaftar RESET_STEPS + paritas tenant-ddl.sql) + 1 lib baru (doc-no-retry).
 - Functional tests API (curl): captcha format+single-use, tenant 404 tanpa ?t=, XFF last-entry bucketing, knockout missing → Rejected staging — semua PASS; artefak uji dibersihkan.
 - Verifikasi browser dwibahasa + mobile 375 + a11y keyboard PASS; gates hijau penuh.
+
+---
+Task ID: SB-RC-BL
+Agent: Z.ai Code (orkestrator utama)
+Task: "Bagaimana jika setiap tahapan recruitment punya selection process yang berbeda2 dan user define?" — desain + implementasi penuh tahapan seleksi kustom per PR (user-defined selection process per requisition) di modul Rekrutmen F3.
+
+Work Log:
+- Eksplorasi arsitektur F3 saat ini: SelectionProcess = satu katalog standar tenant; ensureStepsForCandidate menyalin SEMUA tahap aktif utk semua PR (hanya difilter Internal/Eksternal) → jawab pertanyaan desain dengan pendekatan config-over-code: katalog tetap perpustakaan, PR bisa punya daftar urut sendiri.
+- Prisma schema-tenant.prisma: model baru PrSelectionStage {prId, selectionProcessId, seqNo, unique[prId,selectionProcessId], index prId} + relasi PersonnelRequisition.stages / SelectionProcess.prStages (onDelete Cascade pr / RESTRICT stage).
+- prisma/tenant-ddl.sql: append blok CreateTable PrSelectionStage + 2 index + 2 FK (pola append B5–B8).
+- scripts/migrate-recruitment-sb-stages.ts: migrasi idempoten (CREATE TABLE IF NOT EXISTS + SET search_path per tenant; fix awal lupa search_path → 42P01) → 3/3 tenant OK; terdaftar di scripts/test-e2e-all.ts; `bun run db:generate`.
+- selection-service.ts: ensureStepsForCandidate +param prId (baca PrSelectionStage dulu → fallback katalog aktif); getPrStageConfig (config + katalog + candidateCount); setPrStages (replace-all $transaction + validasi id + ActivityLog); getBoard +flag pr.stageCustomized + empty-state fallback kolom pakai daftar kustom; SelectionBoard.pr +stageCustomized.
+- Fix post-verifikasi: ActivityLog setPrStages kini menampilkan nama tahap urut INPUT (semula orderBy processOrder master → urutan log ≠ urutan simpanan).
+- candidate-service.ts: 2 call site nominasi (eksternal+internal) kini kirim prId.
+- api/selection.ts: GET ?prStages=1&prId= (guard view) + POST action pr-stages-save (guard recruitment:selection update).
+- UI selection-shared.tsx: +tipe mirror PrStageConfig/PrStageCatalogRow; selection-dialogs.tsx: +PrStageConfigDialog (radio Standar/Kustom + urutan naik-turun-hapus + katalog checkbox dgn badge Kuantitatif/Kualitatif-SLA-sumber + warning "n kandidat sudah dinominasikan — hanya nominasi BARU" + preview standar) ; selection.tsx: tombol "Tahapan" di toolbar PR + badge "tahapan kustom" di header board + wiring dialogOpen.
+- README modul rekrutmen: F3 + catatan SB-RC-BL + baris API selection diperbarui.
+
+Stage Summary:
+- Fitur TUNTAS E2E terverifikasi browser (agent-browser, MII hrd session): dialog EN+ID penuh; pilih 3 tahap + reorder → simpan → toast + badge "tahapan kustom" di board; nominasi pelamar BARU (Gita Savitri APP-26-00009) → stepsCreated=3 rantai [1 Psikotes, 2 Interview HR, 3 Interview User] persis urutan kustom; kandidat lama (Yusuf Rahayu) tetap 5 tahap (snapshot aman); reset ke standar → badge hilang + config n=0; restore kustom OK; ActivityLog 3+ entri dgn aktor + urutan benar pasca-fix.
+- Mobile 375px: board & dialog hscroll=false (perlu scrollintoview utk klik tombol di balik sticky header — bukan defect).
+- VLM audit 3 screenshot (dialog custom EN / dialog ID / board mobile): NO DEFECTS. 9 screenshot bukti: audit/e2e-sb-rc-stages/01..09.
+- Gates: tsc p9 0 error · lint 0/6 baseline · bilingual TOTAL_GAP=150 baseline · dev.log bersih (0 error console/page; warning React pre-existing).
+- Keputusan desain: tahap dipilih DARI KATALOG (bukan teks bebas) demi referential integrity scorecard/SLA/surat; filter appliesInternal/appliesExternal tetap berlaku; perubahan hanya utk nominasi BARU (audit-safe); PR-2026-0009 MII dibiarkan berkustom [Interview HR→Psikotes→Interview User] sbg showcase.

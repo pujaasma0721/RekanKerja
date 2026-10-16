@@ -14,7 +14,10 @@ analisa §2.5/§2.6 + HRX (pattern AI-recruitment engine).
 - **F2 Lowongan & talent pool** — JobOpportunity/JobOpening (slot) + portal
   karir publik (staging lamaran) + Applicant (talent pool) + dokumen.
 - **F3 Kandidat & seleksi terstruktur** — JobCandidate per PR, tahapan
-  (CandidateSelectionStep) + scorecard terstruktur + surat undangan.
+  (CandidateSelectionStep) + scorecard terstruktur + surat undangan;
+  **tahapan kustom per PR** (SB-RC-BL — user-defined selection process:
+  HR memilih tahap + urutannya per rekrutmen; kosong = standar tenant,
+  rantai kandidat existing aman sebagai snapshot).
 - **F4 Offer & pengangkatan** — CandidateOffer (surat penawaran), timer
   kedaluwarsa, pengangkatan → Employee + lanjut onboarding.
 - **F5 Demografi & rencana** — segmen talent pool, silver medalist, rencana &
@@ -74,7 +77,7 @@ Portal karir (publik)                HR / Recruiter
 | `/api/rekankerja/recruitment/applicant-documents` | applicants | Upload/dokumen pelamar |
 | `/api/rekankerja/recruitment/public-applications` | public-staging | Inbox verifikasi staging |
 | `/api/rekankerja/recruitment/candidates` | candidates | Kandidat per PR |
-| `/api/rekankerja/recruitment/selection` | selection | Tahapan, hasil, board, surat |
+| `/api/rekankerja/recruitment/selection` | selection | Tahapan, hasil, board, surat, tahapan kustom per PR (`?prStages=1` / `pr-stages-save`) |
 | `/api/rekankerja/recruitment/offers` | offers | Offer + respons + pengangkatan |
 | `/api/rekankerja/recruitment/plan` | plan | Rencana rekrutmen |
 | `/api/rekankerja/recruitment/budget` | plan | Anggaran vs actual |

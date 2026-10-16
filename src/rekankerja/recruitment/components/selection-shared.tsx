@@ -66,10 +66,36 @@ export interface SelectionBoard {
   pr: {
     id: string; prNo: string; status: string; positionTitle: string | null;
     requiredNo: number; employmentStatus: string;
+    /** SB-RC-BL — PR ini punya daftar tahapan kustom (PrSelectionStage). */
+    stageCustomized: boolean;
   };
   columns: BoardColumn[];
   overdueCount: number;
   stats: { nominated: number; inProcess: number; passed: number; failed: number; withdrawn: number; overdue: number };
+}
+
+/** SB-RC-BL — baris katalog tahap utk dialog Tahapan PR (mirror service). */
+export interface PrStageCatalogRow {
+  id: string;
+  code: string;
+  name: string;
+  active: boolean;
+  resultType: string;
+  slaDays: number | null;
+  mandatory: boolean;
+  needAcknowledgement: boolean;
+  appliesInternal: boolean;
+  appliesExternal: boolean;
+}
+
+/** SB-RC-BL — konfigurasi tahapan kustom per PR (mirror /selection ?prStages=1). */
+export interface PrStageConfig {
+  prId: string;
+  prNo: string;
+  customized: boolean;
+  stageIds: string[];
+  candidateCount: number;
+  catalog: PrStageCatalogRow[];
 }
 
 export interface StepLetter {

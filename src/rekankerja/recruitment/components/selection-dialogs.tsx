@@ -33,12 +33,12 @@ import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
   SELECTION_API, CANDIDATES_API,
   type ApplicantOpt, type CandidateDetail, type CalendarEvent, type EmployeeOpt,
-  type InvitationResult, type PanelResult, type ProcessOpt, type PrOpt, type StepRow,
+  type InvitationResult, type PanelResult, type PrStageConfig, type PrStageCatalogRow, type ProcessOpt, type PrOpt, type StepRow,
   type TemplateRow, Pill, CandPill, StepPill, RecPill, daysLateOf, monthsLabel,
 } from "./selection-shared";
 import { AiScorePanel } from "./ai-score-dialogs";
 import {
-  AlertTriangle, AlarmClock, ArrowUpRight, BadgeCheck, CalendarPlus, Check, ChevronLeft, ChevronRight,
+  AlertTriangle, AlarmClock, ArrowDown, ArrowUp, ArrowUpRight, BadgeCheck, CalendarPlus, Check, ChevronLeft, ChevronRight,
   ChevronsUpDown, ClipboardCheck, Download, FileText, Info, ListChecks, MailCheck, Pencil, Plus, Settings2,
   Trash2, UserPlus, UserRoundX, Video,
 } from "lucide-react";
@@ -894,6 +894,274 @@ export function RubricManagerDialog({ open, onClose, stages }: { open: boolean; 
               </>
             ) : (
               <Button variant="outline" onClick={onClose}>{t("Tutup", "Close")}</Button>
+            )}
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================
+// SB-RC-BL — dialog Tahapan Seleksi PR (user-defined per rekrutmen)
+// ============================================================
+
+/** Badge kecil utk baris katalog tahap (resultType / SLA / sumber). */
+function StageMetaBadges({ s }: { s: PrStageCatalogRow }) {
+  const { t } = useI18n();
+  return (
+    <>
+      <Badge variant="outline" className="text-[10px]">
+        {s.resultType === "Quantitative" ? t("Kuantitatif", "Quantitative") : t("Kualitatif", "Qualitative")}
+      </Badge>
+      {s.slaDays != null && (
+        <Badge variant="secondary" className="text-[10px]">{t("SLA {n} hr", "SLA {n} d", { n: String(s.slaDays) })}</Badge>
+      )}
+      <Badge variant="outline" className="text-[10px]">
+        {s.appliesInternal && s.appliesExternal
+          ? t("Semua sumber", "All sources")
+          : s.appliesInternal
+            ? t("Internal saja", "Internal only")
+            : t("Eksternal saja", "External only")}
+      </Badge>
+      {!s.active && (
+        <Badge className="bg-zinc-100 text-zinc-500 border-zinc-200 text-[10px] hover:bg-zinc-100 dark:bg-zinc-500/10 dark:text-zinc-400 dark:border-zinc-500/30">
+          {t("NONAKTIF", "INACTIVE")}
+        </Badge>
+      )}
+    </>
+  );
+}
+
+export function PrStageConfigDialog({ open, onClose, prId, prNo, onDone }: {
+  open: boolean; onClose: () => void; prId: string | null; prNo: string | null; onDone: () => void;
+}) {
+  const { t } = useI18n();
+  const perms = useMenuPerms();
+  const cfgApi = useApi<{ config: PrStageConfig }>(open && prId ? `${SELECTION_API}?prStages=1&prId=${prId}` : null, [open, prId]);
+  const config = cfgApi.data?.config ?? null;
+
+  // state edit (di-sync dari server tiap config termuat; null = belum diubah)
+  const [edited, setEdited] = useState<{ custom: boolean; picked: string[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (config) setEdited({ custom: config.customized, picked: [...config.stageIds] });
+  }, [cfgApi.data]);
+
+  const canSave = perms.can("recruitment", "selection", "update");
+  const useCustom = edited?.custom ?? config?.customized ?? false;
+  const pickedIds = edited?.picked ?? config?.stageIds ?? [];
+  const pickedSet = useMemo(() => new Set(pickedIds), [pickedIds]);
+  const byId = useMemo(() => new Map((config?.catalog ?? []).map((c) => [c.id, c])), [config?.catalog]);
+
+  const toggleStage = (id: string) => {
+    setEdited((prev) => {
+      const base = prev ?? { custom: config?.customized ?? false, picked: [...(config?.stageIds ?? [])] };
+      const has = base.picked.includes(id);
+      return { ...base, custom: true, picked: has ? base.picked.filter((x) => x !== id) : [...base.picked, id] };
+    });
+  };
+
+  const moveStage = (i: number, dir: -1 | 1) => {
+    setEdited((prev) => {
+      const base = prev ?? { custom: config?.customized ?? false, picked: [...(config?.stageIds ?? [])] };
+      const j = i + dir;
+      if (j < 0 || j >= base.picked.length) return prev;
+      const next = [...base.picked];
+      [next[i], next[j]] = [next[j], next[i]];
+      return { ...base, picked: next };
+    });
+  };
+
+  const save = async () => {
+    if (!prId) return;
+    if (useCustom && pickedIds.length === 0) {
+      toast.error(t("Pilih minimal satu tahap utk daftar kustom", "Pick at least one stage for the custom list"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await apiSend<{ customized: boolean; count: number }>(SELECTION_API, "POST", {
+        action: "pr-stages-save",
+        prId,
+        processIds: useCustom ? pickedIds : [],
+      });
+      toast.success(res.customized
+        ? t(`Tahapan PR ${prNo} disimpan — ${res.count} tahap kustom (nominasi berikutnya memakai urutan ini)`, `PR ${prNo} stages saved — ${res.count} custom stages (the next nominations follow this order)`)
+        : t(`Tahapan PR ${prNo} direset ke standar tenant`, `PR ${prNo} stages reset to the tenant standard`));
+      onDone();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan tahapan", "Failed to save the stages"));
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ListChecks className="h-4 w-4 ov-text-accent" aria-hidden />
+            {t("Tahapan Seleksi PR", "PR Selection Stages")}
+            {prNo && <span className="font-mono text-xs font-semibold text-slate-500 dark:text-slate-400">{prNo}</span>}
+          </DialogTitle>
+        </DialogHeader>
+
+        {cfgApi.loading && !cfgApi.data ? (
+          <LoadingRows rows={4} />
+        ) : cfgApi.error ? (
+          <EmptyState title={t("Gagal memuat tahapan", "Failed to load the stages")} description={cfgApi.error} />
+        ) : !config ? null : (
+          <div className="space-y-4">
+            {/* peringatan kandidat existing — snapshot rantai tidak berubah */}
+            {config.candidateCount > 0 && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300" role="status">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <span>
+                  {t(
+                    "{n} kandidat sudah dinominasikan di PR ini — perubahan hanya berlaku untuk nominasi BARU; rantai tahap kandidat yang sudah berjalan tidak diubah.",
+                    "{n} candidates have already been nominated to this PR — changes only apply to NEW nominations; step chains already in progress stay unchanged.",
+                    { n: String(config.candidateCount) },
+                  )}
+                </span>
+              </div>
+            )}
+
+            {/* pilihan mode */}
+            <RadioGroup
+              value={useCustom ? "custom" : "standard"}
+              onValueChange={(v) => setEdited((prev) => {
+                const base = prev ?? { custom: config.customized, picked: [...config.stageIds] };
+                return { ...base, custom: v === "custom" };
+              })}
+              className="gap-3"
+              disabled={!canSave}
+            >
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                <RadioGroupItem value="standard" className="mt-0.5" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{t("Standar tenant", "Tenant standard")}</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">
+                    {t("Semua tahap aktif di katalog Master Rekrutmen, urut standar — dipakai bila PR tidak punya daftar kustom.", "All active stages in the Recruitment Master catalog, in standard order — used when the PR has no custom list.")}
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                <RadioGroupItem value="custom" className="mt-0.5" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{t("Kustom utk PR ini", "Custom for this PR")}</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">
+                    {t("Pilih tahap + urutannya khusus utk rekrutmen ini (mis. rekrutmen manajer vs staf bisa berbeda).", "Pick the stages & their order specifically for this recruitment (e.g. manager vs staff hiring can differ).")}
+                  </span>
+                </span>
+              </label>
+            </RadioGroup>
+
+            {useCustom ? (
+              <div className="space-y-3">
+                {/* daftar terpilih (urutan) */}
+                <div>
+                  <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    {t("Urutan tahap ({n})", "Stage order ({n})", { n: String(pickedIds.length) })}
+                  </h4>
+                  {pickedIds.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-slate-300 p-3 text-center text-xs text-slate-500 dark:border-slate-600 dark:text-slate-400">
+                      {t("Centang tahap di katalog di bawah — tahap terpilih muncul di sini dan bisa diurutkan.", "Tick stages in the catalog below — selected stages appear here and can be ordered.")}
+                    </p>
+                  ) : (
+                    <ol className="space-y-1.5">
+                      {pickedIds.map((id, i) => {
+                        const s = byId.get(id);
+                        if (!s) return null;
+                        return (
+                          <li key={id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[11px] font-bold ov-text-accent">{i + 1}</span>
+                            <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900 dark:text-slate-50">{s.name}</span>
+                            <span className="flex shrink-0 items-center gap-1">
+                              <Button type="button" variant="outline" size="icon" className="h-7 w-7" disabled={!canSave || i === 0}
+                                onClick={() => moveStage(i, -1)} aria-label={t("Naikkan urutan", "Move up")}>
+                                <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+                              </Button>
+                              <Button type="button" variant="outline" size="icon" className="h-7 w-7" disabled={!canSave || i === pickedIds.length - 1}
+                                onClick={() => moveStage(i, 1)} aria-label={t("Turunkan urutan", "Move down")}>
+                                <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+                              </Button>
+                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600" disabled={!canSave}
+                                onClick={() => toggleStage(id)} aria-label={t("Hapus dari daftar", "Remove from list")}>
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                              </Button>
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
+                </div>
+
+                {/* katalog tahap */}
+                <div>
+                  <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    {t("Katalog tahap (Master Rekrutmen)", "Stage catalog (Recruitment Masters)")}
+                  </h4>
+                  <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
+                    {config.catalog.map((s) => {
+                      const on = pickedSet.has(s.id);
+                      return (
+                        <label key={s.id} className={cn(
+                          "flex cursor-pointer items-start gap-2.5 rounded-xl border p-2.5 transition-colors",
+                          on ? "border-brand/40 bg-brand/5 dark:border-brand/40" : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600",
+                          !s.active && "opacity-60",
+                        )}>
+                          <Checkbox checked={on} onCheckedChange={() => toggleStage(s.id)} disabled={!canSave || !s.active} className="mt-0.5" aria-label={s.name} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-slate-900 dark:text-slate-50">
+                              {s.name}
+                              {!s.active && <span className="ml-1.5 align-middle"><StageMetaBadges s={s} /></span>}
+                            </span>
+                            <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                              {s.active && <StageMetaBadges s={s} />}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400">
+                    <Info className="h-3 w-3 shrink-0" aria-hidden />
+                    {t("Tahap tetap difilter utk sumber kandidat (Internal/Eksternal) sesuai setelan master — kandidat internal tidak akan menerima tahap khusus eksternal.", "Stages are still filtered by candidate source (Internal/External) per the master setting — internal candidates won't receive external-only stages.")}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              /* pratinjau standar tenant */
+              <div>
+                <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  {t("Urutan standar (pratinjau)", "Standard order (preview)")}
+                </h4>
+                <ol className="space-y-1.5">
+                  {config.catalog.filter((s) => s.active).map((s, i) => (
+                    <li key={s.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{i + 1}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900 dark:text-slate-50">{s.name}</span>
+                      <span className="hidden flex-wrap items-center gap-1.5 sm:flex"><StageMetaBadges s={s} /></span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="hidden text-[10px] text-slate-400 sm:block">
+            {t("Rantai tahap kandidat yang sudah berjalan tersimpan sebagai snapshot — aman untuk audit.", "Step chains already in progress are stored as snapshots — audit safe.")}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>{t("Batal", "Cancel")}</Button>
+            {canSave && (
+              <Button onClick={save} disabled={busy} className="ov-fill ov-glow">
+                {busy ? t("Menyimpan…", "Saving…") : t("Simpan Tahapan", "Save Stages")}
+              </Button>
             )}
           </div>
         </DialogFooter>

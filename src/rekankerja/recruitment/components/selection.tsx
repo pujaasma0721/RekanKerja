@@ -31,11 +31,11 @@ import { AiScoreDialog, AiRubricDialog } from "./ai-score-dialogs";
 import { CopilotPanel } from "./copilot-panel";
 import {
   CandidateDetailDialog, DayEventsDialog, ResultAdvanceDialog, RubricManagerDialog,
-  TransferDialog, type ResultTarget,
+  TransferDialog, PrStageConfigDialog, type ResultTarget,
 } from "./selection-dialogs";
 import {
   AlarmClock, AlertTriangle, ArrowUpRight, BadgeCheck, Bot, CalendarDays, ClipboardCheck,
-  Handshake, KanbanSquare, Keyboard, MailCheck, Settings2, SlidersHorizontal, Sparkles,
+  Handshake, KanbanSquare, Keyboard, ListChecks, MailCheck, Settings2, SlidersHorizontal, Sparkles,
   UserPlus, UserRoundCheck, EyeOff,
 } from "lucide-react";
 
@@ -118,6 +118,8 @@ export function SelectionPage() {
   const [resultTarget, setResultTarget] = useState<ResultTarget | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [rubricOpen, setRubricOpen] = useState(false);
+  // SB-RC-BL — dialog tahapan seleksi kustom per PR (user-defined).
+  const [stageCfgOpen, setStageCfgOpen] = useState(false);
   const [dayEvents, setDayEvents] = useState<{ day: string; events: CalendarEvent[] } | null>(null);
   // F6b — dialog skor AI (per kandidat) + manager rubrik skor AI (per PR).
   const [scoreTarget, setScoreTarget] = useState<{ id: string; displayName: string } | null>(null);
@@ -125,7 +127,7 @@ export function SelectionPage() {
   // F6c — panel Recruiter Copilot.
   const [copilotOpen, setCopilotOpen] = useState(false);
   const dialogOpen = detailId != null || resultTarget != null || transferOpen || rubricOpen || dayEvents != null
-    || scoreTarget != null || aiRubricOpen || copilotOpen;
+    || scoreTarget != null || aiRubricOpen || copilotOpen || stageCfgOpen;
 
   // ---------- F6c — mode buta (blind screening, display-only) ----------
   // localStorage rk-blind-selection; baca SETELAH mount (hindari hydration
@@ -620,12 +622,24 @@ export function SelectionPage() {
                 <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">{board.pr.prNo}</span>
                 <span>{board.pr.positionTitle ?? t("tanpa posisi", "no position")}</span>
                 <span>· {t("kebutuhan {n} org", "{n} headcount", { n: String(board.pr.requiredNo) })}</span>
+                {board.pr.stageCustomized && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand/5 px-2 py-0.5 font-bold ov-text-accent"
+                    title={t("PR ini memakai daftar tahapan kustom — diatur lewat tombol Tahapan.", "This PR uses a custom stage list — managed via the Stages button.")}>
+                    <ListChecks className="h-3 w-3" aria-hidden /> {t("tahapan kustom", "custom stages")}
+                  </span>
+                )}
                 {board.overdueCount > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"
                     title={t("IncompleteEvaluation — tahap aktif lewat SLA dueDate", "IncompleteEvaluation — active stages past their SLA due date")}>
                     <AlarmClock className="h-3 w-3" aria-hidden /> {board.overdueCount} {t("lewat SLA", "past SLA")}
                   </span>
                 )}
+                {/* SB-RC-BL — atur tahapan seleksi kustom per PR (user-defined) */}
+                <Button variant="outline" size="sm" className="ml-1 h-7 gap-1.5 px-2 text-[11px]"
+                  onClick={() => setStageCfgOpen(true)}
+                  title={t("Pilih tahap + urutan seleksi khusus utk PR ini (default: standar tenant)", "Pick the selection stages & order specific to this PR (default: tenant standard)")}>
+                  <ListChecks className="h-3.5 w-3.5" aria-hidden /> {t("Tahapan", "Stages")}
+                </Button>
               </div>
             )}
           </div>
@@ -797,6 +811,14 @@ export function SelectionPage() {
       <ResultAdvanceDialog target={resultTarget} employees={employees} onClose={() => setResultTarget(null)} onDone={refreshAll} />
       <TransferDialog open={transferOpen} onClose={() => setTransferOpen(false)} prs={prOptions} employees={employees} defaultPrId={prId} onDone={refreshAll} />
       <RubricManagerDialog open={rubricOpen} onClose={() => setRubricOpen(false)} stages={stages} />
+      {/* SB-RC-BL — tahapan seleksi kustom per PR (user-defined) */}
+      <PrStageConfigDialog
+        open={stageCfgOpen}
+        onClose={() => setStageCfgOpen(false)}
+        prId={prId || null}
+        prNo={board?.pr.prNo ?? selectedPrOpt?.prNo ?? null}
+        onDone={() => { boardApi.refresh(); }}
+      />
       <DayEventsDialog
         day={dayEvents?.day ?? null}
         events={dayEvents?.events ?? []}

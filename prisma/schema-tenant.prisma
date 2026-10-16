@@ -3373,6 +3373,32 @@ model SelectionProcess {
   // F3-REC — langkah per kandidat + template scorecard yang terikat tahap ini
   steps             CandidateSelectionStep[]
   scorecardTemplates ScorecardTemplate[]      @relation("ProcessScorecardTemplates")
+
+  // SB-RC-BL — pemakaian tahap ini dalam daftar kustom per PR (bila HR
+  // men-deferensikan pipeline per rekrutmen — lihat model PrSelectionStage).
+  prStages          PrSelectionStage[]        @relation("PrSelectionStages")
+}
+
+// SB-RC-BL — TAHAPAN SELEKSI KUSTOM PER PR (user-defined selection process):
+// daftar urut tahap (SelectionProcess) yang dipilih HR untuk rekrutmen ini —
+// rekrutmen manager bisa Psikotes → Interview HR → Interview User, rekrutmen
+// staf cukup Interview HR. Kosong (tidak ada baris) = pakai STANDAR TENANT
+// (katalog aktif penuh — perilaku F3 lama; 100% backward compatible).
+// Rantai kandidat yang sudah dibuat TIDAK diubah — hanya nominasi BARU yang
+// membaca daftar ini (snapshot audit-safe, pola config-over-code audit REC).
+model PrSelectionStage {
+  id                 String   @id @default(cuid())
+  prId               String
+  selectionProcessId String
+  seqNo              Int // urutan jalannya proses utk PR ini (1-based)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  pr               PersonnelRequisition @relation("PrSelectionStages", fields: [prId], references: [id], onDelete: Cascade)
+  selectionProcess SelectionProcess     @relation("PrSelectionStages", fields: [selectionProcessId], references: [id])
+
+  @@unique([prId, selectionProcessId])
+  @@index([prId])
 }
 
 // ============ RECRUITMENT — F1: PERMINTAAN KARYAWAN (PR) ============
@@ -3441,6 +3467,9 @@ model PersonnelRequisition {
   // F4-REC — offer & pengangkatan dari PR ini
   offers             CandidateOffer[]       @relation("PrOffers")
   appointments       CandidateAppointment[] @relation("PrAppointments")
+
+  // SB-RC-BL — tahapan seleksi kustom per PR (user-defined; kosong = standar tenant)
+  stages             PrSelectionStage[]     @relation("PrSelectionStages")
 
   @@index([status, requestDate])
   @@index([requestedById])

@@ -73,7 +73,7 @@ export async function nominateApplicant(
     },
   });
 
-  const stepsCreated = await ensureStepsForCandidate(db, { id: candidate.id, source: "External" });
+  const stepsCreated = await ensureStepsForCandidate(db, { id: candidate.id, source: "External", prId: input.prId });
 
   // jejak: lamaran pelamar ke slot PR ini → Screening
   await db.applicantApplication.updateMany({
@@ -120,7 +120,7 @@ export async function nominateEmployee(
     },
   });
 
-  const stepsCreated = await ensureStepsForCandidate(db, { id: candidate.id, source: "Internal" });
+  const stepsCreated = await ensureStepsForCandidate(db, { id: candidate.id, source: "Internal", prId: input.prId });
 
   await db.activityLog.create({
     data: {
