@@ -7056,3 +7056,28 @@ Stage Summary:
 - KPI-METRIC v2 SELESAI: "Metric / Measure of Success" kini SATU TEXTAREA teks bebas (umumnya rubrik "1: …"–"5: …" satu baris per level dalam satu kolom) di SEMUA titik — form buat/edit KPI (builder atasan), pustaka KPI Master Kinerja, usulan MBO ESS, penilaian (display + tooltip level), laporan cetak, impor Excel (satu sel). Data lama terkonversi; kolom terstruktur lama di-drop; jalur API legacy (array) tetap diterima & di-flatten.
 - Model data: metricLevelsJson ([{level,descriptor}]) → metric (String? teks tunggal) pada KpiDefinition + AppraisalKpi; migrasi idempoten di parity-runner (step kpi-metric) + tenant-ddl.sql paritas provisioning baru.
 - Validasi bergeser dari "5 level lengkap" → "teks terisi" (guard Descriptor-mode keras + gerbang submit §35-3 tetap menolak KPI tanpa metric); format rubrik TIDAK dipaksakan sistem.
+
+---
+Task ID: 9BOX-REDESIGN
+Agent: main (Z.ai Code) — orchestrator
+Task: "push lalu cek tampilan 9-box kurang menarik" — push check + redesain visual matriks 9-box tab Hasil & 9-Box (performance-results.tsx). 9-box lama: sel putih polos hanya angka + kode "P3×3", tanpa nama kategori, tanpa distribusi, hanya 2 aksen warna.
+
+Work Log:
+- PUSH CHECK: main = origin/main @ 0c96546 (KPI-METRIC v2 sudah ter-push; working tree bersih) — tidak ada yang perlu di-push saat permintaan masuk.
+- REDESAIN NineBoxTab (performance-results.tsx) — murni presentasional, kontrak API NineBoxData TIDAK berubah:
+  · CELL_META (mirror NINE_BOX_LABELS service pf43, kunci "perf-potential"): nama sel dwibahasa (Bintang/Stars, Performa Tinggi, Ahli Andal, Potensi Tinggi, Pemain Inti, Efektif, Permata Mentah, Tidak Konsisten, Perlu Perbaikan) + hint makna sel + tone warna (kolom = band performa: emerald/amber/rose; intensitas mengikuti potensi) + warna bar.
+  · Sel: nama sel uppercase + count text-[22px] extrabold + % + mini bar share (w-[72%]) + title tooltip (nama + hint); count=0 diredupkan (opacity-55); aktif = ring-2 ring-brand; hover -translate-y + shadow; fokus keyboard ring-brand.
+  · Header kolom: kompas sumbu (Potensi ↑ / Performa →) di pojok + label band performa pendek + rentang rating (8px) + dot warna kolom; label baris = band potensi pendek + dot intensitas.
+  · Chip zona talenta di atas grid: Talent Bintang (perf 3) / Pemain Inti (perf 2) / Perlu Perhatian (perf 1) — ikon Star/ShieldCheck/TrendingDown + count + % + badge "n terpetakan"/"n belum punya band" + hint klik sel.
+  · Kartu detail sel: header nama sel + band sumbu + badge n karyawan + hint makna + tombol tutup; baris karyawan = avatar inisial bulat berwarna per rating + nama + docNo·unit mono + dot rating 1–5; grid sm:grid-cols-2.
+  · Paragraf penjelas sumbu + keterangan warna sel.
+  · Helper: initialsOf() (avatar inisial), NBOX_GRID (template kolom seragam 375px-aman: 56px + 3×82px = 320px; sm lebih lega), ZONES, pct(), zoneCount().
+- GATES: tsc tsconfig.p9.json FULL 0 error; lint 0 error/6 warning baseline; audit-bilingual TOTAL_GAP=150 baseline; dev.log bersih.
+- INFRA LINGKUNGAN (di luar kode — akar masalah verifikasi flaky): dev server watchdog lama heap 1536MB di host cgroup 4GB — Turbopack compile 25-26s/API-route on-demand + cache FS lambat → RSS 2.6GB → cgroup OOM-kill berulang (bukti dmesg "Out of memory: Killed process next-server anon-rss:2629240kB") → HMR full-reload → state hilang (cycle/tab reset) + fetch 401 transient saat proses sekarat. FIX: watch-dev.sh heap 1536→2304MB + .next cache dibersihkan sekali (boot baseline 2.0-2.1GB — biaya dasar 14 modul) + watchdog di-restart ter-detach benar (setsid double-fork, PPID=1) + strategi warm-up route via curl sebelum verifikasi browser. Pasca-fix: server stabil menyelesaikan seluruh alur verifikasi tanpa crash.
+- BROWSER (agent-browser, siklus PER-2026-CAL berisi 3 karyawan terpetakan): grid 9 sel render dgn data riil — ROUGH DIAMOND 1|33%, INCONSISTENT 1|33%, CORE PLAYER 1|33%, 6 sel lain 0|0% (persis API); chip zona: Star Talent 0·0% / Core Player 1·33% / Needs Attention 2·67% + "3 placed · 0 without a band"; klik sel (1,3) → kartu detail "Rough Diamond · Low (rating 1–2) × High potential" + hint + karyawan Andi Tanaka (avatar "AT" oranye rating 2 + dot rating + docNo PER-2026-0002 · Quality Assurance); BAHASA INDONESIA — nama sel (PERMATA MENTAH, BINTANG, PEMAIN INTI, TIDAK KONSISTEN, PERFORMA TINGGI…) + chip (Talent Bintang/Pemain Inti/Perlu Perhatian/terpetakan) + h4 "Permata Mentah · Rendah (rating 1–2) × Potensi tinggi" + hint "Potensi besar belum terbukti…" semua dwibahasa; MOBILE 375×812 — hscroll=0, grid 3×3 muat layar, chip wrap rapi (nama sel panjang truncate dgn tooltip = by design); VLM 4 screenshot (desktop-data, cell-detail, bahasa-indonesia, mobile) semua elemen terkonfirmasi + 0 defect layout; console 0 error baru.
+- GIT: commit + push origin main.
+
+Stage Summary:
+- 9-box kini LAYAK DILIHAT: setiap sel bernama kategori talenta dwibahasa (Bintang/Stars dst — identik NINE_BOX_LABELS service pf43 & succession), gradasi warna profesional (emerald=performa tinggi, amber=memenuhi, rose=rendah; intensitas = potensi), count besar + % + bar distribusi, chip ringkasan 3 zona dgn ikon, kompas sumbu + label band rating, kartu detail avatar inisial berwarna rating + dot rating 1–5 — mobile 375 tanpa h-scroll, dwibahasa penuh, a11y (aria-label per sel, sr-only, fokus keyboard) terjaga.
+- Perubahan MURNI UI (performance-results.tsx 1 file): tidak ada perubahan skema/API/service — risiko regresi minimal; gates penuh hijau.
+- Infra sandbox didokumentasikan: heap watchdog 2304MB + discipline warm-up + .next wipe periodik bila RSS menanjak; OOM cgroup = penyebab "state reset" misterius sesi-sesi sebelumnya (bukan bug aplikasi).
