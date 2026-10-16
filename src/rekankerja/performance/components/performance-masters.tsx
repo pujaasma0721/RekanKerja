@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 interface KpiRowUI {
   id: string; code: string; name: string; category: string; polarity: string;
   unit: string; dataSource: string; sourceKey: string | null; description: string | null;
-  metricText: string | null;
+  measureMode: string; metricLevelsJson: string | null;
   active: boolean; versionNo: number; effectiveYear: number; status: string;
   supersededById: string | null; changeNote: string | null;
 }
@@ -148,7 +148,8 @@ function KpiTab() {
   );
   const [form, setForm] = useState<null | {
     id?: string; code: string; name: string; category: string; polarity: string;
-    unit: string; dataSource: string; sourceKey: string; description: string; metric: string; active: boolean;
+    unit: string; dataSource: string; sourceKey: string; description: string;
+    measureMode: string; levels: [string, string, string, string, string]; active: boolean;
     asNewVersion?: boolean; effectiveYear: string; changeNote: string;
   }>(null);
   const [hist, setHist] = useState<null | { code: string; versions: Record<string, unknown>[] }>(null);
@@ -159,10 +160,20 @@ function KpiTab() {
     return catFilter === "ALL" ? all : all.filter((r) => r.category === catFilter);
   }, [data, catFilter]);
 
+  const parseLevelsUI = (json: string | null): [string, string, string, string, string] => {
+    let arr: unknown = [];
+    try { arr = JSON.parse(json ?? "[]"); } catch { arr = []; }
+    if (!Array.isArray(arr)) arr = [];
+    return [1, 2, 3, 4, 5].map((lv) =>
+      String((arr as { level?: number; descriptor?: string }[]).find((l) => Number(l?.level) === lv)?.descriptor ?? ""),
+    ) as [string, string, string, string, string];
+  };
+
   const openNew = () =>
     setForm({
       code: "", name: "", category: "InternalProcess", polarity: "Higher", unit: "%",
-      dataSource: "Manual", sourceKey: "", description: "", metric: "", active: true,
+      dataSource: "Manual", sourceKey: "", description: "", measureMode: "Descriptor",
+      levels: ["", "", "", "", ""], active: true,
       effectiveYear: String(new Date().getFullYear()), changeNote: "",
     });
 
@@ -170,7 +181,8 @@ function KpiTab() {
     setForm({
       id: r.id, code: r.code, name: r.name, category: r.category, polarity: r.polarity,
       unit: r.unit, dataSource: r.dataSource, sourceKey: r.sourceKey ?? "",
-      description: r.description ?? "", metric: r.metricText ?? "", active: r.active,
+      description: r.description ?? "", measureMode: r.measureMode, levels: parseLevelsUI(r.metricLevelsJson),
+      active: r.active,
       asNewVersion: false,
       effectiveYear: String(new Date().getFullYear() + 1), changeNote: "",
     });
@@ -197,7 +209,8 @@ function KpiTab() {
         unit: form.unit, dataSource: form.dataSource,
         sourceKey: form.sourceKey || null,
         description: form.description || null,
-        metricText: form.metric || null,
+        measureMode: form.measureMode,
+        metricLevels: form.levels.map((d, i) => ({ level: i + 1, descriptor: d.trim() })).filter((l) => l.descriptor),
         active: form.active,
         asNewVersion: form.asNewVersion === true,
         effectiveYear: Number(form.effectiveYear) || undefined,
@@ -299,10 +312,13 @@ function KpiTab() {
                       {r.description ? (
                         <div className="max-w-xs truncate text-xs text-slate-500">{r.description}</div>
                       ) : null}
-                      {r.metricText ? (
-                        <div className="max-w-xs truncate text-[10px] text-brand" title={r.metricText}>
-                          <Gauge className="mr-0.5 inline h-3 w-3" />{t("metric tersedia", "metric available")}
-                        </div>
+                      {r.measureMode === "Descriptor"
+                        ? <Badge variant="outline" className="mt-0.5 h-4 px-1 text-[9px] text-brand border-brand/40">{t("Deskriptif 1–5", "Descriptor 1–5")}</Badge>
+                        : null}
+                      {r.metricLevelsJson && JSON.parse(r.metricLevelsJson || "[]").length >= 5 ? (
+                        <div className="mt-0.5 text-[10px] text-brand"><Gauge className="mr-0.5 inline h-3 w-3" />{t("metric 1–5 lengkap", "metric 1–5 complete")}</div>
+                      ) : r.metricLevelsJson ? (
+                        <div className="mt-0.5 text-[10px] text-amber-600 dark:text-amber-400"><Gauge className="mr-0.5 inline h-3 w-3" />{t("metric belum lengkap", "metric incomplete")}</div>
                       ) : null}
                     </TableCell>
                     <TableCell>
@@ -356,7 +372,7 @@ function KpiTab() {
 
       {/* ---------- dialog form KPI ---------- */}
       <Dialog open={form != null} onOpenChange={(o) => !o && setForm(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {form?.id && !form.asNewVersion
@@ -431,27 +447,54 @@ function KpiTab() {
                 <Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
               <div className="grid gap-1.5">
-                <Label>
-                  <Gauge className="mr-1 inline h-3.5 w-3.5" />
-                  {t("Metric / Measure of Success", "Metric / Measure of Success")}
-                </Label>
-                <Textarea
-                  rows={5}
-                  maxLength={2000}
-                  value={form.metric}
-                  onChange={(e) => setForm({ ...form, metric: e.target.value })}
-                  placeholder={t(
-                    "mis. 1: tidak submit · 2: usulan disetujui, kurang berkualitas · 3: disetujui, berkualitas & berdampak · 4: terimplementasi lingkup departemen · 5: terimplementasi luas, terukur, tepat guna",
-                    "e.g. 1: no submission · 2: approved, low quality · 3: approved, good impact · 4: implemented department-wide · 5: implemented broadly, measurable, effective",
-                  )}
-                  aria-label={t("Metric / Measure of Success", "Metric / Measure of Success")}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Gauge className="h-3.5 w-3.5" />
+                    {t("Metric / Measure of Success", "Metric / Measure of Success")}
+                  </Label>
+                  <Select value={form.measureMode} onValueChange={(v) => setForm({ ...form, measureMode: v })}>
+                    <SelectTrigger className="h-7 w-56 text-xs" aria-label={t("Mode pengukuran", "Measurement mode")}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Descriptor">{t("Deskriptif — dinilai level 1–5", "Descriptor — scored level 1–5")}</SelectItem>
+                      <SelectItem value="Numeric">{t("Numerik — ambang/target/stretch", "Numeric — threshold/target/stretch")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <p className="text-[10px] text-slate-400">
                   {t(
                     "Default ukuran keberhasilan saat KPI ini dipilih pada penetapan target (perubahan minor — snapshot baris penilaian menjaga riwayat §18.9).",
                     "The default success measure when this KPI is picked during goal setting (a minor change — per-appraisal snapshots preserve history §18.9).",
                   )}
                 </p>
+                <div className="space-y-1.5">
+                  {form.levels.map((d, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className={cn(
+                        "mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs font-bold",
+                        i === 0 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400"
+                        : i === 1 ? "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400"
+                        : i === 2 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
+                        : i === 3 ? "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-400"
+                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400",
+                      )} aria-hidden>{i + 1}</span>
+                      <Textarea
+                        rows={2}
+                        maxLength={2000}
+                        value={d}
+                        onChange={(e) => {
+                          const levels = [...form.levels] as typeof form.levels;
+                          levels[i] = e.target.value;
+                          setForm({ ...form, levels });
+                        }}
+                        placeholder={t(
+                          `Deskriptor level ${i + 1} — capaian seperti apa yang layak mendapat angka ${i + 1}?`,
+                          `Level ${i + 1} descriptor — what attainment deserves a ${i + 1}?`,
+                        )}
+                        aria-label={t(`Deskriptor level ${i + 1}`, `Level ${i + 1} descriptor`)}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {form.id && dirtyVs(editingOrig) && !form.asNewVersion && (

@@ -56,8 +56,8 @@ interface SelfData {
   selfWindowOpen: boolean;
   canSubmit: boolean;
   comps: SelfComp[];
-  manualKpis: { id: string; title: string; unit: string; target: number; midActual: number | null; finalActual: number | null; evidenceJson: string | null; metricText: string | null }[];
-  autoKpis: { id: string; title: string; unit: string; target: number; finalActual: number | null; metricText: string | null }[];
+  manualKpis: { id: string; title: string; unit: string; target: number; midActual: number | null; finalActual: number | null; evidenceJson: string | null; description: string | null; measureMode: string; metricLevelsJson: string | null }[];
+  autoKpis: { id: string; title: string; unit: string; target: number; finalActual: number | null; description: string | null; measureMode: string; metricLevelsJson: string | null }[];
   progress: { total: number; filled: number };
 }
 interface PublishedData {
@@ -701,26 +701,71 @@ function SelfAssessmentForm({ d, onDone }: { d: SelfData; onDone: () => void }) 
               {t("KPI bersumber otomatis ditarik atasan (tidak perlu diisi). Usulan Anda diverifikasi atasan saat menilai.", "Auto-sourced KPIs are pulled by the manager (no input needed). Your proposals are verified by the manager when scoring.")}
             </p>
             <div className="space-y-3">
-              {d.manualKpis.map((k) => (
+              {d.manualKpis.map((k) => {
+                const lvRows = (() => {
+                  try {
+                    const v = JSON.parse(k.metricLevelsJson ?? "[]");
+                    return Array.isArray(v)
+                      ? (v as { level: number; descriptor: string }[]).filter((l) => l.level >= 1 && l.level <= 5 && l.descriptor?.trim()).sort((a, b) => a.level - b.level)
+                      : [];
+                  } catch { return []; }
+                })();
+                const descriptor = k.measureMode === "Descriptor";
+                const picked = draft.actuals[k.id] != null ? Math.round(Number(draft.actuals[k.id])) : null;
+                const lvTone = (lv: number) =>
+                  lv === 1 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400"
+                  : lv === 2 ? "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400"
+                  : lv === 3 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
+                  : lv === 4 ? "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-400"
+                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400";
+                return (
                 <div key={k.id} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="min-w-0 flex-1 text-sm font-medium">{k.title}</p>
                     <span className="text-[11px] text-slate-400">
-                      {t("target", "target")} {k.target} {k.unit}
-                      {k.midActual != null ? ` · ${t("tengah tahun", "mid")} ${k.midActual}` : ""}
+                      {descriptor
+                        ? t("dinilai level 1–5 sesuai metric", "scored by level 1–5 per the metric")
+                        : <>{t("target", "target")} {k.target} {k.unit}{k.midActual != null ? ` · ${t("tengah tahun", "mid")} ${k.midActual}` : ""}</>}
                     </span>
                   </div>
-                  {k.metricText && (
-                    <p className="mt-1 line-clamp-3 whitespace-pre-line text-[10px] text-slate-500 dark:text-slate-400" title={k.metricText}>
-                      <span className="font-semibold">{t("Metric / Measure of Success:", "Metric / Measure of Success:")}</span> {k.metricText}
-                    </p>
+                  {k.description && <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{k.description}</p>}
+                  {lvRows.length > 0 && (
+                    <div className="mt-1.5 space-y-1 rounded-lg border border-slate-200 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-900/40">
+                      <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{t("Metric / Measure of Success", "Metric / Measure of Success")}</p>
+                      {lvRows.map((l) => (
+                        <p key={l.level} className="flex gap-1.5 text-[10px] leading-snug text-slate-600 dark:text-slate-300">
+                          <span className={cn("mt-0.5 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded px-0.5 text-[9px] font-bold", lvTone(l.level))}>{l.level}</span>
+                          <span>{l.descriptor}</span>
+                        </p>
+                      ))}
+                    </div>
                   )}
-                  <div className="mt-2 grid gap-2 sm:grid-cols-[140px_1fr]">
+                  <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_160px]">
                     <div className="space-y-1">
-                      <Label className="text-xs">{t("Capaian akhir", "Final actual")}</Label>
-                      <Input type="number" inputMode="decimal" value={draft.actuals[k.id] ?? ""} disabled={!canEdit}
-                        onChange={(e) => setDraft({ ...draft, actuals: { ...draft.actuals, [k.id]: e.target.value } })}
-                        aria-label={t(`Capaian akhir ${k.title}`, `Final actual ${k.title}`)} />
+                      <Label className="text-xs">{descriptor ? t("Usulan level capaian Anda (1–5)", "Your proposed level (1–5)") : t("Capaian akhir", "Final actual")}</Label>
+                      {descriptor ? (
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((v) => {
+                            const lv = lvRows.find((l) => l.level === v);
+                            return (
+                              <label key={v} title={lv?.descriptor} className={cn(
+                                "flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border text-sm font-semibold transition",
+                                picked === v ? "border-brand bg-brand/10 text-brand" : "border-slate-200 text-slate-500 hover:border-slate-400 dark:border-slate-700 dark:text-slate-400",
+                              )}>
+                                <input type="radio" className="sr-only" name={`ess-actual-${k.id}`} value={v} disabled={!canEdit}
+                                  checked={picked === v}
+                                  onChange={() => setDraft({ ...draft, actuals: { ...draft.actuals, [k.id]: String(v) } })}
+                                  aria-label={t(`Usulan level ${v} untuk ${k.title}`, `Proposed level ${v} for ${k.title}`)} />
+                                {v}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <Input type="number" inputMode="decimal" value={draft.actuals[k.id] ?? ""} disabled={!canEdit}
+                          onChange={(e) => setDraft({ ...draft, actuals: { ...draft.actuals, [k.id]: e.target.value } })}
+                          aria-label={t(`Capaian akhir ${k.title}`, `Final actual ${k.title}`)} />
+                      )}
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">{t("Catatan bukti (opsional)", "Evidence note (optional)")}</Label>
@@ -731,7 +776,8 @@ function SelfAssessmentForm({ d, onDone }: { d: SelfData; onDone: () => void }) 
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -747,8 +793,8 @@ function SelfAssessmentForm({ d, onDone }: { d: SelfData; onDone: () => void }) 
           <div className="px-4 pb-3 text-xs text-slate-500">
             {d.autoKpis.map((k) => (
               <div key={k.id}>
-                <p>• {k.title} — {t("target", "target")} {k.target} {k.unit} · {t("nilai ditarik atasan saat penilaian", "value pulled by the manager during appraisal")}</p>
-                {k.metricText && <p className="ml-3 line-clamp-2 max-w-lg whitespace-pre-line text-[10px] text-slate-400" title={k.metricText}>{k.metricText}</p>}
+                <p>• {k.title} — {k.measureMode === "Descriptor" ? t("dinilai level 1–5 sesuai metric", "scored by level 1–5 per the metric") : <>{t("target", "target")} {k.target} {k.unit} · {t("nilai ditarik atasan saat penilaian", "value pulled by the manager during appraisal")}</>}</p>
+                {k.description && <p className="ml-3 line-clamp-1 max-w-lg text-[10px] text-slate-400" title={k.description}>{k.description}</p>}
               </div>
             ))}
           </div>

@@ -3192,7 +3192,8 @@ CREATE TABLE "KpiDefinition" (
     "dataSource" TEXT NOT NULL DEFAULT 'Manual',
     "sourceKey" TEXT,
     "description" TEXT,
-    "metricText" TEXT,
+    "measureMode" TEXT NOT NULL DEFAULT 'Numeric',
+    "metricLevelsJson" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "versionNo" INTEGER NOT NULL DEFAULT 1,
     "effectiveYear" INTEGER NOT NULL,
@@ -3326,7 +3327,9 @@ CREATE TABLE "AppraisalKpi" (
     "title" TEXT NOT NULL,
     "polarity" TEXT NOT NULL,
     "unit" TEXT NOT NULL,
-    "metricText" TEXT,
+    "description" TEXT,
+    "measureMode" TEXT NOT NULL DEFAULT 'Numeric',
+    "metricLevelsJson" TEXT,
     "thresholdMin" DOUBLE PRECISION,
     "target" DOUBLE PRECISION NOT NULL,
     "stretchValue" DOUBLE PRECISION,
@@ -3659,13 +3662,20 @@ ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "statusLinkUsedAt" TIMESTAMP(3)
 ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "referralNote" TEXT;
 ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "referralRewardNote" TEXT;
 
--- AddColumn (KPI-METRIC — Metric / Measure of Success: rubrik ukuran keberhasilan
--- per KPI, diisi saat penetapan target [snapshot AppraisalKpi] + default pustaka
--- [KpiDefinition]. Idempoten utk tenant existing via
--- scripts/migrate-kpi-metric-text.ts — INSERT kolom di CREATE TABLE di atas
--- menjadikan ALTER ini no-op pada provisioning tenant baru)
-ALTER TABLE "KpiDefinition" ADD COLUMN IF NOT EXISTS "metricText" TEXT;
-ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "metricText" TEXT;
+-- AddColumn / DropColumn (KPI-METRIC — Metric / Measure of Success sebagai inti
+-- pembuatan KPI: description = definisi KPI; measureMode Numeric|Descriptor
+-- (Descriptor = KPI kualitatif dinilai langsung level 1–5, tanpa angka);
+-- metricLevelsJson = deskriptor terstruktur level 1–5. Idempoten utk tenant
+-- existing via scripts/migrate-kpi-metric.ts — INSERT kolom di CREATE TABLE
+-- di atas menjadikan ALTER ini no-op pada provisioning tenant baru.
+-- metricText (iterasi-1 sesi ini, belum rilis) di-DROP — diganti model terstruktur.)
+ALTER TABLE "KpiDefinition" ADD COLUMN IF NOT EXISTS "measureMode" TEXT NOT NULL DEFAULT 'Numeric';
+ALTER TABLE "KpiDefinition" ADD COLUMN IF NOT EXISTS "metricLevelsJson" TEXT;
+ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "description" TEXT;
+ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "measureMode" TEXT NOT NULL DEFAULT 'Numeric';
+ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "metricLevelsJson" TEXT;
+ALTER TABLE "KpiDefinition" DROP COLUMN IF EXISTS "metricText";
+ALTER TABLE "AppraisalKpi" DROP COLUMN IF EXISTS "metricText";
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CompanyOffice_code_key" ON "CompanyOffice"("code");

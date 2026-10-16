@@ -116,7 +116,8 @@ export async function versionHistory(
     return rows.map((r) => ({
       id: r.id, versionNo: r.versionNo, effectiveYear: r.effectiveYear,
       status: r.status, changeNote: r.changeNote, name: r.name,
-      unit: r.unit, polarity: r.polarity, category: r.category, metricText: r.metricText,
+      unit: r.unit, polarity: r.polarity, category: r.category,
+      description: r.description, measureMode: r.measureMode, metricLevelsJson: r.metricLevelsJson,
     }));
   }
   const rows = await db.competency.findMany({
@@ -144,8 +145,9 @@ export interface KpiUpsertInput {
   sourceKey?: string | null;
   description?: string | null;
   /** Metric / Measure of Success — rubrik default pustaka (perubahan MINOR:
-   *  setara description; snapshot AppraisalKpi.metricText melindungi riwayat). */
-  metricText?: string | null;
+   *  setara description; snapshot AppraisalKpi.metricLevelsJson melindungi riwayat). */
+  measureMode?: string; // Numeric | Descriptor
+  metricLevels?: unknown; // [{level:1..5, descriptor}] — array atau string JSON
   active?: boolean;
   // AM2 §18.9 — mode versi baru
   asNewVersion?: boolean;
@@ -165,8 +167,25 @@ export async function upsertKpi(db: TenantDb, input: KpiUpsertInput): Promise<st
   if (!DATA_SOURCES.includes(dataSource)) throw new Error(`Sumber data tidak valid: ${dataSource}`);
   if (dataSource === "Manual" && input.sourceKey) throw new Error("sourceKey hanya untuk sumber data otomatis");
   const active = input.active !== false;
-  const metricText = input.metricText != null ? input.metricText.trim() || null : null;
-  if (metricText && metricText.length > 2000) throw new Error("Metric / Measure of Success maksimal 2000 karakter");
+  // KPI-METRIC — mode pengukuran + deskriptor level 1–5 (default pustaka)
+  const measureMode = input.measureMode === "Descriptor" ? "Descriptor" : "Numeric";
+  let metricLevelsJson: string | null = null;
+  {
+    let raw: unknown = input.metricLevels;
+    if (typeof raw === "string") {
+      if (!raw.trim()) raw = null;
+      else { try { raw = JSON.parse(raw); } catch { raw = null; } }
+    }
+    if (Array.isArray(raw) && raw.length > 0) {
+      const levels = (raw as { level?: unknown; descriptor?: unknown }[])
+        .filter((l) => Number(l.level) >= 1 && Number(l.level) <= 5 && String(l.descriptor ?? "").trim())
+        .map((l) => ({ level: Number(l.level), descriptor: String(l.descriptor).trim().slice(0, 2000) }));
+      metricLevelsJson = levels.length > 0 ? JSON.stringify(levels) : null;
+    }
+  }
+  if (measureMode === "Descriptor" && !metricLevelsJson) {
+    throw new Error("KPI deskriptif wajib memiliki Metric / Measure of Success (deskriptor level 1–5)");
+  }
 
   if (input.id) {
     // ---------- UPDATE ----------
@@ -190,7 +209,7 @@ export async function upsertKpi(db: TenantDb, input: KpiUpsertInput): Promise<st
           code, name, category, polarity, unit, dataSource,
           sourceKey: input.sourceKey ?? null,
           description: input.description ?? null,
-          metricText,
+          measureMode, metricLevelsJson,
           active, versionNo: next, effectiveYear, status: "Active",
           changeNote,
         },
@@ -210,7 +229,7 @@ export async function upsertKpi(db: TenantDb, input: KpiUpsertInput): Promise<st
     await db.kpiDefinition.update({
       where: { id: cur.id },
       data: {
-        name, description: input.description ?? null, metricText, active,
+        name, description: input.description ?? null, measureMode, metricLevelsJson, active,
         changeNote: input.changeNote ?? cur.changeNote,
       },
     });
@@ -225,7 +244,7 @@ export async function upsertKpi(db: TenantDb, input: KpiUpsertInput): Promise<st
       code, name, category, polarity, unit, dataSource,
       sourceKey: input.sourceKey ?? null,
       description: input.description ?? null,
-      metricText,
+      measureMode, metricLevelsJson,
       active,
       versionNo: 1,
       effectiveYear: num(input.effectiveYear) ?? new Date().getFullYear(),

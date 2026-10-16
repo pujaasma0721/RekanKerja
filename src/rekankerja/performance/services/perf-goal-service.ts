@@ -36,13 +36,57 @@ function numOrNull(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Metric / Measure of Success — normalisasi teks rubrik (trim; null saat kosong;
- *  cap 2000 karakter — UI pakai maxLength sama sehingga tak pernah memicu). */
-function metricOrNull(v: unknown): string | null {
-  const s = v != null ? String(v).trim() : "";
-  if (!s) return null;
-  if (s.length > 2000) throw new Error("Metric / Measure of Success maksimal 2000 karakter");
-  return s;
+/** Metric / Measure of Success — deskriptor terstruktur level 1–5 (model
+ *  KPI-METRIC: inti pembuatan KPI, dibawa ke semua titik penilaian). */
+export interface MetricLevel { level: number; descriptor: string }
+
+function parseMetricLevels(v: unknown): MetricLevel[] {
+  let raw: unknown = v;
+  if (typeof raw === "string") {
+    if (!raw.trim()) return [];
+    try { raw = JSON.parse(raw); } catch { return []; }
+  }
+  if (!Array.isArray(raw)) return [];
+  const out: MetricLevel[] = [];
+  for (const it of raw) {
+    const lv = Number((it as MetricLevel)?.level);
+    const d = String((it as MetricLevel)?.descriptor ?? "").trim();
+    if (lv >= 1 && lv <= 5 && d) out.push({ level: lv, descriptor: d.slice(0, 2000) });
+  }
+  return out;
+}
+
+/** Serialisasi normal (null saat kosong) — dipakai assign/patch/import/copy. */
+function metricLevelsJsonOf(v: unknown): string | null {
+  const levels = parseMetricLevels(v);
+  return levels.length > 0 ? JSON.stringify(levels) : null;
+}
+
+/** Metric lengkap = SEMUA level 1–5 terisi (gerbang submit §35-3 — KPI tanpa
+ *  metric tidak boleh dikunci; KPI = judul + definisi + metric + bobot). */
+export function isMetricComplete(v: unknown): boolean {
+  const levels = parseMetricLevels(v);
+  for (let i = 1; i <= 5; i++) {
+    if (!levels.some((l) => l.level === i)) return false;
+  }
+  return true;
+}
+
+/** Render metric → teks berbaris (dipakai laporan/ringkasan). */
+export function metricLevelsText(v: unknown): string | null {
+  const levels = parseMetricLevels(v).sort((a, b) => a.level - b.level);
+  if (levels.length === 0) return null;
+  return levels.map((l) => `${l.level} : ${l.descriptor}`).join("\n");
+}
+
+/** Parser Excel: baris "1: …" s.d. "5: …" → level terstruktur. */
+function parseMetricExcel(text: string): MetricLevel[] {
+  const out: MetricLevel[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^\s*([1-5])\s*[:\).\-]\s*(.+)$/.exec(line);
+    if (m) out.push({ level: Number(m[1]), descriptor: m[2].trim() });
+  }
+  return out;
 }
 
 function dayOf(v: unknown): Date | null {
@@ -97,7 +141,7 @@ export async function listGoalParticipants(
     where: visibleWhere(actor, opt.cycleId) as never,
     include: {
       employee: { select: { employeeNo: true, fullName: true, orgUnitId: true } },
-      kpis: { select: { target: true, thresholdMin: true, weight: true, polarity: true, updatedAt: true } },
+      kpis: { select: { target: true, thresholdMin: true, weight: true, polarity: true, measureMode: true, metricLevelsJson: true, updatedAt: true } },
     },
     orderBy: { docNo: "asc" },
     take: 500,
@@ -121,9 +165,11 @@ export async function listGoalParticipants(
     });
 }
 
-/** Progres formulir target §18.7: 3 field wajib per baris (target, ambang*, bobot) + 1 global (Σ=100). */
+/** Progres formulir target §18.7: per baris — metric lengkap (wajib) + bobot +
+ *  (mode Numeric: target & ambang; mode Descriptor: dinilai 1–5 tanpa angka) +
+ *  1 global (Σ=100). */
 export function progressOfRows(
-  kpis: { target: number | null; thresholdMin: number | null; weight: number; polarity: string }[],
+  kpis: { target: number | null; thresholdMin: number | null; weight: number; polarity: string; measureMode: string; metricLevelsJson: string | null }[],
 ): { pct: number; filledRows: number; totalRows: number; sumWeight: number } {
   const n = kpis.length;
   if (n === 0) return { pct: 0, filledRows: 0, totalRows: 0, sumWeight: 0 };
@@ -131,14 +177,21 @@ export function progressOfRows(
   let filledRows = 0;
   for (const k of kpis) {
     let rowOk = 0;
-    if (k.target != null || k.polarity === "Boolean") { filled++; rowOk++; }
-    if (k.thresholdMin != null || k.polarity === "Boolean") { filled++; rowOk++; }
+    const metricOk = isMetricComplete(k.metricLevelsJson);
+    if (metricOk) { filled++; rowOk++; }
+    if (k.measureMode === "Descriptor") {
+      // KPI kualitatif — target/ambang tidak berlaku (selalu "terisi")
+      filled += 2; rowOk += 2;
+    } else {
+      if (k.target != null || k.polarity === "Boolean") { filled++; rowOk++; }
+      if (k.thresholdMin != null || k.polarity === "Boolean") { filled++; rowOk++; }
+    }
     if (k.weight != null && k.weight > 0) { filled++; rowOk++; }
-    if (rowOk === 3) filledRows++;
+    if (rowOk === 4) filledRows++;
   }
   const sumWeight = kpis.reduce((s, k) => s + (k.weight ?? 0), 0);
   if (Math.abs(sumWeight - 100) < 0.01) filled++;
-  return { pct: Math.round((filled / (3 * n + 1)) * 100), filledRows, totalRows: n, sumWeight };
+  return { pct: Math.round((filled / (4 * n + 1)) * 100), filledRows, totalRows: n, sumWeight };
 }
 
 export async function goalDetail(db: TenantDb, appraisalId: string) {
@@ -177,7 +230,7 @@ export async function goalDetail(db: TenantDb, appraisalId: string) {
 
 /** Validasi RAMAH §18.1-4 — warning per baris (bukan guard keras). */
 export function validateDraft(kpis: {
-  id: string; title: string; polarity: string; unit: string; metricText: string | null; thresholdMin: number | null;
+  id: string; title: string; polarity: string; unit: string; measureMode: string; metricLevelsJson: string | null; thresholdMin: number | null;
   target: number; stretchValue: number | null; weight: number; isCritical: boolean;
 }[]): string[] {
   const errs: string[] = [];
@@ -189,16 +242,17 @@ export function validateDraft(kpis: {
   if (n > 0 && Math.abs(sumW - 100) > 0.01) {
     errs.push(`Total bobot ${formatNum(sumW)}% — harus tepat 100% (sisa ${formatNum(100 - sumW)}%${Math.abs(100 - sumW) % (n || 1) === 0 ? "" : ""})`);
   }
-  // Metric / Measure of Success — pengingat lembut (BUKAN guard keras submit):
-  // karyawan dinilai berdasarkan ukuran keberhasilan; tanpa rubrik, angka target
-  // saja bisa ambigu (permintaan user: field wajib tersedia saat pengisian KPI).
-  const noMetric = kpis.filter((k) => !(k.metricText ?? "").trim());
+  // Metric / Measure of Success — INTEGRITAS BARIS KPI (permintaan user: diisi
+  // saat membuat KPI pertama kali & dibawa di semua tempat): KPI TANPA metric
+  // lengkap 1–5 tidak boleh dikunci — karyawan dinilai berdasarkan ukuran ini.
+  const noMetric = kpis.filter((k) => !isMetricComplete(k.metricLevelsJson));
   if (noMetric.length > 0) {
-    errs.push(`${noMetric.length} KPI belum memiliki Metric / Measure of Success (mis. deskriptor peringkat 1–5) — disarankan diisi agar karyawan paham ukuran keberhasilannya`);
+    errs.push(`${noMetric.length} KPI belum memiliki Metric / Measure of Success lengkap (deskriptor level 1–5) — wajib dilengkapi sebelum submit`);
   }
   for (const k of kpis) {
-    if (k.polarity !== "Boolean" && k.thresholdMin == null) errs.push(`"${k.title}": ambang gagal belum diisi`);
     if (!(k.weight > 0)) errs.push(`"${k.title}": bobot harus > 0`);
+    if (k.measureMode === "Descriptor") continue; // tanpa ambang/angka — dinilai 1–5
+    if (k.polarity !== "Boolean" && k.thresholdMin == null) errs.push(`"${k.title}": ambang gagal belum diisi`);
     if (k.polarity === "Boolean" && k.target !== 0 && k.target !== 1) errs.push(`"${k.title}": KPI Boolean — target harus 1 (sukses) atau 0 (gagal)`);
   }
   return errs;
@@ -281,7 +335,7 @@ export async function copyPreview(db: TenantDb, actor: GoalActor, appraisalId: s
   const rows = src.kpis.map((k) => ({
     sourceKpiId: k.id,
     title: k.title, polarity: k.polarity, unit: k.unit,
-    metricText: k.metricText,
+    description: k.description, measureMode: k.measureMode, metricLevelsJson: k.metricLevelsJson,
     thresholdMin: k.thresholdMin, oldTarget: k.target, target: k.target,
     stretchValue: k.stretchValue, weight: k.weight, isCritical: k.isCritical,
     dataSource: k.dataSource, kpiDefId: k.kpiDefId,
@@ -332,7 +386,8 @@ export async function copyFromCycle(
         appraisalId,
         kpiDefId: src.kpiDefId,
         title: src.title, polarity: src.polarity, unit: src.unit,
-        metricText: src.metricText,
+        description: src.description, measureMode: src.measureMode,
+        metricLevelsJson: src.metricLevelsJson,
         thresholdMin: src.thresholdMin,
         target: w.target != null ? w.target : src.target,
         stretchValue: src.stretchValue,
@@ -387,7 +442,8 @@ export async function copyTeam(
         data: {
           appraisalId: p.id, kpiDefId: k.kpiDefId,
           title: k.title, polarity: k.polarity, unit: k.unit,
-          metricText: k.metricText,
+          description: k.description, measureMode: k.measureMode,
+          metricLevelsJson: k.metricLevelsJson,
           thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
           weight: k.weight, isCritical: k.isCritical, dataSource: k.dataSource,
           origin: "CopiedFromCycle", copiedFromId: k.id,
@@ -414,7 +470,7 @@ export async function prefillFromPrevious(
     take: 500,
   });
   // template items (fallback tanpa sumber)
-  let tplItems: { kpiDefId: string | null; title: string; polarity: string; unit: string; metricText: string | null; weight: number }[] = [];
+  let tplItems: { kpiDefId: string | null; title: string; polarity: string; unit: string; description: string | null; measureMode: string; metricLevelsJson: string | null; weight: number }[] = [];
   if (templateId) {
     const tpl = await db.performanceTemplate.findUnique({
       where: { id: templateId },
@@ -423,13 +479,13 @@ export async function prefillFromPrevious(
     if (!tpl) throw new Error("Template tidak ditemukan");
     const defs = await db.kpiDefinition.findMany({
       where: { status: "Active" },
-      select: { id: true, code: true, name: true, polarity: true, unit: true, metricText: true },
+      select: { id: true, code: true, name: true, polarity: true, unit: true, description: true, measureMode: true, metricLevelsJson: true },
     });
     const defById = new Map(defs.map((d) => [d.id, d]));
     tplItems = tpl.items
       .map((it) => {
         const d = defById.get(it.refId);
-        return d ? { kpiDefId: d.id, title: d.name, polarity: d.polarity, unit: d.unit, metricText: d.metricText, weight: it.weight } : null;
+        return d ? { kpiDefId: d.id, title: d.name, polarity: d.polarity, unit: d.unit, description: d.description, measureMode: d.measureMode, metricLevelsJson: d.metricLevelsJson, weight: it.weight } : null;
       })
       .filter((x): x is NonNullable<typeof x> => !!x);
   }
@@ -451,7 +507,8 @@ export async function prefillFromPrevious(
         await db.appraisalKpi.create({
           data: {
             appraisalId: p.id, kpiDefId: k.kpiDefId, title: k.title, polarity: k.polarity,
-            unit: k.unit, metricText: k.metricText,
+            unit: k.unit, description: k.description, measureMode: k.measureMode,
+            metricLevelsJson: k.metricLevelsJson,
             thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
             weight: k.weight, isCritical: k.isCritical, dataSource: k.dataSource,
             origin: "CopiedFromCycle", copiedFromId: k.id,
@@ -465,8 +522,10 @@ export async function prefillFromPrevious(
         await db.appraisalKpi.create({
           data: {
             appraisalId: p.id, kpiDefId: t.kpiDefId, title: t.title, polarity: t.polarity,
-            unit: t.unit, metricText: t.metricText,
-            target: 0, weight: t.weight, dataSource: "Manual", origin: "Template",
+            unit: t.unit, description: t.description, measureMode: t.measureMode,
+            metricLevelsJson: t.metricLevelsJson,
+            target: t.measureMode === "Descriptor" ? 5 : 0, weight: t.weight,
+            dataSource: "Manual", origin: "Template",
           },
         });
       }
@@ -487,8 +546,12 @@ export interface KpiItemInput {
   title: string;
   polarity?: string;
   unit?: string;
-  /** Metric / Measure of Success — kosong/undefined + kpiDefId ada → default pustaka. */
-  metricText?: string | null;
+  /** Definisi KPI (apa yang dimaksud) — snapshot per baris. */
+  description?: string | null;
+  /** Cara dinilai: "Numeric" (ambang/target/stretch) | "Descriptor" (level 1–5). */
+  measureMode?: string;
+  /** Metric / Measure of Success — [{level:1..5, descriptor}]; kosong + kpiDefId ada → default pustaka. */
+  metricLevels?: unknown;
   thresholdMin?: number | null;
   target?: number | null;
   stretchValue?: number | null;
@@ -528,30 +591,51 @@ export async function assignBatch(
     let defPolarity: string | null = null;
     let defUnit: string | null = null;
     let defTitle: string | null = null;
+    let defDescription: string | null = null;
+    let defMeasureMode: string | null = null;
     let defMetric: string | null = null;
     if (it.kpiDefId) {
       const def = await resolveDef(db, it.kpiDefId);
       defPolarity = def.polarity;
       defUnit = def.unit;
       defTitle = def.name;
-      defMetric = def.metricText;
+      defDescription = def.description;
+      defMeasureMode = def.measureMode;
+      defMetric = def.metricLevelsJson;
     }
     const title = reqStr(it.title ?? defTitle, "Judul KPI");
     let polarity = it.polarity ?? defPolarity ?? "Higher";
     let unit = it.unit ?? defUnit ?? "";
     if (!["Higher", "Lower", "Boolean"].includes(polarity)) throw new Error(`Polaritas tidak valid: ${polarity}`);
-    if (!unit) throw new Error(`Satuan wajib untuk "${title}"`);
+    // mode pengukuran: Descriptor = KPI kualitatif dinilai level 1–5 (tanpa angka)
+    const measureMode = (it.measureMode ?? defMeasureMode) === "Descriptor" ? "Descriptor" : "Numeric";
+    if (measureMode === "Descriptor") {
+      polarity = "Higher";
+      unit = "level";
+    } else if (!unit) {
+      throw new Error(`Satuan wajib untuk "${title}"`);
+    }
     const weight = it.weight ?? 0;
     if (!(weight > 0) || weight > 100) throw new Error(`Bobot "${title}" harus 1–100`);
-    // metric: eksplisit pemanggil menang; kosong → default pustaka (snapshot)
-    const metricText = metricOrNull(it.metricText) ?? defMetric;
+    // Metric / Measure of Success — WAJIB saat membuat KPI (permintaan user;
+    // form UI meng-enforce di kedua mode). Server: mode Descriptor WAJIB lengkap
+    // (KPI dinilai langsung dari deskriptor ini); mode Numeric boleh kosong di
+    // sini (jalur pustaka/salin) TAPI gerbang lockGoals tetap menolak submit
+    // KPI tanpa metric lengkap — baris tampil amber "lengkapi metric" di builder.
+    const metricLevelsJson = metricLevelsJsonOf(it.metricLevels) ?? defMetric;
+    if (measureMode === "Descriptor" && !isMetricComplete(metricLevelsJson)) {
+      throw new Error(
+        `Metric / Measure of Success "${title}" wajib diisi lengkap (deskriptor level 1–5) — KPI deskriptif dinilai langsung berdasarkan deskriptor ini`,
+      );
+    }
     await db.appraisalKpi.create({
       data: {
         appraisalId, kpiDefId: it.kpiDefId ?? null, title, polarity, unit,
-        metricText,
-        thresholdMin: it.thresholdMin ?? null,
-        target: it.target ?? 0,
-        stretchValue: it.stretchValue ?? null,
+        description: it.description != null && String(it.description).trim() ? String(it.description).trim() : defDescription,
+        measureMode, metricLevelsJson,
+        thresholdMin: measureMode === "Descriptor" ? null : (it.thresholdMin ?? null),
+        target: measureMode === "Descriptor" ? 5 : (it.target ?? 0),
+        stretchValue: measureMode === "Descriptor" ? null : (it.stretchValue ?? null),
         weight, isCritical: it.isCritical === true,
         dataSource: "Manual",
         origin: "Fresh", proposedBy: "Manager",
@@ -562,11 +646,17 @@ export async function assignBatch(
   return { created, removed };
 }
 
-/** Autosave draf §18.7 — PATCH perubahan baris (target/ambang/stretch/bobot/
- *  kritis/metric) + hapus baris. Sah selama Enrolled/GoalProposed & fase GoalSetting. */
+/** Autosave draf §18.7 — PATCH perubahan baris (judul/definisi/mode/metric/
+ *  target/ambang/stretch/bobot/kritis) + hapus baris. Sah selama
+ *  Enrolled/GoalProposed & fase GoalSetting. */
 export async function patchDraft(
   db: TenantDb, actor: GoalActor, appraisalId: string,
-  rows: { id: string; target?: number | null; thresholdMin?: number | null; stretchValue?: number | null; weight?: number; isCritical?: boolean; metricText?: string | null }[],
+  rows: {
+    id: string; title?: string; description?: string | null; measureMode?: string;
+    metricLevels?: unknown; unit?: string; polarity?: string;
+    target?: number | null; thresholdMin?: number | null; stretchValue?: number | null;
+    weight?: number; isCritical?: boolean;
+  }[],
   removedIds: string[] = [],
 ): Promise<{ updated: number; removed: number; savedAt: string }> {
   const a = await mustAppraisal(db, appraisalId);
@@ -586,12 +676,17 @@ export async function patchDraft(
     await db.appraisalKpi.update({
       where: { id: r.id },
       data: {
+        ...(r.title !== undefined && String(r.title).trim() ? { title: String(r.title).trim() } : {}),
+        ...(r.description !== undefined ? { description: String(r.description).trim() || null } : {}),
+        ...(r.measureMode !== undefined ? { measureMode: r.measureMode === "Descriptor" ? "Descriptor" : "Numeric" } : {}),
+        ...(r.metricLevels !== undefined ? { metricLevelsJson: metricLevelsJsonOf(r.metricLevels) } : {}),
+        ...(r.unit !== undefined && String(r.unit).trim() ? { unit: String(r.unit).trim() } : {}),
+        ...(r.polarity !== undefined && ["Higher", "Lower", "Boolean"].includes(r.polarity) ? { polarity: r.polarity } : {}),
         ...(r.target !== undefined ? { target: r.target ?? 0 } : {}),
         ...(r.thresholdMin !== undefined ? { thresholdMin: r.thresholdMin ?? null } : {}),
         ...(r.stretchValue !== undefined ? { stretchValue: r.stretchValue ?? null } : {}),
         ...(r.weight !== undefined ? { weight: r.weight } : {}),
         ...(r.isCritical !== undefined ? { isCritical: r.isCritical } : {}),
-        ...(r.metricText !== undefined ? { metricText: metricOrNull(r.metricText) } : {}),
       },
     });
     updated++;
@@ -620,19 +715,26 @@ export async function proposeMbo(
     const title = reqStr(it.title, "Judul KPI usulan");
     let polarity = it.polarity ?? "Higher";
     let unit = it.unit ?? "";
+    let defDescription: string | null = null;
+    let defMeasureMode: string | null = null;
     let defMetric: string | null = null;
     if (it.kpiDefId) {
       const def = await resolveDef(db, it.kpiDefId);
-      polarity = def.polarity; unit = def.unit; defMetric = def.metricText;
+      polarity = def.polarity; unit = def.unit;
+      defDescription = def.description; defMeasureMode = def.measureMode; defMetric = def.metricLevelsJson;
     }
     if (!["Higher", "Lower", "Boolean"].includes(polarity)) throw new Error(`Polaritas tidak valid: ${polarity}`);
     if (!unit) unit = "%";
+    const measureMode = (it.measureMode ?? defMeasureMode) === "Descriptor" ? "Descriptor" : "Numeric";
+    const metricLevelsJson = metricLevelsJsonOf(it.metricLevels) ?? defMetric;
     await db.appraisalKpi.create({
       data: {
         appraisalId, kpiDefId: it.kpiDefId ?? null, title, polarity, unit,
-        metricText: metricOrNull(it.metricText) ?? defMetric,
-        thresholdMin: it.thresholdMin ?? null, target: it.target ?? 0,
-        stretchValue: it.stretchValue ?? null,
+        description: it.description != null && String(it.description).trim() ? String(it.description).trim() : defDescription,
+        measureMode, metricLevelsJson,
+        thresholdMin: measureMode === "Descriptor" ? null : (it.thresholdMin ?? null),
+        target: measureMode === "Descriptor" ? 5 : (it.target ?? 0),
+        stretchValue: measureMode === "Descriptor" ? null : (it.stretchValue ?? null),
         weight: it.weight ?? 10, isCritical: false,
         dataSource: "Manual", origin: "EmployeeProposal", proposedBy: "Employee",
       },
@@ -679,7 +781,8 @@ export async function lockGoals(
   const errors = validateDraft(a.kpis);
   const hard = errors.filter((e) =>
     e.includes("Belum ada baris KPI") || e.includes("Total bobot") || e.includes("ideal 3–8") || e.includes("terlalu banyak") ||
-    e.includes("ambang gagal belum diisi") || e.includes("bobot harus > 0") || e.includes("Boolean"));
+    e.includes("ambang gagal belum diisi") || e.includes("bobot harus > 0") || e.includes("Boolean") ||
+    e.includes("Metric / Measure of Success"));
   if (hard.length > 0) throw new Error(`Submit ditolak (§35-3): ${hard[0]}`);
 
   await db.appraisalRecord.update({
@@ -727,7 +830,7 @@ export const TARGET_COLUMNS = [
   { key: "stretch", id: "Stretch (opsional)", en: "Stretch (optional)" },
   { key: "weight", id: "Bobot (%)", en: "Weight (%)" },
   { key: "critical", id: "Kritis (Ya/Tidak)", en: "Critical (Yes/No)" },
-  { key: "metric", id: "Metric / Ukuran Keberhasilan (opsional)", en: "Metric / Measure of Success (optional)" },
+  { key: "metric", id: "Metric / Measure of Success\n(wajib — baris \"1: …\" s.d. \"5: …\"; kosong + kode pustaka → default pustaka)", en: "Metric / Measure of Success\n(required — lines \"1: …\" through \"5: …\"; blank + a library code → the library default)" },
 ] as const;
 
 /** Buat workbook template .xlsx dwibahasa (sheet instruksi + data + contoh + dropdown). */
@@ -766,8 +869,8 @@ export async function buildTargetTemplateXlsx(cycleCode: string, example: {
       "4. Weights per employee must total exactly 100 — the preview warns; the manager submit enforces it.",
     ],
     s5: [
-      "5. Kolom \"Metric / Ukuran Keberhasilan\" opsional — rubrik ukuran sukses (umumnya deskriptor peringkat 1–5); kosong + kode pustaka → default pustaka.",
-      "5. The \"Metric / Measure of Success\" column is optional — a success-measure rubric (usually level 1–5 descriptors); blank + a library code → the library default applies.",
+      "5. Kolom \"Metric / Measure of Success\" — deskriptor ukuran keberhasilan, satu baris per level 1–5 (format \"1: …\" s.d. \"5: …\"); kosong + kode pustaka → default pustaka. Submit menolak KPI tanpa metric lengkap.",
+      "5. \"Metric / Measure of Success\" — the success-measure descriptors, one line per level 1–5 (format \"1: …\" through \"5: …\"); blank + a library code → the library default. Submit rejects KPIs with incomplete metrics.",
     ],
     s6: [
       "6. Hasil impor = DRAF (belum submit). Setiap peserta tetap menunggu review + submit oleh atasan.",
@@ -797,10 +900,11 @@ export async function buildTargetTemplateXlsx(cycleCode: string, example: {
     { header: TARGET_COLUMNS[7].id + "\n" + TARGET_COLUMNS[7].en, width: 14 },
     { header: TARGET_COLUMNS[8].id + "\n" + TARGET_COLUMNS[8].en, width: 12 },
     { header: TARGET_COLUMNS[9].id + "\n" + TARGET_COLUMNS[9].en, width: 14 },
-    { header: TARGET_COLUMNS[10].id + "\n" + TARGET_COLUMNS[10].en, width: 48 },
+    { header: TARGET_COLUMNS[10].id + "\n" + TARGET_COLUMNS[10].en, width: 70 },
   ];
   data.getRow(1).font = { bold: true };
   data.getRow(1).alignment = { wrapText: true, vertical: "middle" };
+  data.getRow(2).alignment = { wrapText: true, vertical: "top" };
   data.addRow([example.employeeNo, example.fullName, example.kpi, example.polarity, example.unit,
     example.threshold, example.target, example.stretch, example.weight, example.critical, example.metric]);
   data.getRow(2).font = { italic: true, color: { argb: "FF6B7280" } };
@@ -831,6 +935,7 @@ export interface ImportTargetRow {
   weight: string;
   critical: string;
   metric: string;
+  measureMode: string; // Numeric | Descriptor
   valid: boolean;
   errors: { field: string; message: string }[];
   // terisi server saat valid:
@@ -922,6 +1027,7 @@ export async function importTargetsPreview(
       polarity: get("polarity"), unit: get("unit"), threshold: get("threshold"),
       target: get("target"), stretch: get("stretch"), weight: get("weight"), critical: get("critical"),
       metric: get("metric"),
+      measureMode: "Numeric",
       valid: true, errors: [],
     };
     const err = (field: string, message: string) => { r.valid = false; r.errors.push({ field, message }); };
@@ -957,8 +1063,16 @@ export async function importTargetsPreview(
     if (r.threshold !== "" && threshold == null) err("threshold", `Ambang bukan angka: "${r.threshold}"`);
     const stretch = numOrNull(r.stretch);
     if (r.stretch !== "" && stretch == null) err("stretch", `Stretch bukan angka: "${r.stretch}"`);
-    // 4b — metric rubrik (opsional; cap 2000 karakter paritas metricOrNull)
-    if (r.metric.length > 2000) err("metric", `Metric maksimal 2000 karakter (${r.metric.length})`);
+    // 4b — Metric / Measure of Success: parser baris "1: …" s.d. "5: …".
+    // Kolom wajib sebelum submit — bila diisi, HARUS berisi 5 level lengkap;
+    // kosong diperbolehkan HANYA bila kode pustaka punya metric default
+    // (gerbang submit atasan tetap menolak KPI tanpa metric lengkap).
+    if (r.metric !== "") {
+      const levels = parseMetricExcel(r.metric);
+      if (!isMetricComplete(levels)) {
+        err("metric", "Metric harus berisi deskriptor level 1–5 — satu baris per level, format \"1: …\" s.d. \"5: …\"");
+      }
+    }
 
     // 5 — duplikat dalam file (karyawan+KPI)
     const dkey = `${employeeNo.toUpperCase()}|${r.kpi.toUpperCase()}`;
@@ -1007,22 +1121,29 @@ export async function importTargetsCommit(
     if ((APPRAISAL_LOCKED as readonly string[]).includes(ap.status) || ap.kpis.length > 0) { skipped++; continue; }
     const pol = ["Higher", "Lower", "Boolean"].includes(r.polarity) ? r.polarity : "Higher";
     const critRaw = norm(r.critical ?? "");
-    // metric: eksplisit Excel menang; kosong + kode pustaka → default pustaka
-    let metricText = metricOrNull(r.metric);
-    if (metricText == null && r.kpiDefId) {
-      const def = await db.kpiDefinition.findUnique({ where: { id: r.kpiDefId }, select: { metricText: true } });
-      metricText = def?.metricText ?? null;
+    // metric: eksplisit Excel menang; kosong + kode pustaka → default pustaka;
+    // bila pustaka mode Descriptor → ikut (KPI kualitatif dinilai 1–5)
+    let metricLevelsJson = metricLevelsJsonOf(parseMetricExcel(r.metric ?? ""));
+    let measureMode: "Numeric" | "Descriptor" = "Numeric";
+    if (r.kpiDefId) {
+      const def = await db.kpiDefinition.findUnique({ where: { id: r.kpiDefId }, select: { metricLevelsJson: true, measureMode: true } });
+      if (def) {
+        if (metricLevelsJson == null) metricLevelsJson = def.metricLevelsJson;
+        if (def.measureMode === "Descriptor") measureMode = "Descriptor";
+      }
     }
+    const descriptor = measureMode === "Descriptor";
     await db.appraisalKpi.create({
       data: {
         appraisalId: ap.id,
         kpiDefId: r.kpiDefId ?? null,
-        title: r.kpi, polarity: pol,
-        unit: r.unit || "%",
-        metricText,
-        thresholdMin: numOrNull(r.threshold),
-        target: numOrNull(r.target) ?? 0,
-        stretchValue: numOrNull(r.stretch),
+        title: r.kpi, polarity: descriptor ? "Higher" : pol,
+        unit: descriptor ? "level" : (r.unit || "%"),
+        measureMode,
+        metricLevelsJson,
+        thresholdMin: descriptor ? null : numOrNull(r.threshold),
+        target: descriptor ? 5 : (numOrNull(r.target) ?? 0),
+        stretchValue: descriptor ? null : numOrNull(r.stretch),
         weight: numOrNull(r.weight) ?? 10,
         isCritical: CRIT_YES.includes(critRaw),
         dataSource: "Manual",

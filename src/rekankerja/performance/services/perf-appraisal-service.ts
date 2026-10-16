@@ -214,12 +214,16 @@ export async function compWeightsOf(
 // FORMULA §16 (otoritatif server)
 // ============================================================================
 
-/** Skor satu KPI §16 — polaritas + stretch; clamp 0..120 (120 hanya stretch). */
+/** Skor satu KPI §16 — polaritas + stretch; clamp 0..120 (120 hanya stretch).
+ *  KPI-METRIC mode Descriptor (kualitatif): finalActual = LEVEL 1–5 yang
+ *  dipilih penilai sesuai Metric / Measure of Success → skor = level × 20
+ *  (paritas bobot kompetensi: 5 = 100). */
 export function scoreKpiItem(k: {
-  polarity: string; thresholdMin: number | null; target: number; stretchValue: number | null; finalActual: number | null;
+  polarity: string; thresholdMin: number | null; target: number; stretchValue: number | null; finalActual: number | null; measureMode?: string;
 }): number {
   const A = k.finalActual;
   if (A == null) return 0; // guard §16: null → 0 di fase final
+  if (k.measureMode === "Descriptor") return clamp(Math.round(A) * 20, 0, 100);
   if (k.polarity === "Boolean") return A >= 1 ? 100 : 0;
   const T = k.target;
   if (k.polarity === "Lower") {
@@ -238,7 +242,7 @@ export function scoreKpiItem(k: {
   return clamp(s, 0, S != null && S > T ? 120 : 100);
 }
 
-interface CalcKpi { polarity: string; thresholdMin: number | null; target: number; stretchValue: number | null; weight: number; finalActual: number | null }
+interface CalcKpi { polarity: string; thresholdMin: number | null; target: number; stretchValue: number | null; weight: number; finalActual: number | null; measureMode?: string }
 
 /** Σ skor×bobot / Σbobot (nilai null dihitung 0 — pemanggil menandai kelengkapan). */
 function kpiComponent(kpis: CalcKpi[]): number {
@@ -338,7 +342,7 @@ export async function appraisalDetail(db: TenantDb, appraisalId: string) {
 
   const kpis = fresh.kpis.map((k) => ({
     id: k.id, kpiDefId: k.kpiDefId, title: k.title, polarity: k.polarity, unit: k.unit,
-    metricText: k.metricText,
+    description: k.description, measureMode: k.measureMode, metricLevelsJson: k.metricLevelsJson,
     thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
     weight: k.weight, isCritical: k.isCritical, dataSource: k.dataSource,
     autoValueJson: k.autoValueJson, midActual: k.midActual, finalActual: k.finalActual,
@@ -631,6 +635,7 @@ async function computeManagerScore(
   const kpiScore = kpiComponent(a.kpis.map((k) => ({
     polarity: k.polarity, thresholdMin: k.thresholdMin, target: k.target,
     stretchValue: k.stretchValue, weight: k.weight, finalActual: k.finalActual,
+    measureMode: k.measureMode,
   })));
   const compIds = a.comps.map((c) => c.competencyId);
   const wOf = await compWeightsOf(db, a, compIds);
@@ -1185,6 +1190,7 @@ export async function previewImpact(
     return {
       polarity: k.polarity, thresholdMin: k.thresholdMin, target: k.target,
       stretchValue: k.stretchValue, weight: k.weight, finalActual,
+      measureMode: k.measureMode,
     };
   });
   const compIds = fresh.comps.map((c) => c.competencyId);
@@ -1449,13 +1455,16 @@ export async function mySelfAssessment(db: TenantDb, employeeId: string, apprais
         selfScore: c.selfScore, selfComment: c.selfComment, selfAiAssisted: c.selfAiAssisted,
       };
     }),
-    // KPI manual utk usulan finalActual (AUTO ditarik atasan — read-only di ESS)
+    // KPI manual utk usulan finalActual (AUTO ditarik atasan — read-only di ESS).
+    // Mode Descriptor: usulan karyawan = LEVEL 1–5 sesuai Metric (bukan angka bebas).
     manualKpis: fresh.kpis.filter((k) => k.dataSource === "Manual").map((k) => ({
       id: k.id, title: k.title, unit: k.unit, target: k.target, midActual: k.midActual,
-      finalActual: k.finalActual, evidenceJson: k.evidenceJson, metricText: k.metricText,
+      finalActual: k.finalActual, evidenceJson: k.evidenceJson,
+      description: k.description, measureMode: k.measureMode, metricLevelsJson: k.metricLevelsJson,
     })),
     autoKpis: fresh.kpis.filter((k) => k.dataSource !== "Manual").map((k) => ({
-      id: k.id, title: k.title, unit: k.unit, target: k.target, finalActual: k.finalActual, metricText: k.metricText,
+      id: k.id, title: k.title, unit: k.unit, target: k.target, finalActual: k.finalActual,
+      description: k.description, measureMode: k.measureMode, metricLevelsJson: k.metricLevelsJson,
     })),
     progress: {
       total: fresh.comps.length,
