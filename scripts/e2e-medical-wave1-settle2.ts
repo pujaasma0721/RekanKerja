@@ -112,15 +112,21 @@ const setJ = await settle.json().catch(() => ({}));
 ok("settle klaim", settle.status === 200 && setJ?.state === "Settled", `status=${settle.status} journal=${setJ?.journalNo ?? "-"} lines=${setJ?.journalLines}`);
 
 // 3) verifikasi split jurnal via GET payroll-journals
+// (BF-fix suite-rot): endpoint LIST tidak lagi menyertakan `lines` (audit
+// bea3974 — hanya `_count` + dekripsi di detail); baris jurnal hanya di
+// DETAIL by-id. Dua langkah: list → cari id by journalNo → detail.
 const jn = setJ?.journalNo ?? "";
-const jr = await api("GET", `/api/rekankerja/payroll-journals?journalNo=${jn}`);
+const jr = await api("GET", `/api/rekankerja/payroll-journals`);
 const jrJ = await jr.json().catch(() => ({}));
 const journals = jrJ?.journals ?? jrJ?.items ?? [];
-const journal = journals[0];
-if (!journal) {
+const jrow = (journals as { id?: string; journalNo?: string }[]).find((x) => x?.journalNo === jn);
+if (!jrow?.id) {
   ok("baca jurnal", false, `journalNo=${jn} status=${jr.status} body=${JSON.stringify(jrJ).slice(0, 100)}`);
 } else {
-  const lines: { position: string; accountCode: string; amount: string | number | null }[] = journal.lines ?? [];
+  const jd = await api("GET", `/api/rekankerja/payroll-journals?id=${jrow.id}`);
+  const jdJ = await jd.json().catch(() => ({}));
+  const journal = jdJ?.journal;
+  const lines: { position: string; accountCode: string; amount: string | number | null }[] = journal?.lines ?? [];
   const amountOf = (l: { amount: string | number | null }) =>
     typeof l.amount === "number" ? l.amount : Number(String(l.amount ?? "").replace(/[^\d.]/g, "")) || 0;
   const d5106 = lines.filter((l) => l.position === "Debit" && l.accountCode === "5106").reduce((s, l) => s + amountOf(l), 0);

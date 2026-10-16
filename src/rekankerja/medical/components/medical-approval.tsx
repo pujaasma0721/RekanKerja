@@ -166,13 +166,27 @@ export function MedicalApprovalPage() {
     if (!periodId) { toast.error(t("Pilih period payroll target", "Select the target payroll period")); return; }
     setBusy(true);
     try {
-      const res = await apiSend<{ periodName: string; employees: number; rows: number; totalAmount: number; removed: number }>(
+      const res = await apiSend<{
+        periodName: string; employees: number; rows: number; totalAmount: number; removed: number;
+        skippedIneligible?: { employeeNo: string; fullName: string; reason: string }[];
+      }>(
         "/api/rekankerja/medical/transfer", "POST",
         { periodId, year: Number(transferYear) },
       );
       toast.success(
         t("Sisa saldo medis {y} → {p}: {e} karyawan, {a} (komponen UMC)", "Remaining medical balance {y} → {p}: {e} employees, {a} (UMC component)", { y: transferYear, p: res.periodName, e: res.employees, a: fmtIDR(res.totalAmount) }),
       );
+      // BF: karyawan tanpa template upah efektif dilewati — saldo mereka utuh;
+      // sampaikan eksplisit supaya tidak dianggap "sudah dicairkan semua".
+      if ((res.skippedIneligible ?? []).length > 0) {
+        toast.warning(
+          t(
+            "{n} karyawan DILEWATI (saldo utuh, belum bisa diproses run SALARY): {list} — pasang Profil Payroll (template upah) lalu transfer ulang",
+            "{n} employees SKIPPED (balance intact, not processable by the SALARY run yet): {list} — set up the Payroll Profile (wage template) then transfer again",
+            { n: res.skippedIneligible!.length, list: res.skippedIneligible!.map((x) => x.employeeNo).join(", ") },
+          ),
+        );
+      }
       setTransferOpen(false);
       api.refresh();
     } catch (e) {

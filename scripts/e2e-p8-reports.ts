@@ -24,6 +24,8 @@
 //      documents → 403 (portal karyawan tanpa menu admin).
 // Jalankan: bun run scripts/e2e-p8-reports.ts
 import "./lib/env";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { snapshotMetrics } from "@/rekankerja/performance/services/perf-analytics-service";
 
 const BASE = "http://localhost:3000";
 const EMAIL = "hrd@mii.co.id";
@@ -59,6 +61,12 @@ async function api(method: string, path: string, body?: unknown, asBinary = fals
 async function main() {
   // ================= 1. login + dashboard =================
   console.log("\n[1] DASHBOARD LAPORAN");
+  // BF-fix determinisme: MetricSnapshot diisi oleh scheduler harian — pada
+  // fixture reset fresh + run segera, snapshot belum ada (timing tergantung
+  // siklus 6 jam scheduler). Panggil snapshotMetrics langsung (idempoten —
+  // upsert periode berjalan; tanpa data tidak menulis baris palsu).
+  const snapWritten = await snapshotMetrics(getTenantClient("tenant_pt_mitra_industri_internasional"));
+  console.log(`  [setup] snapshotMetrics: ${snapWritten} baris (idempoten)`);
   const login = await api("POST", "/api/auth/login", { email: EMAIL, password: PASSWORD });
   ok(login.status === 200, `login owner ${EMAIL}`, `HTTP ${login.status}`);
 

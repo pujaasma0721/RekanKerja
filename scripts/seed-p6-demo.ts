@@ -74,6 +74,63 @@ async function main() {
     console.log(`[Appraisal] ${docNo} — ${emp.fullName} (${d.no}) rating 2 Closed, atasan snapshot ${mgr?.managerId ?? "-"}`);
   }
 
+  // ---------- 2b. program PIP riwayat (register pf42 + recoveryRate) ----------
+  // Di lingkungan pengembangan P6, baris PipPlan tercipta lewat ALUR E2E P6
+  // (pipDecide → activate → checkpoint → outcome) — skrip itu di luar daftar
+  // suite stabil agregator, sehingga fixture reset deterministik TIDAK pernah
+  // memilikinya dan laporan pf42 (register PIP) kosong (temuan verifikasi
+  // silang BF). Seed langsung — idempoten per docNo:
+  //   · PIP-2026-0001 Tuti Gunawan Recovered — checkpoint 30/60/90 terisi
+  //     105/110/108 (cerita sama dgn E2E P6 asli) → recoveryRate 100%.
+  //     Faktor attrisi b3: Recovered = 0 poin (skor Tuti 42 tak berubah).
+  //   · PIP-2026-0002 Tuti Iskandar Active — variasi register (aktif).
+  const pipDefs: { no: string; docNo: string; status: "Recovered" | "Active"; cps: (number | null)[] }[] = [
+    { no: "MII00013", docNo: "PIP-2026-0001", status: "Recovered", cps: [105, 110, 108] },
+    { no: "MII00028", docNo: "PIP-2026-0002", status: "Active", cps: [null, null, null] },
+  ];
+  for (const p of pipDefs) {
+    const exists = await db.pipPlan.findFirst({ where: { docNo: p.docNo }, select: { id: true } });
+    if (exists) { console.log(`[PIP] ${p.docNo} sudah ada — skip`); continue; }
+    const e2 = await db.employee.findFirst({ where: { employeeNo: p.no } });
+    if (!e2) { console.log(`[PIP] ${p.no} tidak ditemukan — skip`); continue; }
+    const appr2 = await db.appraisalRecord.findFirst({ where: { cycleId: cycle.id, employeeId: e2.id }, select: { id: true } });
+    const mgr2 = await db.employeeAssignment.findFirst({
+      where: { employeeId: e2.id, validTo: null, managerId: { not: null } },
+      orderBy: { validFrom: "desc" },
+      select: { managerId: true },
+    });
+    if (!mgr2?.managerId) { console.log(`[PIP] ${p.no} tanpa atasan pembina aktif — skip (reviewerId wajib)`); continue; }
+    const start = new Date("2026-07-01T00:00:00Z");
+    const end = new Date("2026-09-29T00:00:00Z");
+    const pip = await db.pipPlan.create({
+      data: {
+        docNo: p.docNo,
+        employeeId: e2.id,
+        appraisalId: appr2?.id ?? null,
+        startDate: start,
+        endDate: end,
+        targetsJson: JSON.stringify([
+          { title: "Ketepatan waktu laporan mingguan", metric: "% laporan tepat waktu", target: "≥95%", weight: 40 },
+          { title: "Akurasi input data SOP", metric: "error input per 100 entri", target: "≤2", weight: 30 },
+          { title: "Kehadiran koordinasi tim", metric: "sesi hadir / total", target: "100%", weight: 30 },
+        ]),
+        reviewerId: mgr2.managerId,
+        status: p.status,
+        outcomeNotes: p.status === "Recovered" ? "Pulih — capaian checkpoint 105/110/108% (seed demo P6)" : null,
+        checkpoints: {
+          create: [30, 60, 90].map((d, i) => ({
+            seq: i + 1,
+            dueDate: new Date(start.getTime() + d * 86_400_000),
+            achievementPct: p.cps[i] ?? null,
+            status: p.cps[i] != null ? "Reviewed" : "Pending",
+            ...(p.cps[i] != null ? { reviewedAt: end } : {}),
+          })),
+        },
+      },
+    });
+    console.log(`[PIP] ${pip.docNo} — ${e2.fullName} (${p.no}) status ${p.status}, 3 target Σbobot 100, checkpoint 30/60/90`);
+  }
+
   // ---------- 3. akun ESS Tuti Gunawan ----------
   const emp = await db.employee.findFirst({ where: { employeeNo: "MII00013" } });
   if (!emp) throw new Error("Karyawan MII00013 tidak ditemukan");

@@ -33,7 +33,8 @@ bun run test:e2e -- --reset b8   # reset fixture dulu, lalu subset
 
 **Apa itu `--reset`?** Membangun ulang fixture demo secara deterministik tanpa
 mematikan dev server — urutan: `restore-demo` → `migrate-password-security` →
-`seed-ess-demo-user` → demo rekrutmen (F1–F3) → kinerja (P0→P1→seed P6/P7/P8→P9)
+`seed-ess-demo-user` → master rekrutmen `migrate-recruitment-f0` → demo
+rekrutmen (F1–F3) → kinerja (P0→P1→seed P6/P7/P8→P9)
 → backlog (B1→B2→B4→B5→B6→B7→B8; B3 stateless tanpa migrasi). Semua langkah
 idempoten — aman dijalankan berulang.
 
@@ -49,3 +50,13 @@ sebelum masuk daftar stabil.
 **Diagnosis kegagalan**: agregator mencetak 6 baris output terakhir tiap suite
 yang gagal + durasi per-suite; jalankan langsung `bun scripts/e2e-<nama>.ts`
 untuk output penuh.
+
+**Batas memori (host kecil / sandbox 4GB tanpa swap)**: dev server Next 16
+(turbopack, mode dev) mengakumulasi heap seiring meng-compile rute yang
+disentuh suite — pada mesin 4GB ia kehabisan memori sekitar suite ke-9–12
+(GC-death-spiral atau OOM-kill kernel; watchdog `scripts/watch-dev.sh`
+memulihkannya otomatis ≤15 dtk). Suite yang menabrak jendela pemulihan gagal
+`ConnectionRefused` BUKAN karena bug — jalankan ulang subsetnya (semua suite
+stabil bersifat re-runnable/self-cleaning), atau pecah verifikasi per-grup:
+`bun run test:e2e -- medical`, lalu `-- p7 p8 p9`, lalu `-- b1 b2 b3 b4 b5 b6
+b7 b8`. (Terverifikasi BF: rebuild penuh dari nol — 17/17 LULUS dalam 2 tahap.)

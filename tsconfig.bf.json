@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "allowJs": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/medical/services/medical-service.ts",
+    "src/rekankerja/medical/api/transfer.ts",
+    "src/rekankerja/medical/components/medical-approval.tsx",
+    "scripts/test-e2e-all.ts",
+    "scripts/seed-p6-demo.ts",
+    "scripts/e2e-b2-ai-bias.ts",
+    "scripts/e2e-p7-probation.ts",
+    "scripts/e2e-p8-reports.ts",
+    "scripts/e2e-medical-wave1-settle2.ts",
+    "scripts/e2e-medical-wave4.ts",
+    "scripts/e2e-medical-umc-chain.ts",
+    "scripts/restore-demo.ts",
+    "scripts/migrate-recruitment-f0.ts"
+  ]
+}

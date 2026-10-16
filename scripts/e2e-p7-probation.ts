@@ -17,10 +17,13 @@
 //       surat metaJson.probDocNo idempoten, detail chainSteps lengkap.
 // Jalankan: bun run scripts/e2e-p7-probation.ts
 import "./lib/env";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { createProbationFromOnboarding, PROB_DOC_TYPE } from "@/rekankerja/performance/services/perf-probation-service";
 
 const BASE = "http://localhost:3000";
 const EMAIL = "hrd@mii.co.id";
 const PASSWORD = "onevity123";
+const SCHEMA = "tenant_pt_mitra_industri_internasional";
 
 let cookie = "";
 let pass = 0;
@@ -29,6 +32,39 @@ const ok = (cond: boolean, label: string, extra?: string) => {
   if (cond) { pass++; console.log(`  ✓ ${label}${extra ? ` — ${extra}` : ""}`); }
   else { fail++; console.log(`  ✗ FAIL: ${label}${extra ? ` — ${extra}` : ""}`); }
 };
+
+/** Reset fixture P7 → evaluasi demo kembali Open (re-runnable — standar
+ *  agregator B9 "self-cleaning & lolos berulang"). Alur suite memutuskan
+ *  ketiga evaluasi (Open → Decided + PA + surat) — jalur produksi tidak
+ *  menyediakan "un-decide", jadi reset = hapus chain approval + evaluasi,
+ *  lalu buat ulang via createProbationFromOnboarding (persis seed-p7-demo;
+ *  penomoran PRB kembali 0001–0003 karena tabel kosong). PA/surat/ActivityLog
+ *  run sebelumnya DIPERTAHANKAN sebagai riwayat (tidak ada FK balik —
+ *  detailJson/metaJson hanya menyimpan docNo). */
+async function resetP7Fixture(): Promise<void> {
+  const db = getTenantClient(SCHEMA);
+  for (const no of ["MII00047", "MII00048", "MII00049"]) {
+    const emp = await db.employee.findFirst({ where: { employeeNo: no }, select: { id: true, joinDate: true } });
+    if (!emp) continue; // seed-p7-demo belum pernah jalan — suite akan melapor di [0]
+    const evals = await db.probationEvaluation.findMany({
+      where: { employeeId: emp.id },
+      select: { id: true, docNo: true, personnelActionId: true },
+    });
+    for (const ev of evals) {
+      const chain = await db.approvalChain.findUnique({
+        where: { docType_docId: { docType: PROB_DOC_TYPE, docId: ev.id } },
+        select: { id: true },
+      });
+      if (chain) await db.approvalChain.delete({ where: { id: chain.id } }); // steps cascade
+      // PA dipertahankan (riwayat) — tautan balik di eval hilang bersama barisnya
+      await db.probationEvaluation.delete({ where: { id: ev.id } });
+    }
+    const onb = await db.onboarding.findFirst({ where: { employeeId: emp.id }, orderBy: { createdAt: "desc" }, select: { id: true } });
+    if (onb && emp.joinDate) {
+      await createProbationFromOnboarding(db, { employeeId: emp.id, onboardingId: onb.id, joinDate: emp.joinDate, actor: "e2e-p7-reset" });
+    }
+  }
+}
 
 async function api(method: string, path: string, body?: unknown): Promise<{ status: number; json: any }> {
   const res = await fetch(`${BASE}${path}`, {
@@ -43,6 +79,9 @@ async function api(method: string, path: string, body?: unknown): Promise<{ stat
 }
 
 async function main() {
+  // ---------- 0a. reset fixture (re-runnable) ----------
+  await resetP7Fixture();
+
   // ---------- 0. login + daftar ----------
   const login = await api("POST", "/api/auth/login", { email: EMAIL, password: PASSWORD });
   ok(login.status === 200, `login owner ${EMAIL}`, `HTTP ${login.status}`);

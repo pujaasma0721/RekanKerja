@@ -87,6 +87,11 @@ const RESET_STEPS: string[] = [
   "scripts/restore-demo.ts",
   "scripts/migrate-password-security.ts",
   "scripts/seed-ess-demo-user.ts",
+  // BF-fix: F0 master rekrutmen WAJIB sebelum F1/F2 di environment FRESH —
+  // seed MII (prisma/seed.ts) tidak memuatnya (hanya seedTenantReference
+  // cahaya/sentra yang berisi); tanpa langkah ini F2 seedDemoF2 crash di
+  // methods[0] (RecruitmentMethod kosong) pada DB yang baru dipulihkan.
+  "scripts/migrate-recruitment-f0.ts",
   "scripts/migrate-recruitment-f1.ts",
   "scripts/migrate-recruitment-f2.ts",
   "scripts/migrate-recruitment-f3.ts",

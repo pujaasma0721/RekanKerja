@@ -26,6 +26,7 @@ import "./lib/env";
 import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 import { scanBias } from "@/rekankerja/performance/services/bias-lexicon";
 import { submit360, REDACTED_360_COMMENT } from "@/rekankerja/performance/services/perf-360-service";
+import { ensureCompRows } from "@/rekankerja/performance/services/perf-appraisal-service";
 
 const BASE = "http://localhost:3000";
 const EMAIL = "hrd@mii.co.id";
@@ -96,8 +97,15 @@ async function main() {
   const login = await owner.api("POST", "/api/auth/login", { email: EMAIL, password: PASSWORD });
   ok(login.status === 200, `login owner ${EMAIL}`, `HTTP ${login.status}`);
 
-  const appr505 = await db.appraisalRecord.findFirstOrThrow({ where: { docNo: "PER-2026-005" }, select: { id: true, employeeId: true } });
+  const appr505 = await db.appraisalRecord.findFirstOrThrow({ where: { docNo: "PER-2026-005" }, select: { id: true, employeeId: true, templateId: true } });
   const cycle26 = await db.performanceCycle.findFirstOrThrow({ where: { code: "PER-2026" }, select: { id: true, status: true, feedback360: true } });
+  // Fixture fresh (reset deterministik): fase penilaian P3 belum pernah
+  // dijalankan utk PER-2026-005 → baris kompetensi belum ada; pastikan ada
+  // (idempoten — di lingkungan kaya baris ini sudah terisi oleh alur P3).
+  // Tanpa baris kompetensi, submit 360 "berhasil" dengan 0 jawaban (bug
+  // fixture-dependency yang ditemukan verifikasi silang BF).
+  const compRowsMade = await ensureCompRows(db, { id: appr505.id, templateId: appr505.templateId });
+  ok(compRowsMade >= 0, `baris kompetensi appraisal tersedia (idempoten — dibuat ${compRowsMade})`);
   const yusufEmp = await db.employee.findFirstOrThrow({ where: { employeeNo: "MII00010" }, select: { id: true, fullName: true } });
   const hartono = await db.employee.findFirstOrThrow({ where: { employeeNo: "MII00001" }, select: { id: true, fullName: true } });
   const sri = await db.employee.findFirstOrThrow({ where: { employeeNo: "MII00002" }, select: { id: true, fullName: true } });
@@ -251,7 +259,9 @@ async function main() {
   console.log("\n[(e)] BIAS ADVISORI — saveManagerScore (D-BL7a, NON-BLOKIR)");
   const origMgrStart = cycle26 ? await db.performanceCycle.findUniqueOrThrow({ where: { id: cycle26.id }, select: { mgrStart: true } }) : null;
   await db.performanceCycle.update({ where: { id: cycle26.id }, data: { mgrStart: new Date("2026-10-01T00:00:00.000Z") } }); // buka jendela utk uji
-  const appr001 = await db.appraisalRecord.findFirstOrThrow({ where: { docNo: "PER-2026-001" }, select: { id: true } });
+  const appr001 = await db.appraisalRecord.findFirstOrThrow({ where: { docNo: "PER-2026-001" }, select: { id: true, templateId: true } });
+  // Fixture fresh (pola sama dgn 005 di atas) — pastikan baris kompetensi ada.
+  await ensureCompRows(db, { id: appr001.id, templateId: appr001.templateId });
   const compRow = await db.appraisalCompetencyScore.findFirstOrThrow({ where: { appraisalId: appr001.id }, select: { id: true, competencyId: true, comment: true } });
   try {
     const mgr = await owner.api("POST", "/api/rekankerja/performance/appraisals", {

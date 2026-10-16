@@ -173,6 +173,12 @@ ok("kebijakan terbaca (pctInsurance 60)", !!tgt && tgt.pctInsurance === 60 && tg
   tgt ? `${tgt.code} ${tgt.pctCompany}/${tgt.pctInsurance}%` : "-");
 
 // ===== 3) klaim A: settle → jurnal split → kirim → terima parsial → lunas =====
+// (BF-fix sequence-safety): overview.insOutstanding = metrik GLOBAL tahunan —
+// suite lain (wave1-settle2 meninggalkan piutang 40% yang memang outstanding
+// utk membuktikan split) dapat menyisakan residu; snapshot baseline SEBELUM
+// klaim A, lalu assertion membandingkan DELTA (kekuatan uji tetap eksak).
+const ovBaseR = await api("GET", `/api/rekankerja/medical/overview?year=${YEAR}`);
+const ovBase = Math.round(((await ovBaseR.json().catch(() => ({})))?.insOutstanding ?? 0) as number);
 const BILL_A = 500_000; // piutang 300rb, beban 200rb
 const A = await submitApproveSettle({ employeeId: row.employeeId, typeId: tgt!.id, bill: BILL_A, treatedName: row.fullName, tag: "a" });
 ok("A: submit+approve+settle", A.status === 200 && !!A.journalNo, `${A.docNo ?? A.error} jurnal=${A.journalNo ?? "-"}`);
@@ -191,8 +197,8 @@ ok("A: muncul di piutang (NONE, 300rb)", !!insA0 && insA0.insState === "NONE" &&
 // KPI sebelum siklus piutang A
 const ov0 = await api("GET", `/api/rekankerja/medical/overview?year=${YEAR}`);
 const ov0J = await ov0.json().catch(() => ({}));
-ok("overview.insOutstanding == 300rb (A belum kirim)", ov0.status === 200 && Math.round(ov0J?.insOutstanding ?? -1) === 300_000,
-  `insOutstanding=${ov0J?.insOutstanding}`);
+ok("overview.insOutstanding == 300rb (A belum kirim)", ov0.status === 200 && Math.round(ov0J?.insOutstanding ?? -1) === ovBase + 300_000,
+  `insOutstanding=${ov0J?.insOutstanding} (baseline ${ovBase})`);
 
 // guard: paid sebelum submit → 400
 const g1 = await api("POST", "/api/rekankerja/medical/insurance", { id: A.id, action: "paid" });
@@ -267,8 +273,8 @@ ok("rekap byInsurer 'Asuransi E2E' ada", insF.status === 200 && (insF.j?.byInsur
   `${(insF.j?.rows ?? []).length} baris piutang, total ${insF.j?.totalOutstanding}`);
 const ovF = await api("GET", `/api/rekankerja/medical/overview?year=${YEAR}`);
 const ovFJ = await ovF.json().catch(() => ({}));
-ok("overview.insOutstanding == 0 (semua lunas/hapus buku)", ovF.status === 200 && Math.round(ovFJ?.insOutstanding ?? -1) === 0,
-  `insOutstanding=${ovFJ?.insOutstanding}`);
+ok("overview.insOutstanding == baseline (semua klaim sendiri lunas/hapus buku)", ovF.status === 200 && Math.round(ovFJ?.insOutstanding ?? -1) === ovBase,
+  `insOutstanding=${ovFJ?.insOutstanding} (baseline ${ovBase})`);
 
 // ===== 7) restore kebijakan jenis =====
 const rRes = await saveType(tgt!, orig);

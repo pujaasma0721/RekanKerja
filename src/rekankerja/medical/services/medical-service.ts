@@ -2269,6 +2269,12 @@ export interface MedTransferResult {
   rows: number;
   totalAmount: number;
   removed: number;
+  /** BF (verifikasi silang): karyawan Active bersaldo yang TIDAK ikut
+   *  ditransfer karena TIDAK akan diproses run SALARY period target
+   *  (tanpa template upah efektif / tanpa gaji pokok — NO_WAGE_TEMPLATE /
+   *  NO_BASE_SALARY di engine payroll). Saldo mereka TIDAK dikonsumsi —
+   *  pasang profil payroll lalu transfer ulang. */
+  skippedIneligible?: { employeeNo: string; fullName: string; reason: string }[];
 }
 
 /** Transfer UMC memakai identitas aktor sesi — fix audit 40 M-05 (appUserId di
@@ -2369,6 +2375,70 @@ export async function transferUnusedToPayroll(
     .filter((r) => r.status === "Active" && r.remaining > 0);
   if (rows.length === 0) throw new Error(`Tidak ada sisa saldo CASH pada tahun ${input.year}`);
 
+  // ---- BF (verifikasi silang): kelayakan payroll period target ----
+  // Varian EMPLOYEE-LEVEL dari audit 40 M-7: engine payroll MEN-SKIP karyawan
+  // tanpa template upah efektif (NO_WAGE_TEMPLATE) / gaji pokok kosong
+  // (NO_BASE_SALARY) pada run SALARY. Bila saldo mereka tetap ditransfer,
+  // saldo CASH terkonsumsi tapi item UMC TIDAK PERNAH masuk run manapun
+  // (assignment terikat period+processType) → uang hangus diam-diam.
+  // Mirror kriteria skip engine: (1) template efektif = riwayat template
+  // terakhir validFrom ≤ akhir period, else profil aktif; (2) gaji pokok
+  // penempatan berlaku > 0. Karyawan tak lolos → TIDAK ditransfer (saldo utuh).
+  const periodEndDay = new Date(period.endDate); periodEndDay.setHours(23, 59, 59, 999);
+  const [payProfiles, tplHist, asgs] = await Promise.all([
+    db.employeePayrollProfile.findMany({ where: { active: true }, select: { employeeId: true, wageTemplateId: true } }),
+    db.employeeWageTemplateHistory.findMany({ select: { employeeId: true, wageTemplateId: true, validFrom: true }, orderBy: { validFrom: "asc" } }),
+    db.employeeAssignment.findMany({
+      where: {
+        OR: [
+          { validTo: null },
+          { validTo: { gte: period.startDate } },
+        ],
+        validFrom: { lte: period.endDate },
+      },
+      select: { employeeId: true, baseSalary: true, validFrom: true },
+      orderBy: { validFrom: "desc" },
+    }),
+  ]);
+  const profileTplByEmp = new Map(payProfiles.map((p) => [p.employeeId, p.wageTemplateId]));
+  const histTplByEmp = new Map<string, string>();
+  for (const h of tplHist) {
+    if (!h.wageTemplateId) continue; // baris riwayat tanpa template — tidak efektif
+    if (new Date(h.validFrom).getTime() > periodEndDay.getTime()) continue; // belum efektif
+    histTplByEmp.set(h.employeeId, h.wageTemplateId); // asc → terakhir menang
+  }
+  const eligible = new Set<string>();
+  const ineligible: { employeeNo: string; fullName: string; reason: string }[] = [];
+  const seenIneligible = new Set<string>();
+  for (const r of rows) {
+    if (eligible.has(r.employeeId)) continue;
+    const tpl = histTplByEmp.get(r.employeeId) ?? profileTplByEmp.get(r.employeeId) ?? null;
+    const asg = asgs.find((a) => a.employeeId === r.employeeId);
+    const salary = asg ? (tcTr.decryptMoney(asg.baseSalary) ?? 0) : 0;
+    if (!tpl) {
+      if (!seenIneligible.has(r.employeeId)) {
+        seenIneligible.add(r.employeeId);
+        ineligible.push({ employeeNo: r.employeeNo, fullName: r.fullName, reason: "tanpa template upah efektif (Profil Payroll) — run SALARY akan melewati karyawan ini" });
+      }
+    } else if (!Number.isFinite(salary) || salary <= 0) {
+      if (!seenIneligible.has(r.employeeId)) {
+        seenIneligible.add(r.employeeId);
+        ineligible.push({ employeeNo: r.employeeNo, fullName: r.fullName, reason: "gaji pokok penempatan berlaku kosong/0 — run SALARY akan melewati karyawan ini" });
+      }
+    } else {
+      eligible.add(r.employeeId);
+    }
+  }
+  const rowsEligible = rows.filter((r) => eligible.has(r.employeeId));
+  if (rowsEligible.length === 0) {
+    throw new Error(
+      `Seluruh karyawan bersisa saldo (${ineligible.length}) belum bisa diproses run SALARY period ${period.name} — ` +
+      ineligible.map((x) => `${x.employeeNo} (${x.reason})`).join("; ") +
+      " — pasang Profil Payroll (template upah) lalu transfer ulang",
+    );
+  }
+  const rowsFinal = rowsEligible;
+
   const removed = await db.employeeComponentAssignment.deleteMany({
     where: { kind: "Specific", periodId: period.id, processTypeId: pt.id, wageComponentId: comp.id },
   });
@@ -2377,7 +2447,7 @@ export async function transferUnusedToPayroll(
   let total = 0;
   // agregasi per karyawan (satu baris UMC per karyawan, rincian di notes)
   const byEmp = new Map<string, { amount: number; detail: string[] }>();
-  for (const r of rows) {
+  for (const r of rowsFinal) {
     const cur = byEmp.get(r.employeeId) ?? { amount: 0, detail: [] };
     cur.amount = round2(cur.amount + r.remaining);
     cur.detail.push(`${r.typeName} ${r.remaining.toLocaleString("id-ID")}`);
@@ -2401,7 +2471,9 @@ export async function transferUnusedToPayroll(
   // saldo CASH dikonsumsi saat ditransfer (used bertambah) — mencegah transfer
   // ganda ke period lain (padanan: saldo hangus saat dibayar tunai).
   // 44-c (M-8): usedAmount lama didekripsi → aritmetika TS → re-encrypt.
-  for (const r of rows) {
+  // BF: HANYA baris karyawan layak (rowsFinal) — saldo karyawan yang di-skip
+  // TIDAK dikonsumsi (tetap utuh utk transfer ulang pasca Profil Payroll).
+  for (const r of rowsFinal) {
     const bal = balances.find((b) => b.id === r.balanceId);
     if (!bal) continue;
     await db.medicalBalance.update({
@@ -2415,10 +2487,14 @@ export async function transferUnusedToPayroll(
     data: {
       action: "Processed", entity: "MedicalTransfer", entityId: period.id,
       appUserId: input.actor?.appUserId ?? undefined,
-      detail: `Transfer sisa saldo medis ${input.year} → ${period.name}: ${employees.size} karyawan, total ${total.toLocaleString("id-ID")}`,
+      detail:
+        `Transfer sisa saldo medis ${input.year} → ${period.name}: ${employees.size} karyawan, total ${total.toLocaleString("id-ID")}` +
+        (ineligible.length > 0
+          ? ` — ${ineligible.length} karyawan DILEWATI (saldo utuh, belum bisa diproses run SALARY: ${ineligible.map((x) => x.employeeNo).join(", ")})`
+          : ""),
     },
   });
-  return { periodName: period.name, employees: employees.size, rows: rows.length, totalAmount: total, removed: removed.count };
+  return { periodName: period.name, employees: employees.size, rows: rowsFinal.length, totalAmount: total, removed: removed.count, ...(ineligible.length > 0 ? { skippedIneligible: ineligible } : {}) };
 }
 
 /** Dipanggil confirmRun() (fix audit M-3/M-05): menandai objek yang BENAR-BENAR
