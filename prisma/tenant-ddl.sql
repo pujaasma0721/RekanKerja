@@ -3193,7 +3193,7 @@ CREATE TABLE "KpiDefinition" (
     "sourceKey" TEXT,
     "description" TEXT,
     "measureMode" TEXT NOT NULL DEFAULT 'Numeric',
-    "metricLevelsJson" TEXT,
+    "metric" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "versionNo" INTEGER NOT NULL DEFAULT 1,
     "effectiveYear" INTEGER NOT NULL,
@@ -3329,7 +3329,7 @@ CREATE TABLE "AppraisalKpi" (
     "unit" TEXT NOT NULL,
     "description" TEXT,
     "measureMode" TEXT NOT NULL DEFAULT 'Numeric',
-    "metricLevelsJson" TEXT,
+    "metric" TEXT,
     "thresholdMin" DOUBLE PRECISION,
     "target" DOUBLE PRECISION NOT NULL,
     "stretchValue" DOUBLE PRECISION,
@@ -3665,17 +3665,21 @@ ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "referralRewardNote" TEXT;
 -- AddColumn / DropColumn (KPI-METRIC — Metric / Measure of Success sebagai inti
 -- pembuatan KPI: description = definisi KPI; measureMode Numeric|Descriptor
 -- (Descriptor = KPI kualitatif dinilai langsung level 1–5, tanpa angka);
--- metricLevelsJson = deskriptor terstruktur level 1–5. Idempoten utk tenant
--- existing via scripts/migrate-kpi-metric.ts — INSERT kolom di CREATE TABLE
--- di atas menjadikan ALTER ini no-op pada provisioning tenant baru.
--- metricText (iterasi-1 sesi ini, belum rilis) di-DROP — diganti model terstruktur.)
+-- metric = SATU TEKS BEBAS (textarea tunggal — permintaan user; umumnya rubrik
+-- "1: …" s.d. "5: …", format bebas). Idempoten utk tenant existing via
+-- scripts/migrate-kpi-metric.ts — INSERT kolom di CREATE TABLE di atas
+-- menjadikan ALTER ini no-op pada provisioning tenant baru.
+-- metricText & metricLevelsJson (iterasi-1/2 sesi ini, belum rilis) di-DROP —
+-- diganti kolom teks tunggal "metric".)
 ALTER TABLE "KpiDefinition" ADD COLUMN IF NOT EXISTS "measureMode" TEXT NOT NULL DEFAULT 'Numeric';
-ALTER TABLE "KpiDefinition" ADD COLUMN IF NOT EXISTS "metricLevelsJson" TEXT;
+ALTER TABLE "KpiDefinition" ADD COLUMN IF NOT EXISTS "metric" TEXT;
 ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "description" TEXT;
 ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "measureMode" TEXT NOT NULL DEFAULT 'Numeric';
-ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "metricLevelsJson" TEXT;
+ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "metric" TEXT;
 ALTER TABLE "KpiDefinition" DROP COLUMN IF EXISTS "metricText";
 ALTER TABLE "AppraisalKpi" DROP COLUMN IF EXISTS "metricText";
+ALTER TABLE "KpiDefinition" DROP COLUMN IF EXISTS "metricLevelsJson";
+ALTER TABLE "AppraisalKpi" DROP COLUMN IF EXISTS "metricLevelsJson";
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CompanyOffice_code_key" ON "CompanyOffice"("code");

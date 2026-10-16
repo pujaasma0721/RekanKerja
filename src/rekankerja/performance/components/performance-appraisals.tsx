@@ -38,23 +38,9 @@ import {
   ShieldCheck, EyeOff, Ruler,
 } from "lucide-react";
 
-// ---------- KPI-METRIC — parse level deskriptor (paritas KpiFormDialog goals) ----------
+// ---------- KPI-METRIC — SATU TEKS BEBAS (metric = string; paritas KpiFormDialog goals) ----------
 
-const parseApprLv = (json: string | null | undefined): { level: number; descriptor: string }[] => {
-  try {
-    const v = JSON.parse(json ?? "[]");
-    return Array.isArray(v)
-      ? v.filter((l) => Number(l?.level) >= 1 && Number(l?.level) <= 5 && String(l?.descriptor ?? "").trim())
-        .map((l) => ({ level: Number(l.level), descriptor: String(l.descriptor) }))
-      : [];
-  } catch { return []; }
-};
-const apprLvTone = (lv: number): string =>
-  lv === 1 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400"
-  : lv === 2 ? "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400"
-  : lv === 3 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
-  : lv === 4 ? "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-400"
-  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400";
+const hasMetric = (m: string | null | undefined): boolean => !!m && m.trim().length > 0;
 
 // ---------- tipe (kontrak API §17) ----------
 
@@ -71,7 +57,7 @@ interface ParticipantRow {
 }
 interface DetailKpi {
   id: string; kpiDefId: string | null; title: string; polarity: string; unit: string;
-  description: string | null; measureMode: string; metricLevelsJson: string | null;
+  description: string | null; measureMode: string; metric: string | null;
   thresholdMin: number | null; target: number; stretchValue: number | null;
   weight: number; isCritical: boolean; dataSource: string;
   autoValueJson: string | null; midActual: number | null; finalActual: number | null;
@@ -616,21 +602,13 @@ function AppraisalForm({ appraisalId, cycleId, onBack }: { appraisalId: string; 
                             <p className="mt-0.5 line-clamp-1 max-w-md text-[10px] text-slate-500 dark:text-slate-400" title={k.description}>{k.description}</p>
                           )}
                           {(() => {
-                            const lvs = parseApprLv(k.metricLevelsJson);
-                            if (lvs.length === 0) return null;
+                            if (!hasMetric(k.metric)) return null;
                             return (
                               <details className="mt-0.5">
                                 <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[10px] font-medium text-brand hover:underline">
                                   <Ruler className="h-3 w-3" />{t("Metric / Measure of Success", "Metric / Measure of Success")}
                                 </summary>
-                                <div className="mt-1 max-w-md space-y-1 rounded-lg border border-slate-200 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-900/40">
-                                  {lvs.map((l) => (
-                                    <p key={l.level} className="flex gap-1.5 text-[10px] leading-snug text-slate-600 dark:text-slate-300">
-                                      <span className={cn("mt-0.5 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded px-0.5 text-[9px] font-bold", apprLvTone(l.level))}>{l.level}</span>
-                                      <span>{l.descriptor}</span>
-                                    </p>
-                                  ))}
-                                </div>
+                                <p className="mt-1 max-w-md whitespace-pre-line rounded-lg border border-slate-200 bg-slate-50/60 p-2 text-[10px] leading-snug text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">{k.metric}</p>
                               </details>
                             );
                           })()}
@@ -664,21 +642,13 @@ function AppraisalForm({ appraisalId, cycleId, onBack }: { appraisalId: string; 
                       <p className="mt-1 line-clamp-2 text-[10px] text-slate-500 dark:text-slate-400" title={k.description}>{k.description}</p>
                     )}
                     {(() => {
-                      const lvs = parseApprLv(k.metricLevelsJson);
-                      if (lvs.length === 0) return null;
+                      if (!hasMetric(k.metric)) return null;
                       return (
                         <details className="mt-1">
                           <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[10px] font-medium text-brand hover:underline">
                             <Ruler className="h-3 w-3" />{t("Metric / Measure of Success", "Metric / Measure of Success")}
                           </summary>
-                          <div className="mt-1 space-y-1 rounded-lg border border-slate-200 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-900/40">
-                            {lvs.map((l) => (
-                              <p key={l.level} className="flex gap-1.5 text-[10px] leading-snug text-slate-600 dark:text-slate-300">
-                                <span className={cn("mt-0.5 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded px-0.5 text-[9px] font-bold", apprLvTone(l.level))}>{l.level}</span>
-                                <span>{l.descriptor}</span>
-                              </p>
-                            ))}
-                          </div>
+                          <p className="mt-1 whitespace-pre-line rounded-lg border border-slate-200 bg-slate-50/60 p-2 text-[10px] leading-snug text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">{k.metric}</p>
                         </details>
                       );
                     })()}
@@ -935,17 +905,15 @@ function KpiFinalCell({ k, draft, canEdit, busy, onChange, onPull }: {
 }) {
   const { t } = useI18n();
   const val = draft?.kpiFinals[k.id];
-  // KPI-METRIC mode Descriptor — pilih LEVEL 1–5 langsung (tooltip = deskriptor metric)
+  // KPI-METRIC mode Descriptor — pilih LEVEL 1–5 langsung (tooltip = teks metric)
   if (k.measureMode === "Descriptor") {
-    const lvs = parseApprLv(k.metricLevelsJson);
     const picked = val != null ? Math.round(Number(val)) : null;
     return (
       <div className="flex flex-wrap items-center gap-1.5">
         <div className="flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((v) => {
-            const lv = lvs.find((l) => l.level === v);
             return (
-              <label key={v} title={lv?.descriptor} className={cn(
+              <label key={v} title={k.metric ?? undefined} className={cn(
                 "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border text-sm font-semibold transition",
                 picked === v
                   ? "border-brand bg-brand/10 text-brand"

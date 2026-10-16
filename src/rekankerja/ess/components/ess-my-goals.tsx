@@ -27,28 +27,11 @@ import { cn } from "@/lib/utils";
 import { ESS_BASE } from "./ess-api";
 import { ListChecks, History, Sparkles, Loader2, ChevronDown, Copy, CheckCircle2, Info, Gauge, Ruler } from "lucide-react";
 
-// ---------- KPI-METRIC — parse level deskriptor ----------
-const parseEssLv = (json: string | null | undefined): { level: number; descriptor: string }[] => {
-  try {
-    const v = JSON.parse(json ?? "[]");
-    return Array.isArray(v)
-      ? v.filter((l) => Number(l?.level) >= 1 && Number(l?.level) <= 5 && String(l?.descriptor ?? "").trim())
-        .map((l) => ({ level: Number(l.level), descriptor: String(l.descriptor) }))
-      : [];
-  } catch { return []; }
-};
-const essLvTone = (lv: number): string =>
-  lv === 1 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400"
-  : lv === 2 ? "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400"
-  : lv === 3 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
-  : lv === 4 ? "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-400"
-  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400";
-
 // ---------- tipe (mirror kontrak GET /ess/my-goals) ----------
 
 interface MyGoalKpi {
   id: string; title: string; polarity: string; unit: string;
-  description: string | null; measureMode: string; metricLevelsJson: string | null;
+  description: string | null; measureMode: string; metric: string | null;
   thresholdMin: number | null; target: number; stretchValue: number | null;
   weight: number; isCritical: boolean; origin: string; proposedBy: string;
 }
@@ -145,21 +128,13 @@ export function EssMyGoalsPage() {
                               <span className="block text-[10px] text-slate-400">{k.unit} · {k.polarity}</span>
                               {k.description && <span className="mt-0.5 block max-w-md text-[10px] text-slate-500 dark:text-slate-400">{k.description}</span>}
                               {(() => {
-                                const lvs = parseEssLv(k.metricLevelsJson).sort((a, b) => a.level - b.level);
-                                if (lvs.length === 0) return null;
+                                if (!k.metric) return null;
                                 return (
                                   <details className="mt-1">
                                     <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[10px] font-medium text-brand hover:underline">
                                       <Ruler className="h-3 w-3" />{t("Metric / Measure of Success", "Metric / Measure of Success")}
                                     </summary>
-                                    <div className="mt-1 max-w-md space-y-1 rounded-lg border border-slate-200 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-900/40">
-                                      {lvs.map((l) => (
-                                        <p key={l.level} className="flex gap-1.5 text-[10px] leading-snug text-slate-600 dark:text-slate-300">
-                                          <span className={cn("mt-0.5 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded px-0.5 text-[9px] font-bold", essLvTone(l.level))}>{l.level}</span>
-                                          <span>{l.descriptor}</span>
-                                        </p>
-                                      ))}
-                                    </div>
+                                    <p className="mt-1 max-w-md whitespace-pre-line rounded-lg border border-slate-200 bg-slate-50/60 p-2 text-[10px] leading-snug text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">{k.metric}</p>
                                   </details>
                                 );
                               })()}
@@ -283,22 +258,13 @@ function PrevPeriodCard({ block }: { block: MyGoalBlock }) {
 /** Dialog usulan KPI MBO (§26-4 — dari ESS; guard §35-4 di server). */
 function ProposeDialog({ block, onClose, onDone }: { block: MyGoalBlock; onClose: () => void; onDone: () => void }) {
   const { t } = useI18n();
-  const [items, setItems] = useState<{ title: string; polarity: string; unit: string; target: string; weight: string; description: string; levels: [string, string, string, string, string] }[]>([
-    { title: "", polarity: "Higher", unit: "%", target: "", weight: "10", description: "", levels: ["", "", "", "", ""] },
+  const [items, setItems] = useState<{ title: string; polarity: string; unit: string; target: string; weight: string; description: string; metric: string }[]>([
+    { title: "", polarity: "Higher", unit: "%", target: "", weight: "10", description: "", metric: "" },
   ]);
   const [busy, setBusy] = useState(false);
-  const kpiLib = useApi<{ rows: { id: string; name: string; polarity: string; unit: string; description: string | null; measureMode: string; metricLevelsJson: string | null }[] }>(
+  const kpiLib = useApi<{ rows: { id: string; name: string; polarity: string; unit: string; description: string | null; measureMode: string; metric: string | null }[] }>(
     "/api/rekankerja/performance/masters?type=kpi",
   );
-
-  const parseLvUI = (json: string | null): [string, string, string, string, string] => {
-    let arr: unknown = [];
-    try { arr = JSON.parse(json ?? "[]"); } catch { arr = []; }
-    if (!Array.isArray(arr)) arr = [];
-    return [1, 2, 3, 4, 5].map((lv) =>
-      String((arr as { level?: number; descriptor?: string }[]).find((l) => Number(l?.level) === lv)?.descriptor ?? ""),
-    ) as [string, string, string, string, string];
-  };
 
   const submit = async () => {
     setBusy(true);
@@ -311,7 +277,7 @@ function ProposeDialog({ block, onClose, onDone }: { block: MyGoalBlock; onClose
         items: valid.map((i) => ({
           title: i.title.trim(), polarity: i.polarity, unit: i.unit || "%",
           description: i.description.trim() || null,
-          metricLevels: i.levels.map((d, li) => ({ level: li + 1, descriptor: d.trim() })).filter((l) => l.descriptor),
+          metric: i.metric.trim() || null,
           target: i.target === "" ? 0 : Number(i.target),
           weight: i.weight === "" ? 10 : Number(i.weight),
         })),
@@ -351,7 +317,7 @@ function ProposeDialog({ block, onClose, onDone }: { block: MyGoalBlock; onClose
                 <Input list="kpi-lib-list" value={it.title} onChange={(e) => {
                   const picked = (kpiLib.data?.rows ?? []).find((k) => k.name === e.target.value);
                   setItem(i, picked
-                    ? { title: e.target.value, polarity: picked.polarity, unit: picked.unit, description: picked.description ?? "", levels: parseLvUI(picked.metricLevelsJson) }
+                    ? { title: e.target.value, polarity: picked.polarity, unit: picked.unit, description: picked.description ?? "", metric: picked.metric ?? "" }
                     : { title: e.target.value });
                 }}
                   placeholder={t("ketik bebas / pilih KPI baku", "free text / pick a standard KPI")} aria-label={t("Judul KPI", "KPI title")} />
@@ -389,25 +355,21 @@ function ProposeDialog({ block, onClose, onDone }: { block: MyGoalBlock; onClose
               <div className="col-span-2 space-y-1.5">
                 <Label className="text-[10px]">
                   <Ruler className="mr-1 inline h-3 w-3" />
-                  {t("Metric / Measure of Success — level 1–5", "Metric / Measure of Success — levels 1–5")}
+                  {t("Metric / Measure of Success", "Metric / Measure of Success")}
                 </Label>
-                {it.levels.map((d, li) => (
-                  <div key={li} className="flex items-start gap-1.5">
-                    <span className={cn("mt-1 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded px-1 text-[10px] font-bold", essLvTone(li + 1))} aria-hidden>{li + 1}</span>
-                    <Textarea rows={2} maxLength={2000} value={d}
-                      onChange={(e) => setItem(i, {
-                        levels: (() => { const ls = [...it.levels] as typeof it.levels; ls[li] = e.target.value; return ls; })(),
-                      })}
-                      placeholder={t(`Deskriptor level ${li + 1}`, `Level ${li + 1} descriptor`)}
-                      aria-label={t(`Deskriptor level ${li + 1}`, `Level ${li + 1} descriptor`)}
-                      className="text-xs" />
-                  </div>
-                ))}
-                <p className="text-[10px] text-slate-400">{t("Atasan melengkapi bila kosong — pilih dari pustaka untuk mengisi otomatis.", "The manager completes these if blank — pick from the library to auto-fill.")}</p>
+                <Textarea rows={5} value={it.metric}
+                  onChange={(e) => setItem(i, { metric: e.target.value })}
+                  placeholder={t(
+                    "1: Tidak submit / submit ulang usulan…\n2: Disetujui atasan & Division Manager/Direktur…\n3: Disetujui, berkualitas baik, berdampak…\n4: Dijalankan dalam lingkup departemen\n5: Dijalankan lingkup lebih luas, terukur, tepat guna",
+                    "1: No proposal submitted / re-submitted…\n2: Approved by manager & Division Manager/Director…\n3: Approved, good quality, impactful…\n4: Executed within the department\n5: Executed on a wider scale, measurable, effective",
+                  )}
+                  aria-label={t("Metric / Measure of Success", "Metric / Measure of Success")}
+                  className="text-xs" />
+                <p className="text-[10px] text-slate-400">{t("Satu kolom teks bebas — atasan melengkapi bila kosong; pilih dari pustaka untuk mengisi otomatis.", "One free-text field — the manager completes it if blank; pick from the library to auto-fill.")}</p>
               </div>
             </div>
           ))}
-          <Button size="sm" variant="ghost" onClick={() => setItems((xs) => [...xs, { title: "", polarity: "Higher", unit: "%", target: "", weight: "10", description: "", levels: ["", "", "", "", ""] }])}>
+          <Button size="sm" variant="ghost" onClick={() => setItems((xs) => [...xs, { title: "", polarity: "Higher", unit: "%", target: "", weight: "10", description: "", metric: "" }])}>
             {t("+ Tambah baris", "+ Add row")}
           </Button>
         </div>

@@ -48,7 +48,7 @@ export async function GET(req: Request) {
       // sebelum submit tidak terlihat karyawan)
       kpis: reveal ? a.kpis.map((k) => ({
         id: k.id, title: k.title, polarity: k.polarity, unit: k.unit,
-        description: k.description, measureMode: k.measureMode, metricLevelsJson: k.metricLevelsJson,
+        description: k.description, measureMode: k.measureMode, metric: k.metric,
         thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
         weight: k.weight, isCritical: k.isCritical,
         origin: k.origin, proposedBy: k.proposedBy,

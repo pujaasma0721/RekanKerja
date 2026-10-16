@@ -342,7 +342,7 @@ export async function appraisalDetail(db: TenantDb, appraisalId: string) {
 
   const kpis = fresh.kpis.map((k) => ({
     id: k.id, kpiDefId: k.kpiDefId, title: k.title, polarity: k.polarity, unit: k.unit,
-    description: k.description, measureMode: k.measureMode, metricLevelsJson: k.metricLevelsJson,
+    description: k.description, measureMode: k.measureMode, metric: k.metric,
     thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
     weight: k.weight, isCritical: k.isCritical, dataSource: k.dataSource,
     autoValueJson: k.autoValueJson, midActual: k.midActual, finalActual: k.finalActual,
@@ -1460,11 +1460,11 @@ export async function mySelfAssessment(db: TenantDb, employeeId: string, apprais
     manualKpis: fresh.kpis.filter((k) => k.dataSource === "Manual").map((k) => ({
       id: k.id, title: k.title, unit: k.unit, target: k.target, midActual: k.midActual,
       finalActual: k.finalActual, evidenceJson: k.evidenceJson,
-      description: k.description, measureMode: k.measureMode, metricLevelsJson: k.metricLevelsJson,
+      description: k.description, measureMode: k.measureMode, metric: k.metric,
     })),
     autoKpis: fresh.kpis.filter((k) => k.dataSource !== "Manual").map((k) => ({
       id: k.id, title: k.title, unit: k.unit, target: k.target, finalActual: k.finalActual,
-      description: k.description, measureMode: k.measureMode, metricLevelsJson: k.metricLevelsJson,
+      description: k.description, measureMode: k.measureMode, metric: k.metric,
     })),
     progress: {
       total: fresh.comps.length,

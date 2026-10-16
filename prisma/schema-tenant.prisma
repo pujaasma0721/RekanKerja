@@ -4479,12 +4479,13 @@ model KpiDefinition {
   dataSource      String    @default("Manual") // Manual | Attendance | Payroll | Recruitment | Leave
   sourceKey      String? // binding data otomatis, mis. "attendance_presence_pct"
   description    String?
-  // KPI-METRIC — Metric / Measure of Success (rubrik ukuran keberhasilan):
-  // mode pengukuran + deskriptor terstruktur level 1–5. Menjadi DEFAULT baris
-  // snapshot AppraisalKpi saat KPI pustaka dipilih saat penetapan target.
+  // KPI-METRIC — Metric / Measure of Success: SATU TEKS BEBAS (textarea,
+  // bukan field terpisah per level — permintaan user). Umumnya berisi rubrik
+  // "1: …" s.d. "5: …", tapi formatnya bebas. Menjadi DEFAULT snapshot
+  // AppraisalKpi.metric saat KPI pustaka dipilih saat penetapan target.
   // Perubahan tergolong MINOR (setara description — snapshot melindungi riwayat).
   measureMode     String    @default("Numeric") // Numeric | Descriptor
-  metricLevelsJson String? // [{level:1..5, descriptor}] — Metric / Measure of Success
+  metric          String? // Metric / Measure of Success — satu teks bebas (textarea)
   active         Boolean   @default(true)
   // AM2 §18.9 — versioning pustaka: ubah definisi tahun ini tanpa merusak
   // data tahun lalu (lapis-2 di atas snapshot baris penilaian)
@@ -4653,17 +4654,18 @@ model AppraisalKpi {
   title         String
   polarity      String
   unit          String
-  // KPI-METRIC — snapshot identitas & rubrik KPI (permintaan user):
+  // KPI-METRIC — snapshot identitas & metric KPI (permintaan user):
   // description = definisi KPI (apa yang dimaksud); measureMode = cara dinilai:
   //   Numeric    → ambang/target/stretch + realisasi angka → skor formula §16
   //   Descriptor → dinilai LANGSUNG level 1–5 sesuai Metric di atas (KPI
   //               kualitatif — TIDAK wajib angka; realisasi = level, skor=level×20)
-  // metricLevelsJson = Metric / Measure of Success (deskriptor level 1–5) —
-  // WAJIB diisi saat membuat KPI; ditampilkan di semua titik (builder atasan,
-  // penilaian, Target Saya ESS, laporan cetak).
+  // metric = Metric / Measure of Success — SATU TEKS BEBAS (textarea tunggal,
+  // bukan dipecah per level — permintaan user). WAJIB diisi saat membuat KPI;
+  // ditampilkan di semua titik (builder atasan, penilaian, Target Saya ESS,
+  // laporan cetak).
   description   String?
   measureMode   String   @default("Numeric") // Numeric | Descriptor
-  metricLevelsJson String? // [{level:1..5, descriptor}]
+  metric        String? // Metric / Measure of Success — satu teks bebas (textarea)
   thresholdMin  Float? // ambang gagal (F) — mode Numeric saja
   target        Float // target (T)
   stretchValue  Float? // opsional — skor bisa sampai 120

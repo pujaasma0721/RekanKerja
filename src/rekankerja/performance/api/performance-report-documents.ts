@@ -15,7 +15,7 @@ import type {
   PF22Row, PF23HistoryRow, PF23Detail, PF24Row, PF31Session, PF31Row, PF32Row,
   PF33Row, PF41Row, PF42Row, PF43Cell, PF44Row,
 } from "@/rekankerja/performance/components/report-documents/types";
-import { metricLevelsText } from "@/rekankerja/performance/services/perf-goal-service";
+import { metricOf } from "@/rekankerja/performance/services/perf-goal-service";
 
 // =============================================================================
 // P8-PERF — LAPORAN DISTRIBUSI KINERJA (print & PDF ready) =====================
@@ -258,7 +258,7 @@ export async function GET(req: NextRequest) {
       db.appraisalKpi.findMany({
         select: {
           id: true, appraisalId: true, kpiDefId: true, title: true, polarity: true, unit: true,
-          measureMode: true, metricLevelsJson: true, description: true,
+          measureMode: true, metric: true, description: true,
           thresholdMin: true, target: true, stretchValue: true, weight: true, isCritical: true,
           dataSource: true, autoValueJson: true, midActual: true, finalActual: true, evidenceJson: true,
           origin: true, proposedBy: true,
@@ -452,7 +452,7 @@ interface Ctx {
   }[];
   kpiAll: {
     id: string; appraisalId: string; kpiDefId: string | null; title: string; polarity: string; unit: string;
-    measureMode: string; metricLevelsJson: string | null; description: string | null;
+    measureMode: string; metric: string | null; description: string | null;
     thresholdMin: number | null; target: number; stretchValue: number | null; weight: number; isCritical: boolean;
     dataSource: string; autoValueJson: string | null; midActual: number | null; finalActual: number | null;
     evidenceJson: string | null; origin: string; proposedBy: string;
@@ -665,7 +665,7 @@ function pf13KpiRegister(ctx: Ctx): { periodLabel: string; payload: PF13Data } {
         weight: k.weight,
         thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
         measure: k.unit,
-        metric: metricLevelsText(k.metricLevelsJson),
+        metric: metricOf(k.metric),
         measureMode: k.measureMode,
         origin: ORIGIN_LABELS[k.origin]?.[0] ?? k.origin,
         source: isAuto ? `AUTO${sourceKey ? `: ${sourceKey}` : ""}` : "Manual",
@@ -829,7 +829,7 @@ function pf23EmployeeDetail(ctx: Ctx): { periodLabel: string; payload: PF23Data 
           if (k.evidenceJson) { try { evidence = (JSON.parse(k.evidenceJson) as unknown[]).length > 0; } catch { evidence = false; } }
           return {
             title: k.title, weight: k.weight,
-            metric: metricLevelsText(k.metricLevelsJson),
+            metric: metricOf(k.metric),
             measureMode: k.measureMode,
             thresholdMin: k.thresholdMin, target: k.target, stretchValue: k.stretchValue,
             actual: k.finalActual, midActual: k.midActual,

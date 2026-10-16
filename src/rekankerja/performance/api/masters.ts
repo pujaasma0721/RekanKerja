@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
           sourceKey: b.sourceKey != null && b.sourceKey !== "" ? String(b.sourceKey) : null,
           description: b.description != null ? String(b.description) : null,
           measureMode: str(b.measureMode),
-          metricLevels: b.metricLevels ?? b.metricLevelsJson,
+          metric: b.metric ?? b.metricLevels,
           active: b.active !== false,
           asNewVersion: b.asNewVersion === true,
           effectiveYear: nnum(b.effectiveYear) ?? undefined,

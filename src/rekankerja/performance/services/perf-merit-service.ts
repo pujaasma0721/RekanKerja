@@ -1068,7 +1068,7 @@ export async function pipCandidates(
     include: {
       employee: { select: { id: true, employeeNo: true, fullName: true, orgUnitId: true, positionId: true } },
       manager: { select: { id: true, fullName: true } },
-      kpis: { select: { title: true, unit: true, target: true, finalActual: true, thresholdMin: true, stretchValue: true, polarity: true, weight: true, measureMode: true, metricLevelsJson: true } },
+      kpis: { select: { title: true, unit: true, target: true, finalActual: true, thresholdMin: true, stretchValue: true, polarity: true, weight: true, measureMode: true } },
     },
     orderBy: { docNo: "asc" },
     take: 200,
@@ -1163,7 +1163,7 @@ export async function decidePip(
     include: {
       cycle: { select: { id: true, code: true, name: true } },
       employee: { select: { id: true, employeeNo: true, fullName: true } },
-      kpis: { select: { title: true, unit: true, target: true, finalActual: true, thresholdMin: true, stretchValue: true, polarity: true, weight: true, measureMode: true, metricLevelsJson: true } },
+      kpis: { select: { title: true, unit: true, target: true, finalActual: true, thresholdMin: true, stretchValue: true, polarity: true, weight: true, measureMode: true } },
     },
   });
   if (!a) throw new Error("Peserta penilaian tidak ditemukan");

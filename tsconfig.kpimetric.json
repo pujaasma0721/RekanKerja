@@ -13,6 +13,6 @@
     "src/rekankerja/ess/components/ess-my-appraisal.tsx",
     "src/rekankerja/ess/components/ess-my-goals.tsx",
     "src/rekankerja/shared/lib/parity-runner.ts",
-    "scripts/migrate-kpi-metric-text.ts"
+    "scripts/migrate-kpi-metric.ts"
   ]
 }

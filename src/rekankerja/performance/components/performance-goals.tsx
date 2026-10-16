@@ -54,7 +54,7 @@ interface ParticipantRow {
 
 interface KpiRow {
   id: string; kpiDefId: string | null; title: string; polarity: string; unit: string;
-  description: string | null; measureMode: string; metricLevelsJson: string | null;
+  description: string | null; measureMode: string; metric: string | null;
   thresholdMin: number | null; target: number; stretchValue: number | null;
   weight: number; isCritical: boolean; dataSource: string;
   origin: string; proposedBy: string; copiedFromId: string | null;
@@ -76,7 +76,7 @@ interface GoalDetail {
 interface CopySource { appraisalId: string; cycleId: string; code: string; name: string; kpiCount: number; status: string; suggested: boolean }
 interface CopyPreviewRow {
   sourceKpiId: string; title: string; polarity: string; unit: string;
-  description: string | null; measureMode: string; metricLevelsJson: string | null;
+  description: string | null; measureMode: string; metric: string | null;
   thresholdMin: number | null; oldTarget: number; target: number; stretchValue: number | null;
   weight: number; isCritical: boolean; kpiDefId: string | null; defCode: string | null;
   auto: boolean; defInactive: boolean; unitChanged: boolean; duplicate: boolean;
@@ -100,28 +100,9 @@ const num = (v: string | number | null | undefined, fb = 0): number => {
 };
 
 // ---------- Metric / Measure of Success (KPI-METRIC — inti pembuatan KPI) ----------
-
-interface MetricLevelUI { level: number; descriptor: string }
-const parseLv = (json: string | null | undefined): MetricLevelUI[] => {
-  try {
-    const v = JSON.parse(json ?? "[]");
-    return Array.isArray(v)
-      ? v.filter((l) => Number(l?.level) >= 1 && Number(l?.level) <= 5 && String(l?.descriptor ?? "").trim())
-        .map((l) => ({ level: Number(l.level), descriptor: String(l.descriptor) }))
-      : [];
-  } catch { return []; }
-};
-const metricComplete = (json: string | null | undefined): boolean => {
-  const lvs = parseLv(json);
-  return [1, 2, 3, 4, 5].every((i) => lvs.some((l) => l.level === i));
-};
-/** Warna badge level 1–5 (paritas RATING_TONE halaman penilaian). */
-const lvTone = (lv: number): string =>
-  lv === 1 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400"
-  : lv === 2 ? "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400"
-  : lv === 3 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
-  : lv === 4 ? "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-400"
-  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400";
+// SATU TEKS BEBAS (textarea tunggal — permintaan user; bukan dipecah per level).
+// Umumnya berisi rubrik "1: …" s.d. "5: …", tapi formatnya tidak dipaksakan.
+const hasMetric = (m: string | null | undefined): boolean => !!m && m.trim().length > 0;
 
 // ============================================================================
 // HALAMAN
@@ -316,7 +297,7 @@ function GoalBuilder({ appraisalId, onBack, onChanged }: { appraisalId: string; 
           id: r.id,
           title: r.title, description: r.description,
           measureMode: r.measureMode,
-          metricLevels: r.metricLevelsJson ? JSON.parse(r.metricLevelsJson) : [],
+          metric: r.metric,
           unit: r.unit, polarity: r.polarity,
           target: r.target, thresholdMin: r.thresholdMin, stretchValue: r.stretchValue,
           weight: r.weight, isCritical: r.isCritical,
@@ -348,7 +329,7 @@ function GoalBuilder({ appraisalId, onBack, onChanged }: { appraisalId: string; 
     try {
       await apiSend("/api/rekankerja/performance/goals", "POST", { action: "patchDraft", appraisalId, rows: [], removedIds: [id] });
       toast.info(t("Baris dihapus", "Row removed"), {
-        action: { label: t("Urungkan", "Undo"), onClick: () => { autosave.setDraft(prev); void apiSend("/api/rekankerja/performance/goals", "POST", { action: "assignBatch", appraisalId, mode: "append", items: prev.filter((p) => p.id === id).map((p) => ({ kpiDefId: p.kpiDefId, title: p.title, polarity: p.polarity, unit: p.unit, description: p.description, measureMode: p.measureMode, metricLevels: p.metricLevelsJson ? JSON.parse(p.metricLevelsJson) : [], thresholdMin: p.thresholdMin, target: p.target, stretchValue: p.stretchValue, weight: p.weight, isCritical: p.isCritical })) }).then(load); } },
+        action: { label: t("Urungkan", "Undo"), onClick: () => { autosave.setDraft(prev); void apiSend("/api/rekankerja/performance/goals", "POST", { action: "assignBatch", appraisalId, mode: "append", items: prev.filter((p) => p.id === id).map((p) => ({ kpiDefId: p.kpiDefId, title: p.title, polarity: p.polarity, unit: p.unit, description: p.description, measureMode: p.measureMode, metric: p.metric, thresholdMin: p.thresholdMin, target: p.target, stretchValue: p.stretchValue, weight: p.weight, isCritical: p.isCritical })) }).then(load); } },
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "unknown");
@@ -566,10 +547,10 @@ function GoalBuilder({ appraisalId, onBack, onChanged }: { appraisalId: string; 
         </Card>
       )}
 
-      {/* submit §35-3 — metric lengkap adalah gerbang keras */}
+      {/* submit §35-3 — metric terisi adalah gerbang keras */}
       {editable && rows.length > 0 && (
         <div className="flex justify-end">
-          <Button onClick={() => setSubmitOpen(true)} disabled={busy || Math.abs(sumW - 100) > 0.01 || rows.length < 3 || !rows.every((r) => metricComplete(r.metricLevelsJson))}>
+          <Button onClick={() => setSubmitOpen(true)} disabled={busy || Math.abs(sumW - 100) > 0.01 || rows.length < 3 || rows.some((r) => !hasMetric(r.metric))}>
             <Send className="h-4 w-4" /> {t("Submit & Kunci Target", "Submit & Lock Goals")}
           </Button>
         </div>
@@ -633,10 +614,10 @@ function clientValidate(rows: KpiRow[]): string[] {
   if (n > 0 && Math.abs(sumW - 100) > 0.01) {
     errs.push(`Total bobot ${Math.round(sumW * 10) / 10}% — sisakan ${Math.round((100 - sumW) * 10) / 10}% atau bagi rata?`);
   }
-  // mirror server validateDraft — KPI tanpa metric lengkap TIDAK BISA dikunci
-  const noMetric = rows.filter((r) => !metricComplete(r.metricLevelsJson));
+  // mirror server validateDraft — KPI tanpa metric TIDAK BISA dikunci
+  const noMetric = rows.filter((r) => !hasMetric(r.metric));
   if (noMetric.length > 0) {
-    errs.push(`${noMetric.length} KPI belum memiliki Metric / Measure of Success lengkap (deskriptor level 1–5) — wajib dilengkapi sebelum submit`);
+    errs.push(`${noMetric.length} KPI belum memiliki Metric / Measure of Success — wajib diisi sebelum submit`);
   }
   for (const r of rows) {
     if (!(num(r.weight) > 0)) errs.push(`"${r.title}": bobot harus > 0`);
@@ -652,7 +633,7 @@ function progressOfRowsClient(rows: KpiRow[]): number {
   if (n === 0) return 0;
   let filled = 0;
   for (const k of rows) {
-    if (metricComplete(k.metricLevelsJson)) filled++;
+    if (hasMetric(k.metric)) filled++;
     if (k.measureMode === "Descriptor") {
       filled += 2; // target/ambang tidak berlaku — dinilai 1–5
     } else {
@@ -739,8 +720,7 @@ function KpiRowEditor({ r, editable, onChange, onRemove, onEdit }: {
   onChange: (patch: Partial<KpiRow>) => void; onRemove: () => void; onEdit: () => void;
 }) {
   const { t } = useI18n();
-  const levels = [...parseLv(r.metricLevelsJson)].sort((a, b) => a.level - b.level);
-  const complete = metricComplete(r.metricLevelsJson);
+  const metricOk = hasMetric(r.metric);
   const descriptor = r.measureMode === "Descriptor";
   return (
     <tr className="border-b border-slate-100 last:border-0 dark:border-slate-800/60">
@@ -758,15 +738,13 @@ function KpiRowEditor({ r, editable, onChange, onRemove, onEdit }: {
         </div>
         {r.description && <p className="mt-0.5 line-clamp-2 max-w-md text-[11px] text-slate-500 dark:text-slate-400" title={r.description}>{r.description}</p>}
         {/* Metric / Measure of Success — inti KPI, selalu terlihat di baris */}
-        {complete ? (
-          <div className="mt-1 flex flex-wrap items-center gap-1">
-            {levels.map((l) => (
-              <span key={l.level} title={l.descriptor} className={cn("inline-flex h-5 min-w-5 cursor-help items-center justify-center rounded px-1 text-[10px] font-bold", lvTone(l.level))}>
-                {l.level}
-              </span>
-            ))}
-            <span className="text-[10px] text-slate-400">{t("Metric / Measure of Success — arahkan kursor angka untuk deskriptor", "Metric / Measure of Success — hover a number for its descriptor")}</span>
-          </div>
+        {metricOk ? (
+          <details className="mt-1">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[10px] font-medium text-brand hover:underline">
+              <Ruler className="h-3 w-3" />{t("Metric / Measure of Success", "Metric / Measure of Success")}
+            </summary>
+            <p className="mt-1 max-w-md whitespace-pre-line rounded-lg border border-slate-200 bg-slate-50/60 p-2 text-[10px] leading-snug text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">{r.metric}</p>
+          </details>
         ) : (
           <button type="button" onClick={onEdit} disabled={!editable} className="mt-1 inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 transition hover:bg-amber-100 disabled:opacity-50 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-400">
             <Ruler className="h-3 w-3" />{t("Lengkapi Metric / Measure of Success (wajib sebelum submit)", "Complete the Metric / Measure of Success (required before submit)")}
@@ -833,8 +811,7 @@ function MobileKpiCard({ r, editable, onChange, onRemove, onEdit }: {
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const levels = [...parseLv(r.metricLevelsJson)].sort((a, b) => a.level - b.level);
-  const complete = metricComplete(r.metricLevelsJson);
+  const metricOk = hasMetric(r.metric);
   const descriptor = r.measureMode === "Descriptor";
   return (
     <div className="rounded-lg border border-slate-200 dark:border-slate-800">
@@ -854,15 +831,13 @@ function MobileKpiCard({ r, editable, onChange, onRemove, onEdit }: {
             {r.isCritical ? ` · ${t("kritis", "critical")}` : ""}
           </p>
           {/* metric ringkas di header kartu */}
-          {complete ? (
-            <div className="mt-1 flex items-center gap-1">
-              {levels.map((l) => (
-                <span key={l.level} title={l.descriptor} className={cn("inline-flex h-4 min-w-4 cursor-help items-center justify-center rounded px-0.5 text-[9px] font-bold", lvTone(l.level))}>{l.level}</span>
-              ))}
-            </div>
+          {metricOk ? (
+            <p className="mt-1 line-clamp-1 text-[10px] text-slate-500 dark:text-slate-400" title={r.metric ?? undefined}>
+              <Ruler className="mr-0.5 inline h-3 w-3" />{(r.metric ?? "").replace(/\n/g, " · ")}
+            </p>
           ) : (
             <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-              <Ruler className="h-3 w-3" />{t("Metric / Measure of Success belum lengkap — wajib sebelum submit", "Metric / Measure of Success incomplete — required before submit")}
+              <Ruler className="h-3 w-3" />{t("Metric / Measure of Success belum diisi — wajib sebelum submit", "Metric / Measure of Success missing — required before submit")}
             </span>
           )}
         </div>
@@ -871,16 +846,11 @@ function MobileKpiCard({ r, editable, onChange, onRemove, onEdit }: {
       {open && (
         <div className="space-y-2 border-t border-slate-100 p-3 dark:border-slate-800/60">
           {r.description && <p className="text-[11px] text-slate-500 dark:text-slate-400">{r.description}</p>}
-          {/* rubrik metric penuh */}
-          {levels.length > 0 && (
+          {/* metric penuh */}
+          {metricOk && (
             <div className="space-y-1 rounded-lg border border-slate-200 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-900/40">
               <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{t("Metric / Measure of Success", "Metric / Measure of Success")}</p>
-              {levels.map((l) => (
-                <p key={l.level} className="flex gap-1.5 text-[10px] leading-snug text-slate-600 dark:text-slate-300">
-                  <span className={cn("mt-0.5 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded px-0.5 text-[9px] font-bold", lvTone(l.level))}>{l.level}</span>
-                  <span>{l.descriptor}</span>
-                </p>
-              ))}
+              <p className="whitespace-pre-line text-[10px] leading-snug text-slate-600 dark:text-slate-300">{r.metric}</p>
             </div>
           )}
           {editable && (
@@ -1091,7 +1061,7 @@ function CopyDialog({ appraisalId, onClose, onDone }: { appraisalId: string; onC
                             <div className="flex flex-wrap items-center gap-1">
                               {r.auto && <Badge className="h-4 bg-sky-100 px-1 text-[9px] text-sky-700 dark:bg-sky-950/60 dark:text-sky-400">AUTO</Badge>}
                               <span className="font-medium">{r.title}</span>
-                              {metricComplete(r.metricLevelsJson) && <Badge variant="outline" className="h-4 px-1 text-[9px] text-brand border-brand/40"><Ruler className="mr-0.5 h-2.5 w-2.5" />{t("metric 1–5", "metric 1–5")}</Badge>}
+                              {hasMetric(r.metric) && <Badge variant="outline" className="h-4 px-1 text-[9px] text-brand border-brand/40"><Ruler className="mr-0.5 h-2.5 w-2.5" />{t("metric ada", "metric set")}</Badge>}
                               {r.measureMode === "Descriptor" && <Badge variant="outline" className="h-4 px-1 text-[9px] text-brand border-brand/40">{t("deskriptif", "descriptor")}</Badge>}
                             </div>
                             <div className="mt-0.5 flex flex-wrap gap-1">
@@ -1160,7 +1130,7 @@ function LibraryPicker({ appraisalId, excludeTitles, onClose, onDone }: {
   const [cat, setCat] = useState("all");
   const [sel, setSel] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const lib = useApi<{ rows: { id: string; code: string; name: string; category: string; unit: string; polarity: string; dataSource: string; sourceKey: string | null; description: string | null; measureMode: string; metricLevelsJson: string | null }[] }>(
+  const lib = useApi<{ rows: { id: string; code: string; name: string; category: string; unit: string; polarity: string; dataSource: string; sourceKey: string | null; description: string | null; measureMode: string; metric: string | null }[] }>(
     `/api/rekankerja/performance/masters?type=kpi`,
   );
 
@@ -1188,7 +1158,7 @@ function LibraryPicker({ appraisalId, excludeTitles, onClose, onDone }: {
         action: "assignBatch", appraisalId, mode: "append",
         items: chosen.map((c, i) => ({
           kpiDefId: c.id, title: c.name, polarity: c.polarity, unit: c.unit,
-          metricLevels: c.metricLevelsJson ? JSON.parse(c.metricLevelsJson) : [],
+          metric: c.metric,
           thresholdMin: null, target: 0, weight: w[i], isCritical: false,
         })),
       });
@@ -1236,11 +1206,11 @@ function LibraryPicker({ appraisalId, excludeTitles, onClose, onDone }: {
                   <p className="truncate font-medium">
                     {r.name}
                     {r.sourceKey && <Badge className="ml-1.5 h-4 bg-sky-100 px-1 text-[9px] text-sky-700 dark:bg-sky-950/60 dark:text-sky-400">AUTO</Badge>}
-                    {metricComplete(r.metricLevelsJson) && <Badge variant="outline" className="ml-1 h-4 px-1 text-[9px] text-brand border-brand/40"><Ruler className="mr-0.5 h-2.5 w-2.5" />{t("metric 1–5", "metric 1–5")}</Badge>}
+                    {hasMetric(r.metric) && <Badge variant="outline" className="ml-1 h-4 px-1 text-[9px] text-brand border-brand/40"><Ruler className="mr-0.5 h-2.5 w-2.5" />{t("metric ada", "metric set")}</Badge>}
                   </p>
                   <p className="font-mono text-[10px] text-slate-400">{r.code} · {r.unit} · {r.polarity}</p>
                   {r.description && <p className="line-clamp-1 text-[10px] text-slate-400" title={r.description}>{r.description}</p>}
-                  {parseLv(r.metricLevelsJson).length > 0 && <p className="line-clamp-1 text-[10px] text-slate-400" title={parseLv(r.metricLevelsJson).map((l) => `${l.level} : ${l.descriptor}`).join("\n")}>{t("metric tersedia", "metric available")}</p>}
+                  {hasMetric(r.metric) && <p className="line-clamp-1 text-[10px] text-slate-400" title={r.metric ?? ""}>{(r.metric ?? "").replace(/\n/g, " · ")}</p>}
                 </div>
               </button>
             );
@@ -1343,8 +1313,9 @@ function TemplatePicker({ appraisalId, onClose, onDone }: { appraisalId: string;
 // ============================================================================
 
 // ============================================================================
-// FORM KPI BESAR (rombakan KPI-METRIC — buat/edit satu KPI lengkap:
-// judul + definisi + Metric / Measure of Success 1–5 WAJIB + mode + bobot.
+// FORM KPI BESAR (KPI-METRIC v2 — buat/edit satu KPI lengkap: judul +
+// definisi + Metric / Measure of Success SATU TEXTAREA (teks bebas — bukan
+// dipecah per level, permintaan user) + mode + bobot.
 // Dialog LEBAR sm:max-w-3xl — pengisian goal/KPI layak, bukan modal kecil.)
 // ============================================================================
 
@@ -1357,99 +1328,73 @@ function KpiFormDialog({ appraisalId, row, onClose, onDone }: {
   const titleRef = useRef<HTMLInputElement>(null);
   useEffect(() => { titleRef.current?.focus(); }, []);
 
-  const kpiLib = useApi<{ rows: { id: string; code: string; name: string; polarity: string; unit: string; description: string | null; measureMode: string; metricLevelsJson: string | null }[] }>(
+  const kpiLib = useApi<{ rows: { id: string; code: string; name: string; polarity: string; unit: string; description: string | null; measureMode: string; metric: string | null }[] }>(
     `/api/rekankerja/performance/masters?type=kpi`,
   );
 
   const src = editing ? row : null;
-  const [form, setForm] = useState(() => {
-    const lvs = [1, 2, 3, 4, 5].map((lv) => parseLv(src?.metricLevelsJson).find((l) => l.level === lv)?.descriptor ?? "");
-    return {
-      title: src?.title ?? "",
-      description: src?.description ?? "",
-      measureMode: src?.measureMode ?? "Descriptor",
-      levels: lvs as [string, string, string, string, string],
-      polarity: src?.polarity ?? "Higher",
-      unit: src?.unit ?? "%",
-      threshold: src?.thresholdMin != null ? String(src.thresholdMin) : "",
-      target: src?.target != null && !(src?.measureMode === "Descriptor") ? String(src.target) : "",
-      stretch: src?.stretchValue != null ? String(src.stretchValue) : "",
-      weight: src?.weight != null ? String(src.weight) : "20",
-      critical: src?.isCritical === true,
-    };
-  });
-
-  const setLevel = (i: number, v: string) => {
-    setForm((f) => {
-      const levels = [...f.levels] as typeof f.levels;
-      levels[i] = v;
-      return { ...f, levels };
-    });
-  };
+  const [form, setForm] = useState(() => ({
+    title: src?.title ?? "",
+    description: src?.description ?? "",
+    measureMode: src?.measureMode ?? "Descriptor",
+    metric: src?.metric ?? "",
+    polarity: src?.polarity ?? "Higher",
+    unit: src?.unit ?? "%",
+    threshold: src?.thresholdMin != null ? String(src.thresholdMin) : "",
+    target: src?.target != null && !(src?.measureMode === "Descriptor") ? String(src.target) : "",
+    stretch: src?.stretchValue != null ? String(src.stretchValue) : "",
+    weight: src?.weight != null ? String(src.weight) : "20",
+    critical: src?.isCritical === true,
+  }));
 
   // pilih judul persis dari pustaka → pre-isi definisi + metric + mode (mudah & konsisten)
   const onTitlePick = (value: string) => {
     const picked = (kpiLib.data?.rows ?? []).find((k) => k.name === value);
     if (!picked) { setForm((f) => ({ ...f, title: value })); return; }
-    const lvs = [1, 2, 3, 4, 5].map((lv) => parseLv(picked.metricLevelsJson).find((l) => l.level === lv)?.descriptor ?? "");
     setForm((f) => ({
       ...f,
       title: value,
       description: f.description || picked.description || "",
       measureMode: picked.measureMode,
-      levels: lvs as typeof f.levels,
+      metric: f.metric || picked.metric || "",
       polarity: picked.polarity,
       unit: picked.unit,
     }));
   };
 
-  const levelsFilled = form.levels.every((l) => l.trim());
   const numeric = form.measureMode === "Numeric";
-  const valid = form.title.trim() && levelsFilled &&
+  const valid = form.title.trim() && form.metric.trim() &&
     (!numeric || (form.target !== "" && Number.isFinite(Number(form.target)))) &&
     (Number(form.weight) > 0);
 
   const save = async () => {
     setBusy(true);
     try {
-      const metricLevels = form.levels.map((d, i) => ({ level: i + 1, descriptor: d.trim() }));
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        measureMode: form.measureMode,
+        metric: form.metric.trim() || null,
+        polarity: numeric ? form.polarity : "Higher",
+        unit: numeric ? form.unit : "level",
+        thresholdMin: numeric && form.threshold !== "" ? Number(form.threshold) : null,
+        target: numeric ? Number(form.target || 0) : 5,
+        stretchValue: numeric && form.stretch !== "" ? Number(form.stretch) : null,
+        weight: Number(form.weight) || 10,
+        isCritical: form.critical,
+      };
       if (editing) {
         await apiSend("/api/rekankerja/performance/goals", "POST", {
           action: "patchDraft",
           appraisalId,
-          rows: [{
-            id: (row as KpiRow).id,
-            title: form.title.trim(),
-            description: form.description.trim() || null,
-            measureMode: form.measureMode,
-            metricLevels,
-            polarity: numeric ? form.polarity : "Higher",
-            unit: numeric ? form.unit : "level",
-            thresholdMin: numeric && form.threshold !== "" ? Number(form.threshold) : null,
-            target: numeric ? Number(form.target || 0) : 5,
-            stretchValue: numeric && form.stretch !== "" ? Number(form.stretch) : null,
-            weight: Number(form.weight) || 10,
-            isCritical: form.critical,
-          }],
+          rows: [{ id: (row as KpiRow).id, ...payload }],
         });
         toast.success(t("KPI diperbarui", "KPI updated"));
         onDone();
       } else {
         const out = await apiSend<{ created: number }>("/api/rekankerja/performance/goals", "POST", {
           action: "assignBatch", appraisalId, mode: "append",
-          items: [{
-            title: form.title.trim(),
-            description: form.description.trim() || null,
-            measureMode: form.measureMode,
-            metricLevels,
-            polarity: numeric ? form.polarity : "Higher",
-            unit: numeric ? form.unit : "level",
-            thresholdMin: numeric && form.threshold !== "" ? Number(form.threshold) : null,
-            target: numeric ? Number(form.target || 0) : 5,
-            stretchValue: numeric && form.stretch !== "" ? Number(form.stretch) : null,
-            weight: Number(form.weight) || 10,
-            isCritical: form.critical,
-          }],
+          items: [payload],
         });
         toast.success(t("KPI dibuat", "KPI created"));
         if (out.created > 0) onDone();
@@ -1468,8 +1413,8 @@ function KpiFormDialog({ appraisalId, row, onClose, onDone }: {
           <DialogTitle>{editing ? t("Ubah KPI", "Edit KPI") : t("Buat KPI", "Create KPI")}</DialogTitle>
           <DialogDescription>
             {t(
-              "Setiap KPI = judul + definisi + Metric / Measure of Success (deskriptor level 1–5, WAJIB) + bobot. KPI dapat dinilai deskriptif (level 1–5) atau numerik (bila terukur angka).",
-              "Every KPI = title + definition + Metric / Measure of Success (level 1–5 descriptors, REQUIRED) + weight. A KPI can be descriptor-based (level 1–5) or numeric (when measurable).",
+              "Setiap KPI = judul + definisi + Metric / Measure of Success (satu teks, WAJIB) + bobot. KPI dapat dinilai deskriptif (level 1–5) atau numerik (bila terukur angka).",
+              "Every KPI = title + definition + Metric / Measure of Success (one text, REQUIRED) + weight. A KPI can be descriptor-based (level 1–5) or numeric (when measurable).",
             )}
           </DialogDescription>
         </DialogHeader>
@@ -1497,39 +1442,29 @@ function KpiFormDialog({ appraisalId, row, onClose, onDone }: {
             </div>
           </section>
 
-          {/* 2 — metric 1-5 (INTI — wajib) */}
+          {/* 2 — metric (INTI — wajib, SATU TEXTAREA teks bebas) */}
           <section className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t("2 · Metric / Measure of Success", "2 · Metric / Measure of Success")}</p>
-              <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-rose-600 border-rose-300 dark:border-rose-900">{t("WAJIB — level 1–5", "REQUIRED — levels 1–5")}</Badge>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-rose-600 border-rose-300 dark:border-rose-900">{t("WAJIB", "REQUIRED")}</Badge>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               {t(
-                "Ukuran keberhasilan KPI — tuliskan deskriptor tiap level. Contoh (INNOVATION): 1 = tidak submit usulan · 3 = usulan disetujui, berkualitas & berdampak · 5 = terimplementasi luas, terukur, tepat guna.",
-                "The KPI's success measure — write the descriptor for each level. Example (INNOVATION): 1 = no proposal submitted · 3 = approved, good quality & impact · 5 = implemented broadly, measurable, effective.",
+                "Ukuran keberhasilan KPI — tulis bebas dalam SATU kolom (umumnya rubrik 1–5, satu baris per level).",
+                "The KPI's success measure — free text in ONE field (typically a 1–5 rubric, one line per level).",
               )}
             </p>
-            <div className="space-y-2">
-              {form.levels.map((d, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span className={cn("mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm font-bold", lvTone(i + 1))} aria-hidden>
-                    {i + 1}
-                  </span>
-                  <Textarea
-                    rows={2}
-                    maxLength={2000}
-                    value={d}
-                    onChange={(e) => setLevel(i, e.target.value)}
-                    placeholder={t(
-                      `Deskriptor level ${i + 1} — capaian seperti apa yang layak mendapat angka ${i + 1}?`,
-                      `Level ${i + 1} descriptor — what attainment deserves a ${i + 1}?`,
-                    )}
-                    aria-label={t(`Deskriptor level ${i + 1}`, `Level ${i + 1} descriptor`)}
-                    className="text-sm"
-                  />
-                </div>
-              ))}
-            </div>
+            <Textarea
+              rows={7}
+              value={form.metric}
+              onChange={(e) => setForm((f) => ({ ...f, metric: e.target.value }))}
+              placeholder={t(
+                "1: Tidak submit / submit ulang usulan; inovasi sama persis dengan tahun sebelumnya\n2: Disetujui atasan & Division Manager/Direktur, kurang berkualitas dan kurang berdampak\n3: Disetujui, berkualitas baik, berdampak terhadap perubahan/perbaikan\n4: Inovasi dijalankan dan diimplementasi dalam lingkup departemen\n5: Dijalankan dalam lingkup lebih luas, terukur, hasilnya tepat guna bagi divisi/perusahaan",
+                "1: No proposal submitted / re-submitted; innovation identical to last year's\n2: Approved by manager & Division Manager/Director, low quality and low impact\n3: Approved, good quality, impactful toward change/improvement\n4: Innovation executed and implemented within the department\n5: Executed on a wider scale, measurable, effective for the division/company",
+              )}
+              aria-label={t("Metric / Measure of Success", "Metric / Measure of Success")}
+              className="text-sm"
+            />
           </section>
 
           {/* 3 — cara dinilai */}

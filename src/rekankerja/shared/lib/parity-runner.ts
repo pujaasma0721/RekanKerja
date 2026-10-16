@@ -435,11 +435,11 @@ const STEPS: Step[] = [
   // Applicant.referralNote (konteks perujuk) + Applicant.referralRewardNote
   // (catatan insentif MANUAL HR — di luar payroll §5; tanpa model baru).
   { key: "backlog-b8", label: "B8 Backlog — kolom Applicant referralNote + referralRewardNote", run: (s) => import("../../../../scripts/migrate-recruitment-b8-referral").then((m) => m.main(s)) },
-  // KPI-METRIC (rombakan — permintaan user) — Metric / Measure of Success
-  // sebagai inti pembuatan KPI: kolom description/measureMode/metricLevelsJson
-  // (pustaka + snapshot AppraisalKpi) + drop metricText iterasi-1 + seed
-  // pustaka contoh INNOVATION (Descriptor, 5 level).
-  { key: "kpi-metric", label: "KPI Metric — measureMode + metricLevelsJson + seed INNOVATION", run: (s) => import("../../../../scripts/migrate-kpi-metric").then((m) => m.main(s)) },
+  // KPI-METRIC v2 (rombakan — permintaan user) — Metric / Measure of Success
+  // sebagai inti pembuatan KPI: kolom description/measureMode/metric (pustaka +
+  // snapshot AppraisalKpi) — SATU TEKS BEBAS (textarea, bukan dipecah per level)
+  // + konversi metricLevelsJson lama → metric + seed pustaka contoh INNOVATION.
+  { key: "kpi-metric", label: "KPI Metric — measureMode + metric (teks tunggal) + seed INNOVATION", run: (s) => import("../../../../scripts/migrate-kpi-metric").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
