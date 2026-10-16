@@ -1,575 +1,456 @@
 "use client";
-// RekanKerja Recruitment — Ringkasan modul (F0): status fondasi + jumlah
-// master + rantai tahap seleksi default + peta fase pengembangan.
-// F6b: chip PR kandidat menambah badge rata-rata skor AI terbaru per PR.
-import { useEffect, useState } from "react";
-import { useApi, apiSend, fmtIDRShort } from "@/rekankerja/shared/lib/api";
-import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
-import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+// RekanKerja Recruitment — Ringkasan: dashboard informatif modul (pola leave/
+// travel): KPI pipeline → funnel & kesehatan PR & SLA & rencana/anggaran →
+// alur kerja end-to-end + rantai Standard Selection Process.
+// Satu endpoint /api/rekankerja/recruitment/overview (menggantikan 10+
+// pemanggilan API terpisah + peta fase dev pada overview lama).
+import { useApi, fmtIDRShort } from "@/rekankerja/shared/lib/api";
+import { useNav } from "@/rekankerja/shared/lib/store";
+import { PageHeader, LoadingCards } from "@/rekankerja/shared/components/ui-kit";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import {
+  ClipboardList, Inbox, UserRoundCheck, UserRoundPlus, Megaphone, Handshake,
+  BarChart3, ClipboardCheck, AlertTriangle, ListChecks, TrendingUp, ArrowRight,
+  Calculator, Award, Gauge,
+} from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
-import { MASTER_DEFS } from "./recruitment-types";
-import type { MasterType } from "@/rekankerja/recruitment/services/recruitment-master-service";
-import { AI_API, scoreToneKey, type AiScore } from "./selection-shared";
-import {
-  UserRoundSearch, Boxes, ListChecks, CheckCircle2, Circle, ArrowRight, Megaphone, BadgeCheck,
-  Wallet, Sparkles, FileCheck2, Layers, CalendarClock, ClipboardList, UsersRound, Inbox, Layers3,
-  UserRoundCheck, FileText, Handshake, UserRoundPlus, Clock, Calculator, Target, Coins, Award,
-  Webhook, FileSignature, Unlink,
-} from "lucide-react";
 
-const TYPE_ICON: Record<string, React.ElementType> = {
-  method: Megaphone,
-  "ad-media": BadgeCheck,
-  agency: Handshake,
-  "cost-item": Wallet,
-  skill: Sparkles,
-  "required-document": FileCheck2,
-  "eval-category": Layers,
-  "eval-scale": Layers,
-  "sla-group": CalendarClock,
-  "selection-process": ListChecks,
-};
+// ============ tipe (cermin overview-service) ============
 
-interface SelectionRow {
-  id: string; code: string; name: string; description?: string | null;
-  resultType?: string | null; processOrder?: number | null; slaDays?: number | null;
-  needAcknowledgement?: boolean | null; mandatory?: boolean | null; active: boolean;
+interface OverviewData {
+  pr: {
+    stats: { total: number; draft: number; submitted: number; approved: number; rejected: number; onHold: number; fulfilled: number; closed: number; cancelled: number };
+    health: {
+      open: number;
+      avgAgeDays: number | null;
+      oldest: { prNo: string; days: number } | null;
+      atRisk: number;
+      oldestRisk: { prNo: string; positionTitle: string | null; ageDays: number; targetDays: number } | null;
+    };
+  };
+  openings: { posted: number; openSlots: number; applications: number };
+  applicants: { active: number; pendingStaging: number; blacklisted: number };
+  selection: {
+    prsWithCandidates: number; activeCandidates: number; overdue: number; invitations: number;
+    topPrs: { prNo: string; candidates: number; overdue: number }[];
+  };
+  offers: {
+    sent: number; awaiting: number; accepted: number; declined: number; expired: number;
+    hired: number; acceptanceRate: number | null;
+    funnel: { key: string; label: string; labelEn: string; count: number }[];
+  };
+  plan: { applied: number; sumH: number; sumFulfilled: number; outsideCount: number };
+  budget: { period: string; total: number | null; used: number };
+  silver: number;
+  chain: { name: string; processOrder: number | null; slaDays: number | null; resultType: string | null }[];
 }
 
 export function RecruitmentOverview() {
   const { t } = useI18n();
-  const perms = useMenuPerms();
-  const counts = useApi<{ counts: Record<string, number> }>("/api/rekankerja/recruitment/masters");
-  const chain = useApi<{ rows: SelectionRow[] }>("/api/rekankerja/recruitment/masters?type=selection-process");
+  const { navigate } = useNav();
+  const { data, loading } = useApi<OverviewData>("/api/rekankerja/recruitment/overview");
+  const d = data;
 
-  const c = counts.data?.counts;
-  const steps = (chain.data?.rows ?? []).slice().sort((a, b) => (a.processOrder ?? 99) - (b.processOrder ?? 99));
-
-  const phases: { key: string; label: string; labelEn: string; done: boolean }[] = [
-    { key: "F0", label: "Fondasi Modul & Master", labelEn: "Module & Master Foundation", done: true },
-    { key: "F1", label: "Permintaan Karyawan (PR) + Approval", labelEn: "Personnel Requisition + Approval", done: true },
-    { key: "F2", label: "Lowongan & Pelamar (talent pool)", labelEn: "Openings & Applicants (talent pool)", done: true },
-    { key: "F3", label: "Kandidat & Proses Seleksi", labelEn: "Candidates & Selection Process", done: true },
-    { key: "F4", label: "Offer & Appointment + Onboarding", labelEn: "Offer & Appointment + Onboarding", done: true },
-    { key: "F5", label: "ESS, Rencana & Anggaran", labelEn: "ESS, Plan & Budget", done: true },
-    { key: "F6", label: "AI Rekrutmen (parse CV, skor, copilot)", labelEn: "Recruitment AI (CV parse, scoring, copilot)", done: true },
-    { key: "F7", label: "Otomasi, Webhook & E-sign", labelEn: "Automation, Webhooks & E-sign", done: true },
+  // ============ KPI pipeline (4 kartu klik → menu terkait) ============
+  const kpi = [
+    {
+      label: t("PR Menunggu Approval", "PRs Pending Approval"),
+      value: d ? String(d.pr.stats.submitted) : "—",
+      sub: d
+        ? t(
+          "{n} disetujui sedang direkrut · umur rata-rata {m} hari",
+          "{n} approved & recruiting · average age {m} days",
+          { n: d.pr.stats.approved, m: d.pr.health.avgAgeDays ?? 0 },
+        )
+        : undefined,
+      icon: ClipboardCheck, hero: true,
+      onClick: () => navigate("recruitment", "pr-approval"),
+    },
+    {
+      label: t("Lamaran Menunggu Verifikasi", "Applications Pending Verification"),
+      value: d ? String(d.applicants.pendingStaging) : "—",
+      sub: d
+        ? t("{n} pelamar aktif · {m} lowongan terposting", "{n} active applicants · {m} posted openings", { n: d.applicants.active, m: d.openings.posted })
+        : undefined,
+      icon: Inbox,
+      onClick: () => navigate("recruitment", "public-staging"),
+    },
+    {
+      label: t("Kandidat Aktif Seleksi", "Candidates in Selection"),
+      value: d ? String(d.selection.activeCandidates) : "—",
+      sub: d
+        ? t("{n} tahap SLA terlambat · {m} undangan terbit", "{n} overdue SLA stages · {m} invitations issued", { n: d.selection.overdue, m: d.selection.invitations })
+        : undefined,
+      icon: UserRoundCheck,
+      warn: d ? d.selection.overdue > 0 : false,
+      onClick: () => navigate("recruitment", "selection"),
+    },
+    {
+      label: t("Kandidat Diangkat", "Candidates Hired"),
+      value: d ? String(d.offers.hired) : "—",
+      sub: d
+        ? t(
+          "penerimaan offer {r}% · {n} menunggu respons",
+          "offer acceptance {r}% · {n} awaiting response",
+          { r: d.offers.acceptanceRate ?? 0, n: d.offers.awaiting },
+        )
+        : undefined,
+      icon: UserRoundPlus,
+      onClick: () => navigate("recruitment", "offers"),
+    },
   ];
-  const prApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/pr?limit=1");
-  const ps = prApi.data?.stats;
 
-  // F3: ringkasan kandidat & seleksi per PR (summaries — 403 → null "—")
-  const selApi = useApi<{ summaries: { prId: string; prNo: string; candidates: number; active: number; overdue: number; invitations: number }[] }>(
-    "/api/rekankerja/recruitment/selection?summaries=1",
-  );
-  const selSum = selApi.data?.summaries ?? [];
-  const selTotals = {
-    prs: selApi.data ? selSum.length : null,
-    candidates: selApi.data ? selSum.reduce((a, s) => a + s.candidates, 0) : null,
-    active: selApi.data ? selSum.reduce((a, s) => a + s.active, 0) : null,
-    overdue: selApi.data ? selSum.reduce((a, s) => a + s.overdue, 0) : null,
-    invitations: selApi.data ? selSum.reduce((a, s) => a + s.invitations, 0) : null,
-  };
+  // ============ alur kerja end-to-end (4 langkah klik) ============
+  const steps = [
+    {
+      n: 1, title: t("Permintaan Karyawan (PR)", "Personnel Requisition (PR)"), icon: ClipboardList, view: "pr",
+      desc: t(
+        "Kebutuhan SDM diajukan dengan approval berjenjang — PR disetujui otomatis menyiapkan lowongan dan slot per kantor",
+        "Headcount needs are submitted with tiered approval — an approved PR automatically prepares job openings and slots per office",
+      ),
+    },
+    {
+      n: 2, title: t("Lowongan & Talent Pool", "Openings & Talent Pool"), icon: Megaphone, view: "openings",
+      desc: t(
+        "Iklan lowongan per kanal dengan biaya, pelamar masuk talent pool, dan verifikasi lamaran publik dengan pertanyaan knockout",
+        "Job ads per channel with costs, applicants enter the talent pool, and public applications are verified with knockout questions",
+      ),
+    },
+    {
+      n: 3, title: t("Seleksi Kandidat", "Candidate Selection"), icon: UserRoundCheck, view: "selection",
+      desc: t(
+        "Board kanban per PR, scorecard terstruktur, surat undangan, kalender seleksi, SLA & reminder per tahap",
+        "Kanban board per PR, structured scorecards, invitation letters, selection calendar, and per-stage SLA & reminders",
+      ),
+    },
+    {
+      n: 4, title: t("Offer & Pengangkatan", "Offer & Appointment"), icon: Handshake, view: "offers",
+      desc: t(
+        "Penawaran dengan approval & e-sign kandidat — diterima menjadi surat pengangkatan dan lanjut ke onboarding karyawan baru",
+        "Offers with approval & candidate e-sign — accepted offers become appointment letters and continue into new-employee onboarding",
+      ),
+    },
+  ];
 
-  // F6b — rata-rata skor AI terbaru per PR berkandidat (badge chip PR; 1 POST
-  // latest-scores per PR, silent-fail — overview tetap jalan tanpa izin op:score).
-  const canScore = perms.canOp("recruitment", "selection", "score");
-  const [aiAvg, setAiAvg] = useState<Record<string, number | null>>({});
-  const selPrIds = selApi.data ? selSum.map((s) => s.prId).join(",") : null;
-  useEffect(() => {
-    if (!canScore || !selPrIds) return;
-    let alive = true;
-    const ids = selPrIds.split(",").filter(Boolean);
-    void (async () => {
-      const out: Record<string, number | null> = {};
-      await Promise.all(ids.map(async (id) => {
-        try {
-          const res = await apiSend<{ scores: AiScore[] }>(AI_API, "POST", { action: "latest-scores", prId: id });
-          const ss = res.scores ?? [];
-          out[id] = ss.length > 0 ? ss.reduce((a, s) => a + s.total, 0) / ss.length : null;
-        } catch { out[id] = null; }
-      }));
-      if (alive) setAiAvg(out);
-    })();
-    return () => { alive = false; };
-  }, [canScore, selPrIds]);
-
-  // F2: statistik lowongan / talent pool / staging — 403 (tanpa menu terkait)
-  // dirender "—" tanpa error console (useApi menangkap error sebagai string).
-  const joApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/openings?limit=1");
-  const joSt = joApi.data?.stats;
-  const apApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/applicants?limit=1");
-  const apSt = apApi.data?.stats;
-  const paApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/public-applications?limit=1");
-  const paSt = paApi.data?.stats;
-
-  // F4: statistik offer & pengangkatan
-  const offApi = useApi<{ stats: Record<string, number> }>("/api/rekankerja/recruitment/offers?list=1");
-  const offSt = offApi.data?.stats;
-  const funnelApi = useApi<{ funnel: { stages: { key: string; label: string; labelEn: string; count: number }[]; offerAcceptanceRate: number | null } }>(
-    "/api/rekankerja/recruitment/offers?funnel=1",
-  );
-  const funnelStages = funnelApi.data?.funnel.stages ?? [];
-  const hiredCount = funnelStages.find((s) => s.key === "hired")?.count ?? null;
-
-  // F5: rencana & anggaran rekrutmen + demografi (silver medalist) — 403 →
-  // null "—" (pola kartu F3/F4). PLAN-LINK: + capaian MPP (fulfilled/h) + PR
-  // di luar rencana (monitoring "target tercapai atau tidak" dari PR).
-  const planApi = useApi<{
-    stats: { applied: number; sumH: number; sumFulfilled: number; outsideCount: number };
-    rows: { toRecruitH: number }[];
-  }>("/api/rekankerja/recruitment/plan?list=1");
-  const planStats = planApi.data?.stats;
-  const planRows = planApi.data?.rows ?? [];
-  const budgetApi = useApi<{ row: { used: number } | null }>("/api/rekankerja/recruitment/budget");
-  const budgetUsed = budgetApi.data?.row?.used ?? null;
-  const demogApi = useApi<{ silver: { count: number } }>("/api/rekankerja/recruitment/demographics?stats=1");
-  const silverCount = demogApi.data?.silver.count ?? null;
-
-  // F7 — webhook aktif + e-sign kandidat (GET settings; 403 tanpa akses → null "—")
-  const f7Api = useApi<{
-    webhooks: { active: boolean }[];
-    esignRequests: { status: string }[];
-  }>("/api/rekankerja/recruitment/settings");
-  const f7 = f7Api.data
-    ? {
-        webhooksActive: f7Api.data.webhooks.filter((w) => w.active).length,
-        esignSigned: f7Api.data.esignRequests.filter((r) => r.status === "Signed").length,
-        esignPending: f7Api.data.esignRequests.filter((r) => r.status === "Pending").length,
-      }
-    : null;
+  const maxFunnel = d ? Math.max(1, ...d.offers.funnel.map((s) => s.count)) : 1;
+  const mppPct = d && d.plan.sumH > 0 ? Math.min(100, Math.round((d.plan.sumFulfilled / d.plan.sumH) * 100)) : 0;
+  const budgetPct = d && d.budget.total != null && d.budget.total > 0
+    ? Math.min(100, Math.round((d.budget.used / d.budget.total) * 100))
+    : 0;
+  const overBudget = d && d.budget.total != null && d.budget.used > d.budget.total && d.budget.total > 0;
 
   return (
     <div>
       <PageHeader
-        eyebrow={t("Recruitment · Ringkasan")}
-        title={t("Rekrutmen", "Recruitment")}
+        eyebrow={t("MODUL RECRUITMENT", "RECRUITMENT MODULE")}
+        title={t("Ringkasan Rekrutmen", "Recruitment Overview")}
         description={t(
-          "Modul rekrutmen end-to-end RekanKerja — dari permintaan karyawan, lowongan, talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding karyawan. Fase aktif: F5 (ESS lowongan internal, rencana & anggaran, demografi).",
-          "RekanKerja end-to-end recruitment module — from personnel requisition, job openings, talent pool, structured selection, to appointment connected to employee onboarding. Active phase: F5 (internal job openings ESS, plan & budget, demographics).",
+          "Pipeline rekrutmen end-to-end: permintaan karyawan, lowongan & talent pool, seleksi terstruktur, sampai pengangkatan yang tersambung ke onboarding — lengkap dengan rencana, anggaran, dan analitik.",
+          "The end-to-end recruiting pipeline: personnel requisitions, openings & talent pool, structured selection, through appointments connected to onboarding — complete with planning, budget, and analytics.",
         )}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => navigate("recruitment", "reports")} className="gap-2 font-bold">
+              <BarChart3 className="h-4 w-4" /> {t("Lihat Laporan", "View Reports")}
+            </Button>
+            <Button onClick={() => navigate("recruitment", "pr")} className="gap-2 font-bold">
+              <ClipboardList className="h-4 w-4" /> {t("Ajukan Permintaan Karyawan", "New Personnel Requisition")}
+            </Button>
+          </div>
+        }
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* rantai tahap seleksi default */}
-        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ListChecks className="h-4 w-4 ov-text-accent" aria-hidden />
-              {t("Rantai Tahap Seleksi Standar", "Standard Selection Chain")}
-              <Badge variant="secondary" className="font-normal">{t("dapat diedit di Master", "editable in Masters")}</Badge>
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t(
-                "Padanan Standard Selection Process — katalog per-tenant, berurutan, dengan SLA per tahap. Dipakai proses seleksi kandidat (F3).",
-                "Standard Selection Process equivalent — per-tenant catalog, ordered, with per-stage SLA. Used by candidate selection (F3).",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {chain.loading && !chain.data ? (
-              <LoadingRows rows={3} />
-            ) : steps.length === 0 ? (
-              <EmptyState title={t("Belum ada tahap seleksi", "No selection stages yet")} icon={ListChecks} />
-            ) : (
-              <ol className="flex flex-wrap items-stretch gap-2">
-                {steps.map((s, i) => (
-                  <li key={s.id} className="flex items-center gap-2">
-                    <div className={cn(
-                      "flex min-w-[9rem] flex-col gap-1 rounded-xl border px-3 py-2.5",
-                      s.active
-                        ? "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60"
-                        : "border-dashed border-slate-300 opacity-60 dark:border-slate-700",
-                    )}>
-                      <div className="flex items-center gap-1.5">
-                        <span className="grid h-5 w-5 place-items-center rounded-full bg-slate-900 text-[10px] font-bold text-white dark:bg-slate-100 dark:text-slate-900">
-                          {s.processOrder ?? i + 1}
-                        </span>
-                        <span className="text-sm font-semibold leading-tight">{s.name}</span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
-                        <span>{s.resultType === "Quantitative" ? t("Kuantitatif", "Quantitative") : t("Kualitatif", "Qualitative")}</span>
-                        {s.slaDays != null && <span>· SLA {s.slaDays} {t("hr", "d")}</span>}
-                        {s.needAcknowledgement && <span>· {t("konfirmasi", "ack")}</span>}
-                      </div>
-                    </div>
-                    {i < steps.length - 1 && <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden />}
-                  </li>
-                ))}
-              </ol>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* peta fase */}
+      {loading && !d ? (
+        <LoadingCards cards={4} />
+      ) : !d ? (
         <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <UserRoundSearch className="h-4 w-4 ov-text-accent" aria-hidden />
-              {t("Peta Fase (Gelombang 1)", "Phase Map (Wave 1)")}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t("DEVELOPMENT-PLAN-RECRUITMENT.md — Gelombang Core", "DEVELOPMENT-PLAN-RECRUITMENT.md — Core wave")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-1.5">
-              {phases.map((p) => (
-                <li key={p.key} className="flex items-start gap-2 text-sm">
-                  {p.done
-                    ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                    : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden />}
-                  <span className={cn("leading-tight", p.done && "font-semibold")}>
-                    <span className="mr-1.5 font-mono text-[11px] text-slate-400">{p.key}</span>
-                    {t(p.label, p.labelEn)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <CardContent className="p-6 text-sm text-slate-500">
+            {t("Data ringkasan belum termuat — coba muat ulang halaman.", "Overview data could not be loaded — try reloading the page.")}
           </CardContent>
         </Card>
-
-        {/* ringkasan PR (F1) */}
-        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ClipboardList className="h-4 w-4 ov-text-accent" aria-hidden />
-              {t("Permintaan Karyawan (PR)", "Personnel Requisitions (PR)")}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t(
-                "F1 — pengajuan kebutuhan karyawan dengan state machine & approval berjenjang. Kelola di menu Permintaan Karyawan.",
-                "F1 — headcount requests with an explicit state machine & tiered approval. Manage in the Personnel Requisition menu.",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {prApi.loading && !prApi.data ? (
-              <LoadingRows rows={2} />
-            ) : !ps ? (
-              <EmptyState title={t("Anda belum memiliki akses lihat PR", "You do not have PR view access")} icon={ClipboardList} />
-            ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-                {([
-                  ["total", t("Total", "Total")],
-                  ["draft", t("Draft", "Draft")],
-                  ["submitted", t("Menunggu", "Pending")],
-                  ["approved", t("Disetujui", "Approved")],
-                  ["rejected", t("Ditolak", "Rejected")],
-                  ["onHold", t("Ditahan", "On Hold")],
-                  ["closed", t("Ditutup", "Closed")],
-                  ["cancelled", t("Dibatalkan", "Cancelled")],
-                ] as [string, string][]).map(([k, label]) => (
-                  <div key={k} className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40">
-                    <p className="text-[11px] font-medium text-slate-500">{label}</p>
-                    <p className="text-lg font-semibold tabular-nums">{ps[k] ?? 0}</p>
+      ) : (
+        <div className="space-y-4">
+          {/* ---- KPI pipeline ---- */}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {kpi.map((k) => (
+              <Card
+                key={k.label}
+                className="cursor-pointer border-slate-200 bg-white/80 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
+                onClick={k.onClick}
+              >
+                <CardContent className="flex items-start justify-between gap-3 p-4 sm:p-5">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{k.label}</p>
+                    <p className={cn(
+                      "mt-1 truncate text-2xl font-black tabular-nums",
+                      k.warn ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-slate-100",
+                    )}>{k.value}</p>
+                    {k.sub && <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{k.sub}</p>}
                   </div>
+                  <div className={cn("rounded-xl p-2.5", k.hero ? "ov-fill" : "ov-tile")}>
+                    <k.icon className="h-5 w-5" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* ---- analitik: funnel · kesehatan PR · SLA · rencana & anggaran ---- */}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {/* funnel */}
+            <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <TrendingUp className="h-4 w-4 ov-text-accent" aria-hidden /> {t("Funnel Rekrutmen", "Recruitment Funnel")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5">
+                {d.offers.funnel.map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={() => navigate("recruitment", "offers")}
+                    className="block w-full text-left"
+                    title={t("Buka Offer & Pengangkatan", "Open Offers & Appointment")}
+                  >
+                    <span className="flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-slate-600 dark:text-slate-300">{t(s.label, s.labelEn)}</span>
+                      <span className="font-bold tabular-nums text-slate-800 dark:text-slate-100">{s.count}</span>
+                    </span>
+                    <span className="mt-0.5 block h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <span className="block h-full rounded-full ov-bar" style={{ width: `${Math.max(2, (s.count / maxFunnel) * 100)}%` }} />
+                    </span>
+                  </button>
                 ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* ringkasan F3 — kandidat & seleksi */}
-        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <UserRoundCheck className="h-4 w-4 ov-text-accent" aria-hidden />
-              {t("Kandidat & Seleksi (F3)", "Candidates & Selection (F3)")}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t(
-                "Kandidat aktif per PR beserta tahap seleksi berjalan (board kanban, scorecard, surat undangan, SLA). Kelola di menu Kandidat & Seleksi.",
-                "Active candidates per PR with running selection stages (kanban board, scorecards, invitation letters, SLA). Manage in the Candidates & Selection menu.",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {([
-                { icon: Layers3, label: t("PR dengan Kandidat", "PRs w/ Candidates"), value: selTotals.prs },
-                { icon: UsersRound, label: t("Kandidat Aktif", "Active Candidates"), value: selTotals.active },
-                { icon: UserRoundCheck, label: t("Tahap SLA Terlambat", "Overdue Stages"), value: selTotals.overdue },
-                { icon: FileText, label: t("Undangan Terbit", "Invitations Issued"), value: selTotals.invitations },
-              ] as { icon: React.ElementType; label: string; value: number | null }[]).map((s, i) => {
-                const Icon = s.icon;
-                return (
-                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
-                    title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
-                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
-                      <p className="text-lg font-semibold tabular-nums">{s.value ?? "—"}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {selApi.data && selSum.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {selSum.map((s) => {
-                  const avg = aiAvg[s.prId];
-                  return (
-                    <span key={s.prId} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                      {s.prNo}: {s.candidates} {t("kandidat", "candidates")}
-                      {s.overdue > 0 && <span className="ml-1 font-bold text-amber-600 dark:text-amber-400">· {s.overdue} {t("terlambat", "overdue")}</span>}
-                      {avg != null && (
-                        <span className={cn(
-                          "ml-1 font-bold tabular-nums",
-                          scoreToneKey(avg) === "emerald" ? "text-emerald-600 dark:text-emerald-400"
-                            : scoreToneKey(avg) === "amber" ? "text-amber-600 dark:text-amber-400"
-                              : "text-rose-600 dark:text-rose-400",
-                        )} title={t("rata-rata skor AI terbaru kandidat PR ini (rekomendasi)", "average latest AI score of this PR's candidates (recommendation)")}>
-                          · AI {avg.toFixed(1)}
-                        </span>
-                      )}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ringkasan F4 — offer & pengangkatan */}
-        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Handshake className="h-4 w-4 ov-text-accent" aria-hidden />
-              {t("Offer & Pengangkatan (F4)", "Offers & Appointment (F4)")}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t(
-                "Penawaran terkirim/menunggu respons, offer diterima, dan kandidat yang resmi menjadi karyawan via onboarding. Kelola di menu Offer & Pengangkatan.",
-                "Offers sent / awaiting response, accepted offers, and candidates who officially became employees via onboarding. Manage in the Offers & Appointment menu.",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {([
-                { icon: Handshake, label: t("Offer Terkirim", "Offers Sent"), value: offApi.data ? (offSt?.Sent ?? 0) + (offSt?.Viewed ?? 0) + (offSt?.Accepted ?? 0) + (offSt?.Declined ?? 0) + (offSt?.Expired ?? 0) : null },
-                { icon: Clock, label: t("Menunggu Respons", "Awaiting Response"), value: offApi.data ? (offSt?.Sent ?? 0) + (offSt?.Viewed ?? 0) + (offSt?.PendingApproval ?? 0) : null },
-                { icon: BadgeCheck, label: t("Diterima", "Accepted"), value: offApi.data ? (offSt?.Accepted ?? 0) : null },
-                { icon: UserRoundPlus, label: t("Jadi Karyawan", "Hired"), value: offApi.data ? hiredCount : null },
-              ] as { icon: React.ElementType; label: string; value: number | null }[]).map((s, i) => {
-                const Icon = s.icon;
-                return (
-                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
-                    title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
-                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
-                      <p className="text-lg font-semibold tabular-nums">{s.value ?? "—"}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {funnelStages.length > 0 && (
-              <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-slate-500">{t("Funnel:", "Funnel:")}</span>
-                {funnelStages.map((s, i) => (
-                  <span key={s.key} className="flex items-center gap-1.5">
-                    {i > 0 && <ArrowRight className="h-3 w-3 text-slate-400" aria-hidden />}
-                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                      {t(s.label, s.labelEn)}: <span className="font-bold tabular-nums">{s.count}</span>
-                    </span>
-                  </span>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ringkasan F5 — rencana & anggaran + demografi */}
-        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Calculator className="h-4 w-4 ov-text-accent" aria-hidden />
-              {t("Rencana & Anggaran (F5)", "Plan & Budget (F5)")}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t(
-                "Rencana rekrutmen formula a–h yang diterapkan, total kebutuhan rekrut (h), realisasi anggaran vs kanal lowongan, dan kandidat silver medalist. Kelola di menu Rencana & Anggaran serta Demografi & Segmen.",
-                "Applied a–h formula recruitment plans, total to-recruit need (h), budget actuals vs opening channels, and silver medalist candidates. Manage in the Plan & Budget and Demographics & Segments menus.",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              {([
-                { icon: Calculator, label: t("Rencana Applied", "Applied Plans"), value: planApi.data ? (planStats?.applied ?? 0) : null },
-                { icon: Target, label: t("Kebutuhan Rekrut (h)", "To Recruit (h)"), value: planApi.data ? planRows.reduce((a, r) => a + (r.toRecruitH ?? 0), 0) : null },
-                {
-                  icon: CheckCircle2, label: t("Capaian MPP (terpenuhi/h)", "MPP Achievement (fulfilled/h)"),
-                  value: planApi.data ? (planStats ? `${planStats.sumFulfilled}/${planStats.sumH}` : null) : null,
-                  tone: planStats && planStats.sumH > 0 && planStats.sumFulfilled >= planStats.sumH ? "emerald" : planStats && planStats.sumFulfilled > 0 ? "amber" : undefined,
-                },
-                {
-                  icon: Unlink, label: t("PR di Luar Rencana", "PRs Outside Plan"),
-                  value: planApi.data ? (planStats?.outsideCount ?? 0) : null,
-                  tone: (planStats?.outsideCount ?? 0) > 0 ? "amber" : undefined,
-                },
-                { icon: Coins, label: t("Realisasi Anggaran", "Budget Actuals"), value: budgetApi.data ? budgetUsed : null, money: true },
-                { icon: Award, label: t("Silver Medalist", "Silver Medalists"), value: demogApi.data ? silverCount : null },
-              ] as { icon: React.ElementType; label: string; value: number | string | null; money?: boolean; tone?: "emerald" | "amber" }[]).map((s, i) => {
-                const Icon = s.icon;
-                return (
-                  <div key={i} className={cn(
-                    "flex items-center gap-2.5 rounded-xl border px-3 py-2.5",
-                    s.tone === "emerald"
-                      ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-500/10"
-                      : s.tone === "amber"
-                        ? "border-amber-200 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10"
-                        : "border-slate-200 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-800/40",
+            {/* kesehatan PR */}
+            <Card
+              className="cursor-pointer border-slate-200 bg-white/80 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
+              onClick={() => navigate("recruitment", "pr")}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <Gauge className="h-4 w-4 ov-text-accent" aria-hidden /> {t("Kesehatan PR", "PR Health")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-black text-slate-900 dark:text-slate-100">{d.pr.health.open}</p>
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  {t("PR terbuka (menunggu + direkrut)", "open requisitions (pending + recruiting)")}
+                </p>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                  {t(
+                    "umur rata-rata {n} hari · tertua {pr} ({m} hari)",
+                    "average age {n} days · oldest {pr} ({m} days)",
+                    { n: d.pr.health.avgAgeDays ?? "—", pr: d.pr.health.oldest?.prNo ?? "—", m: d.pr.health.oldest?.days ?? "—" },
                   )}
-                    title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
-                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
-                      <p className="text-lg font-semibold tabular-nums">
-                        {s.value == null ? "—" : s.money ? fmtIDRShort(Number(s.value)) : String(s.value)}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                </p>
+                {d.pr.health.atRisk > 0 ? (
+                  <p className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                    {t(
+                      "{n} PR lewat target SLA — tertua {pr} ({d} hari vs target {t} hari)",
+                      "{n} requisitions over SLA target — oldest {pr} ({d} days vs {t}-day target)",
+                      { n: d.pr.health.atRisk, pr: d.pr.health.oldestRisk?.prNo ?? "—", d: d.pr.health.oldestRisk?.ageDays ?? 0, t: d.pr.health.oldestRisk?.targetDays ?? 0 },
+                    )}
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                    {t("Semua PR dalam target SLA", "All requisitions within SLA target")}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* ringkasan F7 — otomasi, webhook & e-sign */}
-        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Webhook className="h-4 w-4 ov-text-accent" aria-hidden />
-              {t("Otomasi & Integrasi (F7)", "Automation & Integration (F7)")}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t(
-                "Webhook outbound event rekrutmen (signature HMAC terverifikasi), otomasi reminder/eskalasi, dan e-sign kandidat eksternal. Kelola di menu Pengaturan.",
-                "Outbound recruitment event webhooks (verified HMAC signature), reminder/escalation automation, and external candidate e-sign. Manage in the Settings menu.",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {([
-                { icon: Webhook, label: t("Webhook Aktif", "Active Webhooks"), value: f7 ? f7.webhooksActive : null },
-                { icon: FileSignature, label: t("E-sign Ditandatangani", "E-sign Signed"), value: f7 ? f7.esignSigned : null },
-                { icon: Clock, label: t("E-sign Menunggu", "E-sign Pending"), value: f7 ? f7.esignPending : null },
-              ] as { icon: React.ElementType; label: string; value: number | null }[]).map((s, i) => {
-                const Icon = s.icon;
-                return (
-                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
-                    title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
-                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
-                      <p className="text-lg font-semibold tabular-nums">{s.value ?? "—"}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ringkasan F2 — lowongan, talent pool & staging */}
-        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Megaphone className="h-4 w-4 ov-text-accent" aria-hidden />
-              {t("Lowongan & Talent Pool (F2)", "Openings & Talent Pool (F2)")}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t(
-                "Iklan lowongan per PR disetujui, talent pool pelamar, dan lamaran publik yang menunggu verifikasi. Kelola di menu Lowongan, Talent Pool, dan Lamaran Publik.",
-                "Job ads per approved PR, the applicant talent pool, and public applications awaiting verification. Manage in the Openings, Talent Pool, and Public Applications menus.",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {([
-                { icon: Megaphone, label: t("JO Terposting", "Posted JOs"), value: joApi.data ? (joSt?.posted ?? 0) : null },
-                { icon: Layers3, label: t("Slot Terbuka", "Open Slots"), value: joApi.data ? (joSt?.openSlots ?? 0) : null },
-                { icon: UsersRound, label: t("Pelamar Aktif", "Active Applicants"), value: apApi.data ? (apSt?.active ?? 0) : null },
-                { icon: Inbox, label: t("Staging Menunggu", "Pending Staging"), value: paApi.data ? (paSt?.pending ?? 0) : null },
-              ] as { icon: React.ElementType; label: string; value: number | null }[]).map((s, i) => {
-                const Icon = s.icon;
-                return (
-                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40"
-                    title={s.value == null ? t("Anda tidak memiliki akses lihat data ini", "You do not have access to view this data") : s.label}>
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
-                      <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold leading-tight">{s.label}</p>
-                      <p className="text-lg font-semibold tabular-nums">{s.value ?? "—"}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* kartu jumlah master */}
-        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Boxes className="h-4 w-4 ov-text-accent" aria-hidden />
-              {t("Master Rekrutmen Terpasang", "Recruitment Masters Provisioned")}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t(
-                "10 master (padanan General Setting). Kelola di menu Master Rekrutmen.",
-                "10 masters (General Setting equivalent). Manage in the Recruitment Masters menu.",
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {counts.loading && !counts.data ? (
-              <LoadingRows rows={2} />
-            ) : !c ? (
-              <EmptyState title={t("Jumlah master belum termuat", "Master counts not loaded")} icon={Boxes} />
-            ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                {MASTER_DEFS.map((m) => {
-                  const Icon = TYPE_ICON[m.type] ?? Boxes;
-                  const n = c[m.type] ?? 0;
-                  return (
-                    <div key={m.type} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/40" title={t(m.desc, m.descEn)}>
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm dark:bg-slate-900">
-                        <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden />
+            {/* tahap SLA terlambat */}
+            <Card
+              className="cursor-pointer border-slate-200 bg-white/80 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
+              onClick={() => navigate("recruitment", "selection")}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <AlertTriangle className="h-4 w-4 ov-text-accent" aria-hidden /> {t("Tahap Terlambat (SLA)", "Overdue Stages (SLA)")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5">
+                {d.selection.topPrs.length === 0 ? (
+                  <p className="text-[12px] text-slate-400">
+                    {t("Tidak ada tahap mengganjal — SLA sehat", "No stuck stages — SLA healthy")}
+                  </p>
+                ) : (
+                  d.selection.topPrs.map((p) => (
+                    <div key={p.prNo} className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{p.prNo}</span>
+                      <span className="truncate text-slate-500 dark:text-slate-400">
+                        {t("{n} kandidat", "{n} candidates", { n: p.candidates })}
                       </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold leading-tight">{t(m.label, m.labelEn)}</p>
-                        <p className="text-[11px] text-slate-500">
-                          {t("{n} entri", "{n} entries", { n })}
-                        </p>
-                      </div>
+                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+                        {p.overdue} {t("terlambat", "overdue")}
+                      </span>
                     </div>
-                  );
-                })}
+                  ))
+                )}
+                <p className="border-t border-dashed border-slate-200 pt-1.5 text-[10px] leading-relaxed text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  {t(
+                    "{n} PR dengan kandidat · {m} undangan terbit",
+                    "{n} requisitions with candidates · {m} invitations issued",
+                    { n: d.selection.prsWithCandidates, m: d.selection.invitations },
+                  )}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* rencana & anggaran */}
+            <Card
+              className="cursor-pointer border-slate-200 bg-white/80 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
+              onClick={() => navigate("recruitment", "plan")}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <Calculator className="h-4 w-4 ov-text-accent" aria-hidden /> {t("Rencana & Anggaran", "Plan & Budget")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      {t("Capaian MPP {y}", "MPP Achievement {y}", { y: d.budget.period })}
+                    </span>
+                    <span className="text-sm font-black tabular-nums text-slate-900 dark:text-slate-100">
+                      {d.plan.sumFulfilled}/{d.plan.sumH}
+                    </span>
+                  </div>
+                  <Progress value={mppPct} className="mt-1 h-2 [&>div]:ov-bar" />
+                </div>
+                <div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      {t("Realisasi Anggaran", "Budget Actuals")}
+                    </span>
+                    <span className="text-sm font-black tabular-nums text-slate-900 dark:text-slate-100">
+                      {fmtIDRShort(d.budget.used)}
+                    </span>
+                  </div>
+                  {d.budget.total != null ? (
+                    <>
+                      <Progress value={budgetPct} className="mt-1 h-2 [&>div]:ov-bar" />
+                      <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                        {t("dari {total} · {p}% terpakai", "of {total} · {p}% used", { total: fmtIDRShort(d.budget.total), p: budgetPct })}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                      {t("total anggaran belum diatur / disamarkan", "total budget not set / masked")}
+                    </p>
+                  )}
+                </div>
+                {overBudget && (
+                  <p className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    {t("Terpakai melebihi anggaran — lowongan tetap diproses", "Usage exceeds budget — openings still processed")}
+                  </p>
+                )}
+                <p className="border-t border-dashed border-slate-200 pt-1.5 text-[10px] leading-relaxed text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  {d.plan.outsideCount > 0
+                    ? t("{n} PR aktif di luar rencana", "{n} active requisitions outside plan", { n: d.plan.outsideCount })
+                    : t("semua PR aktif melayani rencana", "all active requisitions serve a plan")}
+                  {" · "}
+                  {t("{n} rencana applied", "{n} applied plans", { n: d.plan.applied })}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ---- alur kerja + rantai selection process ---- */}
+          <div className="grid gap-4 lg:grid-cols-5">
+            <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base font-bold">
+                  <TrendingUp className="h-4 w-4 ov-text-accent" aria-hidden /> {t("Alur Rekrutmen End-to-End", "End-to-End Recruiting Flow")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {steps.map((st) => (
+                  <button
+                    key={st.n}
+                    onClick={() => navigate("recruitment", st.view)}
+                    className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:ov-border-accent dark:border-slate-800 dark:bg-slate-900"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ov-fill text-sm font-black">
+                      {st.n}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
+                        {st.title} <st.icon className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">{st.desc}</span>
+                    </span>
+                    <ArrowRight className="mt-1 h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden />
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+
+            <div className="rounded-2xl border border-slate-200/80 ov-hero p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <ListChecks className="h-4 w-4" aria-hidden />
+                <h3 className="text-sm font-bold">{t("Standard Selection Process", "Standard Selection Process")}</h3>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-white/90">
+                {t(
+                  "Rantai tahap seleksi standar per-tenant: urutan, jenis hasil, dan SLA per tahap diatur di Master Rekrutmen — setiap kandidat mengikutinya di board Kandidat & Seleksi.",
+                  "The per-tenant standard selection chain: order, result type, and per-stage SLA are configured in Recruitment Masters — every candidate follows it on the Candidates & Selection board.",
+                )}
+              </p>
+              {d.chain.length === 0 ? (
+                <p className="mt-3 text-[11px] text-white/80">
+                  {t("Belum ada tahap aktif — atur di Master Rekrutmen.", "No active stages yet — configure in Recruitment Masters.")}
+                </p>
+              ) : (
+                <ol className="mt-3 flex flex-wrap gap-1.5">
+                  {d.chain.map((c, i) => (
+                    <li key={`${c.name}-${i}`} className="rounded-lg bg-white/15 px-2 py-1 text-[10px] font-bold text-white backdrop-blur">
+                      <span className="mr-1 font-mono opacity-80">{c.processOrder ?? i + 1}</span>
+                      {c.name}
+                      {c.slaDays != null && <span className="ml-1 font-normal opacity-80">· SLA {c.slaDays}{t("hr", "d")}</span>}
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/20 pt-3">
+                <Award className="h-3.5 w-3.5 text-white/90" aria-hidden />
+                <p className="flex-1 text-[10px] leading-relaxed text-white/90">
+                  {t(
+                    "{n} silver medalist siap diajak ulang saat slot serupa buka",
+                    "{n} silver medalists ready to re-engage when similar slots open",
+                    { n: d.silver },
+                  )}
+                </p>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 gap-1.5 bg-white/90 px-2.5 text-[11px] font-bold text-primary hover:bg-white"
+                  onClick={() => navigate("recruitment", "demographics")}
+                >
+                  {t("Lihat Demografi", "View Demographics")}
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="mt-3 w-full gap-1.5 bg-white/90 font-bold text-primary hover:bg-white"
+                onClick={() => navigate("recruitment", "masters")}
+              >
+                {t("Kelola Master Rekrutmen", "Manage Recruitment Masters")} <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

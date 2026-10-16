@@ -58,7 +58,11 @@ interface MetricItemUI {
   labelEn: string;
   value: number | null;
   unit: string;
+  /** padanan EN satuan ("hari"→"days") — BL-REC-CORE. */
+  unitEn?: string;
   hint: string;
+  /** padanan EN hint kartu metrik — BL-REC-CORE. */
+  hintEn?: string;
   breakdown?: { source: string; applicants: number; hires: number; rate: number | null }[];
 }
 

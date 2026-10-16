@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "allowJs": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/recruitment/services/overview-service.ts",
+    "src/rekankerja/recruitment/services/planning-service.ts",
+    "src/rekankerja/recruitment/api/overview.ts",
+    "src/rekankerja/recruitment/components/recruitment-overview.tsx",
+    "src/rekankerja/recruitment/components/recruitment-module.tsx",
+    "src/app/api/rekankerja/recruitment/overview/route.ts"
+  ]
+}

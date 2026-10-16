@@ -323,8 +323,9 @@ export async function outsidePlanPrs(db: TenantDb): Promise<OutsidePrLine[]> {
 /** Capaian MPP agregat (overview): Σ h dan Σ pengangkatan pada PR yang
  *  melayani rencana Applied — DEDUPE per PR (eksplisit menang, lalu rencana
  *  pertama yang match otomatis) supaya dua rencana Applied berposisi sama
- *  tidak menghitung ganda satu PR. */
-async function mppAchievement(db: TenantDb): Promise<{ sumH: number; sumFulfilled: number }> {
+ *  tidak menghitung ganda satu PR. Diekspor untuk overview-service (dashboard
+ *  Ringkasan modul — angka identik dgn menu Rencana & Anggaran). */
+export async function mppAchievement(db: TenantDb): Promise<{ sumH: number; sumFulfilled: number }> {
   const plans = await db.recruitmentPlan.findMany({
     where: { status: "Applied" },
     select: {
