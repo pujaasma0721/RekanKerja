@@ -311,12 +311,26 @@ export function AuthScreen() {
         <NoiseOverlay opacity={0.035} />
 
         <div className="relative z-10 grid min-h-screen grid-cols-1 lg:grid-cols-[1.12fr_1fr]">
-          {/* ============ Panel kiri — hero gradient biru (SayOne-Learning, desktop) ============ */}
+          {/* ============ Panel kiri — hero ilustrasi kantor + scrim biru (desktop) ============ */}
           {/* min-w-0: nolkan minimum konten (marquee w-max) agar track fr berukuran benar */}
-          <div className="relative z-10 hidden h-full min-w-0 flex-col justify-between bg-gradient-to-br from-[#1e3a8a] via-[#1e40af] to-[#2563eb] p-12 text-white lg:flex xl:p-20">
-            <EditorialLogo variant="hero" />
+          <div className="relative z-10 hidden h-full min-w-0 flex-col justify-between overflow-hidden p-12 text-white lg:flex xl:p-20">
+            {/* latar ilustrasi 3D kolaborasi HR — dekoratif; konten teks dibaca lewat scrim */}
+            <img
+              src="/brand/auth-hero.jpg"
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            {/* scrim biru brand — jaga kontras teks putih di atas area foto terang */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-gradient-to-br from-[#0c1f52]/95 via-[#15306e]/85 to-[#1d4ed8]/68"
+            />
+            <div className="relative">
+              <EditorialLogo variant="hero" />
+            </div>
 
-            <div className="max-w-xl">
+            <div className="relative max-w-xl">
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}

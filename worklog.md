@@ -7081,3 +7081,25 @@ Stage Summary:
 - 9-box kini LAYAK DILIHAT: setiap sel bernama kategori talenta dwibahasa (Bintang/Stars dst — identik NINE_BOX_LABELS service pf43 & succession), gradasi warna profesional (emerald=performa tinggi, amber=memenuhi, rose=rendah; intensitas = potensi), count besar + % + bar distribusi, chip ringkasan 3 zona dgn ikon, kompas sumbu + label band rating, kartu detail avatar inisial berwarna rating + dot rating 1–5 — mobile 375 tanpa h-scroll, dwibahasa penuh, a11y (aria-label per sel, sr-only, fokus keyboard) terjaga.
 - Perubahan MURNI UI (performance-results.tsx 1 file): tidak ada perubahan skema/API/service — risiko regresi minimal; gates penuh hijau.
 - Infra sandbox didokumentasikan: heap watchdog 2304MB + discipline warm-up + .next wipe periodik bila RSS menanjak; OOM cgroup = penyebab "state reset" misterius sesi-sesi sebelumnya (bukan bug aplikasi).
+
+---
+Task ID: AUTHBG
+Agent: main (Z.ai Code)
+Task: "pada login page, jadikan gambar yang diupload sebagai gambar latar panel kiri (split sebelah kiri — panel logo + kata-kata), bukan di form login"
+
+Work Log:
+- VLM analisis gambar upload (1536×1024 PNG 1,9MB): ilustrasi 3D korporat — 4 pekerja kantor berkolaborasi (nota KPI, laptop, tablet), palet biru, list "Kolaborasi/Pengembangan/Kesejahteraan/Kesuksesan", buku "People/Process/Progress".
+- Optimasi aset via sharp → public/brand/auth-hero.jpg (JPEG q82 mozjpeg progressive, 1536×1024, 1,9MB → 167KB; ilustrasi tanpa alpha → JPG tepat).
+- EDIT auth-screen.tsx panel kiri (desktop `lg:flex`, murni presentasional; logika form/OTP/tab tidak disentuh):
+  · Ganti latar `bg-gradient-to-br from-[#1e3a8a] via-[#1e40af] to-[#2563eb]` → <img> absolute inset-0 object-cover aria-hidden alt="" (dekoratif) memuat /brand/auth-hero.jpg + container `overflow-hidden`.
+  · Scrim gradient biru brand di atas gambar: from-[#0c1f52]/95 via-[#15306e]/85 to-[#1d4ed8]/68 — hue sama dengan desain lama sehingga teks putih/blue-100-300, border-white/20, marquee tetap harmonis & kontras (area langit jendela foto terang ditutup cukup).
+  · Konten anak diangkat di atas scrim: logo hero dibungkus div.relative, div.max-w-xl → relative (div bawah stats+marquee sudah relative) — positioned children dipaint di atas overlay sesuai urutan DOM.
+  · Tanpa eslint-disable (rule @next/next/no-img-element global off; menambahnya malah memunculkan warning "unused directive" ke-7) — lint tetap baseline.
+- GATES: tsc tsconfig.p9.json FULL 0 error (NODE_OPTIONS heap 2000); lint 0 error/6 warning (baseline 150-bilingual tidak berdampak — nol string bahasa berubah); dev.log bersih.
+- BROWSER (agent-browser): DESKTOP 1440×900 — panel kiri menampilkan ilustrasi 3D tim kolaborasi dgn tint biru, teks putih (logo lockup, heading "The messy part of HR…", testimoni) terbaca kontras tinggi, kartu form putih di kanan utuh, 0 defect layout (VLM konfirmasi). MOBILE 375×812 — panel kiri hidden by design (lg:flex), scrollWidth=375 (0 h-overflow), form card utuh & usable, header logo+saklar bahasa bersih (VLM konfirmasi). console 0 error baru, page errors 0.
+- GIT: commit + push origin main.
+
+Stage Summary:
+- Login page split-screen kiri kini berlatar ilustrasi 3D kolaborasi HR dari user (auth-hero.jpg 167KB) + scrim biru brand — bukan lagi gradient polos; teks hero/testimoni/marquee tetap kontras & estetika biru RekanKerja terjaga.
+- Perubahan 1 file UI (auth-screen.tsx) + 1 aset (public/brand/auth-hero.jpg): nol perubahan skema/API/logika auth; gates penuh hijau; desktop & mobile terverifikasi.
+- Aset dinamai auth-hero.jpg & ditaruh di public/brand/ bersanding dengan aset lockup lain — mudah diganti cukap timpa file yang sama.
