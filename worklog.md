@@ -7122,3 +7122,21 @@ Work Log:
 Stage Summary:
 - Login page: headline lama yang "punchy" diganti value-proposition deskriptif dwibahasa (EN/ID) di desktop + mobile; stat teknis internal "86 tabel siap" dihapus dari mata pengunjung (sisa stat masih bermakna: isolasi tenant + fitur pajak).
 - Perubahan 1 file (auth-screen.tsx), nol perubahan logika auth/skema/API; gates penuh hijau; verifikasi dwibahasa desktop+mobile VIA VLM & a11y tree.
+
+---
+Task ID: AUTHBG-3
+Agent: main (Z.ai Code)
+Task: Ganti headline EN login menjadi "Manage Your Employee In One Integrated Platform." + sesuaikan sisi ID sesuai terjemahan.
+
+Work Log:
+- EDIT auth-screen.tsx (copywriting murni, 1 file, 2 lokasi: h1 desktop + tagline mobile):
+  · EN: "Manage your employee activities and information / in one integrated platform." → "Manage Your Employee / In One Integrated Platform." (Title Case persis permintaan user).
+  · ID diselaraskan agar sepadan & ringkas: "Kelola aktivitas dan informasi kepegawaian Anda / dalam satu platform terintegrasi." → "Kelola Karyawan Anda / dalam satu platform terintegrasi." (kalimat ID tetap sentence-case — Title Case per kata tidak lazim dalam tata bahasa Indonesia).
+  · Struktur gaya tetap: baris-1 putih bold, baris-2 italic aksen (biru muda di desktop / brand di mobile); font 31/38px dipertahankan (aman utk 2 baris tanpa wrap janggal).
+- GATES: tsc tsconfig.p9.json 0 error (heap 2000); lint 0 error/6 warning baseline; audit-bilingual TOTAL_GAP=150 baseline; dev.log bersih.
+- BROWSER (agent-browser): ID — h1 persis "Kelola Karyawan Anda / dalam satu platform terintegrasi."; EN (setelah klik saklar bahasa) — h1 persis "Manage Your Employee / In One Integrated Platform."; VLM desktop EN: terbaca kontras tinggi, proporsional, tanpa wrap janggal, 0 defect. MOBILE 375×812 — scrollWidth=375 (0 h-overflow), console 0 error.
+- GIT: commit + push origin main.
+
+Stage Summary:
+- Headline login final (EN/ID): "Manage Your Employee In One Integrated Platform." / "Kelola Karyawan Anda dalam satu platform terintegrasi." — ringkas, padat, selaras dua bahasa, di desktop & mobile.
+- Nol perubahan logika auth/skema/API; gates hijau; verifikasi dwibahasa + mobile VIA a11y tree & VLM.

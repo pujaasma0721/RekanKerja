@@ -345,9 +345,9 @@ export function AuthScreen() {
                 transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
                 className="mt-4 text-[31px] font-bold leading-[1.15] tracking-tight text-white xl:text-[38px]"
               >
-                {t("Kelola aktivitas dan informasi kepegawaian Anda", "Manage your employee activities and information")}
+                {t("Kelola Karyawan Anda", "Manage Your Employee")}
                 <br />
-                <span className="italic text-blue-200">{t("dalam satu platform terintegrasi.", "in one integrated platform.")}</span>
+                <span className="italic text-blue-200">{t("dalam satu platform terintegrasi.", "In One Integrated Platform.")}</span>
               </motion.h1>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -402,8 +402,8 @@ export function AuthScreen() {
             <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-8 sm:px-8 lg:py-12">
               {/* tagline — mobile (panel kiri tersembunyi) */}
               <p className="mb-5 max-w-[300px] text-center text-[17px] italic leading-snug text-slate-700 lg:hidden dark:text-slate-300">
-                {t("Kelola aktivitas dan informasi kepegawaian Anda", "Manage your employee activities and information")}{" "}
-                <span className="text-brand-deep dark:text-brand">{t("dalam satu platform terintegrasi.", "in one integrated platform.")}</span>
+                {t("Kelola Karyawan Anda", "Manage Your Employee")}{" "}
+                <span className="text-brand-deep dark:text-brand">{t("dalam satu platform terintegrasi.", "In One Integrated Platform.")}</span>
               </p>
 
               <motion.div
