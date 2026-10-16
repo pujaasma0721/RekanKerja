@@ -88,7 +88,16 @@ export const STATUS_LINK_TOKEN_GONE = "Tautan sudah kedaluwarsa atau pernah digu
 
 /** Kunci HMAC per tenant: SHA256(SESSION_SECRET ":" schemaName). */
 function tokenKey(schemaName: string): Buffer {
-  const secret = process.env.SESSION_SECRET || "rekankerja-dev-secret";
+  // REC-AUDIT-FIX H3 — fail-closed: link status kandidat adalah token PUBLIK
+  // (dipakai tanpa login); rahasia dev hard-coded berarti siapa pun yang
+  // membaca repo bisa memalsukan link status pelamar mana pun.
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error(
+      "SESSION_SECRET belum dikonfigurasi — link status pelamar menolak diterbitkan tanpa kunci. " +
+        "Set env SESSION_SECRET (32+ karakter acak) lalu restart.",
+    );
+  }
   return createHash("sha256").update(`${secret}:${schemaName}`).digest();
 }
 

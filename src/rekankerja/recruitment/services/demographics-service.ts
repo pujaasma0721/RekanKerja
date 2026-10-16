@@ -94,9 +94,14 @@ export async function applicantDemographics(db: TenantDb): Promise<DemographicsD
   });
   const total = applicants.length;
 
-  // gender
+  // gender — REC-AUDIT-FIX L7: kolom menyimpan konvensi campuran (portal
+  // publik mengirim L/P; form admin lama M/F) → normalisasi dulu ke L/P.
   const g: Record<string, number> = {};
-  for (const a of applicants) g[a.gender ?? "unknown"] = (g[a.gender ?? "unknown"] ?? 0) + 1;
+  for (const a of applicants) {
+    const v = (a.gender ?? "").trim().toUpperCase();
+    const k = v === "L" || v === "M" ? "L" : v === "P" || v === "F" ? "P" : "unknown";
+    g[k] = (g[k] ?? 0) + 1;
+  }
   const byGender: DemogSlice[] = [
     { key: "L", label: "Laki-laki", labelEn: "Male", count: g["L"] ?? 0 },
     { key: "P", label: "Perempuan", labelEn: "Female", count: g["P"] ?? 0 },

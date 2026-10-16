@@ -60,7 +60,26 @@ export function DashboardModule() {
     { label: t("Rata-rata Gaji Pokok", "Average Base Salary"), value: fmtIDRShort(data.avgSalary), sub: t("Karyawan aktif", "Active employees"), icon: Wallet, trend: "Grade G1–G8" },
   ];
 
-  const genderData = data.genderSplit.map((g) => ({ name: g.gender === "F" ? t("Perempuan", "Female") : t("Laki-laki", "Male"), value: g.count }));
+  // REC-AUDIT-FIX L7 — agregasi gender ROBUST: kolom Employee.gender memuat
+  // campuran konvensi (M/F dan L/P — seed lama), bahkan null. Pemetaan lama
+  // "bukan F = Male" membuat "P" (perempuan!) DAN "M" dua-duanya berlabel
+  // "Male" → dua anak React key "Male" (console error) + pie salah hitung.
+  // Sekarang: F/P → Female, M/L → Male, sisanya digabung "Tidak diisi".
+  const genderData = (() => {
+    const sum = new Map<string, number>();
+    for (const g of data.genderSplit) {
+      const v = (g.gender ?? "").trim().toUpperCase();
+      const key = v === "F" || v === "P" ? "F" : v === "M" || v === "L" ? "M" : "?";
+      sum.set(key, (sum.get(key) ?? 0) + g.count);
+    }
+    const out = [
+      { name: t("Laki-laki", "Male"), value: sum.get("M") ?? 0 },
+      { name: t("Perempuan", "Female"), value: sum.get("F") ?? 0 },
+    ];
+    const unknown = sum.get("?") ?? 0;
+    if (unknown > 0) out.push({ name: t("Tidak diisi", "Unspecified"), value: unknown });
+    return out;
+  })();
 
   return (
     <div className="space-y-6">

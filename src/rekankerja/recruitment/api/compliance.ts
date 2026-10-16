@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     if (dsrPackageId) {
       const m = await requireMenuAction(req, "recruitment:compliance", "op:export");
       if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-      const pkg = await getDsrPackage(m.db, dsrPackageId);
+      const pkg = await getDsrPackage(m.db, dsrPackageId, { employeeId: m.actor.employeeId, name: m.actor.name });
       const applicantNo = String((pkg.applicant as { applicantNo?: string }).applicantNo ?? "pelamar");
       return new NextResponse(JSON.stringify(pkg, null, 2), {
         headers: {

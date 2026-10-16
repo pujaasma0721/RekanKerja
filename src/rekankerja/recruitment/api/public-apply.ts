@@ -50,7 +50,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ---- resolusi tenant (?t= → subdomain → fallback 1 aktif) ----
+    // ---- resolusi tenant (?t= → subdomain → TANPA fallback aktif-pertama) ----
+    // REC-AUDIT-FIX L1 — POST lamaran membawa PII: TIDAK ada lagi fallback
+    // diam-diam ke tenant aktif pertama (PII bisa salah perusahaan di
+    // lingkungan multi-tenant). GET listing tetap boleh fallback; lamaran
+    // WAJIB ?t= eksplisit / host yang resolve.
     let schemaName: string | null = null;
     let tenantSlug: string | null = null;
     const tParam = req.nextUrl.searchParams.get("t");
@@ -70,17 +74,8 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-    if (!schemaName) {
-      // fallback: default tenant pertama (konsisten /openings — picker UI
-      // selalu mengirim ?t= eksplisit setelah pengguna memilih perusahaan)
-      const active = await platformDb.tenant.findMany({ where: { status: "ACTIVE" }, select: { slug: true, schemaName: true }, orderBy: { createdAt: "asc" } });
-      if (active.length > 0) {
-        schemaName = active[0]!.schemaName;
-        tenantSlug = active[0]!.slug;
-      }
-    }
     if (!schemaName || !tenantSlug) {
-      return bad("Perusahaan tidak ditemukan. Pilih perusahaan pada halaman karier.", 404);
+      return bad("Perusahaan tidak ditemukan. Pilih perusahaan pada halaman karier (tautan harus menyertakan ?t=<perusahaan>).", 404);
     }
 
     // ---- parsing multipart ----
@@ -125,40 +120,44 @@ export async function POST(req: NextRequest) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad("Email valid wajib diisi");
 
     // ---- slot yang dilamar (validasi masih layak bila diisi) ----
+    // REC-AUDIT-FIX H1 — PR juga dicek: slot Open + JO Posted TIDAK cukup —
+    // PR Closed/Fulfilled/… tidak boleh menerima lamaran baru.
     let jobOpeningId: string | null = null;
     const slotId = txt("slotId");
     if (slotId) {
       const db = getTenantClient(schemaName);
       const slot = await db.jobOpening.findUnique({
         where: { id: slotId },
-        select: { id: true, status: true, jobOpportunity: { select: { status: true } } },
+        select: { id: true, status: true, jobOpportunity: { select: { status: true } }, pr: { select: { status: true } } },
       });
-      if (!slot || slot.status !== "Open" || slot.jobOpportunity.status !== "Posted") {
+      const prActive = slot ? (slot.pr.status === "Approved" || slot.pr.status === "OnHold") : false;
+      if (!slot || slot.status !== "Open" || slot.jobOpportunity.status !== "Posted" || !prActive) {
         return bad("Lowongan sudah tidak tersedia. Silakan pilih lowongan lain.");
       }
       jobOpeningId = slot.id;
     }
 
     // ---- F6 (HRX B3): evaluasi jawaban knockout ko_<questionId> ----
-    // Hanya field yang DIKIRIM form yang dievaluasi (form lama tanpa knockout
-    // tetap lolos) — jawaban tersimpan di payload utk audit + disalin ke
-    // ApplicationAnswer saat diverifikasi HR.
+    // REC-AUDIT-FIX M5 — requireAll: SEMUA pertanyaan knockout AKTIF wajib
+    // dijawab; field yang dihilangkan / diosongkan = GAGAL (dulu bisa bypass
+    // cukup dengan tidak mengirim field ko_*). Jawaban tetap tersimpan di
+    // payload utk audit + disalin ke ApplicationAnswer saat diverifikasi HR.
     const koAnswers: Record<string, string> = {};
     for (const [key, value] of form.entries()) {
       if (key.startsWith("ko_") && typeof value === "string") koAnswers[key.slice(3)] = value;
     }
     const knockoutAnswers: { questionId: string; answer: string | null; pass: boolean }[] = [];
     let rejectNote: string | null = null;
-    if (jobOpeningId && Object.keys(koAnswers).length > 0) {
+    if (jobOpeningId) {
       const db = getTenantClient(schemaName);
-      const ev = await evaluateKnockouts(db, jobOpeningId, koAnswers);
+      const ev = await evaluateKnockouts(db, jobOpeningId, koAnswers, { requireAll: true });
       for (const r of ev.results) {
-        knockoutAnswers.push({ questionId: r.questionId, answer: r.answer, pass: r.pass });
+        knockoutAnswers.push({ questionId: r.questionId, answer: r.answer || null, pass: r.pass });
       }
       if (!ev.pass) {
         const failed = ev.results.filter((r) => !r.pass);
         rejectNote = `Gagal knockout: ${failed
-          .map((f) => `"${f.question}" (jawaban "${f.answer}", diharapkan ${f.mode === "NotEquals" ? `bukan "${f.expectedValue}"` : `"${f.expectedValue}"`})`)
+          .map((f) => f.answer ? `"${f.question}" (jawaban "${f.answer}", diharapkan ${f.mode === "NotEquals" ? `bukan "${f.expectedValue}"` : `"${f.expectedValue}"`})` : `"${f.question}" (tidak dijawab)`)
           .join("; ")}`;
       }
     }

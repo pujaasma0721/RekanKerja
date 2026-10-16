@@ -1510,6 +1510,24 @@ export const BASE_EN: Record<string, string> = {
   "Performa Rendah": "Low Performance",
   "PERUSAHAAN (semua unit)": "COMPANY (all units)",
   "Ter-link": "Linked",
+  // — REC-AUDIT-FIX L5: eyebrow modul rekrutmen + label dialog seleksi yang
+  // sebelumnya hanya t() satu-argumen (EN jatuh ke teks ID) —
+  "Recruitment · Ringkasan": "Recruitment · Overview",
+  "Recruitment · Permintaan Karyawan": "Recruitment · Personnel Requisition",
+  "Recruitment · Persetujuan": "Recruitment · Approvals",
+  "Recruitment · Lowongan": "Recruitment · Job Openings",
+  "Recruitment · Lamaran Publik": "Recruitment · Public Applications",
+  "Recruitment · Talent Pool": "Recruitment · Talent Pool",
+  "Recruitment · Master": "Recruitment · Masters",
+  "Recruitment · Seleksi": "Recruitment · Selection",
+  // eyebrow fase (kode F bersifat netral bahasa — identitas dipertahankan)
+  "Recruitment · F4": "Recruitment · Offers & Appointments",
+  "Recruitment · F5": "Recruitment · ESS, Plan & Budget",
+  "Recruitment · F7": "Recruitment · Automation & E-sign",
+  "Recruitment · F8": "Recruitment · Reports & Analytics",
+  "Recruitment · F9": "Recruitment · Compliance (UU PDP)",
+  "Batas SLA (opsional)": "SLA deadline (optional)",
+  "Link Meeting": "Meeting link",
   "Direksi": "Directors",
   // label status XLSX (ID → EN):
   "Pengaturan Target": "Goal Setting",

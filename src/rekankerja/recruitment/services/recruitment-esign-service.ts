@@ -17,6 +17,7 @@ import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { hashPassword, verifyPassword } from "@/rekankerja/shared/lib/auth";
 import { generateChallengeCode } from "@/rekankerja/shared/lib/esign-crypto";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
+import { hitRateLimit, clearRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { letterPdf } from "@/rekankerja/recruitment/services/selection-service";
@@ -25,6 +26,14 @@ import { letterPdf } from "@/rekankerja/recruitment/services/selection-service";
 const OTP_TTL_MS = 5 * 60_000;
 /** Masa berlaku link tanda tangan. */
 const ESIGN_EXPIRY_MS = 7 * 24 * 60 * 60_000;
+
+// REC-AUDIT-FIX H4 — lockout percobaan OTP PER-TOKEN (5 salah / 15 menit):
+// rate-limit per-IP saja bisa dineutralkan spoofing X-Forwarded-For; hitungan
+// per token tetap menghukum brute-force 6 digit pada SATU link tanda tangan.
+// Bucket di-reset saat OTP BARU diterbitkan & saat verifikasi BERHASIL.
+const OTP_ATTEMPT_LIMIT = 5;
+const OTP_ATTEMPT_WINDOW_MS = 15 * 60_000;
+const otpAttemptKey = (token: string) => `esign-otp:token:${token}`;
 
 /** Basis URL portal kandidat (halaman /sign/<token> dikerjakan koordinator). */
 function portalBase(): string {
@@ -185,6 +194,9 @@ export async function resendEsignOtp(
     where: { id: row.id },
     data: { otpHash: hashPassword(otp), otpExpiresAt: new Date(Date.now() + OTP_TTL_MS) },
   });
+  // REC-AUDIT-FIX H4 — OTP baru → hitungan percobaan lama di-reset (kandidat
+  // yang salah tulis beberapa kali tidak terkunci setelah minta OTP baru).
+  clearRateLimit(otpAttemptKey(row.token));
   void notifyEmailEvent(db, {
     event: "recruitment.esign.otp",
     to: [{ email, name: row.signerName }],
@@ -295,11 +307,20 @@ export async function submitPublicEsign(
     throw new Error("Tautan tanda tangan telah kedaluwarsa — minta HR mengirim permintaan baru");
   }
 
+  // REC-AUDIT-FIX H4 — lockout percobaan PER-TOKEN: kunci ini TIDAK bisa
+  // di-reset spoofing X-Forwarded-For (beda dgn rate-limit per-IP di route).
+  const rl = hitRateLimit(otpAttemptKey(input.token), OTP_ATTEMPT_LIMIT, OTP_ATTEMPT_WINDOW_MS);
+  if (!rl.allowed) {
+    throw new Error("Terlalu banyak percobaan kode OTP — minta HR mengirim ulang OTP baru");
+  }
+
   // OTP: scrypt hash + TTL (pola challenge Task 80 — satu pakai implisit:
   // request berpindah status Signed setelah sukses)
   const otpOk = /^\d{6}$/.test(String(input.otp ?? "")) && verifyPassword(String(input.otp), row.otpHash)
     && row.otpExpiresAt.getTime() > now.getTime();
   if (!otpOk) throw new Error("Kode OTP salah atau kedaluwarsa");
+  // percobaan BERHASIL → hitungan salah di-reset (kandidat jangan terkunci)
+  clearRateLimit(otpAttemptKey(input.token));
 
   const typed = String(input.typedName ?? "").trim().toLowerCase();
   if (!typed || typed !== row.signerName.trim().toLowerCase()) {

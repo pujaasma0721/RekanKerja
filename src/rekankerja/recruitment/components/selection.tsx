@@ -342,6 +342,18 @@ export function SelectionPage() {
         }}
         onDragEnd={() => { setDrag(null); setDropColId(null); }}
         onClick={() => setDetailId(card.id)}
+        // REC-AUDIT-FIX L6 — a11y kartu kanban: fokus-able + semantic + Enter/
+        // Space membuka detail (paduan drag tetap tersedia utk mouse; keyboard
+        // J/K berpindah kartu, Enter membuka).
+        role="button"
+        tabIndex={0}
+        aria-label={`${displayNameOf(card)} — ${t("tahap {a}/{b}", "stage {a}/{b}", { a: String(seq), b: String(card.totalSteps) })}${card.overdue ? `, ${t("terlambat", "overdue")}` : ""}`}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setDetailId(card.id);
+          }
+        }}
         title={t("klik utk detail · seret ke kolom berikutnya utk naik tahap", "click for details · drag to the next column to advance")}
         className={cn(
           "group cursor-pointer rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm transition-all hover:border-slate-300 hover:shadow dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600",

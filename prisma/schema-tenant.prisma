@@ -3613,6 +3613,10 @@ model Applicant {
   referralEmployeeId String? // Employee perujuk (pencatatan referral)
   // PII — TERENKRIPSI field-crypto (enc:v1:t:…)
   email              String?
+  // REC-AUDIT-FIX M2 — blind index email ("bi1:<hmac>") utk dedupe equality
+  // search TANPA membongkar enkripsi (verifyPublicApplication → talent pool
+  // existing). Dihitung dari email ternormalisasi (trim+lowercase).
+  emailHash          String?
   phone              String?
   address            String?
   city               String?
@@ -3648,6 +3652,7 @@ model Applicant {
   @@index([status])
   @@index([keepOnFileUntil])
   @@index([source])
+  @@index([emailHash])
 }
 
 // Riwayat pendidikan pelamar (padanan ApplicantEducation).

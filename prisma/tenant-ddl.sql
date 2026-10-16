@@ -2642,6 +2642,8 @@ CREATE TABLE "Applicant" (
     "institutionName" TEXT,
     "referralEmployeeId" TEXT,
     "email" TEXT,
+    -- REC-AUDIT-FIX M2 — blind index email (dedupe tanpa bongkar enkripsi)
+    "emailHash" TEXT,
     "phone" TEXT,
     "address" TEXT,
     "city" TEXT,
@@ -4310,6 +4312,9 @@ CREATE INDEX "Applicant_keepOnFileUntil_idx" ON "Applicant"("keepOnFileUntil");
 
 -- CreateIndex
 CREATE INDEX "Applicant_source_idx" ON "Applicant"("source");
+
+-- CreateIndex (REC-AUDIT-FIX M2 — dedupe pelamar via blind index email)
+CREATE INDEX "Applicant_emailHash_idx" ON "Applicant"("emailHash");
 
 -- CreateIndex
 CREATE INDEX "ApplicantEducation_applicantId_idx" ON "ApplicantEducation"("applicantId");

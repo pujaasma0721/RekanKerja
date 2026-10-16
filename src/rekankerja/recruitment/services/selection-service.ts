@@ -20,7 +20,7 @@ import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
 import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
 import { getStepScorecards, scorecardGateOk } from "@/rekankerja/recruitment/services/scorecard-service";
-import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
+import { getRecruitmentSetting, recruitmentAutomationOn } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 
 // ============ konstanta domain ============
 
@@ -631,7 +631,7 @@ export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Prom
     const [evaluatorPhone, applicantRow] = await Promise.all([
       employeePhoneOf(db, input.performedById ?? null),
       step.candidate.applicantId
-        ? db.applicant.findUnique({ where: { id: step.candidate.applicantId }, select: { phone: true } })
+        ? db.applicant.findUnique({ where: { id: step.candidate.applicantId }, select: { phone: true, email: true } })
         : Promise.resolve(null),
     ]);
     if (evaluatorPhone && input.performedById) {
@@ -641,6 +641,29 @@ export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Prom
     const candPhone = applicantRow?.phone ? tenantCryptoForDb(db).decryptText(applicantRow.phone) : null;
     if (candPhone) {
       void sendWa(db, { event: "recruitment.selection.scheduled", toPhone: candPhone, placeholders: ph(step.candidate.fullName) });
+    }
+
+    // REC-AUDIT-FIX M9 — wiring setting "auto.ack.email.candidate" (dulu DEAD
+    // CONFIG: toggle ada di UI Pengaturan Rekrutmen tapi service tidak pernah
+    // membacanya): email undangan ke KANDIDAT saat tahap dijadwalkan —
+    // default ON, baris "false" di RecruitmentSetting mematikannya.
+    if (step.candidate.applicantId) {
+      const on = await recruitmentAutomationOn(db, "auto.ack.email.candidate").catch(() => true);
+      const candEmail = applicantRow?.email ? tenantCryptoForDb(db).decryptText(applicantRow.email) : null;
+      if (on && candEmail) {
+        void notifyEmailEvent(db, {
+          event: "recruitment.selection.scheduled",
+          to: [{ email: candEmail, name: step.candidate.fullName }],
+          data: {
+            nama: step.candidate.fullName, docNo: step.candidate.pr.prNo,
+            posisi: step.candidate.pr.position?.title ?? "-",
+            kandidat: step.candidate.fullName, tahap: step.selectionProcess.name,
+            urutan: String(step.seqNo), totalTahap: String(step.candidate.selectionSteps.length),
+            jadwal: fmtDateTimeId(plan), batasSla: due ? fmtDateId(due) : "-",
+            linkMeeting: meetingUrl ?? "-",
+          },
+        });
+      }
     }
   })().catch(() => { /* notifikasi tidak boleh mengganggu proses utama */ });
 }
@@ -675,7 +698,7 @@ export interface RecordResultInput {
   actorName?: string | null;
 }
 
-async function applyStepResult(db: TenantDb, input: RecordResultInput): Promise<{ outcome: "Pass" | "Fail"; candidateStatus: CandidateStatus }> {
+async function applyStepResult(db: TenantDb, input: RecordResultInput): Promise<{ outcome: "Pass" | "Fail" | null; candidateStatus: CandidateStatus }> {
   const step = await stepCtx(db, input.stepId);
   assertStepEditable(step);
 
@@ -684,7 +707,37 @@ async function applyStepResult(db: TenantDb, input: RecordResultInput): Promise<
   if (!outcome && step.selectionProcess.resultType === "Quantitative" && step.selectionProcess.minResultPass != null && input.score != null) {
     outcome = input.score >= (step.selectionProcess.minResultPass as number) ? "Pass" : "Fail";
   }
-  if (!outcome) throw new Error("Hasil akhir (Lulus/Gagal) wajib ditentukan");
+
+  // REC-AUDIT-FIX L3 — tanpa hasil akhir yang bisa ditentukan, catat
+  // PELAKSANAAN saja: status Performed (state mesin yang dulu tak pernah
+  // ditulis — "Planned → [Acknowledged] → Performed → Passed|Failed").
+  // Skor/catatan tersimpan; hasil Lulus/Gagal menyusul lewat pemanggilan
+  // berikutnya. Kandidat Nominated dinaikkan ke InProcess (proses sudah jalan).
+  if (!outcome) {
+    await db.candidateSelectionStep.update({
+      where: { id: step.id },
+      data: {
+        status: "Performed",
+        score: input.score ?? null,
+        result: input.result?.trim() || null,
+        comment: input.comment?.trim() || null,
+        performedById: input.performedById ?? step.performedById ?? null,
+        performedAt: parseDateInput(input.performedAt) ?? new Date(),
+      },
+    });
+    const prevStatus = step.candidate.status as CandidateStatus;
+    const candidateStatus: CandidateStatus = prevStatus === "Nominated" ? "InProcess" : prevStatus;
+    if (candidateStatus !== prevStatus) {
+      await db.jobCandidate.update({ where: { id: step.candidate.id }, data: { status: candidateStatus } });
+    }
+    await db.activityLog.create({
+      data: {
+        action: "Updated", entity: "JobCandidate", entityId: step.candidate.pr.prNo,
+        detail: `Tahap ${step.selectionProcess.name} kandidat ${step.candidate.fullName} DIJALANKAN (Performed — hasil akhir menyusul)${input.score != null ? ` (skor sementara ${input.score})` : ""}${input.actorName ? ` oleh ${input.actorName}` : ""}`,
+      },
+    });
+    return { outcome: null, candidateStatus };
+  }
 
   // HRX D2 — feedback scorecard wajib sebelum naik tahap
   if (outcome === "Pass") {
@@ -737,13 +790,14 @@ async function applyStepResult(db: TenantDb, input: RecordResultInput): Promise<
   return { outcome, candidateStatus };
 }
 
-/** Catat hasil tahap eksplisit (dari detail kandidat — tombol per step). */
-export async function recordStepResult(db: TenantDb, input: RecordResultInput): Promise<{ outcome: "Pass" | "Fail"; candidateStatus: CandidateStatus }> {
+/** Catat hasil tahap eksplisit (dari detail kandidat — tombol per step).
+ *  Tanpa hasil akhir → tahap dicatat Performed (L3 — lihat applyStepResult). */
+export async function recordStepResult(db: TenantDb, input: RecordResultInput): Promise<{ outcome: "Pass" | "Fail" | null; candidateStatus: CandidateStatus }> {
   return applyStepResult(db, input);
 }
 
 /** Naikkan kandidat ke tahap berikutnya (board drag / bulk) — hasil tahap aktif. */
-export async function advanceCandidate(db: TenantDb, input: Omit<RecordResultInput, "stepId"> & { candidateId: string }): Promise<{ outcome: "Pass" | "Fail"; candidateStatus: CandidateStatus; stepId: string }> {
+export async function advanceCandidate(db: TenantDb, input: Omit<RecordResultInput, "stepId"> & { candidateId: string }): Promise<{ outcome: "Pass" | "Fail" | null; candidateStatus: CandidateStatus; stepId: string }> {
   const candidate = await db.jobCandidate.findUnique({
     where: { id: input.candidateId },
     include: { selectionSteps: { include: STEP_LIST_INCLUDE, orderBy: { seqNo: "asc" } } },
@@ -796,13 +850,18 @@ export async function addStep(db: TenantDb, input: { candidateId: string; select
     data: { candidateId: candidate.id, selectionProcessId: stage.id, seqNo: 999 },
   });
 
-  // urutkan ulang seluruh rantai by processOrder (seqNo aman — unik per
-  // pasangan [candidate, stage, seq], stage berbeda tak pernah bentrok)
-  const all = [...candidate.selectionSteps.map((s) => ({ id: s.id, processOrder: s.selectionProcess.processOrder })), { id: created.id, processOrder: stage.processOrder }];
-  all
-    .map((x, i) => ({ ...x, idx: i + 1 }))
-    .sort((a, b) => a.processOrder - b.processOrder)
-    .forEach((x) => { void db.candidateSelectionStep.update({ where: { id: x.id }, data: { seqNo: x.idx } }); });
+  // REC-AUDIT-FIX M8 — urutkan ulang seluruh rantai by processOrder (seqNo
+  // aman — unik per pasangan [candidate, stage, seq], stage berbeda tak pernah
+  // bentrok). DULU ada 2 bug: (1) idx dipetakan SEBELUM sort (urutan lama!
+  // — sort tidak mengubah apa pun, tahap baru TIDAK masuk posisi processOrder);
+  // (2) tiap update fire-and-forget `void` (gagal tenggorokan tanpa jejak).
+  // Sekarang: sort DULU baru index, dan seluruh penomoran dijalankan dalam
+  // $transaction (atomik + gagal terlihat).
+  const all = [...candidate.selectionSteps.map((s) => ({ id: s.id, processOrder: s.selectionProcess.processOrder })), { id: created.id, processOrder: stage.processOrder }]
+    .sort((a, b) => a.processOrder - b.processOrder);
+  await db.$transaction(
+    all.map((x, i) => db.candidateSelectionStep.update({ where: { id: x.id }, data: { seqNo: i + 1 } })),
+  );
 
   if (candidate.status === "Nominated") {
     await db.jobCandidate.update({ where: { id: candidate.id }, data: { status: "InProcess" } });

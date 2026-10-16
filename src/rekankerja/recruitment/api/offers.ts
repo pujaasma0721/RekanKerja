@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
           startDate: b.startDate !== undefined ? (b.startDate ? String(b.startDate) : null) : undefined,
           expiryDate: b.expiryDate !== undefined ? (b.expiryDate ? String(b.expiryDate) : null) : undefined,
           note: b.note !== undefined ? (b.note ? String(b.note) : null) : undefined,
-        });
+        }, m.actor.name);
         return NextResponse.json({ ok: true });
       }
       case "delete": {

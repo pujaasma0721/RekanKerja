@@ -23,6 +23,7 @@ import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
 import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
+import { retryOnUnique } from "@/rekankerja/shared/lib/doc-no-retry";
 import {
   getEmployeeApprovalParams, resolveApprovalStructure, startApprovalChain,
   decideApprovalChain, getApprovalChain, type ChainView, type DecideActor,
@@ -455,10 +456,11 @@ export async function createOffer(
   }
 
   const tc = tenantCryptoForDb(db);
-  const offerNo = await nextOfferNo(db);
-  const offer = await db.candidateOffer.create({
+  // REC-AUDIT-FIX L2 — offerNo max-suffix+1 tanpa lock: create bersamaan bisa
+  // P2002 → gugur utuh & dicoba lagi dengan nomor baru (dihitung per percobaan).
+  const offer = await retryOnUnique(async () => db.candidateOffer.create({
     data: {
-      offerNo,
+      offerNo: await nextOfferNo(db),
       prId: pr.id,
       candidateId: candidate.id,
       jobOpeningId,
@@ -471,7 +473,7 @@ export async function createOffer(
       note: input.note?.trim() || null,
       createdById: actor?.id ?? null,
     },
-  });
+  }));
 
   await db.activityLog.create({
     data: {
@@ -479,17 +481,32 @@ export async function createOffer(
       detail: `Offer ${offer.offerNo} dibuat utk kandidat ${candidate.fullName} (PR ${pr.prNo}${pr.position?.title ? ` — ${pr.position.title}` : ""})${salary != null ? ` — gaji ${fmtMoneyId(salary)}` : ""}${actor?.name ? ` oleh ${actor.name}` : ""}`,
     },
   });
-  return { id: offer.id, offerNo, warning };
+  return { id: offer.id, offerNo: offer.offerNo, warning };
 }
 
-/** Ubah offer Draft (sebelum dikirim). */
-export async function updateOffer(db: TenantDb, id: string, input: Partial<OfferInput>): Promise<{ offerNo: string }> {
+/** Ubah offer Draft (sebelum dikirim).
+ *  REC-AUDIT-FIX M7 — kini (1) MENULIS ActivityLog (dulu update Draft tak
+ *  ter-audit sama sekali) dan (2) me-REVALIDASI jobOpeningId: slot harus ada
+ *  DAN milik PR offer yang sama (dulu bisa dipoint ke slot PR lain / id asal
+ *  → guidance gaji + relasi data salah). */
+export async function updateOffer(db: TenantDb, id: string, input: Partial<OfferInput>, actorName?: string | null): Promise<{ offerNo: string }> {
   const o = await offerCtx(db, id);
   if (o.status !== "Draft") throw new Error(`Offer ${o.offerNo} berstatus ${o.status} — hanya Draft yang bisa diubah`);
   const tc = tenantCryptoForDb(db);
   const salary = input.salary != null && String(input.salary) !== "" ? Number(input.salary) : null;
   if (salary != null && (!Number.isFinite(salary) || salary < 0)) {
     throw new Error("Gaji offer harus berupa angka tidak negatif");
+  }
+  // M7 — revalidasi slot bila input mengubah jobOpeningId
+  if (input.jobOpeningId !== undefined) {
+    if (input.jobOpeningId) {
+      const jo = await db.jobOpening.findUnique({
+        where: { id: input.jobOpeningId },
+        select: { id: true, prId: true, jobOpportunity: { select: { refNo: true } } },
+      });
+      if (!jo) throw new Error("Slot lowongan tidak ditemukan");
+      if (jo.prId !== o.pr.id) throw new Error("Slot lowongan bukan milik PR offer ini");
+    }
   }
   await db.candidateOffer.update({
     where: { id },
@@ -501,6 +518,12 @@ export async function updateOffer(db: TenantDb, id: string, input: Partial<Offer
       ...(input.expiryDate !== undefined ? { expiryDate: parseDate(input.expiryDate) } : {}),
       ...(input.note !== undefined ? { note: input.note?.trim() || null } : {}),
       ...(input.jobOpeningId !== undefined ? { jobOpeningId: input.jobOpeningId || null } : {}),
+    },
+  });
+  await db.activityLog.create({
+    data: {
+      action: "Updated", entity: "CandidateOffer", entityId: o.offerNo,
+      detail: `Offer ${o.offerNo} (Draft) diperbarui${actorName ? ` oleh ${actorName}` : ""}${input.salary !== undefined ? ` — gaji ${salary != null ? fmtMoneyId(salary) : "(dikosongkan)"}` : ""}${input.jobOpeningId !== undefined ? ` — slot ${input.jobOpeningId || "(dikosongkan)"}` : ""}`,
     },
   });
   return { offerNo: o.offerNo };
@@ -803,6 +826,13 @@ export async function respondOffer(
   const o = await offerCtx(db, input.id);
   if (o.status !== "Sent" && o.status !== "Viewed") {
     throw new Error(`Offer ${o.offerNo} berstatus ${o.status} — tidak menunggu respons kandidat`);
+  }
+  // REC-AUDIT-FIX M3 — cek expiryDate SEBELUHR respons diterima: dulu respons
+  // tetap diproses walau offer sudah lewat tanggal kedaluwarsa (race dengan
+  // scheduler 6 jam yang menandai Expired). Kedaluwarsa → tandai + tolak.
+  if (o.expiryDate && o.expiryDate.getTime() <= Date.now()) {
+    await db.candidateOffer.update({ where: { id: o.id }, data: { status: "Expired" } }).catch(() => {});
+    throw new Error(`Offer ${o.offerNo} telah KEDALUWARSA pada ${fmtDateId(o.expiryDate)} — tidak bisa direspons`);
   }
   const status: OfferStatus = input.action === "accept" ? "Accepted" : "Declined";
   const note = [o.note, input.note?.trim() || null].filter(Boolean).join(" · ") || null;

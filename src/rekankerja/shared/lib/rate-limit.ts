@@ -76,3 +76,14 @@ export function peekRateLimit(key: string, windowMs: number): { count: number; r
   if (hits.length === 0) return { count: 0, retryAfterSec: 0 };
   return { count: hits.length, retryAfterSec: Math.max(1, Math.ceil((hits[0]! - cutoff) / 1000)) };
 }
+
+/**
+ * Hapus SATU bucket key (REC-AUDIT-FIX H4) — dipakai mereset hitungan
+ * percobaan OTP e-sign per-token saat verifikasi BERHASIL atau saat OTP
+ * BARU diterbitkan (percobaan gagal sebelumnya tidak boleh menghukum
+ * kandidat yang akhirnya benar). Beda dari resetRateLimits() yang
+ * menghapus SEMUA state.
+ */
+export function clearRateLimit(key: string): void {
+  buckets.delete(key);
+}

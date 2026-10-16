@@ -27,6 +27,7 @@ import {
 } from "@/rekankerja/shared/services/attachment-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
 import { sendWa } from "@/rekankerja/shared/services/wa-service";
+import { retryOnUnique } from "@/rekankerja/shared/lib/doc-no-retry";
 import { getRecruitmentSetting } from "@/rekankerja/recruitment/services/recruitment-setting-service";
 import { emitWebhookEvent } from "@/rekankerja/recruitment/services/webhook-service";
 
@@ -49,6 +50,15 @@ export const PA_STATUSES = ["Pending", "Verified", "Rejected", "Spam"] as const;
 
 /** Versi teks consent publik (naikkan saat teks berubah — versioned). */
 export const CONSENT_VERSION = "2026-01";
+
+/**
+ * REC-AUDIT-FIX M2 — blind index email ternormalisasi (trim + lowercase —
+ * email efektif case-insensitive utk dedupe). Null bila email kosong.
+ */
+function emailHashOf(tc: ReturnType<typeof tenantCryptoForDb>, email: string | null | undefined): string | null {
+  const norm = email?.trim().toLowerCase();
+  return norm ? tc.blindIndex(norm) : null;
+}
 
 // ---- query builder talent pool (server-side whitelist) ----
 // expectedSalary = dua-fase (terenkripsi) — TIDAK lewat advPrismaWhere.
@@ -499,42 +509,48 @@ export async function createApplicant(
   const dateApplied = input.dateApplied ? new Date(input.dateApplied) : new Date();
   const keepMonths = Math.min(Math.max(input.keepOnFileMonths ?? 12, 1), 120);
 
-  const a = await db.applicant.create({
-    data: {
-      applicantNo: await nextApplicantNo(db),
-      firstName, middleName: input.middleName?.trim() || null, lastName: input.lastName?.trim() || null,
-      displayName: input.displayName?.trim() || null,
-      status,
-      dateApplied,
-      dateAvailable: input.dateAvailable ? new Date(input.dateAvailable) : null,
-      expectedSalary: input.expectedSalary != null && input.expectedSalary > 0 ? tc.encryptMoney(input.expectedSalary) : null,
-      keepOnFileMonths: keepMonths,
-      keepOnFileUntil: keepUntil(dateApplied, keepMonths),
-      source: input.source ?? null,
-      adMediaTypeId: input.adMediaTypeId || null,
-      agencyId: input.agencyId || null,
-      institutionName: input.institutionName?.trim() || null,
-      referralEmployeeId: input.referralEmployeeId || null,
-      referralNote: input.referralNote?.trim() || null,
-      email: input.email?.trim() ? tc.encryptText(input.email.trim()) : null,
-      phone: input.phone?.trim() ? tc.encryptText(input.phone.trim()) : null,
-      address: input.address?.trim() ? tc.encryptText(input.address.trim()) : null,
-      city: input.city?.trim() ? tc.encryptText(input.city.trim()) : null,
-      placeOfBirth: input.placeOfBirth?.trim() ? tc.encryptText(input.placeOfBirth.trim()) : null,
-      identityNo: input.identityNo?.trim() ? tc.encryptText(input.identityNo.trim()) : null,
-      birthDate: input.birthDate ? new Date(input.birthDate) : null,
-      gender: input.gender || null,
-      maritalStatus: input.maritalStatus || null,
-      notes: input.notes?.trim() || null,
-      highestEduLevel: highest.level,
-      highestGpa: highest.gpa,
-      totalExpMonths: deriveExpMonths(experiences),
-      educations: { create: educations.map((e) => ({ level: e.level, fieldOfStudy: e.fieldOfStudy?.trim() || null, institution: e.institution?.trim() || null, graduationYear: e.graduationYear ?? null, gpa: e.gpa ?? null })) },
-      experiences: { create: experiences.map((e) => ({ company: e.company?.trim() || null, position: e.position?.trim() || null, field: e.field?.trim() || null, startYear: e.startYear ?? null, endYear: e.endYear ?? null, months: e.months ?? null })) },
-      skills: { create: skills.map((s) => ({ skillId: s.skillId, level: s.level || null })) },
-    },
-    include: APPLICANT_LIST_INCLUDE,
-  });
+  const a = await retryOnUnique(
+    // REC-AUDIT-FIX L2 — applicantNo max-suffix+1 tanpa lock: dua create
+    // bersamaan bisa bertabrakan P2002 → create GUGUR UTUH (tidak ada baris
+    // tersimpan) dan dicoba lagi dengan nomor baru (dihitung per percobaan).
+    async () => db.applicant.create({
+      data: {
+        applicantNo: await nextApplicantNo(db),
+        firstName, middleName: input.middleName?.trim() || null, lastName: input.lastName?.trim() || null,
+        displayName: input.displayName?.trim() || null,
+        status,
+        dateApplied,
+        dateAvailable: input.dateAvailable ? new Date(input.dateAvailable) : null,
+        expectedSalary: input.expectedSalary != null && input.expectedSalary > 0 ? tc.encryptMoney(input.expectedSalary) : null,
+        keepOnFileMonths: keepMonths,
+        keepOnFileUntil: keepUntil(dateApplied, keepMonths),
+        source: input.source ?? null,
+        adMediaTypeId: input.adMediaTypeId || null,
+        agencyId: input.agencyId || null,
+        institutionName: input.institutionName?.trim() || null,
+        referralEmployeeId: input.referralEmployeeId || null,
+        referralNote: input.referralNote?.trim() || null,
+        email: input.email?.trim() ? tc.encryptText(input.email.trim()) : null,
+        emailHash: emailHashOf(tc, input.email),
+        phone: input.phone?.trim() ? tc.encryptText(input.phone.trim()) : null,
+        address: input.address?.trim() ? tc.encryptText(input.address.trim()) : null,
+        city: input.city?.trim() ? tc.encryptText(input.city.trim()) : null,
+        placeOfBirth: input.placeOfBirth?.trim() ? tc.encryptText(input.placeOfBirth.trim()) : null,
+        identityNo: input.identityNo?.trim() ? tc.encryptText(input.identityNo.trim()) : null,
+        birthDate: input.birthDate ? new Date(input.birthDate) : null,
+        gender: input.gender || null,
+        maritalStatus: input.maritalStatus || null,
+        notes: input.notes?.trim() || null,
+        highestEduLevel: highest.level,
+        highestGpa: highest.gpa,
+        totalExpMonths: deriveExpMonths(experiences),
+        educations: { create: educations.map((e) => ({ level: e.level, fieldOfStudy: e.fieldOfStudy?.trim() || null, institution: e.institution?.trim() || null, graduationYear: e.graduationYear ?? null, gpa: e.gpa ?? null })) },
+        experiences: { create: experiences.map((e) => ({ company: e.company?.trim() || null, position: e.position?.trim() || null, field: e.field?.trim() || null, startYear: e.startYear ?? null, endYear: e.endYear ?? null, months: e.months ?? null })) },
+        skills: { create: skills.map((s) => ({ skillId: s.skillId, level: s.level || null })) },
+      },
+      include: APPLICANT_LIST_INCLUDE,
+    }),
+  );
 
   // consent UU PDP — channel manual (input HR)
   await db.applicantConsent.create({
@@ -584,6 +600,7 @@ export async function updateApplicant(
       referralEmployeeId: input.referralEmployeeId !== undefined ? (input.referralEmployeeId || null) : undefined,
       referralNote: input.referralNote !== undefined ? (input.referralNote?.trim() || null) : undefined,
       email: input.email !== undefined ? (input.email?.trim() ? tc.encryptText(input.email.trim()) : null) : undefined,
+      emailHash: input.email !== undefined ? emailHashOf(tc, input.email) : undefined,
       phone: input.phone !== undefined ? (input.phone?.trim() ? tc.encryptText(input.phone.trim()) : null) : undefined,
       address: input.address !== undefined ? (input.address?.trim() ? tc.encryptText(input.address.trim()) : null) : undefined,
       city: input.city !== undefined ? (input.city?.trim() ? tc.encryptText(input.city.trim()) : null) : undefined,
@@ -685,12 +702,18 @@ export async function applyToOpening(
 
   const slot = await db.jobOpening.findUnique({
     where: { id: input.jobOpeningId },
-    include: { jobOpportunity: { select: { id: true, refNo: true, status: true } } },
+    include: { jobOpportunity: { select: { id: true, refNo: true, status: true } }, pr: { select: { prNo: true, status: true } } },
   });
   if (!slot) throw new Error("Slot lowongan tidak ditemukan");
   if (slot.status !== "Open") throw new Error(`Slot ${slot.titleToShow} berstatus ${slot.status}`);
   if (slot.jobOpportunity.status !== "Posted") {
     throw new Error(`Lowongan ${slot.jobOpportunity.refNo} berstatus ${slot.jobOpportunity.status} — tidak menerima lamaran`);
+  }
+  // REC-AUDIT-FIX H1 — slot hanya melayani PR yang AKTIF merekrut: PR
+  // Closed/Fulfilled/Cancelled/Rejected/… tidak boleh menerima lamaran baru
+  // (dulu: hanya slot+JO dicek → lamaran tetap masuk utk PR yang sudah mati).
+  if (slot.pr.status !== "Approved" && slot.pr.status !== "OnHold") {
+    throw new Error(`Permintaan karyawan ${slot.pr.prNo} tidak lagi menerima pelamar (${slot.pr.status})`);
   }
 
   const dup = await db.applicantApplication.findUnique({
@@ -715,7 +738,13 @@ export async function applyToOpening(
   return { id: app.id, slotTitle: slot.titleToShow, joRefNo: slot.jobOpportunity.refNo };
 }
 
-/** Hapus pelamar + dokumen terkait (file fisik ikut dibersihkan). */
+/** Hapus pelamar + dokumen terkait (file fisik ikut dibersihkan).
+ *  REC-AUDIT-FIX M4 — LEDGER CONSENT UU PDP DILESTARIKAN: ApplicantConsent
+ *  adalah bukti hukum pengumpulan/pemrosesan PII (Pasal 20+ UU PDP);
+ *  cascade delete pelamar tidak boleh ikut melenyapkannya. Baris consent
+ *  dilepas (applicantId → null) + diberi note anonim sebelum pelamar
+ *  dihapus — jejak audit tetap utuh, kandidat yang sudah dihapus punya
+ *  bukti persetujuannya di masa lalu. */
 export async function deleteApplicant(db: TenantDb, id: string, tenantSlug: string, actorName?: string | null): Promise<{ applicantNo: string }> {
   void tenantSlug;
   const a = await db.applicant.findUnique({ where: { id }, select: { applicantNo: true, firstName: true, middleName: true, lastName: true, displayName: true } });
@@ -725,9 +754,23 @@ export async function deleteApplicant(db: TenantDb, id: string, tenantSlug: stri
     // file fisik + baris Attachment (helper tepat — meta tanpa storagePath tidak cukup)
     await deleteAttachmentsByEntity(db, "ApplicantDocument", d.id).catch(() => {});
   }
+  // M4 — lepas ledger consent (bukan ikut terhapus): baris tetap milik tenant
+  // dengan identitas subjek dianonimkan di note; applicantId null = subjek
+  // sudah tidak ada di sistem (padanan staging pra-verifikasi). Note ASLI
+  // dipertahankan (jejak sumber: "PublicApplication <id>" dst.) — bukan ditimpa.
+  const consents = await db.applicantConsent.findMany({ where: { applicantId: id }, select: { id: true, note: true } });
+  for (const c of consents) {
+    await db.applicantConsent.update({
+      where: { id: c.id },
+      data: { applicantId: null, note: [c.note, `[pelamar ${a.applicantNo} dihapus${actorName ? ` oleh ${actorName}` : ""}]`].filter(Boolean).join(" — ") },
+    });
+  }
   await db.applicant.delete({ where: { id } }); // cascade children
   await db.activityLog.create({
-    data: { action: "Deleted", entity: "Applicant", entityId: a.applicantNo, detail: `Pelamar ${a.applicantNo} "${fullNameOf(a)}" dihapus dari talent pool${actorName ? ` oleh ${actorName}` : ""}` },
+    data: {
+      action: "Deleted", entity: "Applicant", entityId: a.applicantNo,
+      detail: `Pelamar ${a.applicantNo} "${fullNameOf(a)}" dihapus dari talent pool${consents.length > 0 ? ` — ${consents.length} baris consent UU PDP dilestarikan (dilepas + dianonimkan)` : ""}${actorName ? ` oleh ${actorName}` : ""}`,
+    },
   });
   return { applicantNo: a.applicantNo };
 }
@@ -1003,7 +1046,7 @@ export async function verifyPublicApplication(
   input: { id: string; action: "verify" | "reject" | "spam"; note?: string | null; actor: { employeeId?: string | null; name?: string | null } },
 ): Promise<{ applicantNo?: string; status: string }> {
   const tc = tenantCryptoForDb(db);
-  const pa = await db.publicApplication.findUnique({ where: { id: input.id }, include: { jobOpening: { include: { jobOpportunity: { select: { refNo: true, status: true } } } } } });
+  const pa = await db.publicApplication.findUnique({ where: { id: input.id }, include: { jobOpening: { include: { jobOpportunity: { select: { refNo: true, status: true } }, pr: { select: { prNo: true, status: true } } } } } });
   if (!pa) throw new Error("Lamaran publik tidak ditemukan");
   if (pa.status !== "Pending") throw new Error(`Lamaran sudah diproses (${pa.status})`);
 
@@ -1019,7 +1062,26 @@ export async function verifyPublicApplication(
   // verify: buat Applicant dari payload (jalur produksi = createApplicant)
   const p = safePayload(tc, pa.payloadJson);
   const dateApplied = new Date();
-  const applicant = await createApplicant(db, {
+  // REC-AUDIT-FIX M2 — DEDUPE by email (blind index): orang yang sama yang
+  // mengirim >1 lamaran staging (atau sudah ada di talent pool) digabung ke
+  // SATU Applicant — bukan duplikat PII + statistik funnel. Dulu: selalu
+  // createApplicant baru → pelamar kembar, lamaran slot keduanya gagal
+  // unique & tertelan .catch (lamaran hilang diam-diam).
+  let applicant: { id: string; applicantNo: string };
+  const normEmail = p.email?.trim().toLowerCase() || null;
+  const existing = normEmail
+    ? await db.applicant.findFirst({ where: { emailHash: tc.blindIndex(normEmail) }, select: { id: true, applicantNo: true } }).catch(() => null)
+    : null;
+  if (existing) {
+    applicant = existing;
+    await db.activityLog.create({
+      data: {
+        action: "Updated", entity: "PublicApplication", entityId: existing.applicantNo,
+        detail: `Lamaran publik DIGABUNG ke pelamar existing ${existing.applicantNo} (email sama — dedupe)${input.actor.name ? ` oleh ${input.actor.name}` : ""}`,
+      },
+    }).catch(() => {});
+  } else {
+    applicant = await createApplicant(db, {
     firstName: p.firstName,
     middleName: p.middleName ?? null,
     lastName: p.lastName ?? null,
@@ -1043,7 +1105,8 @@ export async function verifyPublicApplication(
       months: p.expYears != null ? Math.round(p.expYears * 12) : null,
     }] : [],
     skills: [],
-  }, input.actor.name ?? "Verifikasi HR");
+    }, input.actor.name ?? "Verifikasi HR");
+  }
 
   // gandakan consent staging → applicant (jejak PII milik applicant)
   if (pa.consentId) {
@@ -1051,13 +1114,25 @@ export async function verifyPublicApplication(
   }
 
   // lamaran ke slot (bila mengincar slot & slot masih layak)
+  // REC-AUDIT-FIX H1 — PR juga harus masih AKTIF merekrut (Approved/OnHold):
+  // PR Closed/Fulfilled tidak boleh menerima lamaran hasil verifikasi.
   let newApplicationId: string | null = null;
-  if (pa.jobOpeningId && pa.jobOpening && pa.jobOpening.status === "Open" && pa.jobOpening.jobOpportunity.status === "Posted") {
+  const prActive = pa.jobOpening ? (pa.jobOpening.pr.status === "Approved" || pa.jobOpening.pr.status === "OnHold") : false;
+  if (pa.jobOpeningId && pa.jobOpening && pa.jobOpening.status === "Open" && pa.jobOpening.jobOpportunity.status === "Posted" && prActive) {
     newApplicationId = await db.applicantApplication.create({
       data: { applicantId: applicant.id, jobOpeningId: pa.jobOpeningId, sourceNote: "Lamaran publik (portal karir)" },
     })
       .then((r) => r.id)
-      .catch(() => null); /* unique — sudah melamar */
+      .catch(async (e) => {
+        // M2 — jangan telan diam-diam: jejakkan kenapa lamaran tidak jadi dibuat
+        await db.activityLog.create({
+          data: {
+            action: "Updated", entity: "PublicApplication", entityId: applicant.applicantNo,
+            detail: `Lamaran publik ${pa.id.slice(-8)} tidak membuat lamaran slot (kemungkinan sudah melamar slot ini / unique) — ${e instanceof Error ? e.message.slice(0, 120) : "unknown"}`,
+          },
+        }).catch(() => {});
+        return null;
+      });
   }
 
   // F6 (HRX B3): salin jawaban knockout staging → ApplicationAnswer (audit

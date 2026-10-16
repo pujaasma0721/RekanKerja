@@ -24,7 +24,7 @@ import {
   startApprovalChain, getApprovalChain, decideApprovalChain, cancelApprovalChain,
   attachChainSummaries, type ChainSummary, type DecideActor,
 } from "@/rekankerja/shared/services/approval-engine";
-import { autoPostForApprovedPr } from "@/rekankerja/recruitment/services/opening-service";
+import { autoPostForApprovedPr, reconcileJoOpenSlots } from "@/rekankerja/recruitment/services/opening-service";
 import { emitWebhookEvent } from "@/rekankerja/recruitment/services/webhook-service";
 
 // ============ konstanta domain ============
@@ -491,13 +491,14 @@ export async function createPr(
   opts: { submit: boolean; actorName?: string | null },
 ): Promise<CreatePrResult> {
   const v = await validatePrInput(db, input, opts.submit);
-  const prNo = await nextPrNo(db);
   const requestDate = parseDate(input.requestDate ?? null) ?? new Date();
   const tc = tenantCryptoForDb(db);
 
-  const created = await db.personnelRequisition.create({
+  // REC-AUDIT-FIX L2 — prNo max-suffix+1 tanpa lock: create bersamaan bisa
+  // P2002 → gugur utuh & dicoba lagi dengan nomor baru (dihitung per percobaan).
+  const created = await retryOnUnique(async () => db.personnelRequisition.create({
     data: {
-      prNo,
+      prNo: await nextPrNo(db),
       requestDate,
       requestedById: v.requestedById,
       positionId: v.positionId, jobId: v.jobId, orgUnitId: v.orgUnitId, companyOfficeId: v.companyOfficeId,
@@ -511,7 +512,8 @@ export async function createPr(
       planId: v.planId,
       status: "Draft",
     },
-  });
+  }));
+  const prNo = created.prNo;
   await db.activityLog.create({
     data: {
       action: "Created", entity: "PersonnelRequisition", entityId: prNo,
@@ -777,14 +779,44 @@ export async function closePr(
   if (p.status !== "Approved" && p.status !== "OnHold") {
     throw new Error(`PR ${p.prNo} berstatus ${p.status} — hanya Approved/OnHold yang dapat ditutup`);
   }
+  const now = new Date();
   await db.personnelRequisition.update({
     where: { id: p.id },
-    data: { status: "Closed", decidedAt: new Date(), decisionNote: input.note?.trim() || null },
+    data: { status: "Closed", decidedAt: now, decisionNote: input.note?.trim() || null },
   });
+
+  // REC-AUDIT-FIX H1 — PROPAGASI penutupan PR → slot & JO: dulu closePr hanya
+  // membalik status PR; slot Open tetap "Open" + JO tetap Posted → lamaran
+  // (publik/internal/talent pool) masih diterima utk rekrutmen yang sudah
+  // dibatalkan. Sekarang: semua slot Open milik PR ditutup, lalu JO yang
+  // kehabisan slot Open otomatis Closed (reconcileJoOpenSlots).
+  const openSlots = await db.jobOpening.findMany({
+    where: { prId: p.id, status: "Open" },
+    select: { id: true, titleToShow: true, jobOpportunityId: true },
+  });
+  if (openSlots.length > 0) {
+    await db.jobOpening.updateMany({
+      where: { prId: p.id, status: "Open" },
+      data: { status: "Closed", closedAt: now },
+    });
+    for (const s of openSlots) {
+      await db.activityLog.create({
+        data: {
+          action: "Closed", entity: "JobOpening", entityId: p.prNo,
+          detail: `Slot "${s.titleToShow}" ditutup otomatis — PR ${p.prNo} ditutup${input.actorName ? ` oleh ${input.actorName}` : ""}`,
+        },
+      }).catch(() => {});
+    }
+    // JO yang kehabisan slot Open → Closed (idempoten, per JO unik)
+    for (const joId of [...new Set(openSlots.map((s) => s.jobOpportunityId))]) {
+      await reconcileJoOpenSlots(db, joId, input.actorName ?? null);
+    }
+  }
+
   await db.activityLog.create({
     data: {
       action: "Closed", entity: "PersonnelRequisition", entityId: p.prNo,
-      detail: `PR ${p.prNo} ditutup${input.actorName ? ` oleh ${input.actorName}` : ""}${input.note ? ` — ${input.note.trim()}` : ""}`,
+      detail: `PR ${p.prNo} ditutup${input.actorName ? ` oleh ${input.actorName}` : ""}${input.note ? ` — ${input.note.trim()}` : ""}${openSlots.length > 0 ? ` — ${openSlots.length} slot lowongan ikut ditutup` : ""}`,
     },
   });
   return { prNo: p.prNo, status: "Closed" };

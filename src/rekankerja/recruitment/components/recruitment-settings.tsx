@@ -260,8 +260,8 @@ function BrandingCard({ siteConfig, slug, onDone }: { siteConfig: SiteConfigUI |
             </div>
             <p className="mt-2 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
               {t(
-                `Slug tenant portal: ${slug ?? "—"} (portal dibuka di /?t=${slug ?? "slug"}).`,
-                `Portal tenant slug: ${slug ?? "—"} (the portal opens at /?t=${slug ?? "slug"}).`,
+                `Portal karier tenant ini (slug ?t=${slug ?? "slug"}) dibuka di ${ESIGN_PORTAL_DEV}/?t=${slug ?? "slug"} (dev sandbox; produksi: subdomain karir perusahaan).`,
+                `This tenant's career portal (slug ?t=${slug ?? "slug"}) opens at ${ESIGN_PORTAL_DEV}/?t=${slug ?? "slug"} (dev sandbox; production: the company's careers subdomain).`,
               )}
             </p>
           </div>

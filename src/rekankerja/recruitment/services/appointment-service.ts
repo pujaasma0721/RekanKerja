@@ -25,9 +25,8 @@ import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
 import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
 import { createEmployeeWithAssignment, type AssignmentSeed } from "@/rekankerja/human-resource/api/employees";
-import {
-  createOnboardingWithTasks, emailOnboardingChecklist,
-} from "@/rekankerja/human-resource/api/onboarding";
+import { createOnboardingWithTasks, emailOnboardingChecklist } from "@/rekankerja/human-resource/api/onboarding";
+import { reconcileJoOpenSlots } from "@/rekankerja/recruitment/services/opening-service";
 import { emitWebhookEvent } from "@/rekankerja/recruitment/services/webhook-service";
 
 // ============ konstanta domain ============
@@ -396,6 +395,46 @@ export async function appoint(
   if (appointedCount >= pr.requiredNo && (pr.status === "Approved" || pr.status === "OnHold")) {
     prStatus = "Fulfilled";
     await db.personnelRequisition.update({ where: { id: pr.id }, data: { status: "Fulfilled" } });
+
+    // REC-AUDIT-FIX H1+L3 — PROPAGASI saat PR Fulfilled (dulu tidak terjadi
+    // apa-apa ke slot/JO → iklan masih tayang & menerima lamaran utk kebutuhan
+    // yang sudah terpenuhi): slot offer yang dilayani → status Fulfilled
+    // (state mati JobOpening.Fulfilled kini DITULIS — L3), sisa slot Open milik
+    // PR ditutup, lalu JO yang kehabisan slot Open otomatis Closed.
+    const nowFulfilled = new Date();
+    const affectedJoIds = new Set<string>();
+    if (offer.jobOpeningId) {
+      const slot = await db.jobOpening.findUnique({ where: { id: offer.jobOpeningId }, select: { id: true, status: true, jobOpportunityId: true } });
+      if (slot) {
+        affectedJoIds.add(slot.jobOpportunityId);
+        if (slot.status === "Open") {
+          await db.jobOpening.update({ where: { id: slot.id }, data: { status: "Fulfilled", closedAt: nowFulfilled } });
+          await db.activityLog.create({
+            data: {
+              action: "Updated", entity: "JobOpening", entityId: pr.prNo,
+              detail: `Slot lowongan menjadi FULFILLED — kandidat diangkat dari offer ${offer.offerNo} (PR ${pr.prNo})`,
+            },
+          }).catch(() => {});
+        }
+      }
+    }
+    const otherOpen = await db.jobOpening.findMany({ where: { prId: pr.id, status: "Open" }, select: { id: true, titleToShow: true, jobOpportunityId: true } });
+    if (otherOpen.length > 0) {
+      await db.jobOpening.updateMany({ where: { prId: pr.id, status: "Open" }, data: { status: "Closed", closedAt: nowFulfilled } });
+      for (const s of otherOpen) {
+        affectedJoIds.add(s.jobOpportunityId);
+        await db.activityLog.create({
+          data: {
+            action: "Closed", entity: "JobOpening", entityId: pr.prNo,
+            detail: `Slot "${s.titleToShow}" ditutup otomatis — kebutuhan PR ${pr.prNo} telah terpenuhi`,
+          },
+        }).catch(() => {});
+      }
+    }
+    for (const joId of affectedJoIds) {
+      await reconcileJoOpenSlots(db, joId, actor?.name ?? null);
+    }
+
     rejectedCount = await rejectOtherCandidates(db, { prId: pr.id, excludeCandidateId: offer.candidate.id, actorName: actor?.name });
     await db.activityLog.create({
       data: {
@@ -551,18 +590,56 @@ export async function continueToOnboarding(
     notes: `Pengangkatan rekrutmen — offer ${appt.offer.offerNo} (PR ${appt.candidate.pr.prNo})`,
   };
 
-  const employee = await createEmployeeWithAssignment(db, prefix, { ...employeeData }, assignment, tc);
+  // REC-AUDIT-FIX M6 — TRANSAKSIONAL: Employee + penempatan awal + onboarding
+  // + backlink + status terminal ATOMIK. Dulu berantai lepas — kegagalan di
+  // tengah (mis. onboarding gagal) meninggalkan Employee TANPA backlink
+  // appointment (data yatim yang tak bisa dilanjutkan/diulang).
+  // Probation/email/WA/webhook tetap DI LUAR (best-effort, pasca-commit).
+  const { employee, onboarding } = await db.$transaction(async (tx) => {
+    const employee = await createEmployeeWithAssignment(tx, prefix, { ...employeeData }, assignment, tc);
 
-  // Onboarding + checklist per bagian (hook sama seperti karyawan baru wizard)
-  const onboarding = await createOnboardingWithTasks(db, {
-    employeeId: employee.id,
-    startDate: joinDate,
-    note: `Hasil rekrutmen — offer ${appt.offer.offerNo}, surat pengangkatan ${appt.letterNo ?? "-"}`,
+    // Onboarding + checklist per bagian (hook sama seperti karyawan baru wizard)
+    const onboarding = await createOnboardingWithTasks(tx, {
+      employeeId: employee.id,
+      startDate: joinDate,
+      note: `Hasil rekrutmen — offer ${appt.offer.offerNo}, surat pengangkatan ${appt.letterNo ?? "-"}`,
+    });
+
+    // backlink + status terminal (SEKATU DENGAN pembuatan — in-tx)
+    await tx.candidateAppointment.update({
+      where: { id: appt.id },
+      data: { employeeId: employee.id, onboardingId: onboarding.id, status: "Onboarded" },
+    });
+    await tx.jobCandidate.update({ where: { id: appt.candidate.id }, data: { status: "Hired" } });
+    await tx.applicant.update({ where: { id: applicant.id }, data: { status: "Employed" } });
+    await tx.applicantApplication.updateMany({
+      where: { applicantId: applicant.id, jobOpening: { prId: appt.prId }, status: { in: ["Received", "Screening"] } },
+      data: { status: "Hired" },
+    });
+    // pelamar sudah dipekerjakan → lamaran aktifnya ke PR LAIN ditutup (Rejected)
+    await tx.applicantApplication.updateMany({
+      where: {
+        applicantId: applicant.id,
+        status: { in: ["Received", "Screening"] },
+        jobOpening: { prId: { not: appt.prId } },
+      },
+      data: { status: "Rejected", sourceNote: "Pelamar telah dipekerjakan melalui permintaan karyawan lain" },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        action: "Created", entity: "Employee", entityId: employee.employeeNo,
+        employeeId: employee.id,
+        detail: `Karyawan ${employee.employeeNo} "${employee.fullName}" dibuat dari rekrutmen (offer ${appt.offer.offerNo}, PR ${appt.candidate.pr.prNo}) + onboarding ${onboarding.tasks.length} tugas${input.actor?.name ? ` oleh ${input.actor.name}` : ""}`,
+      },
+    });
+    return { employee, onboarding };
   });
 
   // P7-PERF D9 — evaluasi masa percobaan otomatis dari onboarding (tenggat =
-  // joinDate + 90 hari — maks 3 bulan UU 13/2003 Ps.60 §7.1). Failure-safe:
-  // onboarding TIDAK boleh gagal bila pembuatan evaluasi gagal (log & lanjut).
+  // joinDate + 90 hari — maks 3 bulan UU 13/2003 Ps.60 §7.1). Failure-safe &
+  // DI LUAR TRANSAKSI (M6): best-effort — evaluasi gagal tidak boleh
+  // membatalkan karyawan+onboarding yang sudah commit.
   try {
     const { createProbationFromOnboarding } = await import("@/rekankerja/performance/services/perf-probation-service");
     await createProbationFromOnboarding(db, {
@@ -575,32 +652,20 @@ export async function continueToOnboarding(
     console.error("[probation] auto-create evaluasi percobaan dari onboarding gagal:", e instanceof Error ? e.message : e);
   }
 
-  // email checklist per bagian (butuh req utk link publik — best effort)
+  // email checklist per bagian (butuh req utk link publik — best effort,
+  // pasca-commit supaya link menunjuk data yang pasti tersimpan)
   let emailsSent = 0;
   if (input.req) {
     emailsSent = await emailOnboardingChecklist(db, onboarding.id, input.req).catch(() => 0);
+    if (emailsSent > 0) {
+      await db.activityLog.create({
+        data: {
+          action: "Updated", entity: "Employee", entityId: employee.employeeNo,
+          detail: `Email checklist onboarding dikirim ke ${emailsSent} bagian`,
+        },
+      }).catch(() => {});
+    }
   }
-
-  // backlink + status terminal
-  await db.candidateAppointment.update({
-    where: { id: appt.id },
-    data: { employeeId: employee.id, onboardingId: onboarding.id, status: "Onboarded" },
-  });
-  await db.jobCandidate.update({ where: { id: appt.candidate.id }, data: { status: "Hired" } });
-  await db.applicant.update({ where: { id: applicant.id }, data: { status: "Employed" } });
-  await db.applicantApplication.updateMany({
-    where: { applicantId: applicant.id, jobOpening: { prId: appt.prId }, status: { in: ["Received", "Screening"] } },
-    data: { status: "Hired" },
-  });
-  // pelamar sudah dipekerjakan → lamaran aktifnya ke PR LAIN ditutup (Rejected)
-  await db.applicantApplication.updateMany({
-    where: {
-      applicantId: applicant.id,
-      status: { in: ["Received", "Screening"] },
-      jobOpening: { prId: { not: appt.prId } },
-    },
-    data: { status: "Rejected", sourceNote: "Pelamar telah dipekerjakan melalui permintaan karyawan lain" },
-  });
 
   // notif officer
   const officer = await db.personnelRequisition.findUnique({
@@ -651,13 +716,8 @@ export async function continueToOnboarding(
     })().catch(() => { /* notifikasi tidak boleh mengganggu proses utama */ });
   }
 
-  await db.activityLog.create({
-    data: {
-      action: "Created", entity: "Employee", entityId: employee.employeeNo,
-      employeeId: employee.id,
-      detail: `Karyawan ${employee.employeeNo} "${employee.fullName}" dibuat dari rekrutmen (offer ${appt.offer.offerNo}, PR ${appt.candidate.pr.prNo}) + onboarding ${onboarding.tasks.length} tugas${emailsSent > 0 ? `, email ke ${emailsSent} bagian` : ""}${input.actor?.name ? ` oleh ${input.actor.name}` : ""}`,
-    },
-  });
+  // (ActivityLog pembuatan karyawan sudah ditulis DI DALAM transaksi — M6;
+  //  email checklist tercatat terpisah setelah pengiriman.)
 
   // F7 — emit webhook candidate.hired (antrean; TANPA PII kandidat)
   void emitWebhookEvent(db, "candidate.hired", {

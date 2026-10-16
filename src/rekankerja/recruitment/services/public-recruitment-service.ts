@@ -18,15 +18,27 @@ const CAPTCHA_TTL_MS = 10 * 60 * 1000; // 10 menit
 const CAPTCHA_MAX = 20; // angka maks soal
 
 function secret(): string {
-  return process.env.SESSION_SECRET || "rekankerja-dev-secret";
+  // REC-AUDIT-FIX H3 — fail-closed: endpoint publik TIDAK boleh jatuh ke
+  // rahasia dev hard-coded yang bisa dipalsukan siapa pun yang membaca repo.
+  const s = process.env.SESSION_SECRET;
+  if (!s) {
+    throw new Error(
+      "SESSION_SECRET belum dikonfigurasi — token publik (captcha/status-link) menolak diterbitkan tanpa kunci. " +
+        "Set env SESSION_SECRET (32+ karakter acak) lalu restart.",
+    );
+  }
+  return s;
 }
 
-// ============ captcha matematika (stateless, HMAC-signed) ============
+// ============ captcha matematika (stateless, HMAC-signed, sekali-pakai) ============
+// REC-AUDIT-FIX H2: token HANYA berisi <exp>.<hmac(answer,exp)> — operan soal
+// TIDAK pernah dikirim ke klien (bot tak bisa mem-parser token) + SEKALI-PAKAI
+// (sig tercatat di memori sampai kedaluwarsa — replay ditolak).
 
 export interface CaptchaChallenge {
   /** pertanyaan tampil — netral bahasa (angka + operator). */
   question: string;
-  /** token berisi jawaban ter-HMAC — dikembalikan klien, diverifikasi server. */
+  /** token <exp>.<hmac> — JAWABAN tidak pernah ada di token (H2). */
   token: string;
   /** detik sampai kedaluwarsa (tampilan UX). */
   expiresInSeconds: number;
@@ -36,26 +48,47 @@ function captchaSign(body: string): string {
   return createHmac("sha256", secret()).update(`recruit-captcha|${body}`).digest("hex");
 }
 
-/** Terbitkan challenge baru: a + b = ? */
+/** Signature captcha yang sudah TERPAKAI (sekali-pakai H2) → expiry ms. */
+const consumedCaptcha = new Map<string, number>();
+
+/** Tandai sig terpakai; false bila sudah pernah dipakai (replay ditolak). */
+function consumeCaptchaSig(sig: string, expMs: number): boolean {
+  if (consumedCaptcha.has(sig)) return false;
+  if (consumedCaptcha.size > 5000) {
+    // prune periodik (lazy) — entri kedaluwarsa dibuang
+    const now = Date.now();
+    for (const [k, v] of consumedCaptcha) if (v < now) consumedCaptcha.delete(k);
+  }
+  consumedCaptcha.set(sig, expMs);
+  return true;
+}
+
+/** Terbitkan challenge baru: a + b = ? (token hanya membawa exp + HMAC jawaban). */
 export function issueCaptcha(): CaptchaChallenge {
   const a = 2 + Math.floor(Math.random() * (CAPTCHA_MAX - 1));
   const b = 1 + Math.floor(Math.random() * (CAPTCHA_MAX - 1));
   const exp = Date.now() + CAPTCHA_TTL_MS;
-  const body = `${a}.${b}.${exp}`;
+  // body yang ditandatangani = "<jawaban>.<exp>" — jawaban tidak pernah
+  // dikirim ke klien; verifikasi menghitung ulang HMAC dari jawaban kirim.
+  const body = `${a + b}.${exp}`;
   return {
     question: `${a} + ${b} = ?`,
-    token: `${body}.${captchaSign(body)}`,
+    token: `${exp}.${captchaSign(body)}`,
     expiresInSeconds: Math.round(CAPTCHA_TTL_MS / 1000),
   };
 }
 
-/** Verifikasi jawaban captcha (token + jawaban). */
+/** Verifikasi jawaban captcha (token + jawaban) — sekali-pakai (replay ditolak). */
 export function verifyCaptcha(token: string | undefined | null, answer: string | undefined | null): boolean {
   if (!token || !answer) return false;
   const parts = token.split(".");
-  if (parts.length !== 4) return false;
-  const [a, b, exp, sig] = parts as [string, string, string, string];
-  const expected = captchaSign(`${a}.${b}.${exp}`);
+  if (parts.length !== 2) return false; // token format lama (operan clear-text) ditolak
+  const [exp, sig] = parts as [string, string];
+  const expMs = Number(exp);
+  if (!Number.isFinite(expMs) || expMs < Date.now()) return false; // kedaluwarsa
+  const ans = parseInt(answer, 10);
+  if (!Number.isFinite(ans)) return false;
+  const expected = captchaSign(`${ans}.${exp}`);
   // bandingkan HMAC konstan-waktu
   try {
     const s1 = Buffer.from(sig, "utf8");
@@ -64,11 +97,8 @@ export function verifyCaptcha(token: string | undefined | null, answer: string |
   } catch {
     return false;
   }
-  const expMs = Number(exp);
-  if (!Number.isFinite(expMs) || expMs < Date.now()) return false; // kedaluwarsa
-  const ans = parseInt(answer, 10);
-  if (!Number.isFinite(ans)) return false;
-  return ans === parseInt(a, 10) + parseInt(b, 10);
+  // H2: sekali-pakai — token yang sama tak boleh diverifikasi dua kali
+  return consumeCaptchaSig(sig, expMs);
 }
 
 // ============ IP hash (rate-limit & audit — bukan IP mentah) ============
@@ -78,7 +108,15 @@ export function ipHashOf(ip: string): string {
 }
 
 export function clientIpOf(req: { headers: { get(name: string): string | null } }): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // REC-AUDIT-FIX H4 — ambil ENTRI TERAKHIR X-Forwarded-For. Topologi kita:
+  // klien → gateway tepercaya (Caddy) → app. Proxy tepercaya MENAMBAHKAN IP
+  // asli di ekor; entri di depan bisa disuntikkan klien ("X-Forwarded-For:
+  // 1.2.3.4") untuk memalsukan identitas rate-limit. Tanpa XFF (akses lokal
+  // langsung) → "unknown" (satu bucket bersama — perilaku lama).
+  const list = req.headers.get("x-forwarded-for");
+  if (!list) return "unknown";
+  const parts = list.split(",").map((s) => s.trim()).filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1]! : "unknown";
 }
 
 // ============ listing publik (slot Posted) ============

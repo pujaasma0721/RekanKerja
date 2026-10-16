@@ -268,7 +268,10 @@ export async function rejectDsr(
  * PII didekrip IN-MEMORY hanya di titik ini; dokumen hanya metadata
  * (nama + ukuran) — isi file TIDAK dibundel.
  */
-export async function getDsrPackage(db: TenantDb, dsrId: string): Promise<Record<string, unknown>> {
+export async function getDsrPackage(
+  db: TenantDb, dsrId: string,
+  actor?: { employeeId?: string | null; name?: string | null } | null,
+): Promise<Record<string, unknown>> {
   const dsr = await dsrWithApplicant(db, dsrId);
   if (dsr.type !== "Export" && dsr.type !== "Access") {
     throw new ComplianceError(400, `Paket data hanya untuk DSR Export/Access (ini ${dsr.type})`);
@@ -320,6 +323,18 @@ export async function getDsrPackage(db: TenantDb, dsrId: string): Promise<Record
     orderBy: { createdAt: "desc" },
     take: 20,
   }).catch(() => []);
+
+  // REC-AUDIT-FIX M10 — pembuatan paket data = AKSES PII PENUH (dekripsi
+  // in-memory seluruh field sensitif) → WAJIB tercatat di log akses PII.
+  // Dulu hanya detail-view pelamar yang ter-log; ekspor DSR lolos tanpa jejak.
+  await db.activityLog.create({
+    data: {
+      actorType: actor?.employeeId || actor?.name ? "user" : "system",
+      employeeId: actor?.employeeId ?? null,
+      action: "PiiAccess", entity: "Applicant", entityId: a.applicantNo,
+      detail: `Paket data DSR ${dsr.type} (${dsr.id.slice(-8)}) dibuat/ diunduh — dekripsi PII penuh (hak akses/ekspor UU PDP)${actor?.name ? ` oleh ${actor.name}` : ""}`,
+    },
+  }).catch(() => {});
 
   return {
     generatedAt: new Date().toISOString(),

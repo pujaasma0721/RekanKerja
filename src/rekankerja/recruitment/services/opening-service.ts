@@ -17,6 +17,7 @@
 import type { Prisma } from "@/generated/tenant";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
+import { retryOnUnique } from "@/rekankerja/shared/lib/doc-no-retry";
 import type { AdvSearch } from "@/rekankerja/shared/lib/adv-search";
 import { advPrismaWhere, type AdvServerField } from "@/rekankerja/shared/services/adv-search-server";
 
@@ -411,7 +412,9 @@ export async function createJo(
 
   const postNow = input.postNow === true;
   const now = new Date();
-  const jo = await db.jobOpportunity.create({
+  // REC-AUDIT-FIX L2 — refNo max-suffix+1 tanpa lock: create bersamaan bisa
+  // P2002 → gugur utuh (JO + slot nested ikut rollback) & dicoba ulang.
+  const jo = await retryOnUnique(async () => db.jobOpportunity.create({
     data: {
       refNo: await nextJoNo(db),
       title,
@@ -442,7 +445,7 @@ export async function createJo(
       },
     },
     include: JO_INCLUDE,
-  });
+  }));
   await db.activityLog.create({
     data: {
       action: "Created", entity: "JobOpportunity", entityId: jo.refNo,
@@ -594,6 +597,32 @@ export async function closeSlot(db: TenantDb, slotId: string, actorName?: string
   await db.activityLog.create({
     data: { action: "Closed", entity: "JobOpening", entityId: s.jobOpportunity.refNo, detail: `Slot ${s.titleToShow} (${s.jobOpportunity.refNo}) ditutup${actorName ? ` oleh ${actorName}` : ""}` },
   });
+  // REC-AUDIT-FIX H1 — slot terakhir JO berubah terminal → JO ikut Closed
+  await reconcileJoOpenSlots(db, s.jobOpportunityId, actorName);
+}
+
+/**
+ * REC-AUDIT-FIX H1 — rekonsiliasi JO pasca perubahan slot: bila JO masih
+ * Posted tapi TIDAK punya slot Open lagi (semua Closed/Fulfilled — dari PR
+ * manapun), JO otomatis ditutup (Posted → Closed) supaya tidak menggantung
+ * sebagai iklan yang sebenarnya sudah mati. Idempoten & tidak menyentuh
+ * JO Draft/Closed/Obsolete. Dipanggil setelah: closeSlot, closePr (propagasi),
+ * appoint (slot Fulfilled saat PR Fulfilled).
+ */
+export async function reconcileJoOpenSlots(db: TenantDb, jobOpportunityId: string, actorName?: string | null): Promise<void> {
+  const jo = await db.jobOpportunity.findUnique({
+    where: { id: jobOpportunityId },
+    select: { id: true, refNo: true, status: true, _count: { select: { openings: { where: { status: "Open" } } } } },
+  }).catch(() => null);
+  if (!jo || jo.status !== "Posted") return;
+  if (jo._count.openings > 0) return; // masih ada slot aktif dari PR mana pun
+  await db.jobOpportunity.update({ where: { id: jo.id }, data: { status: "Closed" } });
+  await db.activityLog.create({
+    data: {
+      action: "Closed", entity: "JobOpportunity", entityId: jo.refNo,
+      detail: `Lowongan ${jo.refNo} otomatis DITUTUP — tidak ada slot Open tersisa (semua slot sudah Closed/Fulfilled)${actorName ? ` — aksi pemicu oleh ${actorName}` : ""}`,
+    },
+  }).catch(() => {});
 }
 
 // ============ kanal + biaya (JobOpeningMethod) ============
@@ -723,11 +752,14 @@ export interface KnockoutEvalResult {
 }
 
 /** Evaluasi jawaban kandidat terhadap knockout AKTIF slot.
- *  Hanya jawaban yang DIKIRIM (key ko_<questionId> ada di form) yang dievaluasi
- *  — pertanyaan tak dijawab form (mis. form lama tanpa knockout) dibiarkan lolos;
- *  form portal yang merender pertanyaan wajib mengirim semua jawaban. */
+ *  REC-AUDIT-FIX M5 — mode `requireAll` (dipakai form publik): pertanyaan
+ *  AKTIF yang TIDAK dijawab dianggap GAGAL (answer "" + pass false) — dulu
+ *  hanya jawaban yang DIKIRIM yang dievaluasi, sehingga bot/form curang bisa
+ *  melewati knockout cukup dengan TIDAK mengirim field ko_*. Mode default
+ *  (tanpa opsi) mempertahankan perilaku lama utk pemanggil internal yang
+ *  memang menyajikan subset pertanyaan secara sadar. */
 export async function evaluateKnockouts(
-  db: TenantDb, slotId: string, answers: Record<string, string>,
+  db: TenantDb, slotId: string, answers: Record<string, string>, opts?: { requireAll?: boolean },
 ): Promise<{ results: KnockoutEvalResult[]; pass: boolean }> {
   const qs = await db.knockoutQuestion.findMany({
     where: { jobOpeningId: slotId, active: true },
@@ -735,8 +767,19 @@ export async function evaluateKnockouts(
   });
   const results: KnockoutEvalResult[] = [];
   for (const q of qs) {
-    if (!(q.id in answers)) continue; // form tidak mengirim jawaban utk pertanyaan ini
+    if (!(q.id in answers)) {
+      if (opts?.requireAll) {
+        // M5 — tidak dijawab = gagal (anti-bypass form yang menghilangkan field)
+        results.push({ questionId: q.id, question: q.question, answer: "", expectedValue: q.expectedValue, mode: q.mode, pass: false });
+      }
+      continue; // mode longgar: form tidak mengirim jawaban utk pertanyaan ini
+    }
     const answer = String(answers[q.id] ?? "").trim();
+    if (!answer && opts?.requireAll) {
+      // jawaban kosong dikirim = sama dengan tidak menjawab → gagal (M5)
+      results.push({ questionId: q.id, question: q.question, answer: "", expectedValue: q.expectedValue, mode: q.mode, pass: false });
+      continue;
+    }
     const expected = q.expectedValue.trim();
     const a = answer.toLowerCase();
     const e = expected.toLowerCase();

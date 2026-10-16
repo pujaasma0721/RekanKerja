@@ -109,6 +109,8 @@ const RESET_STEPS: string[] = [
   "scripts/migrate-recruitment-b6-wa-meeting.ts",
   "scripts/migrate-recruitment-b7-status-link.ts",
   "scripts/migrate-recruitment-b8-referral.ts",
+  // REC-AUDIT-FIX M2 — kolom+backfill Applicant.emailHash (dedupe pelamar)
+  "scripts/migrate-recruitment-audit-fix.ts",
 ];
 
 const SUITE_TIMEOUT_MS = 6 * 60_000; // per-suite 6 menit (suite berat: import+exceljs+pdf)

@@ -211,6 +211,14 @@ export interface FieldCrypto {
   encryptText(plain: string | null | undefined): string | null;
   /** Dekripsi teks; plaintext legacy (tanpa prefix) diteruskan apa adanya. */
   decryptText(stored: string | null | undefined): string | null;
+  /**
+   * BLIND INDEX deterministik (REC-AUDIT-FIX M2): hash berkunci utk nilai
+   * terenkripsi — nilai sama → index sama, sehingga kolom bisa dicari
+   * equality TANPA membongkar enkripsi field (pola dedupe email pelamar).
+   * Kunci = legacyTenantKey (deterministik lintas restart & TIDAK ikut
+   * re-key vault — index tidak boleh berubah); prefix "bi1:".
+   */
+  blindIndex(plain: string | null | undefined): string | null;
   /** Enkripsi angka uang → enc:v2:n:… (vault) / enc:v1:n:… (bootstrap). */
   encryptMoney(n: number | null | undefined): string | null;
   /** Dekripsi angka uang; null → null; plaintext numerik legacy di-parse. */
@@ -462,6 +470,15 @@ function makeContext(schema: string): FieldCrypto {
         throw new Error(`[field-crypto:${schema}] field teks berisi nilai angka terenkripsi`);
       }
       return value;
+    },
+    blindIndex(plain) {
+      if (plain == null || String(plain).trim() === "") return null;
+      // Kunci DETERMINISTIK per-schema (legacyTenantKey) — sengaja BUKAN
+      // writeKey() vault: blind index harus stabil selamanya (re-key brankas
+      // tidak boleh memutus lookup dedupe). HMAC-SHA256 → 32 byte hex.
+      const key = legacyTenantKey(schema);
+      const mac = createHmac("sha256", key).update(String(plain).trim()).digest("hex");
+      return `bi1:${mac}`;
     },
     encryptMoney(n) {
       if (n == null) return null;
