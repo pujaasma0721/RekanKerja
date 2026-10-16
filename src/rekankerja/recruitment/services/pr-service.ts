@@ -26,6 +26,8 @@ import {
 } from "@/rekankerja/shared/services/approval-engine";
 import { autoPostForApprovedPr, reconcileJoOpenSlots } from "@/rekankerja/recruitment/services/opening-service";
 import { emitWebhookEvent } from "@/rekankerja/recruitment/services/webhook-service";
+// REC-AUDIT c70653d: penomoran dokumen tahan bentrok unique (PR/JO/OFF/APP).
+import { retryOnUnique } from "@/rekankerja/shared/lib/doc-no-retry";
 
 // ============ konstanta domain ============
 
