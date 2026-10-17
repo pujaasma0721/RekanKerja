@@ -825,6 +825,8 @@ export const BASE_EN: Record<string, string> = {
   "Payroll": "Payroll",
   // — label navigasi dinamis (dirender t(var) dari app-shell) —
   "Piutang Asuransi": "Insurance Receivables",
+  // P2-BENCHMARK — label nav/menu fase P2
+  "Polis Asuransi Grup": "Group Insurance Policies",
   "Basis Pengetahuan AI": "AI Knowledge Base",
   "AI & Pengetahuan": "AI & Knowledge",
   "Provider AI": "AI Provider",

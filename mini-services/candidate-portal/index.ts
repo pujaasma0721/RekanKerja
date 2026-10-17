@@ -1126,6 +1126,28 @@ const server = Bun.serve({
         headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
       });
     }
+    // P2.3-BM (D-BM18) — halaman kandidat memilih slot jadwal wawancara:
+    // /jadwal/<token>?t=<slug> (implementasi di src/jadwal-page.ts).
+    if (url.pathname.startsWith("/jadwal/")) {
+      const token = url.pathname.slice("/jadwal/".length).split("/")[0] ?? "";
+      const t = url.searchParams.get("t");
+      if (!/^[a-f0-9]{16,128}$/i.test(token)) {
+        return new Response("Not found", { status: 404 });
+      }
+      const { renderJadwalPage } = await import("./src/jadwal-page");
+      return renderJadwalPage(token, t, url);
+    }
+    // P2.4-BM (D-BM19) — halaman putusan offer mandiri kandidat:
+    // /offer/<token>?t=<slug> (implementasi di src/offer-page.ts).
+    if (url.pathname.startsWith("/offer/")) {
+      const token = url.pathname.slice("/offer/".length).split("/")[0] ?? "";
+      const t = url.searchParams.get("t");
+      if (!/^[a-f0-9]{16,128}$/i.test(token)) {
+        return new Response("Not found", { status: 404 });
+      }
+      const { renderOfferPage } = await import("./src/offer-page");
+      return renderOfferPage(token, t, url);
+    }
     return new Response("Not found", { status: 404 });
   },
 });

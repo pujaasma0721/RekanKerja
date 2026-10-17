@@ -191,6 +191,23 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     subject: "Tautan cek status lamaran Anda",
     body: "Halo {{nama}},\n\nAnda meminta tautan untuk melihat status lamaran Anda.\n\nBuka tautan berikut di portal karier kami:\n{{link}}\n\nTautan ini berlaku sampai {{berlaku}} dan hanya dapat digunakan satu kali. Bila tautan sudah kedaluwarsa atau pernah digunakan, Anda dapat meminta tautan baru di halaman portal.\n\nAnda tidak perlu membalas email ini.\n\n---\nEmail otomatis RekanKerja HRIS.",
   },
+  // P2.3-BM (D-BM18) — panel interview: undangan kandidat pilih slot sendiri
+  {
+    event: "recruitment.interview.invite", label: "Rekrutmen — Undangan Pilih Jadwal Wawancara (→ Kandidat)", notifyEmployee: false, notifyApprover: false, notifyHrd: false,
+    subject: "Undangan wawancara — {{posisi}} ({{kandidat}})",
+    body: "Halo {{kandidat}},\n\nAnda diundang mengikuti tahap {{tahap}} untuk posisi {{posisi}} ({{docNo}}).\n\nSilakan pilih sendiri jadwal wawancara Anda melalui tautan berikut sebelum {{berlaku}}:\n{{linkJadwal}}\n\nUndangan kalender (.ics) akan dikirim setelah jadwal Anda terkunci.\n\n---\nEmail otomatis RekanKerja HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "recruitment.interview.booked", label: "Rekrutmen — Jadwal Wawancara Terkunci (→ Kandidat, lampiran .ics)", notifyEmployee: false, notifyApprover: false, notifyHrd: false,
+    subject: "Jadwal wawancara Anda terkunci — {{posisi}}",
+    body: "Halo {{kandidat}},\n\nJadwal wawancara Anda telah terkunci:\n- Posisi: {{posisi}} ({{docNo}})\n- Tahap: {{tahap}}\n- Jadwal: {{jadwal}}\n- Link meeting: {{linkMeeting}}\n\nUndangan kalender (.ics) terlampir pada email ini.\n\n---\nEmail otomatis RekanKerja HRIS — tidak perlu dibalas.",
+  },
+  // P2.4-BM (D-BM19) — tautan putusan offer mandiri (kandidat accept/decline sendiri)
+  {
+    event: "recruitment.offer.selfservice", label: "Rekrutmen — Tautan Putusan Offer Mandiri (→ Kandidat)", notifyEmployee: false, notifyApprover: false, notifyHrd: false,
+    subject: "Putuskan penawaran kerja {{docNo}} — {{posisi}}",
+    body: "Halo {{kandidat}},\n\nAnda dapat menerima atau menolak penawaran kerja {{docNo}} (posisi {{posisi}}) secara mandiri melalui tautan berikut sebelum {{berlakuSampai}}:\n{{portalLink}}\n\nTautan ini khusus untuk Anda — mohon tidak diteruskan.\n\n---\nEmail otomatis RekanKerja HRIS — tidak perlu dibalas.",
+  },
   {
     event: "user.created", label: "Pengguna Baru Dibuat", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
     subject: "Akun RekanKerja HRIS Anda telah dibuat",
@@ -311,6 +328,10 @@ const PH_EMPLOYEE_NO: PlaceholderDef = { key: "employeeNo", label: "Nomor karyaw
 // P1.5-BM (D-BM14) — placeholder pengingat settlement travel
 const PH_BATASHARI: PlaceholderDef = { key: "batasHari", label: "Batas hari settlement (template travel)", contoh: "14" };
 const PH_HARITERLAMBAT: PlaceholderDef = { key: "hariTerlambat", label: "Hari keterlambatan settlement", contoh: "3" };
+// P2.3-BM (D-BM18) — panel interview + self-schedule + .ics
+const PH_PORTALJADWAL: PlaceholderDef = { key: "linkJadwal", label: "Tautan pilih jadwal wawancara (portal kandidat)", contoh: "http://…/jadwal/<token>" };
+// P2.4-BM (D-BM19) — putusan offer mandiri (portal kandidat)
+const PH_PORTALLINK: PlaceholderDef = { key: "portalLink", label: "Tautan putusan offer mandiri (portal kandidat)", contoh: "http://…/offer/<token>" };
 
 export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "leave.submitted": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_JUMLAHHARI, PH_ALASAN],
@@ -368,6 +389,18 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
     { key: "link", label: "Tautan cek status portal kandidat", contoh: "http://…/status/<token>" },
     { key: "berlaku", label: "Batas berlaku tautan (6 jam, sekali pakai)", contoh: "21 Okt 2026, 15.30 WIB" },
   ],
+  // P2.3-BM (D-BM18) — panel interview + self-schedule + .ics
+  "recruitment.interview.invite": [
+    PH_KANDIDAT,
+    PH_POSISI,
+    PH_DOC,
+    PH_TAHAP,
+    PH_PORTALJADWAL,
+    { key: "berlaku", label: "Batas berlaku tautan jadwal", contoh: "28 Okt 2026, 17.00 WIB" },
+  ],
+  "recruitment.interview.booked": [PH_KANDIDAT, PH_POSISI, PH_DOC, PH_TAHAP, PH_JADWAL, PH_LINKMEETING],
+  // P2.4-BM (D-BM19) — putusan offer mandiri
+  "recruitment.offer.selfservice": [PH_KANDIDAT, PH_DOC, PH_POSISI, PH_PORTALLINK, PH_BERLAKUSAMPAI],
   "user.created": [
     { key: "nama", label: "Nama pengguna baru", contoh: "Tri Handayani" },
     { key: "email", label: "Email login akun baru", contoh: "tri@mii.co.id" },

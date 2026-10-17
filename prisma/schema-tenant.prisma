@@ -338,6 +338,10 @@ model Employee {
   candidatesAsInternal  JobCandidate[]           @relation("CandidateInternalEmployee")
   stepsPerformed        CandidateSelectionStep[] @relation("StepPerformer")
   scorecardsEvaluated   CandidateScorecard[]     @relation("ScorecardEvaluator")
+  // P2.3-BM (D-BM18) — panel evaluator tambahan per tahap seleksi.
+  stepEvaluations       CandidateStepEvaluator[] @relation("StepEvaluatorPanel")
+  // P2.5-BM (D-BM20) — enrollment polis asuransi grup.
+  policyMembers         PolicyMember[]           @relation("PolicyMemberEmployee")
 
   // F4-REC — pengangkatan: atasan kandidat yang diangkat / karyawan hasil
   // rekrutmen (backlink Employee dari continueToOnboarding).
@@ -448,6 +452,8 @@ model EmployeeFamily {
   nationalId  String?
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  // P2.5-BM (D-BM20) — enrollment dependen ke polis asuransi grup.
+  policyMembers PolicyMember[] @relation("PolicyMemberDependent")
 
   // AUD-DEPLOY (3-a M-13): include family per karyawan (profil payroll,
   // derivasi PTKP) tanpa seq scan.
@@ -644,6 +650,10 @@ model ApprovalStructure {
   positionId      String?
   gradeId         String?
   positionLevelId String?
+  // P2.6-BM (D-BM21) — eskalasi otomatis: null = OFF (default, tidak mengubah
+  // perilaku engine); angka X = lewat X hari tanpa keputusan → step current
+  // di-eskalasi ke atasan approver (scheduler job + ActivityLog).
+  escalateDays   Int?
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -967,6 +977,11 @@ model PayrollRegulation {
   jkpCompanyRate         Float     @default(0.0014)
   jkpSalaryCap           Float     @default(5000000)
   nonNpwpSurcharge       Float     @default(0.2)
+  // P2.1-BM (D-BM16) — identitas cabang BPJS tenant: KODE KANTOR (file LKS
+  // BPJS TK) dan KELAS PERAWATAN 1|2|3 (file LKS JKN). Null = belum
+  // dikonfigurasi (kolom file LKS kosong + advisori UI, TIDAK memblokir).
+  bpjsOfficeCode         String?
+  bpjsInpatientClass     String?
   useTer                 Boolean   @default(false)
   active                 Boolean   @default(true)
 }
@@ -1407,6 +1422,8 @@ model AppUser {
   menuAccess      UserMenuAccess?     @relation("UserMenuAccess")
   passwordHistory PasswordHistory[]   @relation("PasswordHistory")
   notifications   Notification[]
+  // P2.2-BM (D-BM17) — langganan web push (opt-in per user).
+  pushSubscriptions PushSubscription[]
 
   // AUD-DEPLOY (3-a H-3): AppUser.email dicari findFirst(by email) di SETIAP
   // request yang memakai guard menu/sesi (resolveMenuPerms, resolveMe,
@@ -2519,6 +2536,53 @@ model MedicalProvider {
   createdAt DateTime @default(now())
 
   claimLines MedicalClaimLine[]
+  // P2.5-BM (D-BM20) — polis asuransi grup yang diterbitkan provider ini.
+  policies  InsurancePolicy[]
+}
+
+// P2.5-BM (D-BM20) — polis asuransi grup perusahaan (administrasi polis +
+// enrollment + laporan premi SAJA — adjudikasi klaim tetap di engine
+// reimbursement existing, batas D-BM20). premiumMonthly = string TERENKRIPSI
+// vault uang (enc:v1|v2:n:… — konvensi kolom uang terenkripsi aplikasi).
+model InsurancePolicy {
+  id             String    @id @default(cuid())
+  providerId     String
+  policyNo       String
+  periodStart    DateTime
+  periodEnd      DateTime
+  premiumMonthly String?   // TERENKRIPSI vault uang (enc:…:n:…)
+  pctCompany     Float     @default(100) // 0–100: porsi perusahaan dari premi
+  status         String    @default("Active") // Active|Expired|Terminated
+  note           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  provider MedicalProvider @relation(fields: [providerId], references: [id])
+  members  PolicyMember[]
+
+  @@unique([providerId, policyNo])
+  @@index([status, periodEnd]) // renewal reminder H-30 (scheduler)
+}
+
+// P2.5-BM (D-BM20) — enrollment anggota polis (karyawan + opsional dependen
+// EmployeeFamily) dengan effective dating; berakhir otomatis saat karyawan
+// keluar (hook PA process + sweep scheduler PA terjadwal).
+model PolicyMember {
+  id            String    @id @default(cuid())
+  policyId      String
+  employeeId    String
+  dependentId   String?
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime  @default(now())
+
+  policy    InsurancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  employee  Employee        @relation("PolicyMemberEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  dependent EmployeeFamily? @relation("PolicyMemberDependent", fields: [dependentId], references: [id], onDelete: Cascade)
+
+  @@unique([policyId, employeeId, dependentId, effectiveFrom])
+  @@index([employeeId, effectiveTo]) // sweep terminasi karyawan
+  @@index([policyId])
 }
 
 // Saldo medis karyawan per tahun × jenis — padanan "Employee Medical Information"
@@ -4019,6 +4083,11 @@ model CandidateSelectionStep {
   // backlog: video interview platform penuh di-defer). Placeholder
   // {{linkMeeting}} di email/WA undangan selection.scheduled/reminder.
   meetingUrl         String?
+  // P2.3-BM (D-BM18) — undangan kandidat memilih slot jadwal sendiri via
+  // portal (token acak 32 byte disimpan sebagai HASH SHA-256, berkedaluwarsa;
+  // tanpa PII di token — pola EsignRequest).
+  inviteTokenHash     String?  @unique
+  inviteTokenExpAt    DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -4027,10 +4096,47 @@ model CandidateSelectionStep {
   performedBy      Employee?         @relation("StepPerformer", fields: [performedById], references: [id])
   scorecards       CandidateScorecard[]
   letters          RecruitmentLetter[]
+  stepEvaluators   CandidateStepEvaluator[]
+  interviewSlots   InterviewSlot[]
 
   @@unique([candidateId, selectionProcessId, seqNo])
   @@index([candidateId, status])
   @@index([status, dueDate]) // monitor SLA overdue + reminder scheduler
+}
+
+// P2.3-BM (D-BM18) — panel evaluator per tahap (1–N). performedById tetap
+// lead evaluator (backward-compat); evaluator tambahan menerima undangan +
+// mengisi scorecard masing-masing (unik step×evaluator di CandidateScorecard —
+// panel view + divergence flag dihitung existing di scorecard-service).
+model CandidateStepEvaluator {
+  id              String   @id @default(cuid())
+  selectionStepId String
+  evaluatorId     String
+  createdAt       DateTime @default(now())
+
+  selectionStep CandidateSelectionStep @relation(fields: [selectionStepId], references: [id], onDelete: Cascade)
+  evaluator     Employee              @relation("StepEvaluatorPanel", fields: [evaluatorId], references: [id])
+
+  @@unique([selectionStepId, evaluatorId])
+  @@index([evaluatorId])
+}
+
+// P2.3-BM (D-BM18) — slot jadwal wawancara yang dibuka HR; kandidat memilih
+// via portal (kapasitas 1 — race-guard saat booking: updateMany kondisional
+// status Open → Booked, konflik → 409, pola OpenShiftClaim).
+model InterviewSlot {
+  id              String   @id @default(cuid())
+  selectionStepId String
+  startAt         DateTime
+  durationMin     Int      @default(60)
+  status          String   @default("Open") // Open|Booked|Closed
+  bookedAt        DateTime?
+  createdAt       DateTime @default(now())
+
+  selectionStep CandidateSelectionStep @relation(fields: [selectionStepId], references: [id], onDelete: Cascade)
+
+  @@index([selectionStepId, status])
+  @@index([status, startAt])
 }
 
 // Template rubrik penilaian per tahap (HRX D2 — structured scorecards).
@@ -4173,6 +4279,11 @@ model CandidateOffer {
   sentAt       DateTime?
   respondedAt  DateTime?
   appointedAt  DateTime? // ditandai saat CandidateAppointment dibuat
+  // P2.4-BM (D-BM19) — tautan putusan mandiri kandidat (portal /offer/<token>,
+  // token acak 32 byte disimpan sebagai HASH SHA-256, berkedaluwarsa;
+  // accept/decline sendiri dengan race-guard 409 status kondisional).
+  selfServiceTokenHash  String?  @unique
+  selfServiceTokenExpAt DateTime?
   createdById  String? // Employee pembuat (jejak)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -4186,9 +4297,31 @@ model CandidateOffer {
   // F7-REC — permintaan e-sign kandidat utk offer ini
   esignRequests EsignRequest[]     @relation("EsignOffer")
 
+  // P2.4-BM (D-BM19) — riwayat versi (snapshot per perubahan material).
+  versions      CandidateOfferVersion[]
+
   @@index([status, expiryDate]) // monitor expiry + reminder scheduler
   @@index([prId])
   @@index([candidateId])
+}
+
+// P2.4-BM (D-BM19) — riwayat versi offer (draft → counter → final).
+// payloadJson = snapshot lengkap field offer saat versi dibuat (nominal
+// disimpan SEBAGAI STRING TERENKRIPSI vault enc:v1|v2:n:… — di-decrypt hanya
+// di serializer dengan gate money view; diff nominal vault-gated).
+model CandidateOfferVersion {
+  id          String   @id @default(cuid())
+  offerId     String
+  versionNo   Int
+  payloadJson String
+  label       String? // Created|Updated|Sent|Counter|SelfServiceLink
+  createdById String? // Employee (jejak)
+  createdAt   DateTime @default(now())
+
+  offer CandidateOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, versionNo])
+  @@index([offerId])
 }
 
 // Pengangkatan kandidat (dialog penempatan + surat REC_APPOINT + batch
@@ -4474,6 +4607,35 @@ model NotificationPref {
   updatedAt  DateTime @updatedAt
 
   employee Employee @relation("NotificationPrefEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+// P2.2-BM (D-BM17) — konfigurasi VAPID web push per tenant (singleton per
+// konvensi findFirst; self-seed saat pertama kali dibaca — kunci dihasilkan
+// webpush.generateVAPIDKeys(); vapidPrivate TERENKRIPSI enc:v1:t:…).
+model PushConfig {
+  id           String   @id @default(cuid())
+  vapidPublic  String
+  vapidPrivate String // TERENKRIPSI (enc:v1:t:…)
+  updatedAt    DateTime @updatedAt
+}
+
+// P2.2-BM (D-BM17) — langganan web push per AppUser (opt-in). endpoint +
+// p256dh + auth TERENKRIPSI enc:v1:t:…; endpointHash = blind index (bi1:…)
+// untuk keunikan (endpoint terenkripsi tak bisa di-unique langsung).
+// 404/410 dari push service → baris dibersihkan otomatis (dead subscription).
+model PushSubscription {
+  id           String   @id @default(cuid())
+  appUserId    String
+  endpoint     String // TERENKRIPSI
+  endpointHash String // blind index bi1:…
+  p256dh       String // TERENKRIPSI
+  auth         String // TERENKRIPSI
+  createdAt    DateTime @default(now())
+
+  appUser AppUser @relation(fields: [appUserId], references: [id], onDelete: Cascade)
+
+  @@unique([appUserId, endpointHash])
+  @@index([appUserId])
 }
 
 // Konfigurasi rekrutmen key-value (otomasi F7 + retensi F9). Default dibaca

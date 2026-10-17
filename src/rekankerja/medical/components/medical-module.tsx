@@ -10,6 +10,9 @@ import { MedicalProvidersPage } from "@/rekankerja/medical/components/medical-pr
 import { MedicalReportsPage } from "@/rekankerja/medical/components/medical-reports";
 // W4-1 (fix G-3) — piutang asuransi (padanan Paid By Insurance %).
 import { MedicalInsurancePage } from "@/rekankerja/medical/components/medical-insurance";
+// P2.5-BM (D-BM20) — administrasi polis asuransi grup (placeholder Phase 0;
+// implementasi slice P2.5-E di file tsx ini).
+import { InsurancePoliciesPage } from "@/rekankerja/medical/components/insurance-policies";
 
 export function MedicalModule({ view }: { view: string }) {
   switch (view) {
@@ -21,6 +24,7 @@ export function MedicalModule({ view }: { view: string }) {
     case "medical-providers": return <MedicalProvidersPage />;
     case "medical-reports": return <MedicalReportsPage />;
     case "medical-insurance": return <MedicalInsurancePage />;
+    case "insurance-policies": return <InsurancePoliciesPage />;
     default: return <MedicalOverview />;
   }
 }

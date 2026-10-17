@@ -309,6 +309,11 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "settle", label: "Settlement klaim", hint: "Menyelesaikan klaim (dibayarkan ke provider)" },
   ],
   "medical:medical-adjustment": [{ key: "approve", label: "Menyetujui / menolak penyesuaian saldo", hint: "Memutuskan penyesuaian saldo medis" }],
+  // P2.5-BM (D-BM20) — administrasi polis asuransi grup.
+  "medical:insurance-policies": [
+    { key: "enroll", label: "Mendaftarkan / mengakhiri anggota polis", hint: "Enrollment & terminasi membership polis asuransi grup" },
+    { key: "terminate", label: "Mengakhiri polis", hint: "Terminasi polis asuransi grup" },
+  ],
 
   // Task 52-f — whistleblowing TPKS: triase & memutuskan laporan (form Lapor
   // sendiri tanpa guard menu — cukup sesi; menu key whistleblowing:report

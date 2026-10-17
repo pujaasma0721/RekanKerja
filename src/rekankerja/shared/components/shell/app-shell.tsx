@@ -273,6 +273,8 @@ const MEDICAL_NAV: NavGroup[] = [
     { id: "medical-adjustment", label: "Penyesuaian Saldo", icon: ArrowLeftRight },
     // W4-1 (fix G-3) — piutang asuransi (padanan Paid By Insurance %).
     { id: "medical-insurance", label: "Piutang Asuransi", icon: Coins },
+    // P2.5-BM (D-BM20) — administrasi polis asuransi grup (enrollment + premi).
+    { id: "insurance-policies", label: "Polis Asuransi Grup", icon: ShieldCheck },
   ] },
   { section: "medical", label: "Master & Laporan", children: [
     { id: "medical-benefit-type", label: "Jenis Benefit", icon: Boxes },

@@ -69,6 +69,9 @@ import { expireOverdue } from "@/rekankerja/performance/services/perf-360-servic
 import { jobPerfRetentionScan } from "@/rekankerja/performance/services/perf-retention-service";
 import { snapshotMetrics, getMetricsCatalog } from "@/rekankerja/recruitment/services/analytics-service";
 import { runRetention } from "@/rekankerja/recruitment/services/compliance-service";
+// P2-BENCHMARK — job baru fase P2 (stub Phase 0; implementasi di file masing-masing).
+import { jobApprovalEscalation } from "@/rekankerja/shared/services/approval-escalation-job";
+import { jobPolicyMemberExpiry, jobPolicyRenewalReminders } from "@/rekankerja/medical/services/policy-jobs";
 
 // ---------- konstanta & env flag ----------
 
@@ -1954,6 +1957,16 @@ export interface SchedulerJobCounts {
   recruitmentWebhookDead: number;
   /** F7-REC — tahap seleksi terlambat yang dieskalasi (3/7/14 hari; dedupe/hari). */
   slaEscalations: number;
+  /** P2.6-BM (D-BM21) — chain yang step current-nya dieskalasi ke atasan approver (per-struktur escalateDays, default OFF). */
+  approvalEscalated: number;
+  /** P2.6-BM (D-BM21) — penerima notifikasi in-app dari approval-escalation. */
+  approvalEscalationNotified: number;
+  /** P2.5-BM (D-BM20) — membership polis yang ditutup otomatis (karyawan keluar). */
+  policyMembersClosed: number;
+  /** P2.5-BM (D-BM20) — polis teringatkan renewal H-30. */
+  policyRenewalReminded: number;
+  /** P2.5-BM (D-BM20) — email renewal terkirim (EmailLog). */
+  policyRenewalEmailed: number;
   /** F7-REC — penerima notifikasi in-app dari sla-escalation. */
   slaEscalationNotified: number;
   /** F7-REC — email ringkasan notifikasi harian terkirim (digest, dedupe/hari). */
@@ -2050,6 +2063,11 @@ export async function runAllJobs(
     recruitmentWebhookFailed: 0,
     recruitmentWebhookDead: 0,
     slaEscalations: 0,
+    approvalEscalated: 0,
+    approvalEscalationNotified: 0,
+    policyMembersClosed: 0,
+    policyRenewalReminded: 0,
+    policyRenewalEmailed: 0,
     slaEscalationNotified: 0,
     digestEmails: 0,
     metricsSnapshotRows: 0,
@@ -2109,6 +2127,25 @@ export async function runAllJobs(
     const r = await jobApprovalSlaReminders(db);
     jobs.slaReminders = r.chains;
     notificationsSent += r.notif;
+  });
+  // P2.6-BM (D-BM21) — eskalasi otomatis per struktur (default OFF: hanya
+  // struktur dengan escalateDays terisi yang dieksekusi; null = tak tersentuh).
+  await guarded("approval-escalation", async () => {
+    const r = await jobApprovalEscalation(db);
+    jobs.approvalEscalated = r.escalated;
+    jobs.approvalEscalationNotified = r.notified;
+    notificationsSent += r.notified;
+  });
+  // P2.5-BM (D-BM20) — polis grup: tutup membership karyawan keluar (sweep
+  // PA terjadwal) + pengingat renewal H-30.
+  await guarded("policy-member-expiry", async () => {
+    const r = await jobPolicyMemberExpiry(db);
+    jobs.policyMembersClosed = r.membershipsClosed;
+  });
+  await guarded("policy-renewal-reminder", async () => {
+    const r = await jobPolicyRenewalReminders(db);
+    jobs.policyRenewalReminded = r.reminded;
+    jobs.policyRenewalEmailed = r.emailed;
   });
   await guarded("payroll-d3", async () => {
     const r = await jobPayrollReminders(db);
