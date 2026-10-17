@@ -1,8 +1,8 @@
 "use client";
 // RekanKerja Payroll — tombol export laporan (T12-REPORTS), export-only:
-//   • BpjsExportButton — rekap iuran BPJS per karyawan (XLSX) + 27-c format
-//     upload resmi: Laporan Kepegawaian BPJS Ketenagakerjaan (CSV) & Data
-//     Peserta BPJS Kesehatan (CSV) — dropdown 3 opsi + peta kolom.
+//   • BpjsExportButton — rekap iuran BPJS per karyawan (XLSX) + 27-c/P2.1
+//     file LKS resmi: LKS BPJS Ketenagakerjaan (unggah) & LKS BPJS Kesehatan
+//     (peserta+keluarga) — dropdown 3 opsi + peta kolom.
 //   • PayrollRegisterExportButton — payroll register per unit kerja (XLSX)
 // Anchor langsung ke endpoint download (pola BankExportMenu): respons
 // Content-Disposition attachment → browser mengunduh tanpa navigasi.
@@ -41,7 +41,7 @@ export function BpjsExportButton({ runId, runNo, compact }: { runId: string; run
             <FileSpreadsheet className="h-4 w-4 text-slate-400" />
             <div className="min-w-0">
               <p className="text-[13px] font-semibold">{t("Rekap Iuran BPJS (XLSX)", "BPJS Contribution Recap (XLSX)")}</p>
-              <p className="text-[10px] text-slate-400">{t("JHT/JP/JKK/JKM/JKN per karyawan untuk run ini", "JHT/JP/JKK/JKM/JKN per employee for this run")}</p>
+              <p className="text-[10px] text-slate-400">{t("JHT/JP/JKK/JKM/JKN per karyawan untuk run ini + sheet Gap NIK Keluarga bila ada keluarga tanpa NIK", "JHT/JP/JKK/JKM/JKN per employee for this run + Family NIK Gap sheet when family members lack an NIK")}</p>
             </div>
           </a>
         </DropdownMenuItem>
@@ -50,23 +50,23 @@ export function BpjsExportButton({ runId, runNo, compact }: { runId: string; run
           {t("Format upload resmi (CSV)", "Official upload format (CSV)")}
         </DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <a href={`/api/rekankerja/payroll-reports/bpjs?runId=${runId}&format=tk`} className="cursor-pointer">
+          <a href={`/api/rekankerja/payroll-reports/bpjs?runId=${runId}&format=lks-tk`} className="cursor-pointer">
             <FileUp className="h-4 w-4 text-brand" />
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold">{t("Laporan Kepegawaian BPJS TK (CSV)", "BPJS TK Employee Report (CSV)")}</p>
+              <p className="text-[13px] font-semibold">{t("LKS BPJS TK (unggah)", "BPJS TK LKS (upload)")}</p>
               <p className="text-[10px] text-slate-400">
-                {t("NO KTP · NAMA · TEMPAT/TGL LAHIR · NO BPJS TK · KODE KANTOR · STATUS · JABATAN · TGL MASUK · GAJI — tanggal DDMMYYYY", "ID Card No. · Name · Birth Place/Date · BPJS TK No. · Office Code · Status · Title · Join Date · Salary — dates DDMMYYYY")}
+                {t("NO KTP · NAMA · TEMPAT/TGL LAHIR · NO BPJS TK · KODE KANTOR · STATUS · JABATAN · TGL MASUK · GAJI — KODE KANTOR dari konfigurasi regulasi; tanggal DDMMYYYY", "ID Card No. · Name · Birth Place/Date · BPJS TK No. · Office Code · Status · Title · Join Date · Salary — office code from the regulation config; dates DDMMYYYY")}
               </p>
             </div>
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <a href={`/api/rekankerja/payroll-reports/bpjs?runId=${runId}&format=jkn`} className="cursor-pointer">
+          <a href={`/api/rekankerja/payroll-reports/bpjs?runId=${runId}&format=lks-jkn`} className="cursor-pointer">
             <FileUp className="h-4 w-4 text-brand" />
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold">{t("Data Peserta BPJS Kesehatan (CSV)", "BPJS Health Members (CSV)")}</p>
+              <p className="text-[13px] font-semibold">{t("LKS BPJS Kesehatan (peserta+keluarga)", "BPJS Health LKS (members+family)")}</p>
               <p className="text-[10px] text-slate-400">
-                {t("NIK · NO KARTU · NAMA · TGL LAHIR · JENIS KELAMIN (L/P) · HUBKEL · ALAMAT · STATUS · JABATAN · UPAH · KELAS", "NIK · Card No. · Name · Birth Date · Gender (L/P) · Family Relation · Address · Status · Title · Wage · Class")}
+                {t("NIK · NO KARTU · NAMA · TGL LAHIR · JENIS KELAMIN (L/P) · HUBKEL · ALAMAT · STATUS · JABATAN · UPAH · KELAS — termasuk baris keluarga dependen ber-NIK; KELAS dari konfigurasi regulasi", "NIK · Card No. · Name · Birth Date · Gender (L/P) · Family Relation · Address · Status · Title · Wage · Class — includes dependent family rows with NIK; class from the regulation config")}
               </p>
             </div>
           </a>
@@ -76,8 +76,8 @@ export function BpjsExportButton({ runId, runNo, compact }: { runId: string; run
           <Info className="mt-0.5 h-3 w-3 shrink-0" />
           <p>
             {t(
-              "Populasi = peserta run ini dgn No. BPJS terisi. e-Dabu BPJS Kesehatan v7.6+: unggah via sheet PESERTA (23 kolom, maks 100 baris/1 MB) — sheet lain: GAJI (ubah upah), ANGKEL (tambah keluarga), PENONAKTIFAN (5 kolom). KODE KANTOR & KELAS PERAWATAN kosong (belum ada field) — verifikasi urutan kolom terhadap template yang diunduh dari portal sebelum upload.",
-              "Population = this run's members with a BPJS number. e-Dabu BPJS Health v7.6+: upload via sheet PESERTA (23 columns, max 100 rows/1 MB) — other sheets: GAJI (wage change), ANGKEL (add family), PENONAKTIFAN (5 columns). Office code & ward class are blank (no field yet) — verify column order against the template downloaded from the portal before uploading."
+              "Populasi = peserta run ini dgn No. BPJS terisi. KODE KANTOR & KELAS PERAWATAN diisi dari Parameter Payroll → tab Regulasi & BPJS (kosong bila belum diatur). Keluarga dependen TANPA NIK otomatis dilewati dari file LKS dan dilaporkan di sheet Gap NIK Keluarga pada rekap XLSX. e-Dabu BPJS Kesehatan v7.6+: unggah via sheet PESERTA (23 kolom, maks 100 baris/1 MB) — sheet lain: GAJI, ANGKEL, PENONAKTIFAN. Verifikasi urutan kolom terhadap template yang diunduh dari portal sebelum upload.",
+              "Population = this run's members with a BPJS number. Office code & ward class are filled from Tax Parameters → Regulation & BPJS tab (blank when unset). Dependent family members WITHOUT an NIK are skipped from the LKS file and reported in the Family NIK Gap sheet of the XLSX recap. e-Dabu BPJS Health v7.6+: upload via sheet PESERTA (23 columns, max 100 rows/1 MB) — other sheets: GAJI, ANGKEL, PENONAKTIFAN. Verify column order against the template downloaded from the portal before uploading."
             )}
           </p>
         </div>

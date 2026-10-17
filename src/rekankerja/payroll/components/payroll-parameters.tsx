@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
@@ -29,6 +30,9 @@ interface TaxData {
     jpkCompanyRate: number; jpkEmployeeRate: number; jpkSalaryCap: number;
     jkpCompanyRate: number; jkpEmployeeRate: number; jkpSalaryCap: number;
     nonNpwpSurcharge: number; useTer: boolean;
+    // P2.1-BM (D-BM16) — identitas cabang BPJS utk file LKS resmi.
+    bpjsOfficeCode: string | null;
+    bpjsInpatientClass: string | null;
   } | null;
   ptkp: Record<string, number>;
 }
@@ -144,6 +148,46 @@ export function PayrollParametersPage() {
                     {t(
                       "Jaminan Kehilangan Pekerjaan (PP 6/2025 Ps.11): iuran 0,36% dari upah s.d. plafon = 0,22% ditanggung APBN + 0,14% REKOMPOSISI iuran JKK yang sudah dibayar perusahaan. TIDAK ADA potongan pekerja (0%) dan TIDAK ADA beban iuran baru perusahaan — nilai 0,14% di sini informatif utk rekap BPJS. Manfaat diklaim pekerja saat PHK.",
                       "Unemployment insurance (GR 6/2025 Art.11): 0.36% of capped wage = 0.22% government (APBN) + 0.14% reallocated from the already-paid JKK premium. NO employee deduction (0%) and NO new employer cost — the 0.14% here is informative for the BPJS recap. Claimed by the worker on termination.",
+                    )}
+                  </p>
+
+                  {/* P2.1-BM (D-BM16) — identitas cabang BPJS utk file LKS resmi. */}
+                  <p className="mb-2 mt-4 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    {t("File LKS BPJS (unggah resmi)", "Official BPJS LKS Files")}
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-xs">{t("Kode Kantor Cabang BPJS (KODE KANTOR)", "BPJS Branch Office Code (OFFICE CODE)")}</Label>
+                      <Input
+                        value={reg.bpjsOfficeCode ?? ""}
+                        maxLength={10}
+                        onChange={(e) => setReg({ ...reg, bpjsOfficeCode: e.target.value.trim() === "" ? null : e.target.value })}
+                        placeholder={t("mis. Y01234", "e.g. Y01234")}
+                        className="mt-1.5 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{t("Kelas Rawat Inap BPJS (KELAS)", "BPJS Inpatient Class (CLASS)")}</Label>
+                      <Select
+                        value={reg.bpjsInpatientClass ?? "none"}
+                        onValueChange={(v) => setReg({ ...reg, bpjsInpatientClass: v === "none" ? null : v })}
+                      >
+                        <SelectTrigger className="mt-1.5 w-full font-mono">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">{t("— belum diatur —", "— not set —")}</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+                    {t(
+                      "Dipakai saat ekspor file LKS BPJS resmi dari layar Runs: KODE KANTOR mengisi kolom Kode Kantor pada file LKS BPJS Ketenagakerjaan, dan KELAS mengisi kolom Kelas Perawatan pada file Data Peserta BPJS Kesehatan (berlaku juga untuk baris keluarga). Kosong = kolom dibiarkan kosong, ekspor tetap jalan.",
+                      "Used when exporting the official BPJS LKS files from the Runs screen: the office code fills the Office Code column of the BPJS Manpower (TK) LKS file, and the class fills the Ward Class column of the BPJS Health participant file (also applied to family rows). Empty = the column is left blank and the export still runs.",
                     )}
                   </p>
                 </CardContent>

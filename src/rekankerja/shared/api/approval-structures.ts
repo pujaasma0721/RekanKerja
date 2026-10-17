@@ -7,6 +7,8 @@ import { buildApprovalChain, APPROVAL_DOC_TYPES, isAmountDocType } from "@/rekan
 // Setup alur persetujuan multi-level per modul dokumen (Leave/Travel/Medical/
 // Loan) dengan 6 kriteria penempatan pemohon + tier nominal untuk
 // Travel/Medical/Loan. GET mendukung simulasi (?action=preview).
+// P2.6-BM (D-BM21): kolom escalateDays — null = eskalasi OFF (default);
+// 1..30 = step terjeda > X hari dieskalasi ke atasan approver (job scheduler).
 
 const VALID_APPROVER_TYPES = ["ATASAN_LANGSUNG", "ATASAN_BERJENJANG", "POSISI", "KARYAWAN", "HR_ADMIN"];
 
@@ -70,6 +72,17 @@ function normalizeLevels(docType: string, raw: LevelInput[]): { levels: Normaliz
   return { levels };
 }
 
+/** Validasi & normalisasi escalateDays (P2.6-BM D-BM21): number 1..30 atau
+ *  null (null/undefined/"" → clear = OFF default). */
+function normalizeEscalateDays(raw: unknown): { value: number | null; error?: string } {
+  if (raw == null || raw === "") return { value: null };
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 30) {
+    return { value: null, error: "Eskalasi otomatis: isi 1–30 hari atau kosongkan (nonaktif)" };
+  }
+  return { value: n };
+}
+
 // GET /api/rekankerja/approval-structures?docType=
 // GET /api/rekankerja/approval-structures?action=preview&employeeId=&docType=&amount=
 export async function GET(req: NextRequest) {
@@ -117,6 +130,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       structures: structures.map((s) => ({
         id: s.id, code: s.code, name: s.name, docType: s.docType, active: s.active,
+        escalateDays: s.escalateDays,
         companyOfficeId: s.companyOfficeId, companyOffice: s.companyOffice,
         workLocationId: s.workLocationId, workLocation: s.workLocation,
         orgUnitId: s.orgUnitId, orgUnit: s.orgUnit,
@@ -158,6 +172,8 @@ export async function POST(req: NextRequest) {
     }
     const { levels, error } = normalizeLevels(b.docType, b.levels);
     if (error) return NextResponse.json({ error }, { status: 400 });
+    const esc = normalizeEscalateDays(b.escalateDays);
+    if (esc.error) return NextResponse.json({ error: esc.error }, { status: 400 });
 
     const s = await db.approvalStructure.create({
       data: {
@@ -168,12 +184,13 @@ export async function POST(req: NextRequest) {
         positionId: b.positionId || null,
         gradeId: b.gradeId || null,
         positionLevelId: b.positionLevelId || null,
+        escalateDays: esc.value,
         active: b.active !== false,
         levels: { create: levels },
       },
     });
     await db.activityLog.create({
-      data: { action: "Created", entity: "ApprovalStructure", entityId: s.id, detail: `Struktur approval ${s.code} (${s.docType}) — ${levels.length} jenjang` },
+      data: { action: "Created", entity: "ApprovalStructure", entityId: s.id, detail: `Struktur approval ${s.code} (${s.docType}) — ${levels.length} jenjang${esc.value != null ? `, eskalasi ${esc.value} hari` : ""}` },
     });
     return NextResponse.json({ structure: s }, { status: 201 });
   } catch (e) {
@@ -214,6 +231,17 @@ export async function PATCH(req: NextRequest) {
     }
     if (b.active != null) data.active = !!b.active;
 
+    // P2.6-BM (D-BM21) — eskalasi otomatis: null/undefined → clear (OFF default).
+    let escChanged: number | null | undefined;
+    if (b.escalateDays !== undefined) {
+      const esc = normalizeEscalateDays(b.escalateDays);
+      if (esc.error) return NextResponse.json({ error: esc.error }, { status: 400 });
+      if (esc.value !== cur.escalateDays) {
+        data.escalateDays = esc.value;
+        escChanged = esc.value;
+      }
+    }
+
     // ganti jenjang (delete + recreate) bila dikirim
     if (Array.isArray(b.levels)) {
       if (b.levels.length === 0) return NextResponse.json({ error: "Minimal 1 jenjang approver" }, { status: 400 });
@@ -224,7 +252,10 @@ export async function PATCH(req: NextRequest) {
 
     const s = await db.approvalStructure.update({ where: { id: structId }, data });
     await db.activityLog.create({
-      data: { action: "Updated", entity: "ApprovalStructure", entityId: structId, detail: `Struktur approval ${s.code} diperbarui` },
+      data: {
+        action: "Updated", entity: "ApprovalStructure", entityId: structId,
+        detail: `Struktur approval ${s.code} diperbarui${escChanged !== undefined ? (escChanged != null ? ` — eskalasi ${escChanged} hari` : " — eskalasi nonaktif") : ""}`,
+      },
     });
     return NextResponse.json({ structure: s });
   } catch (e) {

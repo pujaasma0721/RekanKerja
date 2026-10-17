@@ -34,6 +34,28 @@ export async function PATCH(req: NextRequest) {
     if (!regulation) return NextResponse.json({ error: "Regulasi aktif tidak ditemukan" }, { status: 404 });
 
     const num = (v: unknown) => (v == null ? undefined : Number(v));
+
+    // P2.1-BM (D-BM16) — identitas cabang BPJS tenant untuk file LKS resmi:
+    // KODE KANTOR (LKS BPJS Ketenagakerjaan) & KELAS PERAWATAN 1|2|3 (LKS
+    // JKN "Data Peserta"). Null/kosong = belum dikonfigurasi → kolom file
+    // LKS dibiarkan kosong (advisori, TIDAK memblokir ekspor).
+    let bpjsOfficeCode: string | null | undefined;
+    if (b.bpjsOfficeCode !== undefined) {
+      const v = b.bpjsOfficeCode == null ? "" : String(b.bpjsOfficeCode).trim();
+      if (v.length > 10) {
+        return NextResponse.json({ error: "Kode kantor cabang BPJS maksimal 10 karakter" }, { status: 400 });
+      }
+      bpjsOfficeCode = v === "" ? null : v;
+    }
+    let bpjsInpatientClass: string | null | undefined;
+    if (b.bpjsInpatientClass !== undefined) {
+      const v = b.bpjsInpatientClass == null ? "" : String(b.bpjsInpatientClass).trim();
+      if (v !== "" && !["1", "2", "3"].includes(v)) {
+        return NextResponse.json({ error: "Kelas rawat inap BPJS harus salah satu dari: 1, 2, atau 3" }, { status: 400 });
+      }
+      bpjsInpatientClass = v === "" ? null : v;
+    }
+
     const updated = await db.payrollRegulation.update({
       where: { id: regulation.id },
       data: {
@@ -55,10 +77,22 @@ export async function PATCH(req: NextRequest) {
         jkpSalaryCap: num(b.jkpSalaryCap),
         nonNpwpSurcharge: num(b.nonNpwpSurcharge),
         useTer: b.useTer,
+        // P2.1-BM (D-BM16) — undefined = tidak dikirim → Prisma skip (pola num()).
+        bpjsOfficeCode,
+        bpjsInpatientClass,
       },
     });
+    // ActivityLog — sertakan perubahan identitas LKS bila dikirim (jejak
+    // mutasi konfigurasi file resmi BPJS).
+    const lksChanged = [
+      bpjsOfficeCode !== undefined ? `KODE KANTOR=${updated.bpjsOfficeCode ?? "—"}` : null,
+      bpjsInpatientClass !== undefined ? `KELAS RAWAT INAP=${updated.bpjsInpatientClass ?? "—"}` : null,
+    ].filter(Boolean).join(", ");
     await db.activityLog.create({
-      data: { action: "Updated", entity: "PayrollRegulation", entityId: regulation.id, detail: `Parameter regulasi ${regulation.code} diperbarui (useTer=${updated.useTer})` },
+      data: {
+        action: "Updated", entity: "PayrollRegulation", entityId: regulation.id,
+        detail: `Parameter regulasi ${regulation.code} diperbarui (useTer=${updated.useTer}${lksChanged ? `; ${lksChanged}` : ""})`,
+      },
     });
     return NextResponse.json({ regulation: updated });
   } catch (e) {

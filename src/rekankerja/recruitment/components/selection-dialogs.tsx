@@ -33,14 +33,14 @@ import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
   SELECTION_API, CANDIDATES_API,
   type ApplicantOpt, type CandidateDetail, type CalendarEvent, type EmployeeOpt,
-  type InvitationResult, type PanelResult, type PrStageConfig, type PrStageCatalogRow, type ProcessOpt, type PrOpt, type StepRow,
+  type InvitationResult, type PanelResult, type PrStageConfig, type PrStageCatalogRow, type ProcessOpt, type PrOpt, type StepRow, type StepSlot, type SlotInviteResult,
   type TemplateRow, Pill, CandPill, StepPill, RecPill, daysLateOf, monthsLabel,
 } from "./selection-shared";
 import { AiScorePanel } from "./ai-score-dialogs";
 import {
   AlertTriangle, AlarmClock, ArrowDown, ArrowUp, ArrowUpRight, BadgeCheck, CalendarPlus, Check, ChevronLeft, ChevronRight,
-  ChevronsUpDown, ClipboardCheck, Download, FileText, Info, ListChecks, MailCheck, Pencil, Plus, Settings2,
-  Trash2, UserPlus, UserRoundX, Video,
+  ChevronsUpDown, ClipboardCheck, Copy, Download, FileText, Info, Link2, ListChecks, MailCheck, Pencil, Plus, Send, Settings2,
+  Trash2, UserPlus, UserRoundX, Users, Video,
 } from "lucide-react";
 
 // ============ helper kecil ============
@@ -71,8 +71,12 @@ function EmployeeSelect({ value, onChange, employees }: { value: string; onChang
 }
 
 // ============================================================
-// Dialog jadwalkan tahap
+// Dialog jadwalkan tahap — P2.3 (D-BM18): panel evaluator MULTI (chip
+// tambah/hapus, urutan pertama = lead) + seksi slot jadwal mandiri
+// (simpan slot + kirim undangan token portal ke kandidat).
 // ============================================================
+
+interface SlotDraftRow { startAt: string; durationMin: string }
 
 export function ScheduleDialog({ step, employees, onClose, onDone }: {
   step: StepRow | null;
@@ -81,19 +85,42 @@ export function ScheduleDialog({ step, employees, onClose, onDone }: {
   onDone: () => void;
 }) {
   const { t } = useI18n();
+  const open = step != null;
   const [planDate, setPlanDate] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [evaluatorId, setEvaluatorId] = useState("");
+  const [evaluatorIds, setEvaluatorIds] = useState<string[]>([]);
+  const [evaluatorAdd, setEvaluatorAdd] = useState("");
   const [meetingUrl, setMeetingUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  // P2.3 — slot jadwal mandiri (draf baris + slot tersimpan di server)
+  const [slotRows, setSlotRows] = useState<SlotDraftRow[]>([]);
+  const [slotBusy, setSlotBusy] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [slotTick, setSlotTick] = useState(0);
+  const slotsApi = useApi<{ slots: StepSlot[] }>(open && step ? `${SELECTION_API}?stepId=${step.id}` : null, [open, step?.id, slotTick]);
+  const savedSlots = slotsApi.data?.slots ?? [];
+  const openSlotCount = savedSlots.filter((s) => s.status === "Open").length;
 
   useEffect(() => {
     if (!step) return;
     setPlanDate(step.planDate ? step.planDate.slice(0, 16) : "");
     setDueDate(step.dueDate ? step.dueDate.slice(0, 16) : "");
-    setEvaluatorId(step.performedById ?? "");
+    // panel evaluator existing (fallback performedById tunggal — backward-compat)
+    setEvaluatorIds(step.evaluators.length > 0 ? step.evaluators.map((e) => e.id) : step.performedById ? [step.performedById] : []);
+    setEvaluatorAdd("");
     setMeetingUrl(step.meetingUrl ?? "");
+    setInviteLink(null);
+    // slot Open existing → baris draf (Booked/Closed read-only — dipertahankan server)
+    setSlotRows((step.slots ?? []).filter((s) => s.status === "Open").map((s) => ({ startAt: s.startAt.slice(0, 16), durationMin: String(s.durationMin) })));
   }, [step]);
+
+  const employeeById = (id: string) => employees.find((e) => e.id === id);
+  const addEvaluator = (id: string) => {
+    if (!id || evaluatorIds.includes(id)) return;
+    setEvaluatorIds([...evaluatorIds, id]);
+    setEvaluatorAdd("");
+  };
 
   const submit = async () => {
     if (!step) return;
@@ -106,7 +133,8 @@ export function ScheduleDialog({ step, employees, onClose, onDone }: {
       await apiSend(SELECTION_API, "POST", {
         action: "schedule", stepId: step.id, planDate,
         dueDate: dueDate || null,
-        performedById: evaluatorId || null,
+        evaluatorIds,
+        performedById: evaluatorIds[0] ?? null,
         meetingUrl: meetingUrl.trim() || null,
       });
       toast.success(t(`Tahap ${step.stageName} dijadwalkan${dueDate ? ` — SLA s.d. ${fmtDate(dueDate)}` : ""}`, `Stage ${step.stageName} scheduled${dueDate ? ` — SLA until ${fmtDate(dueDate)}` : ""}`));
@@ -117,9 +145,54 @@ export function ScheduleDialog({ step, employees, onClose, onDone }: {
     } finally { setBusy(false); }
   };
 
+  const saveSlots = async () => {
+    if (!step) return;
+    const rows = slotRows.filter((r) => r.startAt);
+    if (rows.length === 0) {
+      toast.error(t("Isi minimal satu slot (tanggal & jam) sebelum menyimpan", "Fill in at least one slot (date & time) before saving"));
+      return;
+    }
+    setSlotBusy(true);
+    try {
+      const res = await apiSend<{ count: number; openCount: number }>(SELECTION_API, "POST", {
+        action: "slots-save", stepId: step.id,
+        slots: rows.map((r) => ({ startAt: r.startAt, durationMin: r.durationMin === "" ? 60 : Number(r.durationMin) })),
+      });
+      toast.success(t(`${res.count} slot jadwal disimpan — kandidat bisa memilih sendiri`, `${res.count} schedule slots saved — the candidate can pick one`));
+      setSlotTick((x) => x + 1);
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan slot jadwal", "Failed to save the schedule slots"));
+    } finally { setSlotBusy(false); }
+  };
+
+  const sendInvite = async () => {
+    if (!step) return;
+    setInviteBusy(true);
+    try {
+      const res = await apiSend<SlotInviteResult>(SELECTION_API, "POST", { action: "invite-slots", stepId: step.id, ttlHours: 72 });
+      setInviteLink(res.link);
+      toast.success(res.emailSent
+        ? t("Undangan pilih jadwal dikirim ke email kandidat — tautan siap dibagikan", "The schedule invitation was emailed to the candidate — link ready to share")
+        : t("Tautan undangan dibuat — email kandidat tidak tersedia, bagikan tautan secara manual", "Invitation link created — candidate email unavailable, share the link manually"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal menerbitkan undangan", "Failed to issue the invitation"));
+    } finally { setInviteBusy(false); }
+  };
+
+  const copyLink = async () => {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      toast.success(t("Tautan undangan disalin", "Invitation link copied"));
+    } catch {
+      toast.error(t("Gagal menyalin — salin manual dari kolom tautan", "Copy failed — copy manually from the link field"));
+    }
+  };
+
   return (
-    <Dialog open={step != null} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarPlus className="h-4 w-4 ov-text-accent" aria-hidden />
@@ -140,10 +213,36 @@ export function ScheduleDialog({ step, employees, onClose, onDone }: {
             </Label>
             <Input type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
+
+          {/* P2.3 — panel evaluator MULTI: chip pertama = lead (penanggung jawab) */}
           <div className="space-y-1.5">
-            <Label>{t("Evaluator", "Evaluator")}</Label>
-            <EmployeeSelect value={evaluatorId} onChange={setEvaluatorId} employees={employees} />
+            <Label className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+              {t("Panel Evaluator (1–N)", "Evaluator Panel (1–N)")}
+            </Label>
+            {evaluatorIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5" aria-label={t("Panel evaluator terpilih", "Selected evaluator panel")}>
+                {evaluatorIds.map((id, i) => {
+                  const emp = employeeById(id);
+                  return (
+                    <span key={id} className="inline-flex max-w-full items-center gap-1 rounded-full border border-slate-200 bg-slate-50 py-0.5 pl-2 pr-1 text-xs font-medium dark:border-slate-700 dark:bg-slate-800/60">
+                      <span className="min-w-0 truncate">{i === 0 ? <b className="mr-0.5">{t("Lead", "Lead")}:</b> : null}{emp ? emp.fullName : id.slice(0, 8)}</span>
+                      <button type="button" className="rounded-full p-0.5 text-slate-400 hover:bg-slate-200 hover:text-rose-600 dark:hover:bg-slate-700"
+                        onClick={() => setEvaluatorIds(evaluatorIds.filter((x) => x !== id))}
+                        aria-label={t("Hapus {n} dari panel", "Remove {n} from the panel", { n: emp?.fullName ?? id })}>
+                        <Trash2 className="h-3 w-3" aria-hidden />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            <EmployeeSelect value={evaluatorAdd} onChange={addEvaluator} employees={employees.filter((e) => !evaluatorIds.includes(e.id))} />
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+              {t("Tambah evaluator ke panel — evaluator pertama menjadi penanggung jawab; setiap evaluator mengisi scorecard sendiri.", "Add evaluators to the panel — the first one becomes the lead; each evaluator fills their own scorecard.")}
+            </p>
           </div>
+
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1">
               {t("Link Meeting")}
@@ -158,6 +257,82 @@ export function ScheduleDialog({ step, employees, onClose, onDone }: {
             <p className="text-[11px] text-slate-400 dark:text-slate-500">
               {t("Opsional — harus URL http/https (mis. Google Meet/Zoom).", "Optional — must be an http/https URL (e.g. Google Meet/Zoom).")}
             </p>
+          </div>
+
+          {/* P2.3 — slot jadwal mandiri (opsional) */}
+          <div className="space-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="flex items-center gap-1 text-xs">
+                <CalendarPlus className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                {t("Slot jadwal mandiri (opsional)", "Self-schedule slots (optional)")}
+              </Label>
+              {savedSlots.length > 0 && (
+                <span className="text-[10px] font-semibold text-slate-400" title={t("slot tersimpan (Open/Booked/Closed)", "saved slots (Open/Booked/Closed)")}>
+                  {openSlotCount}/{savedSlots.length} {t("Open", "Open")}
+                </span>
+              )}
+            </div>
+            {/* slot Booked/Closed tersimpan — read-only */}
+            {savedSlots.filter((s) => s.status !== "Open").length > 0 && (
+              <ul className="space-y-1">
+                {savedSlots.filter((s) => s.status !== "Open").map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2 py-1 text-[11px] dark:bg-slate-800/60">
+                    <span className="min-w-0 truncate">{fmtDateTime(s.startAt)} · {s.durationMin} {t("mnt", "min")}</span>
+                    <Pill tone={s.status === "Booked" ? "emerald" : "zinc"}>{s.status === "Booked" ? t("Terpilih", "Booked") : t("Ditutup", "Closed")}</Pill>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {/* draf slot Open */}
+            <div className="space-y-1.5">
+              {slotRows.map((r, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <Input type="datetime-local" value={r.startAt} className="h-8 min-w-0 flex-1"
+                    onChange={(e) => setSlotRows(slotRows.map((x, xi) => xi === i ? { ...x, startAt: e.target.value } : x))} />
+                  <Input type="number" min={5} max={480} step={5} value={r.durationMin} className="h-8 w-20"
+                    aria-label={t("Durasi (menit)", "Duration (minutes)")}
+                    onChange={(e) => setSlotRows(slotRows.map((x, xi) => xi === i ? { ...x, durationMin: e.target.value } : x))} />
+                  <span className="shrink-0 text-[10px] text-slate-400">{t("mnt", "min")}</span>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-rose-600 dark:text-rose-400"
+                    onClick={() => setSlotRows(slotRows.filter((_, xi) => xi !== i))} aria-label={t("Hapus slot", "Remove slot")}>
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" className="h-7 gap-1"
+                onClick={() => setSlotRows([...slotRows, { startAt: "", durationMin: "60" }])}>
+                <Plus className="h-3.5 w-3.5" aria-hidden /> {t("Tambah slot", "Add slot")}
+              </Button>
+            </div>
+            {slotRows.filter((r) => r.startAt).length > 0 && (
+              <Button type="button" variant="outline" size="sm" className="h-7 gap-1" disabled={slotBusy} onClick={saveSlots}>
+                <ClipboardCheck className="h-3.5 w-3.5" aria-hidden /> {slotBusy ? t("Menyimpan…", "Saving…") : t("Simpan Slot", "Save Slots")}
+              </Button>
+            )}
+
+            {/* undangan token portal — hanya bila ada slot Open tersimpan */}
+            {openSlotCount > 0 && (
+              <div className="space-y-1.5 border-t border-slate-100 pt-2 dark:border-slate-800">
+                <Button type="button" size="sm" className="h-8 gap-1.5 ov-fill" disabled={inviteBusy} onClick={sendInvite}>
+                  <Send className="h-3.5 w-3.5" aria-hidden />
+                  {inviteBusy ? t("Mengirim…", "Sending…") : t("Kirim Undangan Pilih Jadwal ke Kandidat", "Send Schedule Invitation to Candidate")}
+                </Button>
+                {inviteLink && (
+                  <div className="space-y-1.5 rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                    <div className="flex items-center gap-1.5">
+                      <Link2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                      <Input readOnly value={inviteLink} className="h-8 border-0 bg-transparent font-mono text-[11px] focus-visible:ring-0" />
+                      <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 gap-1 px-2" onClick={copyLink}>
+                        <Copy className="h-3 w-3" aria-hidden /> {t("Salin", "Copy")}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400">
+                      {t("Tautan berlaku 72 jam sejak diterbitkan — menerbitkan ulang membatalkan tautan lama.", "The link is valid for 72 hours from issuing — reissuing invalidates the old link.")}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>
@@ -1618,7 +1793,17 @@ export function CandidateDetailDialog({ candidateId, employees, stages, blind = 
                             <Field label={t("Rencana", "Planned")} value={s.planDate ? fmtDateTime(s.planDate) : "—"} />
                             <Field label={t("Batas SLA", "SLA Due")} value={s.dueDate ? fmtDate(s.dueDate) : "—"}
                               danger={s.overdue} title={s.overdue ? t("lewat {n} hari", "{n} days overdue", { n: String(late) }) : undefined} />
-                            <Field label={t("Evaluator", "Evaluator")} value={s.performerName ?? "—"} />
+                            <Field label={t("Panel Evaluator", "Evaluator Panel")} value={
+                              s.evaluators.length > 0 ? (
+                                <span className="flex flex-wrap items-center gap-1" title={t("Panel: {names}", "Panel: {names}", { names: s.evaluators.map((e) => e.name).join(", ") })}>
+                                  {s.evaluators.map((e, i) => (
+                                    <span key={e.id} className="inline-flex items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium dark:border-slate-700 dark:bg-slate-800/60">
+                                      <Users className="h-2.5 w-2.5 text-slate-400" aria-hidden />
+                                      {e.name}{i === 0 ? ` (${t("Lead", "Lead")})` : ""}
+                                    </span>
+                                  ))}
+                                </span>
+                              ) : (s.performerName ?? "—")} />
                             <Field label={t("Ack", "Acknowledged")} value={s.acknowledgedAt ? fmtDate(s.acknowledgedAt) : "—"} />
                             <Field label={t("Skor / Hasil", "Score / Result")} value={
                               <span className="flex flex-wrap items-center gap-1.5">
@@ -1653,6 +1838,24 @@ export function CandidateDetailDialog({ candidateId, employees, stages, blind = 
                               </span>} />
                           </div>
                           {s.comment && <p className="mt-1.5 text-xs italic text-slate-500 dark:text-slate-400">“{s.comment}”</p>}
+                          {/* P2.3 — slot jadwal mandiri + status booked */}
+                          {s.slots.length > 0 && (
+                            <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-900/40">
+                              <div className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                <CalendarPlus className="h-3 w-3" aria-hidden /> {t("Slot jadwal mandiri", "Self-schedule slots")}
+                              </div>
+                              <ul className="space-y-1">
+                                {s.slots.map((sl) => (
+                                  <li key={sl.id} className="flex items-center justify-between gap-2 text-[11px]">
+                                    <span className="min-w-0 truncate">{fmtDateTime(sl.startAt)} · {sl.durationMin} {t("mnt", "min")}</span>
+                                    <Pill tone={sl.status === "Booked" ? "emerald" : sl.status === "Open" ? "amber" : "zinc"}>
+                                      {sl.status === "Booked" ? t("Terpilih kandidat", "Booked") : sl.status === "Open" ? t("Tersedia", "Open") : t("Ditutup", "Closed")}
+                                    </Pill>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           {s.overdue && (
                             <p className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400">
                               <AlarmClock className="h-3 w-3" aria-hidden /> {t("TERLAMBAT {n} hari", "{n} DAYS OVERDUE", { n: String(late) })}

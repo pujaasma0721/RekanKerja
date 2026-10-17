@@ -260,6 +260,13 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     subject: "[Selesai] Checklist offboarding {{nama}} ({{employeeNo}})",
     body: "Halo Tim HR,\n\nSeluruh checklist offboarding/clearance untuk karyawan berikut telah tuntas:\n- Nama: {{nama}} ({{employeeNo}})\n- Posisi: {{posisi}}\n- Unit: {{unit}}\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
   },
+  // P2.5-BM (D-BM20) — pengingat perpanjangan polis asuransi grup H-30
+  // (scheduler jobPolicyRenewalReminders → Admin/HR ber-email).
+  {
+    event: "policy.renewal.reminder", label: "Medical — Pengingat Perpanjangan Polis (H-30)", notifyEmployee: false, notifyApprover: false, notifyHrd: true,
+    subject: "[Pengingat] Polis {{polis}} berakhir {{tanggal}}",
+    body: "Halo {{nama}},\n\nPolis asuransi grup berikut akan segera berakhir:\n- Nomor polis: {{polis}}\n- Penyedia: {{provider}}\n- Tanggal berakhir: {{tanggal}}\n- Sisa waktu: {{sisa}} hari\n\nMohon tindak lanjut perpanjangan (renewal) dengan penyedia agar cakupan manfaat karyawan tidak terputus.\n\n---\nEmail otomatis scheduler RekanKerja HRIS — tidak perlu dibalas.",
+  },
 ];
 
 /** Label tampil untuk sebuah event (UI). */
@@ -434,6 +441,14 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
     { key: "link", label: "Tautan checklist publik", contoh: "https://…/checklist/…" },
   ],
   "offboarding.completed": [PH_NAMA, { key: "employeeNo", label: "Nomor karyawan", contoh: "SAYONE00001" }, { key: "posisi", label: "Posisi karyawan", contoh: "Staff GA" }, { key: "unit", label: "Unit organisasi", contoh: "GA & Umum" }],
+  // P2.5-BM (D-BM20) — pengingat perpanjangan polis asuransi grup (H-30)
+  "policy.renewal.reminder": [
+    { ...PH_NAMA, label: "Nama admin penerima pengingat", contoh: "Tri Handayani" },
+    { key: "polis", label: "Nomor polis asuransi grup", contoh: "POL/GA/2026/001" },
+    { key: "provider", label: "Nama penyedia asuransi", contoh: "Asuransi Sehat Bersama" },
+    { key: "tanggal", label: "Tanggal berakhir polis", contoh: "2026-11-20" },
+    { key: "sisa", label: "Sisa hari menuju berakhir", contoh: "20" },
+  ],
 };
 
 /** Daftar placeholder untuk event (fallback: kosong — contoh config.test sistem). */

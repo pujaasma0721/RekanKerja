@@ -281,6 +281,27 @@ export function notifyEmailEvent(db: TenantDb, input: NotifyInput): void {
   void dispatch(db, input).catch(() => { /* never */ });
 }
 
+/** Input notifikasi email + lampiran biner (pola payslip — P2.3 D-BM18). */
+export interface NotifyInputWithAttachments extends NotifyInput {
+  attachments: EmailAttachment[];
+}
+
+/**
+ * P2.3-BM (D-BM18) — varian notifyEmailEvent DENGAN LAMPIRAN (mis. undangan
+ * kalender .ics saat jadwal wawancara kandidat terkunci). Perilaku identik
+ * notifyEmailEvent (render template event, EmailLog Sent/Failed/Skipped,
+ * redaksi salinan log) — bedanya: attachments diteruskan ke smtpSend dan
+ * FUNGSI MENGEMBALIKAN promise supaya pemanggil bisa menunggu EmailLog
+ * deterministik (pelajaran P1.5 — e2e tidak boleh race dengan fire-and-forget).
+ * Tidak pernah throw / reject (dispatch punya safety net sendiri).
+ */
+export function notifyEmailEventWithAttachments(
+  db: TenantDb,
+  input: NotifyInputWithAttachments,
+): Promise<void> {
+  return dispatch(db, input, input.attachments).catch(() => { /* never */ });
+}
+
 /**
  * Email sistem LANGSUNG (tanpa template) — Task 80 e-sign OTP: isi pesan
  * dibangun pemanggil, status tercatat di EmailLog. Resolve {ok, message};
@@ -306,7 +327,7 @@ export async function sendSystemEmail(
   }
 }
 
-async function dispatch(db: TenantDb, input: NotifyInput): Promise<void> {
+async function dispatch(db: TenantDb, input: NotifyInput, attachments?: EmailAttachment[]): Promise<void> {
   try {
     const cfgRow = await getActiveConfig(db);
     if (!cfgRow || !cfgRow.active) {
@@ -334,7 +355,7 @@ async function dispatch(db: TenantDb, input: NotifyInput): Promise<void> {
     for (const t of input.to) {
       if (!t.email || !t.email.includes("@")) continue;
       try {
-        await smtpSend(cfg, t, subject, body);
+        await smtpSend(cfg, t, subject, body, attachments);
         await writeLog(db, { event: input.event, toEmail: t.email, subject, status: "Sent", body, secrets });
       } catch (e) {
         await writeLog(db, { event: input.event, toEmail: t.email, subject, status: "Failed", error: (e instanceof Error ? e.message : "unknown").slice(0, 500), body, secrets });

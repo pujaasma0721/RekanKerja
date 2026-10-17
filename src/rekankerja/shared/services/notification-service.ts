@@ -46,6 +46,22 @@ export async function pushNotification(
       },
       select: { id: true },
     });
+    // P2.2-BM (D-BM17) — WEB PUSH fire-and-forget: notifikasi in-app sukses
+    // dibarengi push ke perangkat user (bila opt-in). Never-throw; import
+    // lazy agar bundler tidak menarik web-push ke jalur non-push.
+    void (async () => {
+      try {
+        const { sendWebPushToUser } = await import("./push-service");
+        await sendWebPushToUser(db, input.appUserId, {
+          title: input.title,
+          body: input.body ?? "",
+          link: input.link ?? undefined,
+          tag: input.kind ?? "app",
+        });
+      } catch {
+        // fitur push off / library tak tersedia — senyap (pola email hook)
+      }
+    })();
     return row.id;
   } catch (e) {
     // schema belum termigrasi / DB down — bisnis utama tetap lanjut.

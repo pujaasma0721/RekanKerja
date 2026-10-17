@@ -81,6 +81,60 @@ self.addEventListener("message", (event) => {
   }
 });
 
+/* P2.2-BM (D-BM17) — WEB PUSH ============================================
+ * Handler push + notificationclick. Payload dari push-service:
+ *   {title, body?, link?, tag?} — link "section:view" tidak bisa dibuka
+ *   langsung di jendela baru (SPA section internal) → notificationclick
+ *   fokus tab existing / buka root; badge bell akan menunjukkan itemnya.
+ * Strategi cache di atas TIDAK tersentuh — handler ini independen. */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_err) {
+    data = {}; // payload bukan JSON → notifikasi generik
+  }
+  const title = (data && data.title) || "RekanKerja";
+  const options = {
+    body: (data && data.body) || "",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-96x96.png",
+    tag: (data && data.tag) || "app",
+    data: { link: (data && data.link) || null },
+  };
+  event.waitUntil(
+    (async () => {
+      try {
+        await self.registration.showNotification(title, options);
+      } catch (_err) { /* non-fatal */ }
+    })()
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    (async () => {
+      try {
+        const clientList = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
+        // fokus tab aplikasi yang sudah terbuka (SPA — link internal
+        // "section:view" tak bisa dibuka jendela baru; bell menuntun navigasi)
+        for (let i = 0; i < clientList.length; i++) {
+          const client = clientList[i];
+          if (client.url && client.url.startsWith(self.location.origin) && "focus" in client) {
+            return client.focus();
+          }
+        }
+        if (self.clients.openWindow) return self.clients.openWindow("/");
+      } catch (_err) { /* non-fatal */ }
+      return undefined;
+    })()
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;

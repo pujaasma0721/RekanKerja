@@ -5,7 +5,7 @@ import {
   getBoard, getCandidateDetail, getSelectionCalendar, selectionSummaries,
   scheduleStep, acknowledgeStep, recordStepResult, advanceCandidate,
   cancelStep, addStep, withdrawCandidate, issueInvitation, letterPdf,
-  getPrStageConfig, setPrStages,
+  getPrStageConfig, setPrStages, saveStepSlots, issueSlotInvite, listStepSlots,
 } from "@/rekankerja/recruitment/services/selection-service";
 import {
   listTemplates, upsertTemplate, deactivateTemplate,
@@ -20,13 +20,14 @@ import {
 //   GET  ?summaries=1              → { summaries } (badge per PR)
 //   GET  ?calendar=YYYY-MM         → { month, events }
 //   GET  ?candidateId=             → { row } detail kandidat + tahap + panel
-//   GET  ?stepId=&scorecards=1      → { panel } scorecard step
+//   GET  ?stepId=&scorecards=1      → { panel, slots } scorecard step (P2.3 + slot)
+//   GET  ?stepId=                    → { slots } slot jadwal mandiri (P2.3)
 //   GET  ?templates=1               → { templates } katalog rubrik
 //   GET  ?prStages=1&prId=          → { config } tahapan kustom PR + katalog (SB-RC-BL)
 //   GET  ?letterPdf=ID              → PDF surat undangan (stream)
 //   POST { action: schedule|ack|result|advance|cancel-step|add-step
 //          |withdraw|invite|scorecard-save|template-upsert|template-deactivate
-//          |pr-stages-save }
+//          |pr-stages-save|slots-save|invite-slots }
 // Guard: recruitment:selection (view + op:schedule/op:result/op:invite +
 // create/update utk scorecard) · op:withdraw → recruitment:candidates.
 // ============================================================================
@@ -78,8 +79,14 @@ export async function GET(req: NextRequest) {
     }
 
     const stepId = sp.get("stepId");
-    if (stepId && sp.get("scorecards")) {
-      return NextResponse.json({ panel: await getStepScorecards(db, stepId) });
+    if (stepId) {
+      // P2.3 — slot jadwal mandiri selalu disertakan (?scorecards=1 tetap
+      // memuat panel — field `slots` tambahan, backward-compat).
+      const slots = await listStepSlots(db, stepId);
+      if (sp.get("scorecards")) {
+        return NextResponse.json({ panel: await getStepScorecards(db, stepId), slots });
+      }
+      return NextResponse.json({ slots });
     }
 
     if (sp.get("templates")) {
@@ -118,11 +125,17 @@ export async function POST(req: NextRequest) {
       switch (action) {
         case "schedule": {
           const m = await guard("recruitment:selection", "op:schedule");
+          // P2.3 — panel evaluator: evaluatorIds[] (lead = [0]); pemanggil lama
+          // yang hanya mengirim performedById tetap didukung (backward-compat).
+          const evaluatorIds = Array.isArray(b.evaluatorIds)
+            ? (b.evaluatorIds as unknown[]).map(String).filter(Boolean)
+            : undefined;
           await scheduleStep(m.db, {
             stepId: String(b.stepId ?? ""),
             planDate: String(b.planDate ?? ""),
             dueDate: b.dueDate ? String(b.dueDate) : null,
             performedById: b.performedById ? String(b.performedById) : null,
+            evaluatorIds,
             meetingUrl: b.meetingUrl ? String(b.meetingUrl) : null, // B6 — URL invalid → 400
             actorName: m.actor.name,
           });
@@ -263,6 +276,32 @@ export async function POST(req: NextRequest) {
             actorName: m.actor.name,
           });
           return NextResponse.json(res);
+        }
+        // P2.3 (D-BM18) — simpan slot jadwal mandiri utk satu tahap.
+        case "slots-save": {
+          const m = await guard("recruitment:selection", "op:schedule");
+          const slots = Array.isArray(b.slots)
+            ? (b.slots as Record<string, unknown>[]).map((s) => ({
+                startAt: String(s.startAt ?? ""),
+                durationMin: s.durationMin != null && s.durationMin !== "" ? Number(s.durationMin) : null,
+              }))
+            : [];
+          const res = await saveStepSlots(m.db, {
+            stepId: String(b.stepId ?? ""),
+            slots,
+            actorName: m.actor.name,
+          });
+          return NextResponse.json(res);
+        }
+        // P2.3 (D-BM18) — terbitkan undangan pilih jadwal (token portal) → { link }.
+        case "invite-slots": {
+          const m = await guard("recruitment:selection", "op:schedule");
+          const res = await issueSlotInvite(m.db, {
+            stepId: String(b.stepId ?? ""),
+            ttlHours: b.ttlHours != null && b.ttlHours !== "" ? Number(b.ttlHours) : null,
+            actorName: m.actor.name,
+          });
+          return NextResponse.json({ link: res.link, expiresAt: res.expiresAt, emailSent: res.emailSent, openCount: res.openCount });
         }
         default:
           return NextResponse.json({ error: `Aksi tidak dikenal: ${action}` }, { status: 400 });

@@ -299,8 +299,11 @@ async function employeeLabel(db: DbOrTx, employeeId: string): Promise<{ approver
   return { approverEmployeeId: emp.id, label: emp.position?.title ? `${emp.fullName} — ${emp.position.title}` : emp.fullName };
 }
 
+// P2.6-BM (D-BM21): diekspor untuk approval-escalation-job (target eskalasi =
+// atasan langsung approver jenjang current). Logika TIDAK diubah — hanya
+// visibilitas (pola ekspor resolveApprover lain).
 /** Naik rantai atasan dari seorang karyawan (1 = atasan langsung). */
-async function managerAtLevel(db: DbOrTx, employeeId: string, level: number): Promise<string | null> {
+export async function managerAtLevel(db: DbOrTx, employeeId: string, level: number): Promise<string | null> {
   let currentId = employeeId;
   for (let i = 0; i < level; i++) {
     const assignment = await db.employeeAssignment.findFirst({

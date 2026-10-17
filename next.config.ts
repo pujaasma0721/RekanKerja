@@ -15,10 +15,20 @@ const nextConfig: NextConfig = {
   // nodemailer dimuat saat RUNTIME dari node_modules (tidak dibundel saat build)
   // → bila paket belum terpasang, app tetap jalan; kirim email didegradasi jadi
   // pesan jelas di log/tes kirim, BUKAN build error mematikan seluruh aplikasi.
-  serverExternalPackages: ["nodemailer"],
+  // web-push (P2.2-BM D-BM17): pola sama — lazy import server-side di
+  // push-service; push didegradasi tenang bila paket tak terpasang.
+  serverExternalPackages: ["nodemailer", "web-push"],
   // indikator dev-tools Next.js (portal mengambang kiri-bawah) menutupi tombol
   // Pengaturan di rail — dimatikan agar preview bersih; error tetap terlihat di dev.log
   devIndicators: false,
+  // P2-BENCHMARK — batas memori kompilasi Turbopack (sandbox 3,9 GiB): tanpa
+  // ini, kompilasi chunk modul besar (~250k LOC) memuncak ±2,9 GB anon dan
+  // OOM-kill next-server berulang (dmesg 15:41–15:49). 1,5 GB: worker
+  // kompilasi direstart terkendali oleh Next + cache .next tetap utuh —
+  // progresif menghangatkan tanpa membunuh proses lain (postgres/chrome).
+  experimental: {
+    turbopackMemoryLimit: 1_500_000_000,
+  },
   // PWA (Task 27-d): service worker di-root scope & tidak boleh di-cache
   // oleh perantara mana pun — versi baru harus aktif segera setelah deploy.
   async headers() {

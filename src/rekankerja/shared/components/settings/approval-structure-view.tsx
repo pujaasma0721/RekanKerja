@@ -87,6 +87,9 @@ interface Structure {
   name: string;
   docType: string;
   active: boolean;
+  // P2.6-BM (D-BM21) — eskalasi otomatis: null = OFF (default) — step terjeda
+  // > X hari dieskalasi ke atasan approver oleh job scheduler.
+  escalateDays: number | null;
   companyOfficeId: string | null;
   companyOffice: { code: string; name: string } | null;
   workLocationId: string | null;
@@ -414,6 +417,7 @@ function StructureFormDialog(p: StructureFormDialogProps) {
     name: s?.name ?? "",
     docType: s?.docType ?? "Leave",
     active: s?.active ?? true,
+    escalateDays: s?.escalateDays != null ? String(s.escalateDays) : "",
     companyOfficeId: s?.companyOfficeId ?? "",
     workLocationId: s?.workLocationId ?? "",
     orgUnitId: s?.orgUnitId ?? "",
@@ -454,6 +458,12 @@ function StructureFormDialog(p: StructureFormDialogProps) {
       toast.error(t("Kode & nama struktur wajib diisi", "Structure code & name are required"));
       return;
     }
+    // P2.6-BM (D-BM21) — eskalasi otomatis: 1..30 hari atau kosong (OFF default).
+    const escalateDaysNum = form.escalateDays.trim() === "" ? null : Number(form.escalateDays);
+    if (escalateDaysNum != null && (!Number.isInteger(escalateDaysNum) || escalateDaysNum < 1 || escalateDaysNum > 30)) {
+      toast.error(t("Eskalasi otomatis: isi 1–30 hari atau kosongkan (nonaktif)", "Auto escalation: enter 1–30 days or leave empty (disabled)"));
+      return;
+    }
     for (let i = 0; i < levelDrafts.length; i++) {
       const l = levelDrafts[i];
       if (l.approverType === "POSISI" && !l.approverPositionId) {
@@ -474,6 +484,7 @@ function StructureFormDialog(p: StructureFormDialogProps) {
       name: form.name.trim(),
       docType: form.docType,
       active: form.active,
+      escalateDays: escalateDaysNum,
       companyOfficeId: form.companyOfficeId || null,
       workLocationId: form.workLocationId || null,
       orgUnitId: form.orgUnitId || null,
@@ -574,6 +585,25 @@ function StructureFormDialog(p: StructureFormDialogProps) {
                 <p className="text-[11px] text-slate-500">{t("Nonaktif = pengajuan baru memakai struktur lain / fallback", "Inactive = new requests use another structure / the fallback")}</p>
               </div>
               <Switch checked={form.active} onCheckedChange={(v) => set("active", v)} />
+            </div>
+            {/* P2.6-BM (D-BM21) — eskalasi otomatis per struktur */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t("Eskalasi Otomatis (hari)", "Auto Escalation (days)")}</Label>
+              <Input
+                type="number"
+                min={1}
+                max={30}
+                value={form.escalateDays}
+                onChange={(e) => set("escalateDays", e.target.value)}
+                placeholder={t("Nonaktif (default)", "Off (default)")}
+                className="h-9 rounded-lg"
+              />
+              <p className="text-[11px] text-slate-500">
+                {t(
+                  "Kosong = eskalasi OFF; terisi X = jenjang terjeda > X hari dieskalasi ke atasan approver",
+                  "Empty = escalation OFF; fill in X = a tier stalled > X days is escalated to the approver's superior",
+                )}
+              </p>
             </div>
           </div>
 

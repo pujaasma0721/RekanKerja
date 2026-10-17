@@ -15,9 +15,10 @@
 // ============================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import type { Prisma } from "@/generated/tenant";
-import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { tenantCryptoForDb, tenantSchemaOfDb } from "@/rekankerja/shared/lib/field-crypto";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
-import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
+import { notifyEmailEvent, notifyEmailEventWithAttachments } from "@/rekankerja/shared/services/email-service";
 import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
 import { getStepScorecards, scorecardGateOk } from "@/rekankerja/recruitment/services/scorecard-service";
 import { getRecruitmentSetting, recruitmentAutomationOn } from "@/rekankerja/recruitment/services/recruitment-setting-service";
@@ -88,6 +89,8 @@ export interface CandidateCard {
   scorecardCount: number; // scorecard submitted pada step aktif
   divergence: boolean; // flag kalibrasi (panel selisih >2)
   invitationLetterNo: string | null; // undangan step aktif
+  /** P2.3 — jumlah evaluator panel step aktif (min 1 bila performedById ada). */
+  evaluatorCount: number;
 }
 
 export interface BoardColumn {
@@ -154,6 +157,11 @@ export interface StepRow {
   overdue: boolean;
   isCurrent: boolean;
   scorecardPanel: { count: number; submitted: number; divergence: boolean; feedbackOk: boolean };
+  /** P2.3 — panel evaluator tahap (lead = performedById; urut input). */
+  evaluators: { id: string; name: string }[];
+  /** P2.3 — slot jadwal mandiri (self-schedule) + jumlahnya. */
+  slots: { id: string; startAt: string; durationMin: number; status: string }[];
+  slotCount: number;
 }
 
 export interface CandidateDetail {
@@ -199,6 +207,9 @@ const STEP_LIST_INCLUDE = {
   selectionProcess: { select: { id: true, name: true, code: true, resultType: true, minResultPass: true, slaDays: true, needAcknowledgement: true, mandatory: true, processOrder: true } },
   performedBy: { select: { fullName: true } },
   letters: { select: { id: true, letterNo: true, kind: true, issuedAt: true }, orderBy: { issuedAt: "desc" as const } },
+  // P2.3 — panel evaluator + slot jadwal mandiri (D-BM18)
+  stepEvaluators: { include: { evaluator: { select: { id: true, fullName: true } } }, orderBy: { createdAt: "asc" as const } },
+  interviewSlots: { select: { id: true, startAt: true, durationMin: true, status: true }, orderBy: { startAt: "asc" as const } },
 } satisfies Prisma.CandidateSelectionStepInclude;
 
 type StepWithProc = Prisma.CandidateSelectionStepGetPayload<{ include: typeof STEP_LIST_INCLUDE }>;
@@ -281,6 +292,7 @@ function cardOf(
     scorecardCount: panel?.count ?? 0,
     divergence: panel?.divergence ?? false,
     invitationLetterNo: cur?.letters[0]?.letterNo ?? cur?.letterNo ?? null,
+    evaluatorCount: Math.max(cur?.stepEvaluators.length ?? 0, cur?.performedById ? 1 : 0),
   };
 }
 
@@ -624,6 +636,9 @@ export async function getCandidateDetail(db: TenantDb, id: string, moneyVisible:
         letters: s.letters.map((l) => ({ id: l.id, letterNo: l.letterNo, kind: l.kind, issuedAt: l.issuedAt.toISOString() })),
         overdue: stepOverdue(s),
         isCurrent: cur?.id === s.id,
+        evaluators: s.stepEvaluators.map((e) => ({ id: e.evaluator.id, name: e.evaluator.fullName })),
+        slots: s.interviewSlots.map((r) => ({ id: r.id, startAt: r.startAt.toISOString(), durationMin: r.durationMin, status: r.status })),
+        slotCount: s.interviewSlots.length,
         scorecardPanel: {
           count: panel?.scorecards.length ?? 0,
           submitted: panel?.scorecards.filter((x) => x.submittedAt != null).length ?? 0,
@@ -686,19 +701,41 @@ export interface ScheduleStepInput {
   stepId: string;
   planDate: string; // datetime-local ISO
   dueDate?: string | null; // override SLA (opsional)
-  performedById?: string | null; // evaluator penanggung jawab
+  performedById?: string | null; // evaluator penanggung jawab (lead — backward-compat)
+  /** P2.3 — panel evaluator (min 1 saat diisi; [0] = lead → performedById). */
+  evaluatorIds?: string[];
   /** B6 — link meeting video-call (opsional, URL http/https). */
   meetingUrl?: string | null;
   actorName?: string | null;
 }
 
-/** Jadwalkan tahap (plan + due SLA + evaluator + link meeting B6) + notifikasi evaluator/kandidat. */
+/**
+ * Jadwalkan tahap (plan + due SLA + evaluator + link meeting B6) + notifikasi
+ * evaluator/kandidat. P2.3 (D-BM18): `evaluatorIds` = panel 1–N evaluator —
+ * lead = elemen pertama → performedById (backward-compat pemanggil lama yang
+ * hanya mengirim performedById); seluruh panel disimpan sebagai baris
+ * CandidateStepEvaluator (replace-all idempoten) dan notifikasi dikirim ke
+ * SEMUA evaluator (loop pola notifikasi satu evaluator existing).
+ */
 export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Promise<void> {
   const step = await stepCtx(db, input.stepId);
   assertStepEditable(step);
   const plan = parseDateInput(input.planDate);
   if (!plan) throw new Error("Jadwal (plan date) wajib diisi");
   const meetingUrl = parseMeetingUrl(input.meetingUrl ?? null); // invalid → throw → 400
+
+  // P2.3 — panel evaluator: dedupe + urutan input dipertahankan (lead = [0]).
+  const evaluatorIds = [...new Set((input.evaluatorIds ?? []).map((s) => s.trim()).filter(Boolean))];
+  if (input.evaluatorIds != null && evaluatorIds.length === 0) {
+    throw new Error("Minimal satu evaluator diperlukan");
+  }
+  if (evaluatorIds.length > 0) {
+    const found = await db.employee.findMany({ where: { id: { in: evaluatorIds } }, select: { id: true } });
+    if (found.length !== evaluatorIds.length) {
+      throw new Error("Ada evaluator yang tidak dikenal — muat ulang daftar karyawan");
+    }
+  }
+  const leadId = evaluatorIds[0] ?? input.performedById ?? step.performedById ?? null;
 
   const slaDays = step.selectionProcess.slaDays;
   const due = parseDateInput(input.dueDate ?? null) ?? (slaDays ? new Date(plan.getTime() + slaDays * 86_400_000) : null);
@@ -707,29 +744,45 @@ export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Prom
     where: { id: step.id },
     data: {
       planDate: plan, dueDate: due,
-      performedById: input.performedById ?? step.performedById ?? null,
+      performedById: leadId,
       meetingUrl,
       // reschedule → ack di-reset (undangan baru perlu konfirmasi baru)
       acknowledgedAt: null, status: "Planned",
     },
   });
 
+  // P2.3 — panel evaluator (idempoten: replace-all dalam transaksi; lead ikut
+  // tercatat sebagai baris supaya undangan + scorecard panel konsisten).
+  if (evaluatorIds.length > 0) {
+    await db.$transaction([
+      db.candidateStepEvaluator.deleteMany({ where: { selectionStepId: step.id } }),
+      ...evaluatorIds.map((evaluatorId) =>
+        db.candidateStepEvaluator.create({ data: { selectionStepId: step.id, evaluatorId } }),
+      ),
+    ]);
+  }
+
   await db.activityLog.create({
     data: {
       action: "Updated", entity: "CandidateSelectionStep", entityId: step.candidate.pr.prNo,
-      detail: `Tahap ${step.selectionProcess.name} kandidat ${step.candidate.fullName} (${step.candidate.pr.prNo}) dijadwalkan ${fmtDateTimeId(plan)}${due ? ` — SLA s.d. ${fmtDateId(due)}` : ""}${meetingUrl ? ` — link meeting ${meetingUrl}` : ""}${input.actorName ? ` oleh ${input.actorName}` : ""}`,
+      detail: `Tahap ${step.selectionProcess.name} kandidat ${step.candidate.fullName} (${step.candidate.pr.prNo}) dijadwalkan ${fmtDateTimeId(plan)}${due ? ` — SLA s.d. ${fmtDateId(due)}` : ""}${meetingUrl ? ` — link meeting ${meetingUrl}` : ""}${evaluatorIds.length > 1 ? ` — panel ${evaluatorIds.length} evaluator` : ""}${input.actorName ? ` oleh ${input.actorName}` : ""}`,
     },
   });
 
-  if (input.performedById) {
-    const ev = await db.employee.findUnique({ where: { id: input.performedById }, select: { fullName: true, email: true } });
+  // P2.3 — notifikasi ke SEMUA evaluator panel (fallback performedById tunggal —
+  // backward-compat: pemanggil lama tanpa evaluatorIds tetap 1 notifikasi).
+  const notifyTargets = evaluatorIds.length > 0 ? evaluatorIds : input.performedById ? [input.performedById] : [];
+  const evaluators = notifyTargets.length > 0
+    ? await db.employee.findMany({ where: { id: { in: notifyTargets } }, select: { id: true, fullName: true, email: true } })
+    : [];
+  for (const ev of evaluators) {
     void notifyEvent(db, {
-      to: "employee", employeeId: input.performedById, docType: "RecruitmentSelection", docNo: step.candidate.pr.prNo,
+      to: "employee", employeeId: ev.id, docType: "RecruitmentSelection", docNo: step.candidate.pr.prNo,
       title: `Jadwal seleksi baru — ${step.selectionProcess.name}`,
-      body: `${step.candidate.fullName} (${step.candidate.pr.prNo}) dijadwalkan ${fmtDateTimeId(plan)}${due ? `, batas SLA ${fmtDateId(due)}` : ""}${ev ? `. Evaluator: ${ev.fullName}` : ""}`,
+      body: `${step.candidate.fullName} (${step.candidate.pr.prNo}) dijadwalkan ${fmtDateTimeId(plan)}${due ? `, batas SLA ${fmtDateId(due)}` : ""}${evaluators.length > 1 ? `. Panel: ${evaluators.map((e) => e.fullName).join(", ")}` : ""}`,
       kind: "recruitment", link: "recruitment:selection",
     }).catch(() => {});
-    if (ev?.email) {
+    if (ev.email) {
       void notifyEmailEvent(db, {
         event: "recruitment.selection.scheduled",
         to: [{ email: ev.email, name: ev.fullName }],
@@ -747,7 +800,7 @@ export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Prom
 
   // B6 — WhatsApp paralel (fire-and-forget, never-throw; pola shift-swap):
   // undangan ke KANDIDAT (nomor Applicant terenkripsi — PII decrypt hanya
-  // di batas service) + info jadwal ke EVALUATOR (employeePhoneOf).
+  // di batas service) + info jadwal ke SEMUA EVALUATOR panel (employeePhoneOf).
   void (async () => {
     const ph = (nama: string) => ({
       nama, docNo: step.candidate.pr.prNo,
@@ -756,15 +809,17 @@ export async function scheduleStep(db: TenantDb, input: ScheduleStepInput): Prom
       jadwal: fmtDateTimeId(plan), batasSla: due ? fmtDateId(due) : "-",
       linkMeeting: meetingUrl ?? "-",
     });
-    const [evaluatorPhone, applicantRow] = await Promise.all([
-      employeePhoneOf(db, input.performedById ?? null),
+    const [evaluatorPhones, applicantRow] = await Promise.all([
+      Promise.all(notifyTargets.map((id) => employeePhoneOf(db, id))),
       step.candidate.applicantId
         ? db.applicant.findUnique({ where: { id: step.candidate.applicantId }, select: { phone: true, email: true } })
         : Promise.resolve(null),
     ]);
-    if (evaluatorPhone && input.performedById) {
-      const ev = await db.employee.findUnique({ where: { id: input.performedById }, select: { fullName: true } }).catch(() => null);
-      void sendWa(db, { event: "recruitment.selection.scheduled", toPhone: evaluatorPhone, placeholders: ph(ev?.fullName ?? "Evaluator") });
+    for (let i = 0; i < notifyTargets.length; i++) {
+      const phone = evaluatorPhones[i];
+      if (!phone) continue;
+      const ev = evaluators.find((e) => e.id === notifyTargets[i]);
+      void sendWa(db, { event: "recruitment.selection.scheduled", toPhone: phone, placeholders: ph(ev?.fullName ?? "Evaluator") });
     }
     const candPhone = applicantRow?.phone ? tenantCryptoForDb(db).decryptText(applicantRow.phone) : null;
     if (candPhone) {
@@ -1150,6 +1205,397 @@ export async function letterPdf(db: TenantDb, letterId: string): Promise<Uint8Ar
     null,
     letter.issuedAt,
   );
+}
+
+// ============ P2.3-BM (D-BM18) — slot jadwal mandiri + undangan token + .ics ============
+
+/** Hash SHA-256 hex — token undangan jadwal (PII tidak pernah masuk token). */
+function sha256Hex(v: string): string {
+  return createHash("sha256").update(v).digest("hex");
+}
+
+/** Basis URL portal kandidat (halaman /jadwal/<token> — mini-service :3010). */
+function portalBase(): string {
+  return process.env.CANDIDATE_PORTAL_URL ?? "http://127.0.0.1:3010";
+}
+
+/**
+ * Slug tenant dari registry platform (Tenant.slug by schemaName) — SATU sumber
+ * slug (pola esign-service: jangan derivasi manual dari nama schema, hasilnya
+ * bisa beda dgn slug saat token dibuat → tautan portal tidak konsisten).
+ */
+async function tenantSlugOfDb(db: TenantDb): Promise<string> {
+  const schema = tenantSchemaOfDb(db);
+  const { db: platformDb } = await import("@/lib/db");
+  const row = await platformDb.tenant.findUnique({
+    where: { schemaName: schema },
+    select: { slug: true },
+  }).catch(() => null);
+  return row?.slug ?? schema.replace(/^tenant_/, "");
+}
+
+/**
+ * Error pemilihan slot dengan kode HTTP + kode netral (pola ComplianceError) —
+ * dipetakan API publik ke 404/409/410 TANPA membocorkan detail internal.
+ */
+export class SlotBookingError extends Error {
+  status: number;
+  code: "notfound" | "expired" | "taken";
+  constructor(status: number, code: "notfound" | "expired" | "taken", message: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+/** Baris slot jadwal (serializer ringan — dipakai admin + API publik). */
+export interface StepSlotRow {
+  id: string;
+  startAt: string;
+  durationMin: number;
+  status: string; // Open|Booked|Closed
+}
+
+export interface StepSlotInput {
+  startAt: string; // ISO datetime
+  durationMin?: number | null;
+}
+
+/**
+ * Simpan daftar slot jadwal wawancara utk satu tahap (replace-all). Validasi:
+ * tahap masih Planned/Acknowledged · minimal 1 slot · startAt masa depan ·
+ * tidak tumpang tindih. Slot Open lama dihapus (Booked DIPERTAHANKAN — sudah
+ * terkunci kandidat) lalu baris baru dibuat dalam satu transaksi.
+ */
+export async function saveStepSlots(
+  db: TenantDb,
+  input: { stepId: string; slots: StepSlotInput[]; actorName?: string | null },
+): Promise<{ count: number; openCount: number }> {
+  const step = await stepCtx(db, input.stepId);
+  assertStepEditable(step);
+  if (step.status !== "Planned" && step.status !== "Acknowledged") {
+    throw new Error(`Slot jadwal hanya bisa diatur pada tahap Planned/Acknowledged — tahap ini berstatus ${step.status}`);
+  }
+  if (!Array.isArray(input.slots) || input.slots.length === 0) {
+    throw new Error("Minimal satu slot jadwal diperlukan");
+  }
+  const now = Date.now();
+  const parsed = input.slots.map((s, i) => {
+    const d = parseDateInput(s.startAt);
+    if (!d) throw new Error(`Slot ke-${i + 1}: waktu mulai tidak valid`);
+    if (d.getTime() <= now) throw new Error(`Slot ke-${i + 1}: waktu mulai harus di masa depan`);
+    const dur = s.durationMin == null ? 60 : Number(s.durationMin);
+    if (!Number.isFinite(dur) || dur < 5 || dur > 480) {
+      throw new Error(`Slot ke-${i + 1}: durasi harus di antara 5–480 menit`);
+    }
+    return { startAt: d, durationMin: Math.round(dur) };
+  });
+  const sorted = [...parsed].sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
+  for (let i = 1; i < sorted.length; i++) {
+    const prevEnd = sorted[i - 1]!.startAt.getTime() + sorted[i - 1]!.durationMin * 60_000;
+    if (sorted[i]!.startAt.getTime() < prevEnd) {
+      throw new Error("Ada slot yang tumpang tindih — pisahkan waktunya");
+    }
+  }
+  await db.$transaction([
+    db.interviewSlot.deleteMany({ where: { selectionStepId: step.id, status: "Open" } }),
+    ...sorted.map((s) =>
+      db.interviewSlot.create({ data: { selectionStepId: step.id, startAt: s.startAt, durationMin: s.durationMin } }),
+    ),
+  ]);
+  await db.activityLog.create({
+    data: {
+      action: "Updated", entity: "InterviewSlot", entityId: step.candidate.pr.prNo,
+      detail: `${sorted.length} slot jadwal wawancara disimpan utk tahap ${step.selectionProcess.name} kandidat ${step.candidate.fullName} (${step.candidate.pr.prNo})${input.actorName ? ` oleh ${input.actorName}` : ""}`,
+    },
+  });
+  const openCount = await db.interviewSlot.count({ where: { selectionStepId: step.id, status: "Open" } });
+  return { count: sorted.length, openCount };
+}
+
+/** Daftar slot satu tahap (urut startAt — dipakai dialog admin + API publik). */
+export async function listStepSlots(db: TenantDb, stepId: string): Promise<StepSlotRow[]> {
+  const rows = await db.interviewSlot.findMany({ where: { selectionStepId: stepId }, orderBy: { startAt: "asc" } });
+  return rows.map((r) => ({ id: r.id, startAt: r.startAt.toISOString(), durationMin: r.durationMin, status: r.status }));
+}
+
+/**
+ * Terbitkan undangan "pilih jadwal sendiri" utk satu tahap: token acak 32-byte
+ * (hex) disimpan sebagai HASH SHA-256 di step.inviteTokenHash + kedaluwarsa
+ * (token lama di-invalidate dengan menimpa). Email ke kandidat di-AWAIT
+ * (deterministik utk e2e — pelajaran P1.5). Return URL portal lengkap.
+ */
+export async function issueSlotInvite(
+  db: TenantDb,
+  input: { stepId: string; ttlHours?: number | null; actorName?: string | null },
+): Promise<{ link: string; expiresAt: string; emailSent: boolean; openCount: number }> {
+  const step = await stepCtx(db, input.stepId);
+  assertStepEditable(step);
+  const openCount = await db.interviewSlot.count({ where: { selectionStepId: step.id, status: "Open" } });
+  if (openCount === 0) {
+    throw new Error("Belum ada slot jadwal berstatus Open — simpan slot jadwal terlebih dahulu");
+  }
+
+  const ttl = Math.max(1, Math.min(24 * 30, Math.round(input.ttlHours ?? 72)));
+  const token = randomBytes(32).toString("hex");
+  const exp = new Date(Date.now() + ttl * 3_600_000);
+  await db.candidateSelectionStep.update({
+    where: { id: step.id },
+    data: { inviteTokenHash: sha256Hex(token), inviteTokenExpAt: exp },
+  });
+
+  const slug = await tenantSlugOfDb(db);
+  const link = `${portalBase()}/jadwal/${token}?t=${encodeURIComponent(slug)}`;
+
+  // email undangan ke KANDIDAT — AWAIT (EmailLog deterministik; kandidat
+  // internal tanpa data pelamar → tautan tetap dikembalikan utk disalin HR).
+  let emailSent = false;
+  const applicant = step.candidate.applicantId
+    ? await db.applicant.findUnique({ where: { id: step.candidate.applicantId }, select: { email: true } })
+    : null;
+  const candEmail = applicant?.email ? tenantCryptoForDb(db).decryptText(applicant.email) : null;
+  if (candEmail) {
+    await notifyEmailEventWithAttachments(db, {
+      event: "recruitment.interview.invite",
+      to: [{ email: candEmail, name: step.candidate.fullName }],
+      data: {
+        nama: step.candidate.fullName,
+        kandidat: step.candidate.fullName,
+        posisi: step.candidate.pr.position?.title ?? "-",
+        docNo: step.candidate.pr.prNo,
+        tahap: step.selectionProcess.name,
+        linkJadwal: link,
+        berlaku: fmtDateTimeId(exp),
+      },
+      attachments: [],
+    });
+    emailSent = true;
+  }
+
+  await db.activityLog.create({
+    data: {
+      action: "Updated", entity: "CandidateSelectionStep", entityId: step.candidate.pr.prNo,
+      detail: `Undangan pilih jadwal wawancara tahap ${step.selectionProcess.name} kandidat ${step.candidate.fullName} (${step.candidate.pr.prNo}) diterbitkan — ${openCount} slot Open, berlaku s.d. ${fmtDateTimeId(exp)}${emailSent ? "" : " (email kandidat tidak tersedia — tautan disalin manual)"}${input.actorName ? ` oleh ${input.actorName}` : ""}`,
+    },
+  });
+  return { link, expiresAt: exp.toISOString(), emailSent, openCount };
+}
+
+/** Escape text property iCalendar (RFC 5545 §3.3.11): backslash ; , newline. */
+function escapeIcsText(v: string): string {
+  return v.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+}
+
+/** Format waktu UTC iCalendar "basic" (RFC 5545 §3.3.5): YYYYMMDDTHHMMSSZ. */
+function icsUtc(d: Date): string {
+  return `${d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")}Z`;
+}
+
+export interface InterviewIcsInput {
+  startAt: string | Date;
+  durationMin: number;
+  summary: string;
+  description: string;
+  location?: string | null;
+}
+
+/**
+ * P2.3-BM (D-BM18) — bangun string VCALENDAR .ics valid RFC 5545 (CRLF,
+ * VERSION:2.0, PRODID, VEVENT UID+DTSTAMP+DTSTART/DTEND UTC, SUMMARY,
+ * LOCATION opsional, DESCRIPTION). Dilampirkan ke email konfirmasi jadwal
+ * terkunci — bisa diparse/ujipakaikan langsung (e2e).
+ */
+export function buildInterviewIcs(input: InterviewIcsInput): string {
+  const start = new Date(input.startAt);
+  if (Number.isNaN(start.getTime())) throw new Error("Waktu mulai .ics tidak valid");
+  const dur = Number.isFinite(input.durationMin) && input.durationMin > 0 ? input.durationMin : 60;
+  const end = new Date(start.getTime() + dur * 60_000);
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//RekanKerja//ID",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:interview-${start.getTime()}-${randomBytes(8).toString("hex")}@rekankerja`,
+    `DTSTAMP:${icsUtc(new Date())}`,
+    `DTSTART:${icsUtc(start)}`,
+    `DTEND:${icsUtc(end)}`,
+    `SUMMARY:${escapeIcsText(input.summary)}`,
+  ];
+  if (input.location?.trim()) lines.push(`LOCATION:${escapeIcsText(input.location.trim())}`);
+  lines.push(`DESCRIPTION:${escapeIcsText(input.description)}`, "END:VEVENT", "END:VCALENDAR");
+  return lines.join("\r\n");
+}
+
+/**
+ * Kandidat memesan slot via token undangan (dipanggil API PUBLIK
+ * /api/public/recruitment/interview-slots). Race-guard atomik: updateMany
+ * kondisional {id, status:"Open"} → count 0 = 409 (slot rebutan — pola
+ * OpenShiftClaim). Setelah terkunci: step.planDate = slot.startAt + dueDate
+ * recompute (pola scheduleStep), slot Open lain ditutup (Closed), ActivityLog
+ * system, kandidat menerima email + lampiran .ics, seluruh panel evaluator
+ * menerima in-app + email (pola recruitment.selection.scheduled).
+ */
+export async function bookSlotByToken(
+  db: TenantDb,
+  input: { token: string; slotId: string },
+): Promise<{ startAt: string }> {
+  if (!input.token || !input.slotId) throw new SlotBookingError(404, "notfound", "Tautan atau slot tidak valid");
+  const step = await db.candidateSelectionStep.findUnique({
+    where: { inviteTokenHash: sha256Hex(input.token) },
+    include: {
+      selectionProcess: true,
+      stepEvaluators: { select: { evaluatorId: true } },
+      candidate: { include: CANDIDATE_LIST_INCLUDE },
+    },
+  });
+  if (!step) throw new SlotBookingError(404, "notfound", "Tautan tidak dikenali");
+  if (!step.inviteTokenExpAt || step.inviteTokenExpAt.getTime() <= Date.now()) {
+    throw new SlotBookingError(410, "expired", "Tautan kedaluwarsa");
+  }
+  const slot = await db.interviewSlot.findUnique({ where: { id: input.slotId } });
+  if (!slot || slot.selectionStepId !== step.id) throw new SlotBookingError(404, "notfound", "Slot tidak ditemukan");
+  if (slot.status !== "Open") throw new SlotBookingError(409, "taken", "Slot sudah diambil");
+
+  // race-guard: hanya SATU pemanggil yang bisa memindahkan Open → Booked
+  const claim = await db.interviewSlot.updateMany({
+    where: { id: slot.id, status: "Open" },
+    data: { status: "Booked", bookedAt: new Date() },
+  });
+  if (claim.count === 0) throw new SlotBookingError(409, "taken", "Slot sudah diambil");
+
+  // jadwalkan tahap (pola scheduleStep: plan = slot; due = plan + SLA master)
+  const slaDays = step.selectionProcess.slaDays;
+  const due = slaDays ? new Date(slot.startAt.getTime() + slaDays * 86_400_000) : null;
+  await db.candidateSelectionStep.update({
+    where: { id: step.id },
+    data: { planDate: slot.startAt, dueDate: due },
+  });
+  // satu kandidat satu tahap satu jadwal — slot Open lain ditutup
+  await db.interviewSlot.updateMany({
+    where: { selectionStepId: step.id, status: "Open" },
+    data: { status: "Closed" },
+  });
+
+  await db.activityLog.create({
+    data: {
+      actorType: "system", action: "Updated", entity: "InterviewSlot", entityId: step.candidate.pr.prNo,
+      detail: `Kandidat ${step.candidate.fullName} (${step.candidate.pr.prNo}) memesan slot jadwal tahap ${step.selectionProcess.name} — ${fmtDateTimeId(slot.startAt)} (${slot.durationMin} menit); sisa slot Open ditutup`,
+    },
+  });
+
+  // ---------- notifikasi ----------
+  const candidate = step.candidate;
+  const positionTitle = candidate.pr.position?.title ?? "-";
+  const company = await db.company.findFirst({ select: { name: true, address: true, city: true } });
+  const meetingUrl = step.meetingUrl ?? null;
+  const officeAddr = [company?.address, company?.city].filter(Boolean).join(", ").trim() || null;
+  const location = meetingUrl ?? officeAddr;
+
+  // email + lampiran .ics ke KANDIDAT — AWAIT (EmailLog deterministik utk e2e)
+  const applicant = candidate.applicantId
+    ? await db.applicant.findUnique({ where: { id: candidate.applicantId }, select: { email: true } })
+    : null;
+  const candEmail = applicant?.email ? tenantCryptoForDb(db).decryptText(applicant.email) : null;
+  if (candEmail) {
+    const ics = buildInterviewIcs({
+      startAt: slot.startAt,
+      durationMin: slot.durationMin,
+      summary: `Wawancara ${step.selectionProcess.name} — ${positionTitle}`,
+      description: `Tahap ${step.selectionProcess.name} untuk posisi ${positionTitle} (${candidate.pr.prNo})${company?.name ? ` — ${company.name}` : ""}.${meetingUrl ? `\nLink meeting: ${meetingUrl}` : ""}`,
+      location,
+    });
+    await notifyEmailEventWithAttachments(db, {
+      event: "recruitment.interview.booked",
+      to: [{ email: candEmail, name: candidate.fullName }],
+      data: {
+        nama: candidate.fullName,
+        kandidat: candidate.fullName,
+        posisi: positionTitle,
+        docNo: candidate.pr.prNo,
+        tahap: step.selectionProcess.name,
+        jadwal: fmtDateTimeId(slot.startAt),
+        linkMeeting: meetingUrl ?? "-",
+      },
+      attachments: [{ filename: "undangan-wawancara.ics", content: Buffer.from(ics, "utf8"), contentType: "text/calendar; charset=utf-8" }],
+    });
+  }
+
+  // evaluator panel: in-app (di-await — baris Notification deterministik) +
+  // email pola scheduleStep (fire-and-forget). Fallback performedById tunggal.
+  const evaluatorIds = step.stepEvaluators.length > 0
+    ? step.stepEvaluators.map((e) => e.evaluatorId)
+    : step.performedById
+      ? [step.performedById]
+      : [];
+  const evaluators = evaluatorIds.length > 0
+    ? await db.employee.findMany({ where: { id: { in: evaluatorIds } }, select: { id: true, fullName: true, email: true } })
+    : [];
+  for (const ev of evaluators) {
+    await notifyEvent(db, {
+      to: "employee", employeeId: ev.id, docType: "RecruitmentSelection", docNo: candidate.pr.prNo,
+      title: `Jadwal wawancara terkunci — ${step.selectionProcess.name}`,
+      body: `${candidate.fullName} (${candidate.pr.prNo}) memilih jadwal ${fmtDateTimeId(slot.startAt)} (${slot.durationMin} menit)${due ? `, SLA s.d. ${fmtDateId(due)}` : ""}${meetingUrl ? ` — link meeting ${meetingUrl}` : ""}`,
+      kind: "recruitment", link: "recruitment:selection",
+    }).catch(() => ({ recipients: [] }));
+    if (ev.email) {
+      void notifyEmailEvent(db, {
+        event: "recruitment.selection.scheduled",
+        to: [{ email: ev.email, name: ev.fullName }],
+        data: {
+          nama: ev.fullName, docNo: candidate.pr.prNo,
+          posisi: positionTitle,
+          kandidat: candidate.fullName, tahap: step.selectionProcess.name,
+          urutan: String(step.seqNo), totalTahap: String(candidate.selectionSteps.length),
+          jadwal: fmtDateTimeId(slot.startAt), batasSla: due ? fmtDateId(due) : "-",
+          linkMeeting: meetingUrl ?? "-",
+        },
+      });
+    }
+  }
+  return { startAt: slot.startAt.toISOString() };
+}
+
+/** Info slot utk API PUBLIK (tanpa PII kandidat/evaluator — hanya posisi+tahap). */
+export interface PublicSlotInfo {
+  ok: true;
+  position: string;
+  companyName: string | null;
+  tahap: string;
+  slots: StepSlotRow[];
+}
+
+/**
+ * Baca slot utk satu token undangan (API publik GET). Return:
+ *  · null → token tak dikenali (404 netral);
+ *  · "expired" → kedaluwarsa (410 netral);
+ *  · payload → {position, companyName, tahap, slots}.
+ */
+export async function getPublicSlotInfo(db: TenantDb, token: string): Promise<PublicSlotInfo | "expired" | null> {
+  if (!token) return null;
+  const step = await db.candidateSelectionStep.findUnique({
+    where: { inviteTokenHash: sha256Hex(token) },
+    select: {
+      id: true, inviteTokenExpAt: true,
+      selectionProcess: { select: { name: true } },
+      candidate: { select: { pr: { select: { position: { select: { title: true } } } } } },
+    },
+  });
+  if (!step) return null;
+  if (!step.inviteTokenExpAt || step.inviteTokenExpAt.getTime() <= Date.now()) return "expired";
+  const company = await db.company.findFirst({ select: { name: true } });
+  const slots = await db.interviewSlot.findMany({
+    where: { selectionStepId: step.id },
+    orderBy: { startAt: "asc" },
+  });
+  return {
+    ok: true,
+    position: step.candidate.pr.position?.title ?? "-",
+    companyName: company?.name ?? null,
+    tahap: step.selectionProcess.name,
+    slots: slots.map((r) => ({ id: r.id, startAt: r.startAt.toISOString(), durationMin: r.durationMin, status: r.status })),
+  };
 }
 
 // ============ kalender seleksi bulanan ============

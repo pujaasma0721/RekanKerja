@@ -36,7 +36,7 @@ import {
 import {
   AlarmClock, AlertTriangle, ArrowUpRight, BadgeCheck, Bot, CalendarDays, ClipboardCheck,
   Handshake, KanbanSquare, Keyboard, ListChecks, MailCheck, Settings2, SlidersHorizontal, Sparkles,
-  UserPlus, UserRoundCheck, EyeOff,
+  UserPlus, UserRoundCheck, Users, EyeOff,
 } from "lucide-react";
 
 const SELECTION_MASTER = "/api/rekankerja/recruitment/masters?type=selection-process";
@@ -433,6 +433,13 @@ export function SelectionPage() {
                   ? t("Panel divergen >2 — perlu kalibrasi", "Panel divergent >2 — calibration needed")
                   : t("scorecard terkirim di tahap aktif", "scorecards submitted on the active stage")}>
                 <ClipboardCheck className="h-3 w-3" aria-hidden /> {card.scorecardCount}
+              </span>
+            )}
+            {/* P2.3 — badge jumlah evaluator panel bila > 1 */}
+            {card.evaluatorCount > 1 && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-brand/25 bg-brand/5 px-1.5 py-0.5 font-semibold ov-text-accent"
+                title={t("panel {n} evaluator — masing-masing mengisi scorecard sendiri", "{n}-evaluator panel — each fills their own scorecard", { n: String(card.evaluatorCount) })}>
+                <Users className="h-3 w-3" aria-hidden /> {card.evaluatorCount}
               </span>
             )}
             {card.divergence && (

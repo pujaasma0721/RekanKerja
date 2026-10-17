@@ -27,8 +27,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
-  AlertTriangle, BadgeCheck, CalendarClock, Check, ChevronsUpDown, Download, FileText,
-  Handshake, Info, ListChecks, PartyPopper, Send, UserRoundCheck,
+  AlertTriangle, BadgeCheck, CalendarClock, Check, ChevronsUpDown, Copy, Download, FileText,
+  Handshake, History, Info, Link2, ListChecks, MessagesSquare, PartyPopper, Send, UserRoundCheck,
 } from "lucide-react";
 
 export const OFFERS_API = "/api/rekankerja/recruitment/offers";
@@ -63,6 +63,37 @@ export interface OfferRow {
   appointedAt: string | null;
   hasAppointment: boolean;
   createdAt: string;
+  /** P2.4 — riwayat versi ringkas. */
+  versions: OfferVersionLite[];
+}
+
+/** P2.4 — versi ringkas offer (D-BM19). */
+export interface OfferVersionLite {
+  versionNo: number;
+  label: string | null;
+  createdAt: string;
+  createdById: string | null;
+}
+
+/** P2.4 — diff non-uang antar versi "a → b". */
+export interface OfferVersionDiffField {
+  field: string;
+  from: string | null;
+  to: string | null;
+}
+
+/** P2.4 — diff nominal (angka hanya bila brankas terbuka). */
+export interface OfferSalaryDiff {
+  from: number | null;
+  to: number | null;
+  changed: boolean;
+}
+
+export interface OfferVersionView extends OfferVersionLite {
+  diff: {
+    fields: OfferVersionDiffField[];
+    salaryDiff: OfferSalaryDiff | null;
+  } | null;
 }
 
 export interface ChainStepLite {
@@ -99,6 +130,10 @@ export interface AppointmentLite {
 export interface OfferDetailRow extends OfferRow {
   approval: ChainLite | null;
   appointment: AppointmentLite | null;
+  /** P2.4 — versi + diff vs versi sebelumnya. */
+  versionDiffs: OfferVersionView[];
+  /** P2.4 — tautan putusan mandiri (raw token) bila Sent/Viewed + token aktif. */
+  selfServiceLink: string | null;
 }
 
 export interface OfferableCandidate {
@@ -1115,6 +1150,266 @@ export function AppointFlowDialog({ offerId, onClose, onDone }: {
             )}
           </div>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================
+// P2.4 (D-BM19) — Dialog riwayat versi + tautan putusan mandiri
+// ============================================================
+
+/** Label versi dwibahasa [ID, EN]. */
+const VERSION_LABEL: Record<string, [string, string]> = {
+  Created: ["Dibuat", "Created"],
+  Updated: ["Diperbarui", "Updated"],
+  Sent: ["Dikirim", "Sent"],
+  Counter: ["Counter (Nego)", "Counter"],
+  SelfService: ["Putusan Mandiri", "Self-Service Decision"],
+  Responded: ["Direspons HR", "Responded"],
+};
+
+/** Label field diff dwibahasa. */
+const DIFF_FIELD_LABEL: Record<string, [string, string]> = {
+  startDate: ["Mulai Kerja", "Start Date"],
+  expiryDate: ["Berlaku S.d.", "Valid Until"],
+  status: ["Status", "Status"],
+  currency: ["Mata Uang", "Currency"],
+  salaryUnit: ["Satuan Gaji", "Salary Unit"],
+  jobOpeningId: ["Slot Lowongan", "Job Opening"],
+  note: ["Catatan", "Note"],
+};
+
+/** Tampilan nilai field diff (tanggal → fmtDate; status → label; lainnya apa adanya). */
+function DiffFieldValue({ field, value }: { field: string; value: string | null }) {
+  const { t } = useI18n();
+  if (value == null || value === "") return <span className="text-slate-400">—</span>;
+  if (field === "startDate" || field === "expiryDate") return <span className="tabular-nums">{fmtDate(value.slice(0, 10))}</span>;
+  if (field === "status") {
+    return <span>{t(OFFER_STATUS_LABEL[value] ?? value, OFFER_STATUS_LABEL_EN[value] ?? value)}</span>;
+  }
+  if (field === "jobOpeningId") {
+    return <span className="font-mono text-[10px]">{value.length > 12 ? `${value.slice(0, 12)}…` : value}</span>;
+  }
+  const short = value.length > 42 ? `${value.slice(0, 42)}…` : value;
+  return <span title={value}>{short}</span>;
+}
+
+export function OfferVersionDialog({ offerId, moneyVisible, onClose }: {
+  offerId: string | null;
+  moneyVisible: boolean;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const api = useApi<{ row: OfferDetailRow; moneyVisible: boolean }>(offerId ? `${OFFERS_API}?offerId=${offerId}` : null, [offerId]);
+  const row = api.data?.row ?? null;
+
+  const copyLink = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success(t("Tautan disalin ke clipboard", "Link copied to clipboard"));
+    } catch {
+      toast.error(t("Gagal menyalin — salin manual dari kolom", "Copy failed — copy manually from the field"));
+    }
+  };
+
+  return (
+    <Dialog open={offerId != null} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex flex-wrap items-center gap-2">
+            <History className="h-4 w-4 ov-text-accent" aria-hidden />
+            {t("Riwayat Versi — {no}", "Version History — {no}", { no: row?.offerNo ?? "" })}
+          </DialogTitle>
+        </DialogHeader>
+        {api.loading && !api.data ? (
+          <LoadingRows rows={4} />
+        ) : !row ? (
+          <EmptyState title={t("Offer tidak ditemukan", "Offer not found")} description={api.error ?? undefined} />
+        ) : (
+          <div className="space-y-4">
+            {/* ringkasan + tautan putusan mandiri */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+              <Field label={t("Kandidat", "Candidate")} value={row.candidateName} />
+              <Field label={t("Status", "Status")} value={<OfferStatusPill status={row.status} />} />
+              <Field label={t("Gaji", "Salary")} value={row.salary != null ? fmtIDR(row.salary) : "—"} />
+              <Field label={t("Versi", "Versions")} value={String(row.versions.length)} />
+            </div>
+
+            {row.selfServiceLink ? (
+              <div className="space-y-1.5 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                <Label className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300">
+                  <Link2 className="h-3.5 w-3.5" aria-hidden />
+                  {t("Tautan Putusan Mandiri", "Self-Service Decision Link")}
+                </Label>
+                <div className="flex items-center gap-1.5">
+                  <Input readOnly value={row.selfServiceLink} className="bg-white font-mono text-[11px] dark:bg-slate-900" />
+                  <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1 px-2" onClick={() => copyLink(row.selfServiceLink!)}>
+                    <Copy className="h-3.5 w-3.5" aria-hidden /> {t("Salin", "Copy")}
+                  </Button>
+                </div>
+                <p className="text-[11px] leading-relaxed text-emerald-700 dark:text-emerald-400">
+                  {t(
+                    "Kirim tautan ini ke kandidat (juga terotomatis via email saat offer dikirim) — kandidat dapat menerima/menolak sendiri. Kirim ulang offer menimpa tautan lama.",
+                    "Send this link to the candidate (also emailed automatically when the offer is sent) — the candidate can accept/decline on their own. Re-sending the offer invalidates the old link.",
+                  )}
+                </p>
+              </div>
+            ) : row.status === "Sent" || row.status === "Viewed" ? (
+              <p className="rounded-xl border border-dashed border-slate-200 p-2.5 text-[11px] text-slate-400 dark:border-slate-700">
+                {t("Tautan putusan tidak tersedia — kirim (ulang) offer utk menerbitkan tautan baru.", "No decision link available — (re-)send the offer to issue a new link.")}
+              </p>
+            ) : null}
+
+            {/* daftar versi */}
+            <div className="space-y-2">
+              {row.versionDiffs.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400 dark:border-slate-700">
+                  {t("Belum ada versi tercatat.", "No versions recorded yet.")}
+                </p>
+              ) : (
+                <ol className="space-y-2">
+                  {row.versionDiffs.map((v) => {
+                    const [lblId, lblEn] = VERSION_LABEL[v.label ?? ""] ?? [v.label ?? "—", v.label ?? "—"];
+                    const sd = v.diff?.salaryDiff ?? null;
+                    return (
+                      <li key={v.versionNo} className="rounded-xl border border-slate-200 p-2.5 dark:border-slate-800">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300">{v.versionNo}</span>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{t(lblId, lblEn)}</span>
+                          <span className="text-[10px] text-slate-400">{fmtDateTime(v.createdAt)}</span>
+                        </div>
+                        {/* chip diff per versi */}
+                        {v.diff && (v.diff.fields.length > 0 || (sd && sd.changed)) ? (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5 pl-7">
+                            {v.diff.fields.map((f) => (
+                              <span key={f.field} className="inline-flex max-w-full items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                                <span className="shrink-0">{t(DIFF_FIELD_LABEL[f.field]?.[0] ?? f.field, DIFF_FIELD_LABEL[f.field]?.[1] ?? f.field)}:</span>
+                                <DiffFieldValue field={f.field} value={f.from} />
+                                <span aria-hidden>→</span>
+                                <DiffFieldValue field={f.field} value={f.to} />
+                              </span>
+                            ))}
+                            {sd && sd.changed ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                                {t("Gaji", "Salary")}:
+                                {moneyVisible && sd.from != null && sd.to != null ? (
+                                  <span className="tabular-nums">{fmtIDR(sd.from)} → {fmtIDR(sd.to)}</span>
+                                ) : (
+                                  <span>{t("nominal diubah (brankas terkunci)", "amount changed (vault locked)")}</span>
+                                )}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : v.versionNo > 1 ? (
+                          <p className="mt-1 pl-7 text-[10px] italic text-slate-400">{t("tanpa perubahan material", "no material change")}</p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================
+// P2.4 (D-BM19) — Dialog counter offer (nego → kembali Draft)
+// ============================================================
+
+export function CounterOfferDialog({ row, onClose, onDone }: {
+  row: OfferRow | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { t } = useI18n();
+  const [salary, setSalary] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!row) return;
+    setSalary(row.salary != null ? String(row.salary) : "");
+    setStartDate(row.startDate ? row.startDate.slice(0, 10) : "");
+    setExpiryDate(row.expiryDate ? row.expiryDate.slice(0, 10) : isoPlusDays(14));
+    setNote("");
+  }, [row]);
+
+  const submit = async () => {
+    if (!row) return;
+    setBusy(true);
+    try {
+      await apiSend(OFFERS_API, "POST", {
+        action: "counter", id: row.id,
+        edits: {
+          salary: salary === "" ? null : Number(salary),
+          startDate: startDate || null,
+          expiryDate: expiryDate || null,
+          note: note || null,
+        },
+      });
+      toast.success(t(
+        `Counter offer ${row.offerNo} tersimpan — status kembali Draft (versi baru "Counter")`,
+        `Counter offer ${row.offerNo} saved — back to Draft (new "Counter" version)`,
+      ));
+      onDone();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan counter offer", "Failed to save the counter offer"));
+    } finally { setBusy(false); }
+  };
+
+  if (!row) return null;
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex flex-wrap items-center gap-2">
+            <MessagesSquare className="h-4 w-4 ov-text-accent" aria-hidden />
+            {t("Buat Counter — {no}", "Create Counter — {no}", { no: row.offerNo })}
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+          {t(
+            "Revisi penawaran hasil negosiasi — offer kembali Draft (versi Counter tercatat), tautan putusan lama hangus, kirim ulang setelah final.",
+            "Revise the offer after negotiation — the offer returns to Draft (a Counter version is recorded), the old decision link is invalidated, re-send once final.",
+          )}
+        </p>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>{t("Gaji Final (hasil nego)", "Final Salary (negotiated)")}</Label>
+            <Input type="number" min={0} inputMode="numeric" value={salary} className="tabular-nums"
+              onChange={(e) => setSalary(e.target.value)}
+              placeholder={t("mis. 8700000", "e.g. 8700000")} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>{t("Mulai Kerja", "Start Date")}</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("Berlaku S.d.", "Valid Until")}</Label>
+              <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("Catatan Nego", "Negotiation Note")}</Label>
+            <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder={t("opsional — mis. kandidat minta tunjangan transport + mulai 2 minggu lebih lambat…", "optional — e.g. candidate asks for transport allowance + a 2-week later start…")} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{t("Batal", "Cancel")}</Button>
+          <Button onClick={submit} disabled={busy} className="ov-fill">
+            {busy ? t("Menyimpan…", "Saving…") : t("Simpan Counter", "Save Counter")}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -4,9 +4,9 @@
 // P1.1-BM (D-BM1): seksi "Ajukan Perubahan Data" — edit profil = PENGAJUAN
 // (whitelist field pribadi + kontak darurat) → approval HR → patch otomatis;
 // daftar "Pengajuan Saya" + batalkan selama menunggu.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { KeyRound, BriefcaseBusiness, UserRound, IdCard, Building2, UserCheck, CalendarRange, Mail, Phone, Award, Send, Loader2, History, Plus, Trash2, Pencil, PhoneCall, FileWarning, XCircle } from "lucide-react";
+import { KeyRound, BriefcaseBusiness, UserRound, IdCard, Building2, UserCheck, CalendarRange, Mail, Phone, Award, Send, Loader2, History, Plus, Trash2, Pencil, PhoneCall, FileWarning, XCircle, BellRing } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtDate, fmtDateLong, initials, tenure, useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { PushOptIn } from "@/rekankerja/shared/components/push/push-opt-in";
 import type { EssMe } from "./ess-types";
 
 interface EssProfileProps { me: EssMe }
@@ -46,6 +47,39 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
         {value || t("—")}
       </span>
     </div>
+  );
+}
+
+// P2.2-BM (D-BM17) — kartu opt-in web push (tab personal). Hidden fallback
+// di browser tanpa dukungan SW/PushManager (cek pasca-mount — hindari
+// hydration mismatch; tidak pernah error di browser lama).
+function PushOptInCard() {
+  const { t } = useI18n();
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    // (cek pasca-mount asinkron — hindari hydration mismatch + cascading render)
+    const id = window.setTimeout(() => {
+      setShow(
+        typeof window !== "undefined" &&
+        "serviceWorker" in navigator &&
+        "PushManager" in window,
+      );
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, []);
+  if (!show) return null;
+  return (
+    <Card className="mt-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-bold">
+          <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+          {t("Notifikasi Push", "Push Notifications")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-5 pb-5 pt-0">
+        <PushOptIn apiBase="/api/rekankerja/ess/push-subscriptions" />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -228,6 +262,8 @@ export function EssProfile({ me }: EssProfileProps) {
                 <UserCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 {t("Perubahan data pribadi (alamat, telepon, email, status pernikahan, kontak darurat) bisa diajukan sendiri di form “Ajukan Perubahan Data” di bawah — data master kepegawaian tetap melalui HR (Personnel Action).", "Personal data changes (address, phone, email, marital status, emergency contacts) can be self-submitted in the “Request a Data Change” form below — employment master data still goes through HR (Personnel Action).")}
               </p>
+              {/* P2.2-BM (D-BM17) — opt-in web push perangkat */}
+              <PushOptInCard />
             </TabsContent>
 
             <TabsContent value="identity" className="mt-2">

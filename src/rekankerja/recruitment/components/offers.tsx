@@ -26,10 +26,11 @@ import {
   type DecisionTarget, type OfferFormTarget,
   OfferStatusPill, ChainSteps,
   OfferFormDialog, ApprovalChainDialog, DecisionDialog, OfferLetterDialog, AppointFlowDialog,
+  OfferVersionDialog, CounterOfferDialog,
 } from "./offer-dialogs";
 import {
-  AlarmClock, BadgeCheck, Check, Eye, FileText, Filter, Handshake, ListChecks,
-  Pencil, PenLine, Plus, Send, Trash2, TrendingUp, UserRoundCheck, X,
+  AlarmClock, BadgeCheck, Check, Eye, FileText, Filter, Handshake, History, ListChecks,
+  MessagesSquare, Pencil, PenLine, Plus, Send, Trash2, TrendingUp, UserRoundCheck, X,
 } from "lucide-react";
 import { EsignRequestDialog, type EsignableOffer } from "./recruitment-settings";
 
@@ -138,6 +139,9 @@ export function OffersPage() {
   const [appointId, setAppointId] = useState<string | null>(null);
   const [letterBusyId, setLetterBusyId] = useState<string | null>(null);
   const [esignTarget, setEsignTarget] = useState<EsignableOffer | null>(null);
+  // P2.4 — riwayat versi + counter (nego)
+  const [versionId, setVersionId] = useState<string | null>(null);
+  const [counterRow, setCounterRow] = useState<OfferRow | null>(null);
 
   // ---------- prefill kandidat dari board seleksi (navigate ... {id}) ----------
   const prefillCandidateId = nav.params?.id ?? null;
@@ -186,11 +190,17 @@ export function OffersPage() {
       `Send offer ${row.offerNo} to ${row.candidateName}? The offer letter is issued + email/notification. If a RecruitmentOffer approval structure exists, the offer awaits approval first.`,
     ))) return;
     try {
-      const res = await apiSend<{ offerNo: string; status: string; sent: boolean; letterNo?: string | null; approvalLevels?: number; firstApprover?: string | null }>(
+      const res = await apiSend<{ offerNo: string; status: string; sent: boolean; letterNo?: string | null; approvalLevels?: number; firstApprover?: string | null; selfServiceLink?: string | null }>(
         OFFERS_API, "POST", { action: "send", id: row.id },
       );
       if (res.sent) {
         toast.success(t(`Offer ${res.offerNo} terkirim — surat ${res.letterNo ?? "-"}`, `Offer ${res.offerNo} sent — letter ${res.letterNo ?? "-"}`));
+        if (res.selfServiceLink) {
+          toast.info(t(
+            `Tautan putusan mandiri dikirim ke email kandidat — lihat tombol "Versi" utk menyalinnya.`,
+            `Self-service decision link emailed to the candidate — use the "History" button to copy it.`,
+          ), { duration: 9000 });
+        }
       } else {
         toast.info(t(
           `Offer ${res.offerNo} menunggu approval (${res.approvalLevels ?? "?"} jenjang) — berikutnya: ${res.firstApprover ?? "-"}`,
@@ -357,6 +367,14 @@ export function OffersPage() {
             </Button>
           </>
         )}
+        {/* P2.4 — counter offer (nego): Sent/Viewed kembali Draft + versi Counter */}
+        {(st === "Sent" || st === "Viewed") && canUpdate && (
+          <Button variant="outline" size="sm" className="h-8 gap-1 border-amber-200 px-2 text-amber-700 hover:bg-amber-50 dark:border-amber-500/30 dark:text-amber-400"
+            onClick={() => setCounterRow(row)}
+            title={t("revisi hasil nego — offer kembali Draft dgn versi Counter", "apply negotiation results — the offer returns to Draft with a Counter version")}>
+            <MessagesSquare className="h-3.5 w-3.5" aria-hidden /> {t("Counter", "Counter")}
+          </Button>
+        )}
         {(st === "Sent" || st === "Viewed") && canEsign && (
           <Button variant="outline" size="sm" className="h-8 gap-1 border-emerald-200 px-2 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-400"
             onClick={() => setEsignTarget({ id: row.id, offerNo: row.offerNo, candidateName: row.candidateName, positionTitle: row.positionTitle })}
@@ -380,6 +398,11 @@ export function OffersPage() {
             <FileText className="h-3.5 w-3.5" aria-hidden /> {letterBusyId === row.id ? t("…" , "…") : t("Surat", "Letter")}
           </Button>
         )}
+        {/* P2.4 — riwayat versi (D-BM19): versi + diff + tautan putusan */}
+        <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-slate-500 hover:text-slate-700 dark:text-slate-400" onClick={() => setVersionId(row.id)}
+          title={t("riwayat versi + diff perubahan + tautan putusan mandiri", "version history + change diffs + self-service decision link")}>
+          <History className="h-3.5 w-3.5" aria-hidden /> {t("Versi", "History")}
+        </Button>
       </div>
     );
   };
@@ -699,6 +722,9 @@ export function OffersPage() {
       <DecisionDialog target={decision} onClose={() => setDecision(null)} onDone={refreshAll} />
       <OfferLetterDialog letter={letter} onClose={() => setLetter(null)} />
       <AppointFlowDialog offerId={appointId} onClose={() => setAppointId(null)} onDone={refreshAll} />
+      {/* P2.4 — riwayat versi + counter offer */}
+      <OfferVersionDialog offerId={versionId} moneyVisible={listApi.data?.moneyVisible ?? false} onClose={() => setVersionId(null)} />
+      <CounterOfferDialog row={counterRow} onClose={() => setCounterRow(null)} onDone={refreshAll} />
       {/* F7 — minta tanda tangan kandidat eksternal (tautan portal + OTP) */}
       {esignTarget && (
         <EsignRequestDialog

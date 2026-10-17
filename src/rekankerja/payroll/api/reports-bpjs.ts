@@ -4,7 +4,7 @@ import { tenantCryptoForDb, type FieldCrypto } from "@/rekankerja/shared/lib/fie
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import type { MoneyView } from "@/rekankerja/shared/lib/money-view";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
-import { toXlsx, xlsxResponse, exportFilename } from "@/rekankerja/shared/lib/export";
+import { toXlsxMulti, xlsxResponse, exportFilename, type ExportSheet } from "@/rekankerja/shared/lib/export";
 
 // GET /api/rekankerja/payroll-reports/bpjs?runId= — rekap iuran BPJS per karyawan
 // untuk satu payroll run (T12-REPORTS).
@@ -31,8 +31,17 @@ import { toXlsx, xlsxResponse, exportFilename } from "@/rekankerja/shared/lib/ex
 //     Riset 27-c: e-Dabu v7.6.0 (Okt 2023) mengubah formulir upload BU dari
 //     37 → 23 kolom (sheet PESERTA), PENONAKTIFAN 5 kolom, batas unggah min 1
 //     baris maks 100 baris/1 MB (sumber: ptgasi.co.id, materi eDabu v7.6.0).
-//     RekanKerja mengekspor subset identitas+upah utk sheet PESERTA — anggota
-//     keluarga (sheet ANGKEL) belum bisa (EmployeeFamily tanpa NIK).
+//     RekanKerja mengekspor subset identitas+upah utk sheet PESERTA.
+//   • P2.1-BM (D-BM16) — file LKS resmi: kolom KODE KANTOR (TK) & KELAS
+//     PERAWATAN (JKN) kini diisi dari PayrollRegulation aktif
+//     (bpjsOfficeCode / bpjsInpatientClass — null → kolom kosong, tidak
+//     error). ?format=jkn MENAMBAH baris KELUARGA per peserta:
+//     EmployeeFamily isDependent=true, NIK (D-BM4) didekripsi di batas
+//     serializer; HUBUNGAN KELUARGA e-Dabu resmi (Suami/Istri by gender,
+//     Anak, Orang Tua). Keluarga TANPA NIK DILEWATI + tercatat di daftar
+//     gap (sheet XLSX "Gap NIK Keluarga" + meta JSON familyRows/
+//     familySkipped/gaps). Alias ?format=lks-tk / lks-jkn = tk / jkn
+//     (anchor label menu baru).
 //
 // Guard: requireMenuAction payroll:runs view (pola payroll-runs.ts).
 
@@ -69,6 +78,7 @@ const r0 = (n: number) => Math.round(n);
 
 /** Baris peserta utk format upload BPJS (identitas + penempatan + upah). */
 interface BpjsMemberRow {
+  employeeId: string;
   employeeNo: string;
   nik: string | null;
   fullName: string;
@@ -112,8 +122,91 @@ const csvEscBpjs = (v: string | number | null | undefined): string => {
   return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
+/**
+ * HUBUNGAN KELUARGA e-Dabu resmi (P2.1-BM): nilai resmi = Pegawai / Suami /
+ * Istri / Anak; Spouse mengikuti gender anggota keluarga. Parent dipetakan
+ * "Orang Tua" (varian template e-Dabu yang menerimanya); Child & fallback
+ * (Sibling dsb.) → "Anak" agar file tetap memakai kosakata resmi.
+ */
+function familyRelationLabel(relation: string, gender: string): string {
+  if (relation === "Spouse") return gender === "F" ? "Istri" : "Suami";
+  if (relation === "Parent") return "Orang Tua";
+  return "Anak";
+}
+
+/** Baris KELUARGA (dependen) utk file LKS JKN "Data Peserta" — NIK terisi. */
+export interface BpjsFamilyRow {
+  employeeNo: string;
+  nik: string;
+  fullName: string;
+  gender: string;
+  birthDate: Date | null;
+  hubkel: string;
+}
+
+/** Keluarga dependen TANPA NIK — DILEWATI dari file LKS + dilaporkan. */
+export interface BpjsFamilyGap {
+  employeeNo: string;
+  employeeName: string;
+  familyName: string;
+  relation: string;
+  reason: string;
+}
+
+/** Kolom keluarga dependen (isDependent=true) — baris KELUARGA file LKS JKN. */
+const familySelect = {
+  where: { isDependent: true },
+  orderBy: { birthDate: "asc" as const },
+  select: { name: true, gender: true, birthDate: true, relation: true, nationalId: true },
+} as const;
+
+type MemberFamily = {
+  name: string; gender: string; birthDate: Date | null; relation: string; nationalId: string | null;
+};
+
+/** Peserta JKN + data keluarganya (utk pengumpulan baris KELUARGA + gap). */
+interface JknParticipant {
+  employeeNo: string;
+  employeeName: string;
+  family?: MemberFamily[];
+}
+
+/**
+ * P2.1-BM — kumpulkan baris KELUARGA peserta JKN "Data Peserta".
+ * D-BM4: NIK keluarga TERENKRIPSI enc:v1 → dekripsi di batas serializer.
+ * Keluarga TANPA NIK tidak bisa masuk file LKS resmi → DILEWATI dan
+ * tercatat di daftar gap {employeeNo, employeeName, familyName, relation,
+ * reason:"NIK belum diisi"} (dilaporkan di sheet XLSX + meta JSON).
+ */
+function collectJknFamilies(
+  tc: FieldCrypto,
+  participants: JknParticipant[],
+): { familyRows: BpjsFamilyRow[]; gaps: BpjsFamilyGap[] } {
+  const familyRows: BpjsFamilyRow[] = [];
+  const gaps: BpjsFamilyGap[] = [];
+  for (const p of participants) {
+    for (const f of p.family ?? []) {
+      const nik = tc.decryptText(f.nationalId);
+      if (!nik) {
+        gaps.push({ employeeNo: p.employeeNo, employeeName: p.employeeName, familyName: f.name, relation: f.relation, reason: "NIK belum diisi" });
+        continue;
+      }
+      familyRows.push({
+        employeeNo: p.employeeNo,
+        nik,
+        fullName: f.name,
+        gender: f.gender,
+        birthDate: f.birthDate,
+        hubkel: familyRelationLabel(f.relation, f.gender),
+      });
+    }
+  }
+  return { familyRows, gaps };
+}
+
 /** Kolom identitas+penempatan+upah pegawai utk query run / master. */
 const memberSelect = {
+  id: true,
   nationalId: true, fullName: true, gender: true, birthPlace: true, birthDate: true,
   address: true, city: true, bpjsEmpSkill: true, bpjsHealth: true, joinDate: true,
   position: { select: { title: true } },
@@ -121,6 +214,7 @@ const memberSelect = {
 } as const;
 
 type MemberEmployee = {
+  id: string;
   nationalId: string | null; fullName: string; gender: string; birthPlace: string | null;
   birthDate: Date | null; address: string | null; city: string | null;
   bpjsEmpSkill: string | null; bpjsHealth: string | null; joinDate: Date;
@@ -130,6 +224,7 @@ type MemberEmployee = {
 };
 
 const toMemberRow = (tc: FieldCrypto, mv: MoneyView, employeeNo: string, emp: MemberEmployee, positionFallback: string | null): BpjsMemberRow => ({
+  employeeId: emp.id,
   employeeNo,
   // 28-c: NIK & gaji pokok tersimpan terenkripsi — dekripsi (format upload
   // BPJS memuat KTP & GAJI riil).
@@ -157,16 +252,17 @@ const toMemberRow = (tc: FieldCrypto, mv: MoneyView, employeeNo: string, emp: Me
 /**
  * CSV "Laporan Kepegawaian" BPJS Ketenagakerjaan — 10 kolom klasik
  * (NO KTP;NAMA;TEMPAT LAHIR;TANGGAL LAHIR;NO BPJS KETENAGAKERJAAN;KODE
- * KANTOR;STATUS KARYAWAN;JABATAN;TANGGAL MASUK;GAJI). KODE KANTOR kosong
- * (belum ada field kode kantor cabang BPJS — lihat worklog 27-c).
+ * KANTOR;STATUS KARYAWAN;JABATAN;TANGGAL MASUK;GAJI). KODE KANTOR diisi
+ * dari PayrollRegulation aktif bpjsOfficeCode (P2.1-BM — null → kosong,
+ * tidak error).
  */
-function buildBpjsTkCsv(rows: BpjsMemberRow[]): string {
+function buildBpjsTkCsv(rows: BpjsMemberRow[], officeCode: string | null): string {
   const header = ["NO KTP", "NAMA", "TEMPAT LAHIR", "TANGGAL LAHIR", "NO BPJS KETENAGAKERJAAN", "KODE KANTOR", "STATUS KARYAWAN", "JABATAN", "TANGGAL MASUK", "GAJI"];
   const lines = [header.map(csvEscBpjs).join(";")];
   for (const r of rows) {
     lines.push([
       r.nik ?? "", r.fullName.toUpperCase(), r.birthPlace ?? "", ddmmyyyy(r.birthDate),
-      r.bpjsTk ?? "", "", tkStatusOf(r.employmentStatus), r.positionName ?? "",
+      r.bpjsTk ?? "", officeCode ?? "", tkStatusOf(r.employmentStatus), r.positionName ?? "",
       ddmmyyyy(r.joinDate), r.baseSalary,
     ].map(csvEscBpjs).join(";"));
   }
@@ -175,30 +271,61 @@ function buildBpjsTkCsv(rows: BpjsMemberRow[]): string {
 
 /**
  * CSV "Data Peserta" BPJS Kesehatan (pola sheet PESERTA e-Dabu v7.x) —
- * hanya baris PEGAWAI (anggota keluarga belum bisa diekspor: EmployeeFamily
- * tanpa NIK — lihat worklog 27-c). KELAS PERAWATAN kosong (belum ada field).
+ * baris PEGAWAI lalu baris KELUARGA dependen ber-NIK per peserta (P2.1-BM).
+ * KELAS PERAWATAN dari PayrollRegulation aktif bpjsInpatientClass (null →
+ * kosong); NO kartu/alamat/status/jabatan/upah baris keluarga dibiarkan
+ * kosong (identitas keluarga: NIK + NAMA + TANGGAL LAHIR + JENIS KELAMIN).
  */
-function buildBpjsJknCsv(rows: BpjsMemberRow[]): string {
+function buildBpjsJknCsv(rows: BpjsMemberRow[], families: BpjsFamilyRow[], inpatientClass: string | null): string {
+  const byEmployee = new Map<string, BpjsFamilyRow[]>();
+  for (const f of families) {
+    const arr = byEmployee.get(f.employeeNo) ?? [];
+    arr.push(f);
+    byEmployee.set(f.employeeNo, arr);
+  }
   const header = ["NO", "NIK", "NO KARTU BPJS KESEHATAN", "NAMA PESERTA", "TANGGAL LAHIR", "JENIS KELAMIN (L/P)", "HUBUNGAN KELUARGA", "ALAMAT", "STATUS PEGAWAI", "JABATAN", "UPAH", "KELAS PERAWATAN"];
   const lines = [header.map(csvEscBpjs).join(";")];
-  rows.forEach((r, i) => {
+  let no = 0;
+  for (const r of rows) {
     lines.push([
-      i + 1, r.nik ?? "", r.bpjsKes ?? "", r.fullName.toUpperCase(), ddmmyyyy(r.birthDate),
+      ++no, r.nik ?? "", r.bpjsKes ?? "", r.fullName.toUpperCase(), ddmmyyyy(r.birthDate),
       genderLP(r.gender), "Pegawai", [r.address, r.city].filter(Boolean).join(", "),
-      jknStatusOf(r.employmentStatus), r.positionName ?? "", r.baseSalary, "",
+      jknStatusOf(r.employmentStatus), r.positionName ?? "", r.baseSalary, inpatientClass ?? "",
     ].map(csvEscBpjs).join(";"));
-  });
+    // P2.1-BM — baris keluarga dependen mengikuti baris pesertanya.
+    for (const f of byEmployee.get(r.employeeNo) ?? []) {
+      lines.push([
+        ++no, f.nik, "", f.fullName.toUpperCase(), ddmmyyyy(f.birthDate),
+        genderLP(f.gender), f.hubkel, "", "", "", "", inpatientClass ?? "",
+      ].map(csvEscBpjs).join(";"));
+    }
+  }
   return lines.join("\n") + "\n";
 }
 
-async function logBpjsFormatExport(db: TenantDb, format: "tk" | "jkn", scope: string, count: number, appUserId: string | null) {
+/** P2.1-BM — ActivityLog ekspor format LKS resmi + label format & statistik keluarga. */
+async function logBpjsFormatExport(
+  db: TenantDb,
+  isTk: boolean,
+  scope: string,
+  count: number,
+  familyCount: number,
+  skipped: number,
+  appUserId: string | null,
+) {
   try {
+    const label = isTk
+      ? "LKS BPJS Ketenagakerjaan (unggah)"
+      : "LKS BPJS Kesehatan (peserta+keluarga)";
+    const familyNote = isTk
+      ? ""
+      : ` — ${familyCount} baris keluarga${skipped > 0 ? `, ${skipped} keluarga dilewati (NIK belum diisi)` : ""}`;
     await db.activityLog.create({
       data: {
         action: "Exported",
         entity: "PayrollRun",
         ...(appUserId ? { appUserId } : {}),
-        detail: `Ekspor format upload BPJS ${format === "tk" ? "Ketenagakerjaan (Laporan Kepegawaian)" : "Kesehatan (Data Peserta)"} ${scope} (${count} peserta)`,
+        detail: `Ekspor file ${label} [format=${isTk ? "tk" : "jkn"}] ${scope} — ${count} peserta${familyNote}`,
       },
     });
   } catch {
@@ -237,12 +364,14 @@ export async function GET(req: NextRequest) {
     // ===== 27-c — format upload resmi BPJS (CSV) =====
     // runId OPSIONAL di sini: dgn runId → populasi pegawai run tsb yang
     // memiliki No. BPJS; tanpa runId → seluruh pegawai Aktif ber-No. BPJS.
+    // P2.1-BM: alias lks-tk/lks-jkn (label menu baru) = tk/jkn.
     const uploadFormat = sp.get("format");
-    if (uploadFormat === "tk" || uploadFormat === "jkn") {
-      const isTk = uploadFormat === "tk";
+    if (uploadFormat === "tk" || uploadFormat === "jkn" || uploadFormat === "lks-tk" || uploadFormat === "lks-jkn") {
+      const isTk = uploadFormat === "tk" || uploadFormat === "lks-tk";
       const now = new Date();
       const masterScope = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
       let members: BpjsMemberRow[] = [];
+      let participants: JknParticipant[] = [];
       let scope = masterScope;
       if (runId) {
         const run = await db.payrollRun.findUnique({
@@ -251,7 +380,8 @@ export async function GET(req: NextRequest) {
             period: true,
             lines: {
               orderBy: { employeeNo: "asc" },
-              include: { employee: { select: { employeeNo: true, ...memberSelect } } },
+              // P2.1-BM: family dependen ikut ter-select utk baris KELUARGA (jkn).
+              include: { employee: { select: { employeeNo: true, ...memberSelect, family: familySelect } } },
             },
           },
         });
@@ -263,27 +393,49 @@ export async function GET(req: NextRequest) {
           );
         }
         scope = run.runNo;
-        members = run.lines
-          .filter((l) => (isTk ? l.employee?.bpjsEmpSkill : l.employee?.bpjsHealth))
-          .map((l) => toMemberRow(tc, mv, l.employeeNo, l.employee as MemberEmployee, l.positionName));
+        const memberLines = run.lines.filter((l) => (isTk ? l.employee?.bpjsEmpSkill : l.employee?.bpjsHealth));
+        members = memberLines.map((l) => toMemberRow(tc, mv, l.employeeNo, l.employee as MemberEmployee, l.positionName));
+        participants = memberLines.map((l) => ({
+          employeeNo: l.employeeNo,
+          employeeName: l.employeeName,
+          family: (l.employee as (MemberEmployee & { family?: MemberFamily[] }) | null)?.family ?? [],
+        }));
       } else {
         const emps = await db.employee.findMany({
           where: isTk
             ? { status: "Active", bpjsEmpSkill: { not: null } }
             : { status: "Active", bpjsHealth: { not: null } },
           orderBy: { employeeNo: "asc" },
-          select: { employeeNo: true, ...memberSelect },
+          select: { employeeNo: true, ...memberSelect, family: familySelect },
         });
         members = emps.map((e) => toMemberRow(tc, mv, e.employeeNo, e as MemberEmployee, null));
+        participants = emps.map((e) => ({
+          employeeNo: e.employeeNo,
+          employeeName: e.fullName,
+          family: (e as MemberEmployee & { family?: MemberFamily[] }).family ?? [],
+        }));
       }
 
-      const csv = isTk ? buildBpjsTkCsv(members) : buildBpjsJknCsv(members);
-      await logBpjsFormatExport(db, isTk ? "tk" : "jkn", scope, members.length, m.actor.appUserId);
+      // P2.1-BM — KODE KANTOR / KELAS PERAWATAN dari PayrollRegulation aktif
+      // (null = belum dikonfigurasi → kolom kosong, TIDAK error).
+      const regulation = await db.payrollRegulation.findFirst({
+        where: { active: true },
+        orderBy: { validFrom: "desc" },
+        select: { bpjsOfficeCode: true, bpjsInpatientClass: true },
+      });
+
+      // P2.1-BM — baris KELUARGA (jkn saja; tk = peserta pegawai semata).
+      const { familyRows, gaps } = isTk ? { familyRows: [], gaps: [] } : collectJknFamilies(tc, participants);
+
+      const csv = isTk
+        ? buildBpjsTkCsv(members, regulation?.bpjsOfficeCode ?? null)
+        : buildBpjsJknCsv(members, familyRows, regulation?.bpjsInpatientClass ?? null);
+      await logBpjsFormatExport(db, isTk, scope, members.length, familyRows.length, gaps.length, m.actor.appUserId);
       const company = await db.company.findFirst({ select: { code: true } });
       const tenant = (company?.code ?? "REKANKERJA").replace(/[^A-Za-z0-9]+/g, "");
       const filename = isTk
-        ? `LaporanKepegawaian_BPJSTK_${tenant}_${scope}.csv`
-        : `DataPeserta_BPJSKes_${tenant}_${scope}.csv`;
+        ? `LKS_LaporanKepegawaian_BPJSTK_${tenant}_${scope}.csv`
+        : `LKS_DataPeserta_BPJSKes_${tenant}_${scope}.csv`;
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
@@ -302,7 +454,8 @@ export async function GET(req: NextRequest) {
         processType: true,
         lines: {
           orderBy: { employeeNo: "asc" },
-          include: { items: true, employee: { select: { nationalId: true } } },
+          // P2.1-BM: family dependen utk meta familyRows/gaps + sheet XLSX.
+          include: { items: true, employee: { select: { nationalId: true, bpjsHealth: true, family: familySelect } } },
         },
       },
     });
@@ -348,6 +501,14 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    // P2.1-BM — keluarga peserta JKN run: baris LKS + daftar gap NIK.
+    const { familyRows, gaps } = collectJknFamilies(
+      tc,
+      run.lines
+        .filter((l) => l.employee?.bpjsHealth)
+        .map((l) => ({ employeeNo: l.employeeNo, employeeName: l.employeeName, family: l.employee?.family ?? [] })),
+    );
+
     const sum = (f: (r: BpjsRow) => number) => rows.reduce((s, r) => s + f(r), 0);
     const totals = {
       employees: rows.length,
@@ -369,6 +530,10 @@ export async function GET(req: NextRequest) {
       // F-01 BPA-AUDIT-53 — catatan informatif struktur iuran JKP PP 6/2025.
       jkpNote:
         "JKP (PP 6/2025 Ps.11): iuran 0,36% dari upah s.d. plafon = 0,22% ditanggung APBN + 0,14% rekomposisi iuran JKK yang telah dibayar perusahaan — tanpa potongan pekerja dan tanpa beban iuran baru perusahaan. Klaim manfaat saat PHK.",
+      // P2.1-BM (D-BM16) — pratinjau baris KELUARGA file LKS JKN + gap NIK.
+      familyRows: familyRows.length,
+      familySkipped: gaps.length,
+      gaps,
     };
 
     if (req.nextUrl.searchParams.get("export") === "xlsx") {
@@ -400,10 +565,30 @@ export async function GET(req: NextRequest) {
         totals.jhtCompany, totals.jhtEmployee, totals.jpCompany, totals.jpEmployee, totals.jkk, totals.jkm,
         totals.jknCompany, totals.jknEmployee, totals.jkpCompany, totals.jkpEmployee, totals.totalCompany, totals.totalEmployee,
       ]);
-      const buf = await toXlsx("Rekap BPJS", columns, body, {
+      // P2.1-BM — sheet "Gap NIK Keluarga" HANYA bila ada keluarga peserta
+      // yang dilewati dari file LKS JKN karena NIK belum diisi.
+      const sheets: ExportSheet[] = [{
+        name: "Rekap BPJS",
         title: `Rekap Iuran BPJS — ${run.runNo} · ${run.period.name} · ${run.processType.name}`,
-      });
-      await logExport(db, run.runNo, m.actor.appUserId);
+        columns,
+        rows: body,
+      }];
+      if (gaps.length > 0) {
+        sheets.push({
+          name: "Gap NIK Keluarga",
+          title: `Keluarga peserta BPJS Kesehatan tanpa NIK — dilewati dari file LKS (${gaps.length})`,
+          columns: [
+            { header: "No. Karyawan", width: 14 },
+            { header: "Nama Karyawan", width: 28 },
+            { header: "Nama Keluarga", width: 28 },
+            { header: "Hubungan", width: 12 },
+            { header: "Alasan", width: 22 },
+          ],
+          rows: gaps.map((g) => [g.employeeNo, g.employeeName, g.familyName, g.relation, g.reason]),
+        });
+      }
+      const buf = await toXlsxMulti(sheets);
+      await logExport(db, run.runNo, m.actor.appUserId, gaps.length);
       return xlsxResponse(buf, exportFilename("rekankerja-bpjs", "xlsx", run.runNo));
     }
 
@@ -413,14 +598,14 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function logExport(db: TenantDb, runNo: string, appUserId: string | null) {
+async function logExport(db: TenantDb, runNo: string, appUserId: string | null, gapCount = 0) {
   try {
     await db.activityLog.create({
       data: {
         action: "Exported",
         entity: "PayrollRun",
         ...(appUserId ? { appUserId } : {}),
-        detail: `Ekspor XLSX rekap BPJS run ${runNo}`,
+        detail: `Ekspor XLSX rekap BPJS run ${runNo}${gapCount > 0 ? ` (termasuk sheet Gap NIK Keluarga — ${gapCount} baris)` : ""}`,
       },
     });
   } catch {

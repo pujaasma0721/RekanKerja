@@ -4,8 +4,9 @@ import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import {
   offerOptions, listOffers, getOffer, createOffer, updateOffer, deleteOffer,
-  sendOffer, decideOfferApproval, markViewed, respondOffer, offerFunnel, fmtMoneyId,
-  OFFER_DOC_TYPE,
+  sendOffer, decideOfferApproval, markViewed, respondOffer, counterOffer,
+  offerFunnel, fmtMoneyId,
+  OFFER_DOC_TYPE, OfferConflictError,
 } from "@/rekankerja/recruitment/services/offer-service";
 import {
   appointmentContext, appoint, continueToOnboarding,
@@ -26,7 +27,9 @@ import { getApprovalChain } from "@/rekankerja/shared/services/approval-engine";
 //   GET  ?letterPdf=ID                  → PDF surat (offer/pengangkatan/
 //                                          penolakan — stream, reuse F3)
 //   POST { action: create|update|delete|send|approve|reject-approval|viewed|
-//          accept|decline|appoint|to-onboarding }
+//          accept|decline|counter|appoint|to-onboarding }
+//   P2.4: action "counter" {id, edits} — nego offer Sent/Viewed kembali Draft
+//         (guard update); accept/decline race → OfferConflictError 409.
 // ============================================================================
 
 export async function GET(req: NextRequest) {
@@ -202,6 +205,23 @@ export async function POST(req: NextRequest) {
         });
         return NextResponse.json(res);
       }
+      case "counter": {
+        const m = await guard("update");
+        const res = await counterOffer(m.db, {
+          id: String(b.id ?? ""),
+          edits: {
+            jobOpeningId: b.edits?.jobOpeningId !== undefined ? (b.edits.jobOpeningId ? String(b.edits.jobOpeningId) : null) : undefined,
+            salary: b.edits?.salary !== undefined ? (b.edits.salary === null || b.edits.salary === "" ? null : Number(b.edits.salary)) : undefined,
+            currency: b.edits?.currency !== undefined ? String(b.edits.currency) : undefined,
+            salaryUnit: b.edits?.salaryUnit !== undefined ? String(b.edits.salaryUnit) : undefined,
+            startDate: b.edits?.startDate !== undefined ? (b.edits.startDate ? String(b.edits.startDate) : null) : undefined,
+            expiryDate: b.edits?.expiryDate !== undefined ? (b.edits.expiryDate ? String(b.edits.expiryDate) : null) : undefined,
+            note: b.edits?.note !== undefined ? (b.edits.note ? String(b.edits.note) : null) : undefined,
+          },
+          actor: { id: m.actor.employeeId ?? null, name: m.actor.name },
+        });
+        return NextResponse.json(res);
+      }
       case "appoint": {
         const m = await guard("op:appoint");
         const res = await appoint(m.db, {
@@ -232,6 +252,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Aksi tidak dikenal: ${action}` }, { status: 400 });
     }
   } catch (e) {
+    // P2.4 — race-guard respondOffer/counterOffer (double-click portal/HR):
+    // OfferConflictError membawa status readonly 409 → dipetakan eksplisit.
+    if (e instanceof OfferConflictError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
+    }
     if (e instanceof Error && "status" in e && typeof (e as { status?: unknown }).status === "number") {
       return NextResponse.json({ error: e.message }, { status: (e as unknown as { status: number }).status });
     }

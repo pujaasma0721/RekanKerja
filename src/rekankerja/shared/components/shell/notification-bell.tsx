@@ -9,13 +9,15 @@
 //   · "Tandai semua dibaca" + empty state rapi.
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Bell, CheckCheck, Palmtree, Plane, HeartPulse, Wallet, CalendarClock, Inbox } from "lucide-react";
+import { Bell, CheckCheck, Palmtree, Plane, HeartPulse, Wallet, CalendarClock, Inbox, BellRing } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, apiSend, fmtDateTime } from "@/rekankerja/shared/lib/api";
 import { useNav, type SectionId } from "@/rekankerja/shared/lib/store";
 import { useI18n, locActivity } from "@/rekankerja/shared/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { PushOptIn } from "@/rekankerja/shared/components/push/push-opt-in";
 
 const NOTIF_BASE = "/api/rekankerja/notifications";
 
@@ -70,10 +72,26 @@ export function NotificationBell() {
   const { t } = useI18n();
   const { navigate } = useNav();
   const [open, setOpen] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
   const notif = useApi<NotificationsData>(NOTIF_BASE);
   const unread = notif.data?.unread ?? 0;
   const items = notif.data?.items ?? [];
   const refresh = notif.refresh;
+
+  // P2.2-BM (D-BM17) — item push hanya tampil bila browser mendukung
+  // (cek pasca-mount — fallback hidden, tanpa error di browser lama).
+  useEffect(() => {
+    // (cek pasca-mount asinkron — hindari hydration mismatch + cascading render)
+    const id = window.setTimeout(() => {
+      setPushSupported(
+        typeof window !== "undefined" &&
+        "serviceWorker" in navigator &&
+        "PushManager" in window,
+      );
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, []);
 
   // Polling ringan: 30 dtk, hanya saat tab terlihat (cleanup saat unmount).
   useEffect(() => {
@@ -187,7 +205,34 @@ export function NotificationBell() {
             })
           )}
         </div>
+        {pushSupported && (
+          <div className="border-t border-slate-100 p-2 dark:border-slate-800">
+            <button
+              onClick={() => {
+                setOpen(false);
+                setPushOpen(true);
+              }}
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/60"
+            >
+              <BellRing className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+              {t("Notifikasi push perangkat", "Device push notifications")}
+            </button>
+          </div>
+        )}
       </DropdownMenuContent>
+
+      {/* P2.2-BM (D-BM17) — dialog opt-in web push (dibuka dari footer dropdown) */}
+      <Dialog open={pushOpen} onOpenChange={setPushOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("Notifikasi Push", "Push Notifications")}</DialogTitle>
+            <DialogDescription>
+              {t("Aktifkan pemberitahuan di perangkat ini untuk keputusan approval & pengumuman.", "Turn on notifications on this device for approval decisions & announcements.")}
+            </DialogDescription>
+          </DialogHeader>
+          <PushOptIn apiBase="/api/rekankerja/push/subscriptions" />
+        </DialogContent>
+      </Dialog>
     </DropdownMenu>
   );
 }

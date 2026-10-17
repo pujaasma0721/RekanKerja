@@ -18,8 +18,19 @@
 // selection-service.letterPdf). Funnel report dasar (Applied → Candidate →
 // per tahap → Offer → Hired) untuk overview + view Offer.
 // ============================================================================
+// P2.4-BM (D-BM19) — Offer versioning + self-service kandidat: setiap
+// perubahan material offer bersnapshot ke CandidateOfferVersion (payload
+// lengkap, gaji TETAP string terenkripsi vault — tanpa decrypt); diff nominal
+// antar versi vault-gated di batas serializer. Kandidat dapat memutuskan
+// accept/decline SENDIRI via portal /offer/<token> (token acak 32-byte,
+// disimpan sebagai SHA-256 hash — pola EsignRequest DB-token) dengan
+// race-guard: respondOffer memakai updateMany kondisional (status Sent|
+// Viewed) → double-click paralel hanya SATU sukses, lainnya 409.
+// ============================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
-import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
+import { tenantCryptoForDb, tenantSchemaOfDb } from "@/rekankerja/shared/lib/field-crypto";
+import { db as platformDb } from "@/lib/db";
+import { createHash, randomBytes } from "node:crypto";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
 import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
@@ -43,6 +54,26 @@ const ACTIVE_OFFER: OfferStatus[] = ["Draft", "PendingApproval", "Sent", "Viewed
 export const OFFER_DOC_TYPE = "RecruitmentOffer" as const;
 
 export const OFFER_TEMPLATE_KEY = "REC_OFFER";
+
+/** Masa berlaku default token self-service bila offer tanpa expiryDate. */
+const SELF_SERVICE_TTL_MS = 7 * 24 * 60 * 60_000;
+
+/** Basis URL portal kandidat (halaman /offer/<token> — pola esign/status-link). */
+function portalBase(): string {
+  return process.env.CANDIDATE_PORTAL_URL ?? "http://127.0.0.1:3010";
+}
+
+/** Slug registry Tenant milik client Prisma tenant (utk ?t= link portal). */
+async function tenantSlugOf(db: TenantDb): Promise<string | null> {
+  try {
+    const row = await platformDb.tenant.findUnique({
+      where: { schemaName: tenantSchemaOfDb(db) }, select: { slug: true },
+    });
+    return row?.slug ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Status kandidat yang boleh dibuatkan offer (Passed semua tahap / masih hidup di tahap Offering). */
 const OFFERABLE_CANDIDATE = ["Passed", "InProcess"] as const;
@@ -74,6 +105,47 @@ export function fmtMoneyId(n: number | null | undefined): string {
 
 // ============ tipe serializer (batas API) ============
 
+/** Error 409 — offer tidak lagi bisa diputuskan (race double-click / status). */
+export class OfferConflictError extends Error {
+  readonly status = 409;
+  constructor(message: string) { super(message); this.name = "OfferConflictError"; }
+}
+
+/** Error token self-service publik — 404 (tak dikenal) / 410 (kedaluwarsa). */
+export class OfferSelfServiceError extends Error {
+  constructor(public status: 404 | 410, message: string) { super(message); this.name = "OfferSelfServiceError"; }
+}
+
+/** Versi ringkas utk list/detail (tanpa payload — diff hanya di GET detail). */
+export interface OfferVersionLite {
+  versionNo: number;
+  label: string | null;
+  createdAt: string;
+  createdById: string | null;
+}
+
+/** Diff non-uang antar 2 versi berurutan — "a → b". */
+export interface OfferVersionDiffField {
+  field: string;
+  from: string | null;
+  to: string | null;
+}
+
+/** Diff nominal gaji — angka hanya bila vault terbuka, changed selalu tersedia. */
+export interface OfferSalaryDiff {
+  from: number | null;
+  to: number | null;
+  changed: boolean;
+}
+
+/** Versi + diff vs versi sebelumnya (versi 1 = baseline, diff null). */
+export interface OfferVersionView extends OfferVersionLite {
+  diff: {
+    fields: OfferVersionDiffField[];
+    salaryDiff: OfferSalaryDiff | null;
+  } | null;
+}
+
 export interface OfferRow {
   id: string;
   offerNo: string;
@@ -102,10 +174,16 @@ export interface OfferRow {
   appointedAt: string | null;
   hasAppointment: boolean;
   createdAt: string;
+  /** P2.4 — riwayat versi ringkas (tanpa payload). */
+  versions: OfferVersionLite[];
 }
 
 export interface OfferDetail extends OfferRow {
   approval: ChainView | null;
+  /** P2.4 — versi + diff vs versi sebelumnya (nominal vault-gated). */
+  versionDiffs: OfferVersionView[];
+  /** P2.4 — tautan putusan mandiri penuh (raw token) — hanya bila token aktif. */
+  selfServiceLink: string | null;
   appointment: {
     id: string;
     appointmentDate: string;
@@ -239,6 +317,51 @@ export async function offerOptions(db: TenantDb): Promise<{ prs: OfferablePr[] }
 
 // ============ daftar & detail ============
 
+function versionsOf(
+  vs: { versionNo: number; label: string | null; createdAt: Date; createdById: string | null }[] | undefined,
+): OfferVersionLite[] {
+  return (vs ?? [])
+    .slice()
+    .sort((a, b) => a.versionNo - b.versionNo)
+    .map((v) => ({ versionNo: v.versionNo, label: v.label, createdAt: v.createdAt.toISOString(), createdById: v.createdById }));
+}
+
+interface OfferVersionPayload {
+  offerNo: string;
+  prId: string;
+  candidateId: string;
+  jobOpeningId: string | null;
+  /** string terenkripsi vault — APA ADANYA (tanpa decrypt saat snapshot). */
+  salary: string | null;
+  currency: string;
+  salaryUnit: string;
+  startDate: string | null;
+  expiryDate: string | null;
+  status: string;
+  note: string | null;
+  sentAt: string | null;
+  respondedAt: string | null;
+  label: string | null;
+  /** P2.4 — salinan token self-service TERENKRIPSI (hanya versi "Sent") — utk
+   *  merender tautan putusan HR; hash one-way di CandidateOffer tidak
+   *  direkonstruksi. */
+  selfServiceTokenEnc?: string;
+}
+
+/** Field non-uang yang di-diff antar versi (label tampil di UI). */
+const DIFF_FIELDS: (keyof OfferVersionPayload)[] = [
+  "startDate", "expiryDate", "status", "currency", "salaryUnit", "jobOpeningId", "note",
+];
+
+/** Parse payloadJson versi — rusak → null (versi lama tetap tampil tanpa diff). */
+function parsePayload(json: string): OfferVersionPayload | null {
+  try {
+    return JSON.parse(json) as OfferVersionPayload;
+  } catch {
+    return null;
+  }
+}
+
 function rowOf(
   o: {
     id: string; offerNo: string; status: string; prId: string; candidateId: string;
@@ -249,6 +372,7 @@ function rowOf(
     pr: { prNo: string; position: { title: string } | null };
     jobOpening?: { jobOpportunity: { refNo: string } } | null;
     appointment?: { id: string } | null;
+    versions?: { versionNo: number; label: string | null; createdAt: Date; createdById: string | null }[];
   },
   salary: number | null,
 ): OfferRow {
@@ -282,6 +406,7 @@ function rowOf(
     appointedAt: iso(o.appointedAt),
     hasAppointment: o.appointment != null,
     createdAt: o.createdAt.toISOString(),
+    versions: versionsOf(o.versions),
   };
 }
 
@@ -290,6 +415,7 @@ const OFFER_LIST_INCLUDE = {
   pr: { select: { prNo: true, position: { select: { title: true } } } },
   jobOpening: { select: { jobOpportunity: { select: { refNo: true } } } },
   appointment: { select: { id: true } },
+  versions: { select: { versionNo: true, label: true, createdAt: true, createdById: true }, orderBy: { versionNo: "asc" as const } },
 } as const;
 
 export async function listOffers(
@@ -324,6 +450,10 @@ export async function getOffer(db: TenantDb, id: string, moneyVisible: boolean):
     where: { id },
     include: {
       ...OFFER_LIST_INCLUDE,
+      versions: {
+        select: { versionNo: true, label: true, createdAt: true, createdById: true, payloadJson: true },
+        orderBy: { versionNo: "asc" as const },
+      },
       appointment: {
         select: {
           id: true, appointmentDate: true, status: true, letterNo: true,
@@ -347,10 +477,69 @@ export async function getOffer(db: TenantDb, id: string, moneyVisible: boolean):
 
   const approval = await getApprovalChain(db, OFFER_DOC_TYPE, o.id);
   const row = rowOf(o, moneyVisible ? tc.decryptMoney(o.salary) : null);
+
+  // P2.4 — diff antar versi berurutan (versi 1 = baseline tanpa diff).
+  const versionViews: OfferVersionView[] = [];
+  const ordered = o.versions.slice().sort((a, b) => a.versionNo - b.versionNo);
+  for (let i = 0; i < ordered.length; i++) {
+    const v = ordered[i]!;
+    const cur = parsePayload(v.payloadJson);
+    const prev = i > 0 ? parsePayload(ordered[i - 1]!.payloadJson) : null;
+    let diff: OfferVersionView["diff"] = null;
+    if (i > 0 && cur) {
+      const fields: OfferVersionDiffField[] = [];
+      for (const f of DIFF_FIELDS) {
+        const a = prev ? (prev[f] ?? null) : null;
+        const b = cur[f] ?? null;
+        if (String(a ?? "") !== String(b ?? "")) fields.push({ field: f, from: a, to: b });
+      }
+      // nominal: dibandingkan sebagai nilai terdekripsi di sisi server (metadata
+      // changed); angka from/to hanya ikut keluar bila vault terbuka (mv).
+      const decPrev = prev ? tc.decryptMoney(prev.salary) : null;
+      const decCur = tc.decryptMoney(cur.salary);
+      diff = {
+        fields,
+        salaryDiff: {
+          from: moneyVisible ? decPrev : null,
+          to: moneyVisible ? decCur : null,
+          changed: decPrev !== decCur,
+        },
+      };
+    }
+    versionViews.push({
+      versionNo: v.versionNo, label: v.label, createdAt: v.createdAt.toISOString(),
+      createdById: v.createdById, diff,
+    });
+  }
+
+  // tautan putusan mandiri — hanya utk offer Sent/Viewed dgn token masih hidup.
+  // Token mentah TIDAK disimpan di CandidateOffer (kolom = hash one-way) —
+  // salinan TERENKRIPSI vault (enc:v1) tersimpan di payload versi "Sent";
+  // versi Sent TERAKHIR = token yang berlaku (kirim ulang menimpa hash lama).
+  const tokenAlive = (o.status === "Sent" || o.status === "Viewed")
+    && !!o.selfServiceTokenHash
+    && !!o.selfServiceTokenExpAt && o.selfServiceTokenExpAt.getTime() > Date.now();
+  let selfServiceLink: string | null = null;
+  if (tokenAlive) {
+    for (let i = ordered.length - 1; i >= 0 && !selfServiceLink; i--) {
+      const p = parsePayload(ordered[i]!.payloadJson);
+      const enc = (p as { selfServiceTokenEnc?: unknown } | null)?.selfServiceTokenEnc;
+      if (typeof enc === "string" && enc !== "") {
+        const raw = tc.decryptText(enc);
+        if (raw) {
+          const slug = await tenantSlugOf(db);
+          selfServiceLink = `${portalBase()}/offer/${raw}${slug ? `?t=${encodeURIComponent(slug)}` : ""}`;
+        }
+      }
+    }
+  }
+
   return {
     ...row,
     letterId: letter?.id ?? null,
     approval,
+    versionDiffs: versionViews,
+    selfServiceLink,
     appointment: o.appointment
       ? {
           id: o.appointment.id,
@@ -366,6 +555,66 @@ export async function getOffer(db: TenantDb, id: string, moneyVisible: boolean):
         }
       : null,
   };
+}
+
+// ============ P2.4 — snapshot versi (D-BM19) ============
+
+/**
+ * Snapshot state offer saat ini ke CandidateOfferVersion (versionNo =
+ * jumlah versi + 1 via retryOnUnique — race P2002 dihitung ulang tiap
+ * percobaan). payloadJson: field lengkap; gaji TETAP string terenkripsi
+ * vault apa adanya (JANGAN decrypt di sini — decrypt hanya di batas
+ * serializer dgn gate money view). ActivityLog "Created" tiap versi.
+ */
+export async function snapshotOfferVersion(
+  db: TenantDb,
+  input: { offerId: string; label: string; actorId?: string | null; extras?: Record<string, unknown> },
+): Promise<number> {
+  return retryOnUnique(async () => {
+    const o = await db.candidateOffer.findUnique({
+      where: { id: input.offerId },
+      select: {
+        offerNo: true, prId: true, candidateId: true, jobOpeningId: true,
+        salary: true, currency: true, salaryUnit: true, startDate: true,
+        expiryDate: true, status: true, note: true, sentAt: true, respondedAt: true,
+      },
+    });
+    if (!o) throw new Error("Offer tidak ditemukan");
+    const versionNo = (await db.candidateOfferVersion.count({ where: { offerId: input.offerId } })) + 1;
+    const payloadJson = JSON.stringify({
+      offerNo: o.offerNo,
+      prId: o.prId,
+      candidateId: o.candidateId,
+      jobOpeningId: o.jobOpeningId,
+      salary: o.salary, // string terenkripsi vault — APA ADANYA
+      currency: o.currency,
+      salaryUnit: o.salaryUnit,
+      startDate: iso(o.startDate),
+      expiryDate: iso(o.expiryDate),
+      status: o.status,
+      note: o.note,
+      sentAt: iso(o.sentAt),
+      respondedAt: iso(o.respondedAt),
+      label: input.label,
+      ...(input.extras ?? {}),
+    });
+    await db.candidateOfferVersion.create({
+      data: {
+        offerId: input.offerId,
+        versionNo,
+        payloadJson,
+        label: input.label,
+        createdById: input.actorId ?? null,
+      },
+    });
+    await db.activityLog.create({
+      data: {
+        action: "Created", entity: "CandidateOfferVersion", entityId: `${o.offerNo}#v${versionNo}`,
+        detail: `versi ${versionNo} (${input.label}) offer ${o.offerNo}`,
+      },
+    });
+    return versionNo;
+  });
 }
 
 // ============ input & validasi ============
@@ -481,6 +730,8 @@ export async function createOffer(
       detail: `Offer ${offer.offerNo} dibuat utk kandidat ${candidate.fullName} (PR ${pr.prNo}${pr.position?.title ? ` — ${pr.position.title}` : ""})${salary != null ? ` — gaji ${fmtMoneyId(salary)}` : ""}${actor?.name ? ` oleh ${actor.name}` : ""}`,
     },
   });
+  // P2.4 — versi 1 "Created"
+  await snapshotOfferVersion(db, { offerId: offer.id, label: "Created", actorId: actor?.id ?? null });
   return { id: offer.id, offerNo: offer.offerNo, warning };
 }
 
@@ -488,7 +739,10 @@ export async function createOffer(
  *  REC-AUDIT-FIX M7 — kini (1) MENULIS ActivityLog (dulu update Draft tak
  *  ter-audit sama sekali) dan (2) me-REVALIDASI jobOpeningId: slot harus ada
  *  DAN milik PR offer yang sama (dulu bisa dipoint ke slot PR lain / id asal
- *  → guidance gaji + relasi data salah). */
+ *  → guidance gaji + relasi data salah).
+ *  P2.4 — perubahan field MATERIAL (gaji/mata uang/satuan/tanggal/slot)
+ *  di-snapshot sebagai versi "Updated"; perubahan note saja tidak (versi
+ *  hanya utk checkpoint material — mencegah spam versi utk edit kosmetik). */
 export async function updateOffer(db: TenantDb, id: string, input: Partial<OfferInput>, actorName?: string | null): Promise<{ offerNo: string }> {
   const o = await offerCtx(db, id);
   if (o.status !== "Draft") throw new Error(`Offer ${o.offerNo} berstatus ${o.status} — hanya Draft yang bisa diubah`);
@@ -508,6 +762,25 @@ export async function updateOffer(db: TenantDb, id: string, input: Partial<Offer
       if (jo.prId !== o.pr.id) throw new Error("Slot lowongan bukan milik PR offer ini");
     }
   }
+  // P2.4 — deteksi perubahan MATERIAL sebelum menulis (utk snapshot versi)
+  const cur = await db.candidateOffer.findUnique({
+    where: { id },
+    select: {
+      salary: true, currency: true, salaryUnit: true, startDate: true,
+      expiryDate: true, jobOpeningId: true,
+    },
+  });
+  const dateEq = (a: Date | null, b: Date | null): boolean =>
+    (a?.getTime() ?? null) === (b?.getTime() ?? null);
+  let material = false;
+  if (cur) {
+    if (input.salary !== undefined && (tc.decryptMoney(cur.salary) ?? null) !== salary) material = true;
+    if (input.currency !== undefined && cur.currency !== (input.currency?.trim() || "IDR")) material = true;
+    if (input.salaryUnit !== undefined && cur.salaryUnit !== (input.salaryUnit?.trim() || "Monthly")) material = true;
+    if (input.startDate !== undefined && !dateEq(cur.startDate, parseDate(input.startDate))) material = true;
+    if (input.expiryDate !== undefined && !dateEq(cur.expiryDate, parseDate(input.expiryDate))) material = true;
+    if (input.jobOpeningId !== undefined && cur.jobOpeningId !== (input.jobOpeningId || null)) material = true;
+  }
   await db.candidateOffer.update({
     where: { id },
     data: {
@@ -526,6 +799,9 @@ export async function updateOffer(db: TenantDb, id: string, input: Partial<Offer
       detail: `Offer ${o.offerNo} (Draft) diperbarui${actorName ? ` oleh ${actorName}` : ""}${input.salary !== undefined ? ` — gaji ${salary != null ? fmtMoneyId(salary) : "(dikosongkan)"}` : ""}${input.jobOpeningId !== undefined ? ` — slot ${input.jobOpeningId || "(dikosongkan)"}` : ""}`,
     },
   });
+  if (material) {
+    await snapshotOfferVersion(db, { offerId: id, label: "Updated" });
+  }
   return { offerNo: o.offerNo };
 }
 
@@ -553,6 +829,8 @@ export interface SendOfferResult {
   letterNo?: string | null;
   approvalLevels?: number;
   firstApprover?: string | null;
+  /** P2.4 — tautan putusan mandiri (raw token) utk kandidat, hanya saat sent. */
+  selfServiceLink?: string | null;
 }
 
 /** employeeId konteks approval: officer PR → fallback pembuat offer. */
@@ -564,8 +842,11 @@ async function approvalEmployeeId(db: TenantDb, offerId: string, actorId?: strin
   return o?.pr.recruitmentOfficerId ?? actorId ?? null;
 }
 
-/** Terbitkan surat penawaran REC_OFFER + kirim email kandidat + notif officer. */
-async function performSend(db: TenantDb, offerId: string, actorName?: string | null): Promise<{ offerNo: string; letterNo: string }> {
+/** Terbitkan surat penawaran REC_OFFER + kirim email kandidat + notif officer
+ *  + P2.4: terbitkan token self-service putusan mandiri (hash SHA-256 di
+ *  CandidateOffer; salinan terenkripsi di payload versi "Sent") + email event
+ *  recruitment.offer.selfservice berisi portalLink. */
+async function performSend(db: TenantDb, offerId: string, actorName?: string | null): Promise<{ offerNo: string; letterNo: string; selfServiceLink: string | null }> {
   const o = await db.candidateOffer.findUnique({
     where: { id: offerId },
     include: {
@@ -641,10 +922,50 @@ async function performSend(db: TenantDb, offerId: string, actorName?: string | n
     },
   });
 
+  // P2.4 — token self-service putusan mandiri: acak 32-byte hex; DB hanya
+  // menyimpan SHA-256 (pola DB-token EsignRequest); masa berlaku mengikuti
+  // expiryDate offer (fallback 7 hari). Kirim ulang menimpa hash lama →
+  // token lama otomatis terinvalidasi.
+  const selfToken = randomBytes(32).toString("hex");
+  const selfTokenHash = createHash("sha256").update(selfToken).digest("hex");
+  const selfTokenExp = o.expiryDate ?? new Date(Date.now() + SELF_SERVICE_TTL_MS);
+  const slug = await tenantSlugOf(db);
+  const portalLink = `${portalBase()}/offer/${selfToken}${slug ? `?t=${encodeURIComponent(slug)}` : ""}`;
+
   await db.candidateOffer.update({
     where: { id: o.id },
-    data: { status: "Sent", letterNo, sentAt: new Date() },
+    data: {
+      status: "Sent", letterNo, sentAt: new Date(),
+      selfServiceTokenHash: selfTokenHash, selfServiceTokenExpAt: selfTokenExp,
+    },
   });
+
+  // P2.4 — versi "Sent" (payload memuat salinan token TERENKRIPSI vault utk
+  // merender tautan HR di GET detail — hash one-way tak bisa direkonstruksi)
+  await snapshotOfferVersion(db, {
+    offerId: o.id, label: "Sent", actorId: null,
+    extras: { selfServiceTokenEnc: tc.encryptText(selfToken) ?? null },
+  });
+
+  // P2.4 — email tautan putusan mandiri ke kandidat. AWAIT (beda dari email
+  // fire-and-forget lain — pelajaran P1.5): EmailLog tertulis deterministik
+  // sebelum respons kembali → e2e meng-assert baris log tepat setelah send.
+  if (candidateEmail) {
+    try {
+      await notifyEmailEvent(db, {
+        event: "recruitment.offer.selfservice",
+        to: [{ email: candidateEmail, name: o.candidate.fullName }],
+        data: {
+          kandidat: o.candidate.fullName, docNo: o.offerNo,
+          posisi: o.candidate.pr.position?.title ?? "-",
+          portalLink,
+          berlakuSampai: fmtDateId(selfTokenExp),
+        },
+      });
+    } catch {
+      // never-throw — email tidak boleh menggagalkan pengiriman offer
+    }
+  }
 
   // email ke kandidat (bila alamat tersedia) — event recruitment.offer.sent
   if (candidateEmail) {
@@ -712,10 +1033,10 @@ async function performSend(db: TenantDb, offerId: string, actorName?: string | n
   await db.activityLog.create({
     data: {
       action: "Updated", entity: "CandidateOffer", entityId: o.offerNo,
-      detail: `Offer ${o.offerNo} DIKIRIM ke kandidat ${o.candidate.fullName} (PR ${o.candidate.pr.prNo}) — surat ${letterNo}${actorName ? `, oleh ${actorName}` : ""}`,
+      detail: `Offer ${o.offerNo} DIKIRIM ke kandidat ${o.candidate.fullName} (PR ${o.candidate.pr.prNo}) — surat ${letterNo} + tautan putusan mandiri${actorName ? `, oleh ${actorName}` : ""}`,
     },
   });
-  return { offerNo: o.offerNo, letterNo };
+  return { offerNo: o.offerNo, letterNo, selfServiceLink: portalLink };
 }
 
 /** Kirim offer: bila ada ApprovalStructure RecruitmentOffer aktif → mulai
@@ -732,6 +1053,14 @@ export async function sendOffer(
     const params = await getEmployeeApprovalParams(db, empId);
     const structure = params ? await resolveApprovalStructure(db, params, OFFER_DOC_TYPE) : null;
     if (structure && structure.levels.length > 0) {
+      // P2.4 — chain terminal lama (Approved dari pengiriman sebelumnya /
+      // Rejected / Cancelled) → bersihkan supaya PENGIRIMAN ULANG pasca-counter
+      // membentuk chain baru (pola payroll confirm P1.4; jejak keputusan lama
+      // tetap ter-audit di ActivityLog + note step).
+      const prevChain = await getApprovalChain(db, OFFER_DOC_TYPE, input.id);
+      if (prevChain && prevChain.status !== "InProgress") {
+        await db.approvalChain.delete({ where: { docType_docId: { docType: OFFER_DOC_TYPE, docId: input.id } } });
+      }
       const tc = tenantCryptoForDb(db);
       const full = (await db.candidateOffer.findUnique({ where: { id: input.id }, select: { salary: true } }))!;
       const amount = tc.decryptMoney(full.salary) ?? undefined;
@@ -755,7 +1084,7 @@ export async function sendOffer(
 
   // tanpa struktur approval aktif → langsung kirim
   const r = await performSend(db, input.id, input.actorName);
-  return { offerNo: r.offerNo, status: "Sent", sent: true, letterNo: r.letterNo };
+  return { offerNo: r.offerNo, status: "Sent", sent: true, letterNo: r.letterNo, selfServiceLink: r.selfServiceLink };
 }
 
 /** Keputusan approval offer (dari kotak approval view Offer).
@@ -773,7 +1102,7 @@ export async function decideOfferApproval(
 
   if (res.final && input.action === "approve") {
     const r = await performSend(db, input.id, input.actor.name);
-    return { offerNo: o.offerNo, status: "Sent", sent: true, letterNo: r.letterNo };
+    return { offerNo: o.offerNo, status: "Sent", sent: true, letterNo: r.letterNo, selfServiceLink: r.selfServiceLink };
   }
 
   if (input.action === "reject") {
@@ -817,29 +1146,40 @@ export async function markViewed(db: TenantDb, input: { id: string; actorName?: 
   return { offerNo: o.offerNo, status: "Viewed" };
 }
 
-/** Respons kandidat: accept | decline. Counter → dicatat sebagai note
- *  (HRX E3 versi awal — tanpa negosiasi terstruktur). */
+/** Respons kandidat: accept | decline. P2.4 — RACE-GUARD: tulis via
+ *  updateMany kondisional ({id, status in [Sent, Viewed]}) — double-click
+ *  paralel / kandidat & HR bertabrakan → tepat SATU sukses, lainnya
+ *  OfferConflictError 409 (bukan read-then-write yang bisa dobel-apply).
+ *  Versi "SelfService" (via portal) / "Responded" (dicatat HR) disinkronkan
+ *  SETELAH sukses; notifikasi officer + webhook offer.accepted tetap jalan. */
 export async function respondOffer(
   db: TenantDb,
-  input: { id: string; action: "accept" | "decline"; note?: string | null; actorName?: string | null },
+  input: { id: string; action: "accept" | "decline"; note?: string | null; actorName?: string | null; via?: "portal" },
 ): Promise<{ offerNo: string; status: OfferStatus }> {
   const o = await offerCtx(db, input.id);
   if (o.status !== "Sent" && o.status !== "Viewed") {
-    throw new Error(`Offer ${o.offerNo} berstatus ${o.status} — tidak menunggu respons kandidat`);
+    throw new OfferConflictError(`Offer ${o.offerNo} berstatus ${o.status} — tidak menunggu respons kandidat`);
   }
   // REC-AUDIT-FIX M3 — cek expiryDate SEBELUHR respons diterima: dulu respons
   // tetap diproses walau offer sudah lewat tanggal kedaluwarsa (race dengan
   // scheduler 6 jam yang menandai Expired). Kedaluwarsa → tandai + tolak.
   if (o.expiryDate && o.expiryDate.getTime() <= Date.now()) {
     await db.candidateOffer.update({ where: { id: o.id }, data: { status: "Expired" } }).catch(() => {});
-    throw new Error(`Offer ${o.offerNo} telah KEDALUWARSA pada ${fmtDateId(o.expiryDate)} — tidak bisa direspons`);
+    throw new OfferConflictError(`Offer ${o.offerNo} telah KEDALUWARSA pada ${fmtDateId(o.expiryDate)} — tidak bisa direspons`);
   }
   const status: OfferStatus = input.action === "accept" ? "Accepted" : "Declined";
   const note = [o.note, input.note?.trim() || null].filter(Boolean).join(" · ") || null;
-  await db.candidateOffer.update({
-    where: { id: input.id },
+  // P2.4 race-guard — updateMany kondisional: hanya offer yang MASIH Sent/Viewed
+  // yang berubah; count 0 = sudah diputuskan duluan (double-click/portal+HR).
+  const updated = await db.candidateOffer.updateMany({
+    where: { id: input.id, status: { in: ["Sent", "Viewed"] } },
     data: { status, respondedAt: new Date(), note },
   });
+  if (updated.count === 0) {
+    throw new OfferConflictError(
+      `Offer ${o.offerNo} sudah diputuskan / tidak lagi menunggu respons kandidat`,
+    );
+  }
 
   // F7 — emit webhook offer.accepted (antrean; TANPA PII kandidat)
   if (input.action === "accept") {
@@ -897,7 +1237,168 @@ export async function respondOffer(
       detail: `Offer ${o.offerNo} ${status === "Accepted" ? "DITERIMA" : "DITOLAK"} kandidat ${o.candidate.fullName}${input.note ? ` — ${input.note.trim()}` : ""}${input.actorName ? ` (dicatat oleh ${input.actorName})` : ""}`,
     },
   });
+  // P2.4 — sinkronkan versi putusan (SETELAH sukses; label beda jalur)
+  await snapshotOfferVersion(db, {
+    offerId: input.id,
+    label: input.via === "portal" ? "SelfService" : "Responded",
+  });
   return { offerNo: o.offerNo, status };
+}
+
+// ============ P2.4 — counter offer (negosiasi terstruktur, D-BM19) ============
+
+export interface CounterOfferEdits {
+  salary?: number | null;
+  currency?: string | null;
+  salaryUnit?: string | null;
+  startDate?: string | null;
+  expiryDate?: string | null;
+  note?: string | null;
+  jobOpeningId?: string | null;
+}
+
+/**
+ * Counter offer: kandidat menawar (dicatat HR / hasil nego) → offer Sent/Viewed
+ * kembali ke DRAFT dgn revisi (gaji/tanggal/catatan) + versi "Counter".
+ * respondedAt DIPERTAHANKAN (jejak bahwa kandidat pernah merespons) dan token
+ * self-service lama DIINVALIDASI (hash dinull-kan) — keputusan hanya lewat
+ * pengiriman ulang. Setelah Accepted/Declined/Expired → 409 (final).
+ */
+export async function counterOffer(
+  db: TenantDb,
+  input: { id: string; edits: CounterOfferEdits; actor?: { id?: string | null; name?: string | null } },
+): Promise<{ offerNo: string; status: OfferStatus }> {
+  const o = await offerCtx(db, input.id);
+  if (o.status !== "Sent" && o.status !== "Viewed") {
+    throw new OfferConflictError(
+      `Offer ${o.offerNo} berstatus ${o.status} — counter hanya untuk offer Sent/Viewed (sebelum diputuskan/kedaluwarsa)`,
+    );
+  }
+  const tc = tenantCryptoForDb(db);
+  const edits = input.edits ?? {};
+  const salary = edits.salary != null && String(edits.salary) !== "" ? Number(edits.salary) : null;
+  if (salary != null && (!Number.isFinite(salary) || salary < 0)) {
+    throw new Error("Gaji offer harus berupa angka tidak negatif");
+  }
+  if (edits.jobOpeningId) {
+    const jo = await db.jobOpening.findUnique({
+      where: { id: edits.jobOpeningId },
+      select: { id: true, prId: true },
+    });
+    if (!jo) throw new Error("Slot lowongan tidak ditemukan");
+    if (jo.prId !== o.pr.id) throw new Error("Slot lowongan bukan milik PR offer ini");
+  }
+
+  await db.candidateOffer.update({
+    where: { id: input.id },
+    data: {
+      ...(edits.salary !== undefined ? { salary: salary != null ? tc.encryptMoney(salary) : null } : {}),
+      ...(edits.currency !== undefined ? { currency: edits.currency?.trim() || "IDR" } : {}),
+      ...(edits.salaryUnit !== undefined ? { salaryUnit: edits.salaryUnit?.trim() || "Monthly" } : {}),
+      ...(edits.startDate !== undefined ? { startDate: parseDate(edits.startDate) } : {}),
+      ...(edits.expiryDate !== undefined ? { expiryDate: parseDate(edits.expiryDate) } : {}),
+      ...(edits.note !== undefined ? { note: edits.note?.trim() || null } : {}),
+      ...(edits.jobOpeningId !== undefined ? { jobOpeningId: edits.jobOpeningId || null } : {}),
+      status: "Draft",
+      selfServiceTokenHash: null, // tautan putusan lama terinvalidasi
+      selfServiceTokenExpAt: null,
+    },
+  });
+  await db.activityLog.create({
+    data: {
+      action: "Updated", entity: "CandidateOffer", entityId: o.offerNo,
+      detail: `Offer ${o.offerNo} COUNTER (nego) oleh ${input.actor?.name ?? "HR"} — kembali Draft utk revisi` +
+        `${edits.salary !== undefined ? ` — gaji ${salary != null ? fmtMoneyId(salary) : "(dikosongkan)"}` : ""}` +
+        `${edits.startDate ? ` — mulai ${fmtDateId(parseDate(edits.startDate))}` : ""}` +
+        `${edits.note?.trim() ? ` — catatan: ${edits.note.trim()}` : ""}`,
+    },
+  });
+  await snapshotOfferVersion(db, { offerId: input.id, label: "Counter", actorId: input.actor?.id ?? null });
+  return { offerNo: o.offerNo, status: "Draft" };
+}
+
+// ============ P2.4 — putusan mandiri kandidat via portal (publik) ============
+
+/** Hash token self-service (SHA-256 hex — kolom CandidateOffer menyimpan ini). */
+function selfServiceTokenHashOf(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export interface OfferSelfServiceSummary {
+  ok: true;
+  offerNo: string;
+  position: string | null;
+  company: string | null;
+  startDate: string | null;
+  expiryDate: string | null;
+  status: string;
+}
+
+/**
+ * Ringkasan offer utk halaman putusan portal (TANPA nominal gaji — kebijakan
+ * halaman status: surat resmi bertanda tangan dikirim via email). Token
+ * tak dikenal → 404 netral; kedaluwarsa → 410.
+ */
+export async function offerSelfServiceSummary(db: TenantDb, input: { token: string }): Promise<OfferSelfServiceSummary> {
+  const offer = await db.candidateOffer.findUnique({
+    where: { selfServiceTokenHash: selfServiceTokenHashOf(input.token) },
+    select: {
+      offerNo: true, status: true, startDate: true, expiryDate: true,
+      selfServiceTokenExpAt: true,
+      pr: { select: { position: { select: { title: true } } } },
+    },
+  });
+  if (!offer) {
+    throw new OfferSelfServiceError(404, "Tautan putusan offer tidak valid atau tidak dikenali");
+  }
+  if (!offer.selfServiceTokenExpAt || offer.selfServiceTokenExpAt.getTime() <= Date.now()) {
+    throw new OfferSelfServiceError(410, "Tautan putusan offer telah kedaluwarsa — minta tim rekrutmen mengirim ulang");
+  }
+  const company = await db.company.findFirst({ select: { name: true } });
+  return {
+    ok: true,
+    offerNo: offer.offerNo,
+    position: offer.pr.position?.title ?? null,
+    company: company?.name ?? null,
+    startDate: iso(offer.startDate),
+    expiryDate: iso(offer.expiryDate),
+    status: offer.status,
+  };
+}
+
+/**
+ * Putusan mandiri kandidat via portal (token publik). Jalur sama dgn
+ * respondOffer (race-guard 409) + ActivityLog actorType system "putusan
+ * mandiri via portal". 404/410/409 sesuai kelas error.
+ */
+export async function respondOfferSelfService(
+  db: TenantDb,
+  input: { token: string; action: "accept" | "decline"; note?: string | null },
+): Promise<{ offerNo: string; status: OfferStatus }> {
+  const offer = await db.candidateOffer.findUnique({
+    where: { selfServiceTokenHash: selfServiceTokenHashOf(input.token) },
+    select: { id: true, offerNo: true, selfServiceTokenExpAt: true },
+  });
+  if (!offer) {
+    throw new OfferSelfServiceError(404, "Tautan putusan offer tidak valid atau tidak dikenali");
+  }
+  if (!offer.selfServiceTokenExpAt || offer.selfServiceTokenExpAt.getTime() <= Date.now()) {
+    throw new OfferSelfServiceError(410, "Tautan putusan offer telah kedaluwarsa — minta tim rekrutmen mengirim ulang");
+  }
+  const res = await respondOffer(db, {
+    id: offer.id,
+    action: input.action,
+    note: input.note ?? null,
+    actorName: "Portal Kandidat",
+    via: "portal",
+  });
+  await db.activityLog.create({
+    data: {
+      actorType: "system", action: "Updated", entity: "CandidateOffer", entityId: res.offerNo,
+      detail: `putusan mandiri via portal — ${input.action}`,
+    },
+  });
+  return res;
 }
 
 // ============ scheduler: expiry + reminder (HRX E3) ============

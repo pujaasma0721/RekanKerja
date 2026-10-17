@@ -7766,3 +7766,119 @@ Work Log:
 Stage Summary:
 - Fondasi P2 lengkap & terverifikasi: schema+DDL+migrasi 3 tenant idempoten, 7 model/kolom baru siap dipakai slice, file berbagi (scheduler, email-defaults, portal index, nav, menu-perms) SUDAH dikerjakan di Phase 0 sehingga 6 slice paralel P2.1–P2.6 tidak saling menimpa.
 - Pembagian file slice: A=payroll/api/reports-bpjs+tax-parameters+payroll-parameters UI; B=push-service baru+notification-service hook+sw.js+UI opt-in+API; C=selection-service/dialogs+jadwal-page.ts+public-interview-slots API; D=offer-service+offer-dialogs/offers UI+offer-page.ts+public-offer-respond API; E=insurance-policies.tsx+policy-service+policy-jobs.ts+hook personnel-actions-detail; F=approval-escalation-job.ts+approval-structures API+approval-structure-view UI.
+
+---
+Task ID: P2.1-A
+Agent: full-stack-developer (agent mati pra-worklog — entri ditulis orchestrator pasca-verifikasi)
+Task: P2.1 File LKS BPJS resmi (D-BM16) — KODE KANTOR + KELAS dari config + baris keluarga + laporan gap.
+
+Work Log:
+- (Rekonstruksi dari artefak) Config: tax-parameters.ts PATCH/GET bpjsOfficeCode + bpjsInpatientClass (validasi "1"|"2"|"3"|null) → PayrollRegulation aktif; UI payroll-parameters.tsx tab Regulasi & BPJS field baru + hint dwibahasa.
+- reports-bpjs.ts: format=lks-tk alias tk — KODE KANTOR diisi config; format=lks-jkn alias jkn — KELAS PERAWATAN dari config + BARIS KELUARGA per karyawan (EmployeeFamily isDependent: Spouse→Suami/Istri by gender, Child→Anak; NIK decryptText; kolom lain kosong; family tanpa NIK DILEWATI → gaps list {employeeNo, employeeName, familyName, relation, reason}); ?export=xlsx + sheet "Gap NIK Keluarga"; meta JSON familyRows/familySkipped/gaps; ActivityLog logBpjsFormatExport; payroll-report-buttons.tsx label dwibahasa + alias anchor.
+- E2E scripts/e2e-p21-lks.ts ditulis agent (51 asersi) + fixture family via API.
+- VERIFIKASI ORCHESTRATOR: e2e-p21 51/51 PASS (config set/restore, LKS TK kolom KODE KANTOR terisi semua baris, LKS JKN baris Pegawai KELAS=2 + baris Suami ber-NIK + Child tanpa NIK terlewati + gaps di sheet XLSX + meta, cleanup 0 sisa, ActivityLog 2+4 baris). Browser: 2 field baru + hint tampil EN/ID di tab Regulasi & BPJS.
+
+Stage Summary:
+- D-BM16 tuntas: file LKS resmi TK+JKN kolom terisi dari config tenant; keluarga ikut JKN dengan NIK terenkripsi; gap NIK terlapor.
+
+---
+Task ID: P2.2-B
+Agent: full-stack-developer (agent mati pra-worklog — entri ditulis orchestrator pasca-verifikasi)
+Task: P2.2 Web push notification (D-BM17) — opt-in per user + kait approval/pengumuman + fallback tenang.
+
+Work Log:
+- (Rekonstruksi) push-service.ts BARU: getPushConfig (self-seed webpush.generateVAPIDKeys + vapidPrivate terenkripsi tc.encryptText + ActivityLog system) · subscribePush (validasi + terenkripsi + endpointHash blindIndex bi1: + upsert idempoten) · unsubscribePush/All · sendWebPushToUser (lazy import web-push, TTL 3600, 404/410 → prune dead subscription, never-throw) · __webpushSend wrapper utk harness.
+- notification-service.ts pushNotification: hook fire-and-forget sendWebPushToUser (1 titik — otomatis menjangkau SEMUA event in-app: approval masuk, pengumuman fanout, nudge scheduler).
+- public/sw.js += handler push (showNotification icon/badge/tag/data) + notificationclick (focus client else open "/"); next.config.ts serverExternalPackages += web-push (pola nodemailer); package.json + web-push + @types.
+- API: shared/api/push-subscriptions.ts (requireAppUser) + ess/api/push-subscriptions.ts (requireEss) + 2 route tipis; GET status/enabled/subscribed/publicKey, POST subscribe/unsubscribe/unsubscribe-all.
+- UI: shared/components/push/push-opt-in.tsx (requestPermission + pushManager.subscribe userVisibleOnly + urlBase64ToUint8Array; fallback tenang permission denied) dipasang di ess-profile.tsx (card Notifikasi Push, tab personal) + notification-bell.tsx (item "Notifikasi push perangkat" di dropdown).
+- (Orchestrator FIX lint) 2× setState-sinkron-di-effect (ess-profile + bell) → dibungkus setTimeout(0) + cleanup — react-hooks/set-state-in-effect error.
+- VERIFIKASI ORCHESTRATOR: e2e-p22 46/46 PASS (fix: managerId resolve via employeeAssignment bukan Employee) — self-seed + enc at-rest (raw enc:v1), receiver harness lokal menangkap POST VAPID (authorization vapid t=…, ttl, aes128gcm), integrasi approval LIVE via dev server (ESS ajukan cuti → push diterima approver receiver), opt-out berhenti, dead subscription 410 → pruned, cleanup. Browser: SW baru ter-registrasi bersih (console) + item bell tampil.
+
+Stage Summary:
+- D-BM17 tuntas: infrastruktur web push penuh terenkripsi + opt-in; kunci at-rest enc:v1; harness e2e menerima POST nyata.
+
+---
+Task ID: P2.3-C
+Agent: full-stack-developer (agent mati pra-worklog — entri ditulis orchestrator pasca-verifikasi)
+Task: P2.3 Panel interview + self-schedule + .ics (D-BM18) — multi-evaluator + slot + portal kandidat.
+
+Work Log:
+- (Rekonstruksi) selection-service.ts: scheduleStep evaluatorIds 1–N (lead = performedById backward-compat + CandidateStepEvaluator upsert + notifikasi semua evaluator) · saveStepSlots (validasi masa depan + tak tumpang tindih; Booked dipertahankan) · issueSlotInvite (randomBytes 32 hex → sha256 hash di step.inviteTokenHash + exp default 72 jam; email kandidat recruitment.interview.invite AWAIT + ActivityLog) · bookSlotByToken (updateMany kondisional Open→Booked → count 0 = 409 race; planDate=startAt + dueDate recompute + slot lain Closed + email kandidat recruitment.interview.booked DENGAN LAMPIRAN .ics AWAIT + notif semua evaluator; kelas error ber-status 409/410/404) · buildInterviewIcs EXPORT (RFC5545 CRLF, escape ; , \n) · serializer step + evaluators + slots.
+- email-service.ts += notifyEmailEventWithAttachments (notifyEmailEvent existing tak berubah).
+- API selection.ts: action schedule (evaluatorIds) + slots-save + invite-slots (guard op:schedule); GET ?stepId= + slots. Publik: public-interview-slots.ts + route (GET ringkas TANPA PII; POST book; hitRateLimit; no-store; ?t=).
+- UI: selection-dialogs.tsx ScheduleDialog multi-evaluator chips + seksi slot (datetime + durasi) + tombol kirim undangan + link salin; drawer kandidat chips panel + daftar slot; selection-shared.tsx types.
+- Portal: src/jadwal-page.ts (SSR fetch + daftar slot WIB + tombol Pilih + state sukses/409/410 + dwibahasa data-id/data-en).
+- (Orchestrator FIX BUG ×2 di jadwal-page.ts) (1) language switcher querySelectorAll("[data-id]") menimpa li.slot (data-id = ID slot) → baris rusak jadi raw ID — selector diperketat [data-id][data-en] (juga offer-page D preventif); (2) tombol SSR tidak pernah di-bind listener (binding hanya di renderRows) → renderRows() dipanggil sekali saat load.
+- VERIFIKASI ORCHESTRATOR: e2e-p23 61/61 PASS (3 evaluator + panel + notifikasi, slot save/invite, public GET/POST book → terkunci + .ics parse CRLF/DTSTART + EmailLog booked, double-book 409, expired 410, divergence 2 scorecard, guard ESS 403, cleanup). Browser: kanban + drawer terbuka (data fetch sempat terganggu OOM — fungsional terbukti e2e) + PORTAL /jadwal/<token> FULL: slot WIB tampil → klik Pilih → "Jadwal Anda terkunci" + info .ics (2 bug portal diperbaiki + diverifikasi ulang).
+
+Stage Summary:
+- D-BM18 tuntas: panel multi-evaluator + slot self-schedule + portal booking + .ics — dua bug portal ditemukan browser-check dan diperbaiki.
+
+---
+Task ID: P2.4-D
+Agent: full-stack-developer (agent mati pra-worklog — entri ditulis orchestrator pasca-verifikasi)
+Task: P2.4 Offer versioning + self-service kandidat (D-BM19) — riwayat versi + diff vault + putusan mandiri race-safe.
+
+Work Log:
+- (Rekonstruksi) offer-service.ts: snapshotOfferVersion (payloadJson field lengkap; gaji TETAP string terenkripsi; versionNo retryOnUnique; ActivityLog) dipanggil create→"Created"/update→"Updated"/send→"Sent"/counter→"Counter"/respond→"SelfService"|"Responded" · performSend += token self-service (randomBytes→sha256 hash + salinan TERENKRIPSI di payload versi Sent — getOffer rekonstruksi link) + notifyEmailEvent recruitment.offer.selfservice AWAIT · counterOffer (Sent/Viewed→Draft + invalidasi token; final→409) · respondOffer refactor → updateMany kondisional [Sent,Viewed] → OfferConflictError 409 race double-click + webhook + notif officer tetap · respondOfferSelfService (sha256 token → exp check 410 → jalur respond sama actorName "Portal Kandidat" + ActivityLog system) · offerSelfServiceSummary TANPA salary · getOffer versionDiffs (diff field non-uang "a → b" + salaryDiff {from,to vault-gated, changed metadata}) + selfServiceLink (hanya Sent/Viewed token hidup).
+- API offers.ts: action counter; accept/decline 409; GET ?offerId row + versionDiffs. Publik: public-offer-respond.ts + route (GET ringkasan tanpa nominal; POST accept/decline; rate-limit; no-store; 404/410 netral).
+- UI: offers.tsx/offer-dialogs.tsx — tombol "Versi" per baris (dialog riwayat + diff + angka bila vault terbuka, selain itu "nominal diubah (brankas terkunci)"), tombol "Counter" pada Sent/Viewed, tampilan tautan putusan mandiri (copy).
+- Portal: src/offer-page.ts (ringkasan TANPA nominal + disclaimer surat resmi + Terima/Tolak + catatan + konfirmasi 2-langkah + state 409/410).
+- (Orchestrator FIX BUG 1 di offer-service) re-send pasca-counter 500: startApprovalChain mengembalikan chain terminal lama → decideApprovalChain "sudah berstatus Approved" — FIX pola payroll P1.4: chain terminal (Approved/Rejected/Cancelled) dihapus sebelum pengiriman ulang supaya chain baru terbentuk (jejak tetap di ActivityLog).
+- VERIFIKASI ORCHESTRATOR: e2e-p24-offer.ts DITULIS orchestrator (agent mati pra-e2e) — 47/47 PASS: versi 1 Created (payload gaji enc:) → send via PendingApproval AS-OFF-STD → approve → Sent + selfServiceLink + EmailLog selfservice (await) → versi 2 Sent → counter 6jt → versi 3 Counter + Draft + diff salaryDiff.changed=true (5jt→6jt) + counter pada Draft 409 → re-send → versi 4 + token BARU → public GET tanpa nominal (assert string) → RACE 2 POST paralel → TEPAT SATU 200 + SATU 409 + versi 5 SelfService + notif officer (fixture PR officer diset sementara + restore) + ActivityLog "putusan mandiri via portal" → expired 410 + acak 404 → cleanup cascade. Browser: register offers + tombol Versi/Counter tampil; PORTAL /offer/<token> FULL (ringkasan + konfirmasi "Ya, Saya Terima" + Batal) + mobile 375 hscroll=0.
+
+Stage Summary:
+- D-BM19 tuntas: riwayat versi draft→counter→final + diff vault-gated + putusan mandiri race-safe; bug re-send chain ditemukan e2e dan diperbaiki (pola P1.4).
+
+---
+Task ID: P2.5-E
+Agent: full-stack-developer (agent mati pra-worklog — entri ditulis orchestrator pasca-verifikasi)
+Task: P2.5 Benefits administration grup (D-BM20) — polis + enrollment + laporan premi + terminasi otomatis + renewal H-30.
+
+Work Log:
+- (Rekonstruksi) policy-service.ts BARU: PolicyError(status) · listPolicies (join provider + member count + premium mv-gated null/••••) · upsertPolicy (provider INSURANCE aktif saja; unique provider+policyNo 409; premium tc.encryptMoney; ActivityLog TANPA nominal) · terminatePolicy (tutup membership terbuka) · enrollMember (policy Active + periode; employee Active; dependen milik karyawan + isDependent; dup guard aktif effectiveTo>=from → 409; P2002 → 409) · endMembership · listMembers · premiumReport (per anggota: premi/member, porsi perusahaan pctCompany%, porsi karyawan; rekap per polis; mv gate) · terminatePolicyMemberships EXPORT (hook PA — return jumlah baris + ActivityLog per baris).
+- personnel-actions-detail.ts: hook post-commit void terminatePolicyMemberships(...).catch (pola settlement best-effort).
+- policy-jobs.ts diisi (stub Phase 0): jobPolicyMemberExpiry (sweep non-Active/endDate lewat → tutup + writeActivity; never-throw defensive) + jobPolicyRenewalReminders (Active periodEnd ≤30 hari → claimReminder dedupe `reminder:policy-renewal:${id}:30` + notifyEvent admins + AWAIT notifyEmailEvent policy.renewal.reminder; cap 50).
+- email-defaults.ts += template policy.renewal.reminder + EVENT_PLACEHOLDERS (satu-satunya edit file itu).
+- API insurance-policies.ts + route: GET ?list&q/?familyFor=?detail=?report=[id|all][&export=xlsx] (2 sheet dwibahasa, uang null → '' bila vault terkunci — pelajaran MR; ActivityLog Exported); POST upsert/terminate(op:terminate)/enroll(op:enroll)/end-membership.
+- UI insurance-policies.tsx (mengganti placeholder Phase 0): register + dialog polis (provider select INSURANCE, periode, premi, porsi %, catatan) + dialog detail (tabel anggota + enroll employee+dependent + akhiri) + Export XLSX; nav "Polis Asuransi Grup" (Phase 0).
+- VERIFIKASI ORCHESTRATOR: e2e-p25-benefits.ts DITULIS orchestrator — 42/42 PASS (fix asersi: return terminatePolicyMemberships = number; re-enroll efektif H+1 melewati guard aktif; EmailLog poll race kecil): polis 5jt/80% enc at-rest + dup 409 + kind HOSPITAL 400; enroll karyawan+dependen + dup 409 + dependen lintas karyawan 400; laporan premi 2,5jt/2jt/0,5jt + rekap 4jt/1jt + XLSX 8KB; hook terminasi 2 membership; job expiry Resigned; renewal H+20 → EmailLog + klaim dedupe 1 + run 2 dedupe; cleanup + audit dipertahankan. Browser: register EN+ID ("Polis Asuransi Grup") + dialog lengkap + mobile 375 hscroll=0 + notifikasi renewal asli muncul di bell.
+
+Stage Summary:
+- D-BM20 tuntas dengan batas scope dijaga (administrasi polis+enrollment+premi SAJA — adjudikasi klaim tetap di engine existing, teks batas bahkan tampil di UI).
+
+---
+Task ID: P2.6-F
+Agent: full-stack-developer (agent mati pra-worklog — entri ditulis orchestrator pasca-verifikasi)
+Task: P2.6 Escalation approval engine (D-BM21) — auto-escalate per struktur setelah X hari (default OFF) + ActivityLog.
+
+Work Log:
+- (Rekonstruksi) approval-escalation-job.ts diisi (stub Phase 0): chains InProgress + structureId + escalateDays not null → lastActivity = max(chain.createdAt, decidedAt terakhir) → lewat X hari → managerAtLevel(approver, 1) (diekspor dari approval-engine — edit F satu-satunya di file itu) → updateMany KONDISIONAL step Current (approverEmployeeId old → superior; label += "(eskalasi)"; note jejak) → ActivityLog action "Escalated" entity "ApprovalChain" + notifyEvent approver baru (link actions:inbox pola SLA) · dedupe claimReminder `escalation:chain:${id}` sekali per chain (single-hop) · tanpa atasan → writeActivity "eskalasi dilewati: atasan approver tidak ditemukan" (tanpa fallback sembarangan) · never-throw.
+- approval-structures.ts: serializer + POST/PATCH escalateDays (1..30|null); approval-structure-view.tsx StructureFormDialog field "Eskalasi Otomatis (hari)" + hint dwibahasa (kosong = OFF default).
+- E2E scripts/e2e-p26-escalation.ts ditulis agent (41 asersi).
+- VERIFIKASI ORCHESTRATOR: e2e-p26 41/41 PASS (struktur Loan escalateDays=3 + chain via startApprovalChain + backdate 4 hari → run: approver berubah == atasan + label/note jejak + ActivityLog Escalated 1 + notif approver baru; run 2 dedupe; struktur OFF (null) backdate 10 hari TIDAK tersentuh; edge approver tanpa atasan → skip ter-log tanpa error; cleanup 3 struktur + chains). Browser: field "Eskalasi Otomatis (hari)" + hint tampil di dialog struktur (EN/ID).
+
+Stage Summary:
+- D-BM21 tuntas: default OFF terbukti tidak mengubah perilaku; eskalasi single-hop ter-audit + race-safe.
+
+---
+Task ID: P2-ORCH
+Agent: main (Z.ai Code)
+Task: User (IM trace 1a14a1f51bf2af81): "jika P1 sudah selesai semua lanjut ke P2" — P1 terverifikasi (0bad4ce) → eksekusi penuh Fase P2 (P2.1–P2.6, D-BM16–D-BM21).
+
+Work Log:
+- VERIFIKASI PRA: P1 commit 0bad4ce + tree bersih + baseline gates (tsc 0 / lint 0-6 / bilingual 149).
+- DISPATCH 6 agent paralel → SEMUA panggilan Task gagal "context deadline exceeded" di API TAPI TEREKSEKUSI di background (pola sama P1 — pelajaran worklog P1-ORCH diikuti: cek artefak dulu, TIDAK re-dispatch). Hasil: A/B/C/F komplet + e2e; D/E implementasi lengkap TAPI MATI sebelum menulis e2e; TIDAK ADA yang menulis worklog — semua entri direkonstruksi + diverifikasi orchestrator (pola P1).
+- LENGKAPAN OLEH ORCHESTRATOR: (1) e2e-p24-offer.ts + e2e-p25-benefits.ts ditulis + 3 iterasi fix asersi (managerId via EmployeeAssignment; row. prefix respons offer; fixture PR recruitmentOfficer via email login + restore; return-shape terminatePolicyMemberships; re-enroll efektif H+1; EmailLog poll); (2) FIX BUG offer-service re-send pasca-counter (chain terminal dibersihkan — pola payroll P1.4); (3) FIX BUG portal ×2 jadwal-page (selector [data-id][data-en] + renderRows saat load — juga preventif offer-page); (4) FIX lint 2× setState-in-effect (slice B); (5) fixture browser dibersihkan (slot/token).
+- INFRA SANDBOX: dev server OOM crash-loop (next-server 2,9 GB anon, kernel OOM-kill berulang — dmesg 15:41+) → MITIGASI: package.json dev + NODE_OPTIONS=--max-old-space-size=1400 + next.config.ts experimental.turbopackMemoryLimit 1,5 GB (key experimental yang benar utk 16.2.5 — 'turbopack.memoryLimit' tidak dikenal, dicoba lalu dihapus) → restart terkendali + cache .next persisten → app bertahap hangat; verifikasi browser dilanjutkan pola "klik setelah server pulih" (SPA state reset tiap restart — navigasi diulang).
+- GATES FINAL: tsc FULL tsconfig.json 0 error · lint 0 error/6 warning baseline · audit-bilingual TOTAL_GAP=149 · dev.log bersih (hanya status by-design).
+- E2E TOTAL P2: p21-lks 51/51 · p22-push 46/46 · p23-interview 61/61 · p24-offer 47/47 · p25-benefits 42/42 · p26-escalation 41/41 = 288 asersi hijau.
+- BROWSER (agent-browser, akun hrd@mii.co.id EN+ID): MEDICAL "Polis Asuransi Grup" register + dialog Polis Baru lengkap (provider/polis/periode/premi/porsi/catatan) EN+ID + mobile 375 hscroll=0 (screenshot audit/e2e-p2/policies-mobile-375.png) · PAYROLL Parameter Pajak tab Regulasi & BPJS: field "Kode Kantor Cabang BPJS (KODE KANTOR)" + "Kelas Rawat Inap BPJS (KELAS)" + hint LKS dwibahasa · SETTINGS Approval Berjenjang dialog struktur: field "Eskalasi Otomatis (hari)" + hint · RECRUITMENT offers register: tombol "Versi" + "Counter" per baris · notification-bell dropdown: item "Notifikasi push perangkat" + notifikasi asli hasil e2e tampil (renewal polis + offer accepted) · PORTAL :3010 — /jadwal/<token> FULL booking flow (slot WIB → Pilih → "Jadwal Anda terkunci" + .ics info; screenshot portal-jadwal-booked.png) + /offer/<token> FULL (ringkasan tanpa nominal + konfirmasi 2-langkah; screenshot portal-offer-pending.png + mobile 375 hscroll=0) · console: SW baru ter-registrasi bersih + 0 error baru (hanya aria-warning DialogContent baseline + warning Select controlled pra-ada).
+- GAP BROWSER (JUJUR — terblokir OOM sandbox, BUKAN defect; fungsional penuh ter-E2E): (1) interior dialog jadwal admin slice C (drawer kandidat terbuka 2× namun fetch detail terputus restart; 61/61 e2e menutup fungsi); (2) kartu Notifikasi Push di ESS profile slice B (item bell admin terverifikasi + 46/46 e2e).
+- Deviasi tercatat: (1) e2e p24/p25 ditulis orchestrator (agent mati); (2) 3 bug ditemukan & diperbaiki pasca-agent (re-send chain, portal selector, portal listener) — semua regresi diuji ulang hijau; (3) env sandbox memory — mitigasi permanen di package.json + next.config.ts (komentar menjelaskan).
+
+Stage Summary:
+- SELURUH FASE P2 SELESAI (D-BM16..D-BM21): P2.1 LKS BPJS resmi (config KODE KANTOR/KELAS + keluarga + gap) · P2.2 web push terenkripsi opt-in · P2.3 panel interview + slot self-schedule + .ics · P2.4 offer versioning + putusan mandiri race-safe · P2.5 benefits admin grup (polis+enrollment+premi+terminasi otomatis+renewal H-30) · P2.6 eskalasi approval per-struktur default OFF. D-BM22 = keputusan no-op (export-only sudah P1.4; API live DEFER §1).
+- Standar dijaga: dwibahasa (gap 149 tetap), ActivityLog semua mutasi, enc at-rest (vapid private/endpoint/premi/gaji versi/NIK), vault gating uang, DialogContent sm:max-w-*, mobile, tanpa eslint-disable baru, batas scope D-BM20 dijaga eksplisit, Training/LMS tetap TIDAK disentuh.
+- 288 asersi e2e + 6 gate browser + 3 bug diperbaiki. Lanjutan natural: Fase P3 (job architecture → skills → manager workspace → analytics → career pathing) bila user meminta.

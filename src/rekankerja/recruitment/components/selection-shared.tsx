@@ -47,6 +47,8 @@ export interface CandidateCard {
   scorecardCount: number;
   divergence: boolean;
   invitationLetterNo: string | null;
+  /** P2.3 — jumlah evaluator panel step aktif. */
+  evaluatorCount: number;
 }
 
 export interface BoardColumn {
@@ -136,6 +138,11 @@ export interface StepRow {
   overdue: boolean;
   isCurrent: boolean;
   scorecardPanel: { count: number; submitted: number; divergence: boolean; feedbackOk: boolean };
+  /** P2.3 — panel evaluator tahap (lead = performedById). */
+  evaluators: { id: string; name: string }[];
+  /** P2.3 — slot jadwal mandiri (self-schedule) + jumlahnya. */
+  slots: { id: string; startAt: string; durationMin: number; status: string }[];
+  slotCount: number;
 }
 
 export interface CandidateDetail {
@@ -267,6 +274,22 @@ export interface InvitationResult {
   subject: string | null;
   issuedAt: string;
   existing: boolean;
+}
+
+/** P2.3 — baris slot jadwal mandiri (GET ?stepId= & detail kandidat). */
+export interface StepSlot {
+  id: string;
+  startAt: string;
+  durationMin: number;
+  status: string; // Open|Booked|Closed
+}
+
+/** P2.3 — hasil POST invite-slots (tautan token portal kandidat). */
+export interface SlotInviteResult {
+  link: string;
+  expiresAt: string;
+  emailSent: boolean;
+  openCount: number;
 }
 
 // ============ label domain (dwibahasa) ============

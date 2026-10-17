@@ -9,6 +9,7 @@ import { resolveStructuralTargets, PATargetError, type StructuralTargets } from 
 import { findActiveDelegation } from "@/rekankerja/shared/services/approval-engine";
 import { applyTerminationSettlement } from "@/rekankerja/payroll/services/settlement-service";
 import { createOffboardingWithTasks, DEFAULT_OFFBOARDING_TASKS } from "@/rekankerja/human-resource/api/offboarding";
+import { terminatePolicyMemberships } from "@/rekankerja/medical/services/policy-service";
 
 // Error alur kerja dengan status HTTP — dilempar dari dalam $transaction agar
 // rollback + dipetakan ke respons yang tepat (409 race / 400 validasi).
@@ -599,6 +600,20 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
             });
           } catch { /* never */ }
         }
+      }
+
+      // ===== P2.5-BM (D-BM20): membership polis asuransi grup diakhiri otomatis =====
+      // Saat PA pengakhiran diproses, seluruh membership polis TERBUKA karyawan
+      // ditutup pada tanggal akhir kerja (best-effort — pola settlement/off-
+      // boarding; kegagalan tidak memblokir proses PA, sweep scheduler
+      // jobPolicyMemberExpiry menjadi jaring pengaman berikutnya).
+      if (isTermination) {
+        const policyEndDate = detail.lastDay ? new Date(String(detail.lastDay)) : effectiveDate;
+        void terminatePolicyMemberships(db, {
+          employeeId: action.employeeId,
+          effectiveDate: Number.isNaN(policyEndDate.getTime()) ? effectiveDate : policyEndDate,
+          actorName: actorLabel,
+        }).catch(() => { /* never — best-effort hook */ });
       }
 
       // ===== Notifikasi email — DIPROSES (perubahan diterapkan) ke karyawan =====
