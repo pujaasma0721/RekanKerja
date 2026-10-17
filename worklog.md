@@ -7579,3 +7579,20 @@ Stage Summary:
 - VERDICT konsolidasi: kematangan rata-rata domain ~3.3/5 vs tier-1 global (upper-mid-market + regional challenger); kedalaman regulasi Indonesia 4.5-5 (moat: PPh21 TER + true-up + e-SPT 39-kolom terverifikasi DJP + Coretax CSV; PP 35/2021 OT 5/6-hari + caps 4/18 jam + consent; UPMK severance multi-tier; blok PKWT 5-thn; JKP PP 6/2025; UU PDP DSR/consent/retensi/anonymize; TPKS whistleblowing anonim; SBI PMK 32/2025; PP 78/2015; WLKP).
 - Gap terbesar ke tier-1 global: Learning/LMS ABSEN (0); job architecture & skills foundation (1.5); WFM intelligence/forecast (1.5); ekosistem integrasi (2 - tanpa SSO/SAML/SCIM, job board multiposting, BPJS API/LKS resmi, e-filing DJP, connector akuntansi, marketplace); BPM konfigurabel (2); global employment layer multi-currency/expat (0); benefits administration grup (2.5); manager workspace (2.5); analytics pivot/scheduled (3).
 - 6 entri worklog BENCH-1..6 ditambah agent; 0 perubahan source.
+
+---
+Task ID: BENCH-DOC
+Agent: main (Z.ai Code)
+Task: Permintaan user (IM trace 1a149527ff8cd529): "buat dokumen: (a) simpan analisa sebagai BENCHMARK-HCM-GAP.md di repo, (b) turunkan P1-P4 menjadi development plan terstruktur per fase ala DEVELOPMENT-PLAN-*.md"
+
+Work Log:
+- Baca format konvensi: DEVELOPMENT-PLAN-BACKLOG.md (header status + §0 cara membaca + §1 batas eksekusi + register D-* + data model + tabel fase dengan ukuran & keluaran terverifikasi + risiko + selesai) + DEVELOPMENT-PLAN-PERFORMANCE.md (header amendemen) — struktur dipertahankan agar konsisten.
+- Tulis BENCHMARK-HCM-GAP.md (9 bagian): verdict asimetri (regulasi 4.5-5 vs lebar platform), skala produk, matriks 24 domain 0-5, analisa per modul (7 seksi skala+kekuatan+gap), 13 gap lintas-modul terurut, 9 moat regulasi Indonesia, arah roadmap P1-P4, basis bukti (peta ke entri worklog BENCH-1..6 + PERF-AUD-0), batasan audit.
+- Tulis DEVELOPMENT-PLAN-BENCHMARK.md: DOKUMEN MURNI tanpa perubahan kode — §1 Batas Eksekusi (Training/LMS EXCLUDE permanen perintah user; 11 item DEFER dgn alasan+trigger); §2 Register Keputusan D-BM1..D-BM28 (15 P1 + 7 P2 + 6 P3); §3 sketsa data model (EmergencyContact, EmployeeProfileChangeRequest, AttendanceRegularizationRequest, PushSubscription, CandidateOfferVersion, InsurancePolicy+PolicyMember, JobFamily, SkillCatalog+EmployeeSkill, CareerPath + kolom tambahan Job/EmployeeFamily); §4 tabel fase P1.1-P1.6 / P2.1-P2.6 / P3.1-P3.5 + register DEFER P4 (10 item + trigger objektif) + aturan gate per fase (tsc 0, lint 0/6w, bilingual <=150, migrasi idempoten 3 tenant, E2E, browser EN+ID+mobile, ActivityLog, commit+push); §5 11 risiko+mitigasi; §6 penutup (moat dijaga, Training tetap tidak dibangun).
+- Boundary dijaga keras: D-BM1 (field master tetap PA), D-BM15 (insentif referral manual - konsisten SB-RC), D-BM22 (akuntansi export-only), D-BM27/D-BM28 (career pathing = teks terstruktur konsisten D-BL14, Training tetap EXCLUDE permanen).
+- git add kedua dokumen + worklog (add -f) + commit + push.
+
+Stage Summary:
+- Dua dokumen baru ter-push: BENCHMARK-HCM-GAP.md (analisa benchmark audit lengkap, jejak bukti ke worklog BENCH-1..6) + DEVELOPMENT-PLAN-BENCHMARK.md (jangkar keputusan 28 register + 17 fase terjadwal + 10 DEFER ber-trigger).
+- Status: DOKUMEN MURNI - 0 perubahan kode aplikasi (sesuai permintaan "jangan ada perubahan dulu" pada audit; dokumen memang deliverable yang diminta).
+- Eksekusi belum dimulai - menunggu perintah user fase mana yang digarap (disarankan mulai P1.1).
