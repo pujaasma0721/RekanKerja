@@ -107,12 +107,18 @@ export async function listQuarters(db: TenantDb): Promise<string[]> {
 
 export type KrLike = { polarity: string; baseline: number; target: number; current: number };
 
-/** Skor satu KR 0..1 — clamp; LowerIsBetter dibalik (D-BL5). */
+/**
+ * Skor satu KR 0..1 — clamp; LowerIsBetter dibalik (D-BL5).
+ * LowerIsBetter: kemajuan = turun dari baseline menuju target yang LEBIH RENDAH,
+ * sehingga pembagi arah maju = (baseline − target) > 0 (bukan target−baseline
+ * yang negatif). Bagi dengan (current−baseline)/(target−baseline) akan
+ * meng-inverse seluruh skor (bug audit PERF-AUD P1).
+ */
 export function krScore(kr: KrLike): number {
   const span = kr.target - kr.baseline;
   if (!Number.isFinite(span) || span === 0) return 0;
   const raw = kr.polarity === "LowerIsBetter"
-    ? (kr.baseline - kr.current) / span
+    ? (kr.baseline - kr.current) / (kr.baseline - kr.target)
     : (kr.current - kr.baseline) / span;
   return Math.min(1, Math.max(0, raw));
 }
@@ -189,6 +195,9 @@ function validateKeyResults(raw: OkrKrInput[]): OkrKrInput[] {
     }
     if (!Number.isFinite(k.baseline) || !Number.isFinite(k.target)) bad("Baseline & target tiap key result wajib angka");
     if (k.baseline === k.target) bad("Target harus BERBEDA dari baseline (arah kemajuan terdefinisi — D-BL5)");
+    // arah kemajuan konsisten dgn polarity (mencegah KR "menurun" dgn target di atas baseline)
+    if (k.polarity === "LowerIsBetter" && k.target > k.baseline) bad("Polarity LowerIsBetter: target harus LEBIH RENDAH dari baseline");
+    if (k.polarity === "HigherIsBetter" && k.target < k.baseline) bad("Polarity HigherIsBetter: target harus LEBIH TINGGI dari baseline");
     if (!Number.isFinite(k.weight) || k.weight <= 0 || k.weight > 100) bad("Bobot tiap key result harus angka 1–100");
     if (k.confidence != null && !OKR_CONFIDENCES.includes(k.confidence as (typeof OKR_CONFIDENCES)[number])) {
       bad(`Confidence key result tidak dikenal: ${k.confidence} — gunakan Red, Yellow, atau Green`);

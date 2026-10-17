@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { goalActorOf } from "@/rekankerja/performance/api/cycles";
 import {
-  inviteReviewers, listInvitations, remindReviewer, listFlaggedAnswers, moderateAnswer, aiBiasScan,
+  inviteReviewers, listInvitations, remindReviewer, expireInvitation, listFlaggedAnswers, moderateAnswer, aiBiasScan,
   type InviteInput,
 } from "@/rekankerja/performance/services/perf-360-service";
 
@@ -12,7 +12,10 @@ import {
 //                     TANPA menu key baru, pakai performance:appraisals §14.2)
 //   GET  ?flagged=1&cycleId= → B2-BL antrean moderasi komentar ter-flag
 //                     (Pending — D-BL7b; HR-only; TANPA identitas reviewer)
-//   POST {action: invite|remind}
+//   POST {action: invite|remind|expire}
+//   POST {action: expire, id} → PERF-AUD F-05: tutup manual undangan aktif
+//                     (atasan peserta/HR) — mencegah submitManager terblokir
+//                     permanen saat reviewer tidak kunjung mengisi.
 //   POST {action: moderate, answerId, decision} → B2-BL keputusan HR
 //                     Setujui/Redaksi komentar ter-flag (HR-only, D-BL7b)
 //   POST {action: aiScan, answerId, lang} → B2-BL deep-scan AI advisori atas
@@ -77,6 +80,12 @@ export async function POST(req: NextRequest) {
         }).catch(() => { /* best effort */ });
         return NextResponse.json(out);
       }
+      case "expire": {
+        // PERF-AUD F-05 — tutup undangan aktif (atasan peserta/HR; service
+        // melempar 403-map bila bukan).
+        const out = await expireInvitation(m.db, actor, String(b.id ?? ""));
+        return NextResponse.json(out);
+      }
       case "moderate": {
         // B2-BL (D-BL7b) — HR only (superAdmin; service melempar 403-map).
         const decision = b.decision === "Redacted" ? "Redacted" : b.decision === "Approved" ? "Approved" : "";
@@ -93,8 +102,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Aksi tidak dikenal: ${action}` }, { status: 400 });
     }
   } catch (e) {
-    // guard HR-only → 403 eksplisit (pola menu-access; bukan 400)
-    if (e instanceof Error && /hanya oleh HR/i.test(e.message)) {
+    // guard HR/atasan-only → 403 eksplisit (pola menu-access; bukan 400)
+    if (e instanceof Error && /hanya oleh HR|hanya atasan peserta/i.test(e.message)) {
       return NextResponse.json({ error: e.message }, { status: 403 });
     }
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

@@ -114,11 +114,18 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       grade: cur?.grade ?? null,
     };
 
-    const activities = await db.activityLog.findMany({
+    // PERF-AUD F-04: nominal uang (pola "Rp 12.000.000") di jejak ActivityLog
+    // disembunyikan bila sesi TIDAK memegang gerbang brankas — log historis
+    // (termasuk merit pra-perbaikan) tidak lagi bocor nominal via detail PA.
+    const maskMoneyInLog = (s: string) => s.replace(/Rp\s?[\d.,]+/g, "Rp •••");
+    const activities = (await db.activityLog.findMany({
       where: { personnelActionId: id },
       include: { appUser: { select: { fullName: true } } },
       orderBy: { createdAt: "desc" },
-    });
+    })).map((a) => ({
+      ...a,
+      detail: !mv.canSee && a.detail ? maskMoneyInLog(a.detail) : a.detail,
+    }));
     return NextResponse.json({
       action: { ...action, employee },
       activities,

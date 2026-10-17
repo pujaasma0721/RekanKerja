@@ -44,7 +44,10 @@ function parseTargetsInput(raw: unknown): { title: string; metric: string; targe
 
 export async function GET(req: NextRequest) {
   try {
-    const m = await requireMenuViewAny(req, ["performance:pip", "performance:overview"]);
+    // PERF-AUD F-07: register PIP = data disipliner konfidensial — HANYA
+    // pemegang menu performance:pip (fallback performance:overview dihapus;
+    // halaman overview tidak memanggil API ini sama sekali).
+    const m = await requireMenuViewAny(req, ["performance:pip"]);
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
     const sp = req.nextUrl.searchParams;

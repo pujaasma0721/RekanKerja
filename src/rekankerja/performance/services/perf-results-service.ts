@@ -70,9 +70,10 @@ export async function results(
       employee: { select: { employeeNo: true, fullName: true, orgUnitId: true } },
       manager: { select: { fullName: true } },
     },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
     take: 500,
   });
+  rows.reverse(); // tampilan tetap docNo ASC
   const unitIds = [...new Set(rows.map((r) => r.employee.orgUnitId).filter((x): x is string => !!x))];
   const units = unitIds.length > 0
     ? await db.orgUnit.findMany({ where: { id: { in: unitIds } }, select: { id: true, name: true } })
@@ -138,9 +139,10 @@ export async function nineBox(
   const rows = await db.appraisalRecord.findMany({
     where: { cycleId: opt.cycleId },
     include: { employee: { select: { employeeNo: true, fullName: true, orgUnitId: true } } },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
     take: 500,
   });
+  rows.reverse(); // tampilan tetap docNo ASC
   const unitIds = [...new Set(rows.map((r) => r.employee.orgUnitId).filter((x): x is string => !!x))];
   const units = unitIds.length > 0
     ? await db.orgUnit.findMany({ where: { id: { in: unitIds } }, select: { id: true, name: true } })

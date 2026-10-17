@@ -42,7 +42,10 @@ function parseCriteriaInput(raw: unknown): { title: string; weight: number }[] |
 
 export async function GET(req: NextRequest) {
   try {
-    const m = await requireMenuViewAny(req, ["performance:probation", "performance:overview"]);
+    // PERF-AUD F-07: register percobaan = data konfidensial — HANYA pemegang
+    // menu performance:probation (fallback performance:overview dihapus;
+    // halaman overview tidak memanggil API ini sama sekali).
+    const m = await requireMenuViewAny(req, ["performance:probation"]);
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
     const sp = req.nextUrl.searchParams;
@@ -150,6 +153,7 @@ export async function POST(req: NextRequest) {
           id: String(b.id ?? ""),
           actorId: m.actor.appUserId ?? null,
           actor: m.actor.name,
+          newStartDate: b.newStartDate != null && b.newStartDate !== "" ? String(b.newStartDate) : undefined,
         });
         return NextResponse.json(res);
       }

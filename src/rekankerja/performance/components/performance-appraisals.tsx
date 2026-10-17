@@ -1343,16 +1343,31 @@ function ImportActualsDialog({ cycleId, onClose, onDone }: { cycleId: string; on
   );
 }
 
-/** Daftar undangan 360 peserta ini (+ remind in-app). */
+/** Daftar undangan 360 peserta ini (+ remind in-app + tutup undangan — PERF-AUD F-05). */
 function Invitations360({ cycleId, appraisalId }: { cycleId: string; appraisalId: string }) {
   const { t } = useI18n();
-  const { data } = useApi<{ rows: Invite360Row[] }>(`/api/rekankerja/performance/feedback360?cycleId=${cycleId}`, [cycleId]);
+  const { data, refresh } = useApi<{ rows: Invite360Row[] }>(`/api/rekankerja/performance/feedback360?cycleId=${cycleId}`, [cycleId]);
   const rows = (data?.rows ?? []).filter((r) => r.appraisalId === appraisalId);
   if (rows.length === 0) return null;
   const remind = async (id: string) => {
     try {
       await apiSend("/api/rekankerja/performance/feedback360", "POST", { action: "remind", id });
       toast.success(t("Pengingat in-app terkirim ke reviewer", "In-app reminder sent to the reviewer"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    }
+  };
+  // PERF-AUD F-05 — jalan keluar bila reviewer tidak kunjung mengisi:
+  // tutup undangan (Invited → Expired) agar submitManager tidak terblokir.
+  const expire = async (id: string) => {
+    if (!window.confirm(t(
+      "Tutup undangan reviewer ini? Penilaian atasan tidak lagi menunggu reviewer ini dan tindakan tidak dapat dibatalkan.",
+      "Close this reviewer invitation? The manager appraisal will no longer wait for this reviewer and the action cannot be undone.",
+    ))) return;
+    try {
+      await apiSend("/api/rekankerja/performance/feedback360", "POST", { action: "expire", id });
+      toast.success(t("Undangan ditutup (kedaluwarsa)", "Invitation closed (expired)"));
+      refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "unknown");
     }
@@ -1372,9 +1387,14 @@ function Invitations360({ cycleId, appraisalId }: { cycleId: string; appraisalId
             </span>
             <StatusPill status={r.status} />
             {r.status === "Invited" && (
-              <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => remind(r.id)}>
-                {t("Ingatkan", "Remind")}
-              </Button>
+              <>
+                <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => remind(r.id)}>
+                  {t("Ingatkan", "Remind")}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px] text-rose-600 hover:text-rose-700 dark:text-rose-400" onClick={() => expire(r.id)}>
+                  {t("Tutup Undangan", "Close Invitation")}
+                </Button>
+              </>
             )}
           </div>
         ))}

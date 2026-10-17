@@ -100,7 +100,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(out);
       }
       case "cancel": {
-        const out = await cancelMerit(db, actor, { id: String(b.id ?? "") });
+        const out = await cancelMerit(db, actor, {
+          id: String(b.id ?? ""),
+          reason: b.reason != null ? String(b.reason) : undefined, // PERF-AUD F-09 — wajib utk Approved
+        });
         return NextResponse.json(out);
       }
       case "apply": {

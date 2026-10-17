@@ -305,9 +305,10 @@ export async function listAppraisals(
       kpis: { select: { finalActual: true } },
       comps: { select: { score: true } },
     },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU (bukan tertua)
     take: 500,
   });
+  rows.reverse(); // tampilan tetap docNo ASC
   const q = (opt.q ?? "").toLowerCase();
   return rows
     .filter((r) => !q || r.employee.fullName.toLowerCase().includes(q) || r.employee.employeeNo.toLowerCase().includes(q) || r.docNo.toLowerCase().includes(q))
@@ -684,7 +685,7 @@ export async function submitManager(
       where: { appraisalId, status: "Invited" },
     });
     if (activeInvites > 0) {
-      throw new Error(`360 belum selesai (${activeInvites} undangan aktif) — hubungi HR untuk expire atau tunggu reviewer submit (§35-8)`);
+      throw new Error(`360 belum selesai (${activeInvites} undangan aktif) — tutup undangan yang tidak akan diisi lewat panel 360 (aksi "Tutup Undangan") atau tunggu reviewer submit (§35-8)`);
     }
   }
 

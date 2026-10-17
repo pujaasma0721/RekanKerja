@@ -10,6 +10,7 @@
 // metaJson.probDocNo — pola SK PIP P6). Scheduler: H-14 & H-3 → ingatkan atasan
 // + HR; lewat jatuh tempo tanpa keputusan → eskalasi mingguan HR + direktur
 // (dedupe ActivityLog Reminder entity Scheduler — pola claimReminder PIP).
+import { retryOnUnique } from "@/rekankerja/shared/lib/doc-no-retry";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import {
   startApprovalChain, decideApprovalChain, cancelApprovalChain, attachChainSummaries,
@@ -192,17 +193,21 @@ export async function createProbationFromOnboarding(
     orderBy: { createdAt: "desc" },
   });
   if (open) return { id: open.id, docNo: open.docNo };
-  const docNo = await nextProbDocNo(db);
   const dueDate = probationDueDate(input.joinDate);
-  const rec = await db.probationEvaluation.create({
-    data: {
-      docNo,
-      employeeId: input.employeeId,
-      onboardingId: input.onboardingId,
-      dueDate,
-      criteriaJson: JSON.stringify(DEFAULT_CRITERIA),
-      status: "Open",
-    },
+  // PERF-AUD: tabrakan penomoran (race P2002) → hitung ulang via retryOnUnique.
+  const { docNo, rec } = await retryOnUnique(async () => {
+    const docNo = await nextProbDocNo(db);
+    const rec = await db.probationEvaluation.create({
+      data: {
+        docNo,
+        employeeId: input.employeeId,
+        onboardingId: input.onboardingId,
+        dueDate,
+        criteriaJson: JSON.stringify(DEFAULT_CRITERIA),
+        status: "Open",
+      },
+    });
+    return { docNo, rec };
   });
   await db.activityLog.create({
     data: {
@@ -235,15 +240,19 @@ export async function createManualProbation(
     bad(`Tanggal masuk terlalu lama — tenggat percobaan (${dueDate.toLocaleDateString("id-ID")}) sudah lewat. Evaluasi manual hanya utk karyawan yang tenggat 3 bulannya belum terlewat (§7.1).`);
   }
   const criteria = input.criteria ? validateCriteria(input.criteria) : DEFAULT_CRITERIA;
-  const docNo = await nextProbDocNo(db);
-  const rec = await db.probationEvaluation.create({
-    data: {
-      docNo,
-      employeeId: input.employeeId,
-      dueDate,
-      criteriaJson: JSON.stringify(criteria),
-      status: "Open",
-    },
+  // PERF-AUD: tabrakan penomoran (race P2002) → hitung ulang via retryOnUnique.
+  const { docNo, rec } = await retryOnUnique(async () => {
+    const docNo = await nextProbDocNo(db);
+    const rec = await db.probationEvaluation.create({
+      data: {
+        docNo,
+        employeeId: input.employeeId,
+        dueDate,
+        criteriaJson: JSON.stringify(criteria),
+        status: "Open",
+      },
+    });
+    return { docNo, rec };
   });
   await db.activityLog.create({
     data: {
@@ -363,9 +372,10 @@ export async function listProbations(
     include: {
       employee: { select: { id: true, fullName: true, employeeNo: true, joinDate: true, orgUnit: { select: { name: true } }, position: { select: { title: true } } } },
     },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU (bukan tertua)
     take: 300,
   });
+  recs.reverse(); // tampilan tetap docNo ASC
   return { rows: await rowsOf(db, recs) };
 }
 
@@ -650,16 +660,21 @@ export async function toPersonnelAction(
   const emp = rec.employee;
   if (emp.status !== "Active") bad(`Karyawan berstatus ${emp.status} — PA hanya utk karyawan Active`);
 
-  const type = input.type ?? (
-    rec.recommendation === "Confirm" ? "ChangeStatus"
-      : rec.recommendation === "Extend" ? "ExtendProbation"
-        : "Termination"
-  );
+  const typeByRec: Record<string, string> = {
+    Confirm: "ChangeStatus",
+    Extend: "ExtendProbation",
+    Terminate: "Termination",
+  };
+  const type = input.type ?? typeByRec[rec.recommendation] ?? "Termination";
   if (!["ChangeStatus", "ExtendProbation", "Termination"].includes(type)) {
     bad("Tipe PA harus ChangeStatus, ExtendProbation, atau Termination");
   }
-  if (rec.recommendation === "Confirm" && type === "ExtendProbation") {
-    bad("Keputusan Confirm → PA ChangeStatus (konversi PKWTT), bukan ExtendProbation");
+  // PERF-AUD F-03: PA HARUS setia pada rekomendasi yang sudah disetujui
+  // berjenjang — kombinasi lain (mis. keputusan Terminate digulir sebagai
+  // ChangeStatus, atau Extend digulir sebagai Termination) melewati makna
+  // persetujuan (termasuk tier L3 Direktur utk PhK).
+  if (type !== typeByRec[rec.recommendation]) {
+    bad(`Tipe PA harus mengikuti keputusan yang disetujui: rekomendasi "${recommendationLabelId(rec.recommendation)}" → PA ${typeByRec[rec.recommendation]} (bukan ${type}) — §28 langkah 4`);
   }
 
   // penempatan aktif (konteks PA + resolusi approver Dept Head)
@@ -690,9 +705,15 @@ export async function toPersonnelAction(
   }
 
   const scoreLabel = rec.managerScore != null ? `, skor percobaan ${rec.managerScore}/100` : "";
+  // PERBAIKAN PERF-AUD F-01: jendela perjanjian BARU dihitung dari effectiveDate
+  // PA (default hari ini) — BUKAN joinDate asli (yang menghasilkan jendela
+  // retroaktif/terlanjur lewat pada dokumen hukum).
+  const effDate = input.effectiveDate ? new Date(input.effectiveDate) : new Date();
+  const newStartIso = effDate.toISOString().slice(0, 10);
+  const newEndIso = probationDueDate(effDate).toISOString().slice(0, 10);
   const reasonByType: Record<string, string> = {
     ChangeStatus: `Konfirmasi lulus masa percobaan (evaluasi ${rec.docNo}${scoreLabel}) — konversi menjadi karyawan tetap (PKWTT)`,
-    ExtendProbation: `Keputusan percobaan ${rec.docNo}${scoreLabel} — perjanjian kerja BARU pengganti (bukan perpanjangan percobaan — UU 13/2003 Ps.60)`,
+    ExtendProbation: `Keputusan percobaan ${rec.docNo}${scoreLabel} — perjanjian kerja BARU pengganti (bukan perpanjangan percobaan — UU 13/2003 Ps.60), jendela percobaan baru ${newStartIso} s.d. ${newEndIso}`,
     Termination: `PhK dalam masa percobaan — evaluasi ${rec.docNo}${scoreLabel}${rec.hrNote ? ` — catatan: ${rec.hrNote}` : ""}`,
   };
   const detailByType: Record<string, Record<string, unknown>> = {
@@ -708,8 +729,9 @@ export async function toPersonnelAction(
       fromStatus: assignment?.employmentStatus ?? "Probation",
       toStatus: "Probation (perjanjian kerja baru)",
       probationDocNo: rec.docNo,
-      probationNewEndDate: rec.dueDate.toISOString().slice(0, 10),
-      legalNote: "Perjanjian kerja BARU pengganti — \u201cperpanjangan masa percobaan\u201d tidak dikenal UU 13/2003 Pasal 60; masa percobaan maksimal 3 bulan dihitung sejak perjanjian baru (§7.1)",
+      probationNewStartDate: newStartIso,
+      probationNewEndDate: newEndIso,
+      legalNote: `Perjanjian kerja BARU pengganti — \u201cperpanjangan masa percobaan\u201d tidak dikenal UU 13/2003 Pasal 60; masa percobaan maksimal 3 bulan dihitung sejak perjanjian baru berlaku ${newStartIso} (§7.1)`,
     },
     Termination: {
       probationDocNo: rec.docNo,
@@ -783,7 +805,7 @@ async function stampProbMeta(db: TenantDb, letterId: string, probDocNo: string):
 
 export async function toLetter(
   db: TenantDb,
-  input: { id: string; actorId?: string | null; actor: string },
+  input: { id: string; actorId?: string | null; actor: string; newStartDate?: string },
 ): Promise<{ refNo: string; templateKey: string }> {
   const rec = await db.probationEvaluation.findUnique({
     where: { id: input.id },
@@ -795,20 +817,25 @@ export async function toLetter(
   const recommendation = rec.recommendation;
   await ensureProbInfrastructure(db);
 
-  // joinDate utk label perjanjian baru: penempatan pertama → Employee.joinDate
-  const firstAssign = await db.employeeAssignment.findFirst({
-    where: { employeeId: rec.employeeId },
-    orderBy: { validFrom: "asc" },
-    select: { validFrom: true },
-  });
-  const join = firstAssign?.validFrom ?? rec.employee.joinDate ?? rec.dueDate;
-
   if (recommendation === "Extend") {
     // idempoten: surat perjanjian baru satu per evaluasi
     const existing = await findProbLetter(db, PROB_EXTEND_KEY, rec.docNo);
     if (existing) return { refNo: existing.refNo, templateKey: PROB_EXTEND_KEY };
-    // PERJANJIAN KERJA BARU — §7.1: "perpanjangan masa percobaan" tidak dikenal
-    // UU 13/2003 Ps.60; akhir percobaan perjanjian baru = joinDate asli + 3 bulan.
+    // PERBAIKAN PERF-AUD F-01: jendela perjanjian BARU = tanggal mulai perjanjian
+    // baru + 90 hari. Sumber tanggal mulai (prioritas): input eksplisit HR →
+    // effectiveDate PA ExtendProbation (bila sudah digulirkan) → hari ini.
+    // MENGGUNAKAN joinDate ASLI menghasilkan jendela retroaktif yang terlanjur
+    // lewat — surat hukum tidak sah (bug audit).
+    let paEff: Date | null = null;
+    if (rec.personnelActionId) {
+      const pa = await db.personnelAction.findUnique({
+        where: { id: rec.personnelActionId },
+        select: { effectiveDate: true, type: true },
+      });
+      if (pa?.type === "ExtendProbation") paEff = pa.effectiveDate;
+    }
+    const newStart = input.newStartDate ? new Date(input.newStartDate) : (paEff ?? new Date());
+    const newEnd = probationDueDate(newStart);
     const letter = await issueLetter(db, {
       category: "Performance",
       templateKey: PROB_EXTEND_KEY,
@@ -816,15 +843,15 @@ export async function toLetter(
       actorId: input.actorId ?? null,
       extraCtx: {
         probation_doc_no: rec.docNo,
-        probation_start_label: fmtDateIdLong(join),
-        probation_new_end_date: fmtDateIdLong(probationDueDate(join)),
+        probation_start_label: fmtDateIdLong(newStart),
+        probation_new_end_date: fmtDateIdLong(newEnd),
       },
     });
     await stampProbMeta(db, letter.id, rec.docNo);
     await db.activityLog.create({
       data: {
         action: "Processed", entity: "ProbationEvaluation", entityId: rec.id, employeeId: rec.employeeId,
-        detail: `Surat perjanjian baru (percobaan ke-2) ${letter.refNo} terbit utk ${rec.docNo} oleh ${input.actor} — perjanjian kerja BARU pengganti, masa percobaan maks 3 bulan sejak perjanjian baru (§7.1)`,
+        detail: `Surat perjanjian baru (percobaan ke-2) ${letter.refNo} terbit utk ${rec.docNo} oleh ${input.actor} — perjanjian kerja BARU pengganti berlaku ${newStart.toISOString().slice(0, 10)} s.d. ${newEnd.toISOString().slice(0, 10)} (maks 3 bulan sejak perjanjian baru — §7.1)`,
       },
     });
     return { refNo: letter.refNo, templateKey: PROB_EXTEND_KEY };

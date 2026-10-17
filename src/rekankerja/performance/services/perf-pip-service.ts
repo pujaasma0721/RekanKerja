@@ -25,6 +25,7 @@ import {
 import { issueLetter, fmtDateIdLong } from "@/rekankerja/shared/services/letter-service";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { nextPerfNo } from "@/rekankerja/performance/services/perf-master-service";
+import { retryOnUnique } from "@/rekankerja/shared/lib/doc-no-retry";
 
 function bad(msg: string): never { throw new Error(msg); }
 
@@ -396,8 +397,10 @@ export async function listPips(
       employee: { select: { id: true, fullName: true, employeeNo: true, orgUnit: { select: { name: true } } } },
       checkpoints: true,
     },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU (bukan tertua)
+    take: 500,
   });
+  recs.reverse(); // tampilan tetap docNo ASC
   const chains = await attachChainSummaries(db, PIP_DOC_TYPE as never, recs.map((r) => ({ id: r.id })));
 
   // reviewer / advisor / reviewedBy — resolusi batch per panggilan
@@ -603,23 +606,28 @@ export async function createPip(
   const targets = validateTargets(input.targets);
   const end = addDays(start, months * DAYS_PER_MONTH);
 
-  const docNo = await nextPerfNo(db, "PIP"); // penomoran max-suffix global lintas-siklus (pola Line-1)
   const dueDates = checkpointDueDates(start);
-  const pip = await db.pipPlan.create({
-    data: {
-      docNo,
-      employeeId: input.employeeId,
-      appraisalId: input.appraisalId ?? null,
-      startDate: start,
-      endDate: end,
-      targetsJson: JSON.stringify(targets),
-      reviewerId,
-      hrAdvisorId: input.hrAdvisorId ?? null,
-      status: "Draft",
-      checkpoints: {
-        create: dueDates.map((d, i) => ({ seq: i + 1, dueDate: d, status: "Pending" })),
+  // PERF-AUD: tabrakan penomoran (race P2002) → hitung ulang nomor via
+  // retryOnUnique (pola REC-AUDIT-FIX rekrutmen L2).
+  const { docNo, pip } = await retryOnUnique(async () => {
+    const docNo = await nextPerfNo(db, "PIP"); // penomoran max-suffix global lintas-siklus (pola Line-1)
+    const pip = await db.pipPlan.create({
+      data: {
+        docNo,
+        employeeId: input.employeeId,
+        appraisalId: input.appraisalId ?? null,
+        startDate: start,
+        endDate: end,
+        targetsJson: JSON.stringify(targets),
+        reviewerId,
+        hrAdvisorId: input.hrAdvisorId ?? null,
+        status: "Draft",
+        checkpoints: {
+          create: dueDates.map((d, i) => ({ seq: i + 1, dueDate: d, status: "Pending" })),
+        },
       },
-    },
+    });
+    return { docNo, pip };
   });
   await db.activityLog.create({
     data: {

@@ -252,7 +252,7 @@ export async function GET(req: NextRequest) {
           status: true, acknowledgedAt: true, appealNote: true, appealStatus: true,
           appealDecidedBy: true, appealDecidedAt: true, updatedAt: true,
         },
-        orderBy: { docNo: "asc" },
+        orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
         take: 500,
       }),
       db.appraisalKpi.findMany({
@@ -299,7 +299,7 @@ export async function GET(req: NextRequest) {
             },
           },
         },
-        orderBy: { docNo: "asc" },
+        orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
         take: 500,
       }),
       db.pipPlan.findMany({
@@ -310,10 +310,14 @@ export async function GET(req: NextRequest) {
           reviewer: { select: { fullName: true } },
           checkpoints: { select: { id: true, seq: true, achievementPct: true, status: true }, orderBy: { seq: "asc" } },
         },
-        orderBy: { docNo: "asc" },
+        orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
         take: 500,
       }),
     ]);
+    // PERF-AUD: tampilan/laporan tetap docNo ASC — dibalik setelah fetch desc
+    apprAll.reverse();
+    merits.reverse();
+    pips.reverse();
 
     // ---- maps & enrichment ----
     const unitById = new Map(units.map((u) => [u.id, u]));

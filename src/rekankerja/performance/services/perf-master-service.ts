@@ -354,6 +354,24 @@ export async function upsertRatingScale(db: TenantDb, input: {
   });
   if (dupMin) throw new Error(`Ambang skor ${minScore} sudah dipakai`);
 
+  // PERF-AUD: KEKONTINUAN skala — setelah perubahan, ambang harus naik seiring
+  // nilai rating (ratingForScore: minScore ≤ skor → value tertinggi; urutan
+  // terbalik membuat band tak pernah terpilih) dan band terendah WAJIB
+  // minScore=0 (skor di bawah ambang terendah akan tanpa rating → UI null).
+  const others = await db.ratingScale.findMany({
+    where: { ...(input.id ? { id: { not: input.id } } : {}) },
+    select: { value: true, minScore: true },
+  });
+  const finalSet = [...others, { value, minScore }].sort((a, b) => a.value - b.value);
+  for (let i = 1; i < finalSet.length; i++) {
+    if (finalSet[i].minScore <= finalSet[i - 1].minScore) {
+      throw new Error(`Ambang skor harus naik seiring nilai rating — nilai ${finalSet[i].value} (ambang ${finalSet[i].minScore}) setelah nilai ${finalSet[i - 1].value} (ambang ${finalSet[i - 1].minScore})`);
+    }
+  }
+  if (Math.abs(finalSet[0].minScore) > 0.001) {
+    throw new Error(`Ambang skor band terendah (nilai ${finalSet[0].value}) wajib 0 — skor di bawah ambang terendah tidak akan memiliki rating`);
+  }
+
   if (input.id) {
     await db.ratingScale.update({
       where: { id: input.id },
@@ -494,6 +512,18 @@ export async function archiveMaster(db: TenantDb, type: PerfMasterType, id: stri
       return;
     }
     case "rating-scale": {
+      // PERF-AUD: hard-delete skala rating kini digerbang — dulu menghapus
+      // tanpa cek apa pun (band value=2 dibutuhkan penaltas kritis §4.5 yang
+      // mematok rating maks 2; band 0 = lantai skor; band terpakai riwayat
+      // finalRating tidak boleh hilang).
+      const row = await db.ratingScale.findUnique({ where: { id } });
+      if (!row) return;
+      const total = await db.ratingScale.count();
+      if (total <= 1) throw new Error("Minimal satu band rating wajib tersisa — penghapusan tidak diizinkan");
+      if (row.value === 2) throw new Error("Band rating nilai 2 tidak dapat dihapus — penaltas kritis (kompetensi/Boolean gagal) mematok rating maksimal 2 (§4.5)");
+      if (Math.abs(row.minScore) < 0.001) throw new Error("Band rating ambang 0 (band terendah) tidak dapat dihapus — skor di bawahnya akan tanpa rating");
+      const used = await db.appraisalRecord.count({ where: { finalRating: row.value } });
+      if (used > 0) throw new Error(`Band rating nilai ${row.value} sudah dipakai ${used} penilaian final — integritas riwayat (arsipkan sebagai gantinya tidak tersedia utk skala)`);
       await db.ratingScale.delete({ where: { id } });
       return;
     }
@@ -567,18 +597,23 @@ export async function updatePerfSetting(db: TenantDb, input: {
 /**
  * Nomor dokumen kinerja berikutnya: {PREFIX}-YYYY-NNNN (max-suffix, delete-safe
  * — pola nextPrNo rekrutmen / nextDocNo leave).
+ * PERF-AUD: findFirst orderBy docNo desc (NNNN zero-padded → urut leksikografis
+ * = numerik) — pengganti scan take:500 TANPA orderBy yang bisa melewatkan nomor
+ * terbesar saat tenant besar (data terbaru terbuang diam-diam).
+ * Tabrakan nomor (P2002) ditangani pemanggil via retryOnUnique (pola REC-AUDIT-FIX).
  */
 export async function nextPerfNo(db: TenantDb, kind: "PER" | "PRB" | "PIP" | "MER"): Promise<string> {
   const year = new Date().getFullYear();
   const start = `${kind}-${year}-`;
-  let max = 0;
-  const [prs, pips, probs, mers] = await Promise.all([
-    db.appraisalRecord.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 500 }),
-    kind === "PIP" ? db.pipPlan.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 500 }) : Promise.resolve([] as { docNo: string }[]),
-    kind === "PRB" ? db.probationEvaluation.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 500 }) : Promise.resolve([] as { docNo: string }[]),
-    kind === "MER" ? db.meritRecommendation.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 500 }) : Promise.resolve([] as { docNo: string }[]),
+  const [pr, pip, prob, mer] = await Promise.all([
+    db.appraisalRecord.findFirst({ where: { docNo: { startsWith: start } }, select: { docNo: true }, orderBy: { docNo: "desc" } }),
+    kind === "PIP" ? db.pipPlan.findFirst({ where: { docNo: { startsWith: start } }, select: { docNo: true }, orderBy: { docNo: "desc" } }) : Promise.resolve(null),
+    kind === "PRB" ? db.probationEvaluation.findFirst({ where: { docNo: { startsWith: start } }, select: { docNo: true }, orderBy: { docNo: "desc" } }) : Promise.resolve(null),
+    kind === "MER" ? db.meritRecommendation.findFirst({ where: { docNo: { startsWith: start } }, select: { docNo: true }, orderBy: { docNo: "desc" } }) : Promise.resolve(null),
   ]);
-  for (const r of [...prs, ...pips, ...probs, ...mers]) {
+  let max = 0;
+  for (const r of [pr, pip, prob, mer]) {
+    if (!r) continue;
     const n = parseInt(r.docNo.slice(start.length), 10);
     if (Number.isFinite(n) && n > max) max = n;
   }
@@ -600,11 +635,12 @@ export async function reservePerfNoRange(
   if (count <= 0) return [];
   const start = `${kind}-${year}-`;
   let max = 0;
+  // PERF-AUD: orderBy desc — tanpa orderBy, take-cap bisa melewatkan nomor terbesar.
   const [prs, pips, probs, mers] = await Promise.all([
-    db.appraisalRecord.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 5000 }),
-    kind === "PIP" ? db.pipPlan.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 5000 }) : Promise.resolve([] as { docNo: string }[]),
-    kind === "PRB" ? db.probationEvaluation.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 5000 }) : Promise.resolve([] as { docNo: string }[]),
-    kind === "MER" ? db.meritRecommendation.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, take: 5000 }) : Promise.resolve([] as { docNo: string }[]),
+    db.appraisalRecord.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, orderBy: { docNo: "desc" }, take: 5000 }),
+    kind === "PIP" ? db.pipPlan.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, orderBy: { docNo: "desc" }, take: 5000 }) : Promise.resolve([] as { docNo: string }[]),
+    kind === "PRB" ? db.probationEvaluation.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, orderBy: { docNo: "desc" }, take: 5000 }) : Promise.resolve([] as { docNo: string }[]),
+    kind === "MER" ? db.meritRecommendation.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true }, orderBy: { docNo: "desc" }, take: 5000 }) : Promise.resolve([] as { docNo: string }[]),
   ]);
   for (const r of [...prs, ...pips, ...probs, ...mers]) {
     const n = parseInt(r.docNo.slice(start.length), 10);

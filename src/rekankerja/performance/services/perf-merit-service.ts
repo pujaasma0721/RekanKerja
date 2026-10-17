@@ -43,6 +43,7 @@ import {
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { issueLetter, fmtDateIdLong } from "@/rekankerja/shared/services/letter-service";
 import { nextPerfNo } from "@/rekankerja/performance/services/perf-master-service";
+import { retryOnUnique } from "@/rekankerja/shared/lib/doc-no-retry";
 import { scoreKpiItem } from "@/rekankerja/performance/services/perf-appraisal-service";
 import { calculateAndSaveRun, nextRunNo } from "@/rekankerja/payroll/services/payroll-service";
 import { validateSalaryAgainstGrade } from "@/rekankerja/human-resource/services/pa-targets";
@@ -248,9 +249,10 @@ export async function meritBoard(
       },
       matrix: { select: { code: true } },
     },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
     take: 500,
   });
+  merits.reverse(); // tampilan tetap docNo ASC
 
   const unitIds = [...new Set(merits.map((m) => m.appraisal.employee.orgUnitId).filter((x): x is string => !!x))];
   const units = unitIds.length > 0
@@ -392,9 +394,10 @@ export async function recommendMerit(
   const rows = await db.appraisalRecord.findMany({
     where: { cycleId: cycle.id, status: "Closed" }, // guard §35-17: peserta Closed
     include: { employee: { select: { id: true, employeeNo: true, fullName: true } }, merit: { select: { id: true, docNo: true } } },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
     take: 500,
   });
+  rows.reverse(); // tampilan tetap docNo ASC
 
   const created: { docNo: string; employeeNo: string; fullName: string; finalRating: number | null; bonusMonths: number; raisePct: number; bonusAmount: number; raiseAmount: number }[] = [];
   const skippedExisting: { docNo: string; employeeNo: string; fullName: string; meritDocNo: string }[] = [];
@@ -421,18 +424,22 @@ export async function recommendMerit(
     const bonusAmount = round0(bonusMonths * base);
     const raiseAmount = round0((base * raisePct) / 100);
 
-    const docNo = await nextPerfNo(db, "MER");
-    await db.meritRecommendation.create({
-      data: {
-        docNo,
-        appraisalId: a.id,
-        matrixId: matrix.id,
-        bonusMonths,
-        bonusAmount: tc.encryptMoney(bonusAmount), // VAULT enc:v1
-        raisePct,
-        raiseAmount: tc.encryptMoney(raiseAmount), // VAULT enc:v1
-        status: "Draft",
-      },
+    // PERF-AUD: tabrakan penomoran (race P2002) → hitung ulang via retryOnUnique.
+    const docNo = await retryOnUnique(async () => {
+      const no = await nextPerfNo(db, "MER");
+      await db.meritRecommendation.create({
+        data: {
+          docNo: no,
+          appraisalId: a.id,
+          matrixId: matrix.id,
+          bonusMonths,
+          bonusAmount: tc.encryptMoney(bonusAmount), // VAULT enc:v1
+          raisePct,
+          raiseAmount: tc.encryptMoney(raiseAmount), // VAULT enc:v1
+          status: "Draft",
+        },
+      });
+      return no;
     });
     await db.activityLog.create({
       data: {
@@ -660,15 +667,31 @@ export async function decideMeritApproval(
 export async function cancelMerit(
   db: TenantDb,
   actor: MeritActor,
-  input: { id: string },
+  input: { id: string; reason?: string },
 ): Promise<{ docNo: string; status: string }> {
   const merit = await db.meritRecommendation.findUnique({
     where: { id: input.id },
     include: { appraisal: { select: { docNo: true, employeeId: true, employee: { select: { fullName: true } } } } },
   });
   if (!merit) throw new Error("Usulan merit tidak ditemukan");
+  // PERF-AUD F-09: usulan yang SUDAH DISETUJUI (belum diterapkan payroll) kini
+  // punya jalur pembatalan beralasan — dulu buntu; Applied tetap mutlak
+  // (payroll sudah tersentuh — pembalikan adalah urusan payroll).
+  if (merit.status === "Approved") {
+    const reason = (input.reason ?? "").trim();
+    if (reason.length < 10) throw new Error("Pembatalan usulan yang sudah disetujui wajib alasan ≥10 karakter (ter-audit)");
+    await db.meritRecommendation.update({ where: { id: merit.id }, data: { status: "Cancelled" } });
+    await db.activityLog.create({
+      data: {
+        action: "Updated", entity: "MeritRecommendation", entityId: merit.docNo,
+        employeeId: merit.appraisal.employeeId,
+        detail: `Usulan merit ${merit.docNo} (${merit.appraisal.employee.fullName}) yang SUDAH DISETUJUI dibatalkan oleh ${actor.name} — alasan: "${reason}"`,
+      },
+    });
+    return { docNo: merit.docNo, status: "Cancelled" };
+  }
   if (merit.status !== "Draft" && merit.status !== "Submitted") {
-    throw new Error(`${merit.docNo} berstatus ${merit.status} — pembatalan hanya dari Draft/Submitted`);
+    throw new Error(`${merit.docNo} berstatus ${merit.status} — pembatalan hanya dari Draft/Submitted/Approved (yang belum diterapkan ke payroll)`);
   }
   await cancelApprovalChain(db, MERIT_DOC_TYPE, merit.id, actor.name); // pola perf-calibration L821
   await db.meritRecommendation.update({ where: { id: merit.id }, data: { status: "Cancelled" } });
@@ -761,128 +784,165 @@ export async function applyMerit(
     return run;
   };
 
-  // ---- bonus: processType BONUS + komponen "BONUS" ----
-  if (actions[0].enabled) {
-    const [processType, component] = await Promise.all([
-      db.processType.findFirst({ where: { code: "BONUS", active: true } }),
-      db.wageComponent.findFirst({ where: { code: "BONUS", active: true } }),
-    ]);
-    if (!processType) throw new Error("ProcessType BONUS tidak ditemukan (§35-18)");
-    if (!component) throw new Error("Komponen upah BONUS tidak ditemukan (§35-18)");
-
-    let run = await findOpenRun(processType.id);
-    const created = !run;
-    if (!run) {
-      // buat + hitung run (pola autoRun bonus-massal)
-      run = await db.payrollRun.create({
-        data: {
-          runNo: await nextRunNo(db, period.code, processType.code),
-          periodId: period.id,
-          processTypeId: processType.id,
-          calculateTax: processType.calculateTax,
-          allEmployee: true,
-          notes: `Merit ${merit.docNo} — ${merit.appraisal.employee.fullName}`,
-        },
-        include: { period: true, processType: true },
-      });
-      await db.activityLog.create({
-        data: {
-          action: "Created", entity: "PayrollRun", entityId: run.id,
-          detail: `Run ${run.runNo} dibuat otomatis dari penerapan merit ${merit.docNo} (${period.name} × ${processType.code})`,
-        },
-      });
-    }
-    const wasCalculated = run.status === "Calculated";
-    // idempoten: hapus assignment lama dgn notes sama (re-apply tidak mendobel)
-    await db.employeeComponentAssignment.deleteMany({
-      where: { employeeId: merit.appraisal.employeeId, notes: `Merit ${merit.docNo}` },
-    });
-    await db.employeeComponentAssignment.create({
-      data: {
-        employeeId: merit.appraisal.employeeId,
-        wageComponentId: component.id,
-        kind: "Specific",
-        amount: tc.encryptMoney(amounts.bonus), // VAULT enc:v1
-        periodId: period.id,
-        processTypeId: processType.id,
-        basedDate: new Date(),
-        notes: `Merit ${merit.docNo}`,
-      },
-    });
-    out.assignments.push({ component: "BONUS", amount: amounts.bonus });
-    await calculateAndSaveRun(db, run.id); // Draft/Calculated → hitung (ulang)
-    const fresh = await db.payrollRun.findUnique({ where: { id: run.id }, select: { runNo: true, status: true } });
-    out.bonusRun = { runNo: fresh?.runNo ?? run.runNo, status: fresh?.status ?? "Calculated", created, recalculated: wasCalculated };
-  }
-
-  // ---- raise: processType SALARY + komponen "RAPEL" ----
-  if (actions[1].enabled) {
-    const [processType, component] = await Promise.all([
-      db.processType.findFirst({ where: { code: "SALARY", active: true } }),
-      db.wageComponent.findFirst({ where: { code: "RAPEL", active: true } }),
-    ]);
-    if (!processType) throw new Error("ProcessType SALARY tidak ditemukan (§35-18)");
-    if (!component) throw new Error("Komponen upah RAPEL tidak ditemukan (§35-18)");
-
-    let run = await findOpenRun(processType.id);
-    const created = !run;
-    if (!run) {
-      run = await db.payrollRun.create({
-        data: {
-          runNo: await nextRunNo(db, period.code, processType.code),
-          periodId: period.id,
-          processTypeId: processType.id,
-          calculateTax: processType.calculateTax,
-          allEmployee: true,
-          notes: `Merit raise ${merit.docNo} — ${merit.appraisal.employee.fullName}`,
-        },
-        include: { period: true, processType: true },
-      });
-      await db.activityLog.create({
-        data: {
-          action: "Created", entity: "PayrollRun", entityId: run.id,
-          detail: `Run ${run.runNo} dibuat otomatis dari penerapan merit raise ${merit.docNo} (${period.name} × ${processType.code})`,
-        },
-      });
-    }
-    const wasCalculated = run.status === "Calculated";
-    await db.employeeComponentAssignment.deleteMany({
-      where: { employeeId: merit.appraisal.employeeId, notes: `Merit raise ${merit.docNo}` },
-    });
-    await db.employeeComponentAssignment.create({
-      data: {
-        employeeId: merit.appraisal.employeeId,
-        wageComponentId: component.id,
-        kind: "Specific",
-        amount: tc.encryptMoney(amounts.raise), // VAULT enc:v1
-        periodId: period.id,
-        processTypeId: processType.id,
-        basedDate: new Date(),
-        notes: `Merit raise ${merit.docNo}`,
-      },
-    });
-    out.assignments.push({ component: "RAPEL", amount: amounts.raise });
-    await calculateAndSaveRun(db, run.id); // bila sudah Calculated → hitung ulang
-    const fresh = await db.payrollRun.findUnique({ where: { id: run.id }, select: { runNo: true, status: true } });
-    out.raiseRun = { runNo: fresh?.runNo ?? run.runNo, status: fresh?.status ?? "Calculated", created, recalculated: wasCalculated };
-  }
-
-  // update merit: Applied + appliedRunNo (bukti penerapan §32-3a)
-  const appliedRunNo = out.bonusRun?.runNo ?? out.raiseRun?.runNo ?? null;
-  await db.meritRecommendation.update({
-    where: { id: merit.id },
-    data: { status: "Applied", appliedRunNo },
+  // PERBAIKAN PERF-AUD F-02 (TOCTOU double-apply): KLAIM atomik dulu —
+  // updateMany bersyarat status "Approved" (atau "Applying" basi >10 menit
+  // akibat crash) sebelum menyentuh payroll. Klik ganda / dua sesi paralel
+  // hanya satu yang menang claim; yang kalah ditolak eksplisit. Selesai
+  // kerja → "Applied"; gagal di tengah → di-revert ke "Approved" (retry aman
+  // karena assignment lama dihapus dulu — idempoten).
+  const STALE_APPLYING_MS = 10 * 60 * 1000;
+  const staleBefore = new Date(Date.now() - STALE_APPLYING_MS);
+  const claim = await db.meritRecommendation.updateMany({
+    where: {
+      id: merit.id,
+      OR: [
+        { status: "Approved" },
+        { status: "Applying", updatedAt: { lt: staleBefore } },
+      ],
+    },
+    data: { status: "Applying" },
   });
+  if (claim.count !== 1) {
+    throw new Error(`${merit.docNo} sedang diproses penerapan payroll oleh sesi lain — tunggu sebentar lalu muat ulang daftar (§35-18)`);
+  }
+  const releaseClaim = async () => {
+    await db.meritRecommendation.updateMany({
+      where: { id: merit.id, status: "Applying" },
+      data: { status: "Approved" },
+    }).catch(() => { /* best-effort revert */ });
+  };
+
+  try {
+    // ---- bonus: processType BONUS + komponen "BONUS" ----
+    if (actions[0].enabled) {
+      const [processType, component] = await Promise.all([
+        db.processType.findFirst({ where: { code: "BONUS", active: true } }),
+        db.wageComponent.findFirst({ where: { code: "BONUS", active: true } }),
+      ]);
+      if (!processType) throw new Error("ProcessType BONUS tidak ditemukan (§35-18)");
+      if (!component) throw new Error("Komponen upah BONUS tidak ditemukan (§35-18)");
+
+      let run = await findOpenRun(processType.id);
+      const created = !run;
+      if (!run) {
+        // buat + hitung run (pola autoRun bonus-massal)
+        run = await db.payrollRun.create({
+          data: {
+            runNo: await nextRunNo(db, period.code, processType.code),
+            periodId: period.id,
+            processTypeId: processType.id,
+            calculateTax: processType.calculateTax,
+            allEmployee: true,
+            notes: `Merit ${merit.docNo} — ${merit.appraisal.employee.fullName}`,
+          },
+          include: { period: true, processType: true },
+        });
+        await db.activityLog.create({
+          data: {
+            action: "Created", entity: "PayrollRun", entityId: run.id,
+            detail: `Run ${run.runNo} dibuat otomatis dari penerapan merit ${merit.docNo} (${period.name} × ${processType.code})`,
+          },
+        });
+      }
+      const wasCalculated = run.status === "Calculated";
+      // idempoten: hapus assignment lama dgn notes sama (re-apply tidak mendobel)
+      await db.employeeComponentAssignment.deleteMany({
+        where: { employeeId: merit.appraisal.employeeId, notes: `Merit ${merit.docNo}` },
+      });
+      await db.employeeComponentAssignment.create({
+        data: {
+          employeeId: merit.appraisal.employeeId,
+          wageComponentId: component.id,
+          kind: "Specific",
+          amount: tc.encryptMoney(amounts.bonus), // VAULT enc:v1
+          periodId: period.id,
+          processTypeId: processType.id,
+          basedDate: new Date(),
+          notes: `Merit ${merit.docNo}`,
+        },
+      });
+      out.assignments.push({ component: "BONUS", amount: amounts.bonus });
+      await calculateAndSaveRun(db, run.id); // Draft/Calculated → hitung (ulang)
+      const fresh = await db.payrollRun.findUnique({ where: { id: run.id }, select: { runNo: true, status: true } });
+      out.bonusRun = { runNo: fresh?.runNo ?? run.runNo, status: fresh?.status ?? "Calculated", created, recalculated: wasCalculated };
+    }
+
+    // ---- raise: processType SALARY + komponen "RAPEL" ----
+    if (actions[1].enabled) {
+      const [processType, component] = await Promise.all([
+        db.processType.findFirst({ where: { code: "SALARY", active: true } }),
+        db.wageComponent.findFirst({ where: { code: "RAPEL", active: true } }),
+      ]);
+      if (!processType) throw new Error("ProcessType SALARY tidak ditemukan (§35-18)");
+      if (!component) throw new Error("Komponen upah RAPEL tidak ditemukan (§35-18)");
+
+      let run = await findOpenRun(processType.id);
+      const created = !run;
+      if (!run) {
+        run = await db.payrollRun.create({
+          data: {
+            runNo: await nextRunNo(db, period.code, processType.code),
+            periodId: period.id,
+            processTypeId: processType.id,
+            calculateTax: processType.calculateTax,
+            allEmployee: true,
+            notes: `Merit raise ${merit.docNo} — ${merit.appraisal.employee.fullName}`,
+          },
+          include: { period: true, processType: true },
+        });
+        await db.activityLog.create({
+          data: {
+            action: "Created", entity: "PayrollRun", entityId: run.id,
+            detail: `Run ${run.runNo} dibuat otomatis dari penerapan merit raise ${merit.docNo} (${period.name} × ${processType.code})`,
+          },
+        });
+      }
+      const wasCalculated = run.status === "Calculated";
+      await db.employeeComponentAssignment.deleteMany({
+        where: { employeeId: merit.appraisal.employeeId, notes: `Merit raise ${merit.docNo}` },
+      });
+      await db.employeeComponentAssignment.create({
+        data: {
+          employeeId: merit.appraisal.employeeId,
+          wageComponentId: component.id,
+          kind: "Specific",
+          amount: tc.encryptMoney(amounts.raise), // VAULT enc:v1
+          periodId: period.id,
+          processTypeId: processType.id,
+          basedDate: new Date(),
+          notes: `Merit raise ${merit.docNo}`,
+        },
+      });
+      out.assignments.push({ component: "RAPEL", amount: amounts.raise });
+      await calculateAndSaveRun(db, run.id); // bila sudah Calculated → hitung ulang
+      const fresh = await db.payrollRun.findUnique({ where: { id: run.id }, select: { runNo: true, status: true } });
+      out.raiseRun = { runNo: fresh?.runNo ?? run.runNo, status: fresh?.status ?? "Calculated", created, recalculated: wasCalculated };
+    }
+
+    // update merit: Applied + appliedRunNo (bukti penerapan §32-3a)
+    await db.meritRecommendation.update({
+      where: { id: merit.id },
+      data: { status: "Applied", appliedRunNo: out.bonusRun?.runNo ?? out.raiseRun?.runNo ?? null },
+    });
+  } catch (e) {
+    // gagal di tengah → bebaskan klaim supaya bisa dicoba ulang (assignment dihapus saat retry)
+    await releaseClaim();
+    throw e;
+  }
+  const appliedRunNo = out.bonusRun?.runNo ?? out.raiseRun?.runNo ?? null;
   await db.activityLog.create({
     data: {
       action: "Updated", entity: "MeritRecommendation", entityId: merit.docNo,
       employeeId: merit.appraisal.employeeId,
+      // PERBAIKAN PERF-AUD F-04: TANPA nominal Rp — ActivityLog tidak digerbang
+      // brankas uang (terbaca via detail PA); nominal lengkap ada di register
+      // merit + laporan pf41 yang keduanya vault-gated.
       detail:
         `Merit ${merit.docNo} (${merit.appraisal.employee.fullName}) DITERAPKAN ke payroll oleh ${actor.name} — ` +
         actions.filter((a) => a.enabled).map((a) =>
           a.key === "bonus"
-            ? `bonus Rp ${amounts.bonus.toLocaleString("id-ID")} → komponen BONUS${out.bonusRun ? ` run ${out.bonusRun.runNo} (${period.name})` : ""}`
-            : `raise Rp ${amounts.raise.toLocaleString("id-ID")} → komponen RAPEL${out.raiseRun ? ` run ${out.raiseRun.runNo} (${period.name})` : ""}`,
+            ? `bonus → komponen BONUS${out.bonusRun ? ` run ${out.bonusRun.runNo} (${period.name})` : ""}`
+            : `raise → komponen RAPEL${out.raiseRun ? ` run ${out.raiseRun.runNo} (${period.name})` : ""}`,
         ).join(" · ") + ` (§32-3a, §35-18)`,
     },
   });
@@ -1031,7 +1091,7 @@ export async function toPersonnelAction(
       detail:
         `${input.type} ${docNo} digulirkan dari merit ${merit.docNo} (${emp.fullName}) oleh ${actor.name}` +
         (input.type === "SalaryAdjustment" && detail.newSalary != null
-          ? ` — gaji baru Rp ${Number(detail.newSalary).toLocaleString("id-ID")} (+${merit.raisePct ?? 0}%)` : "") +
+          ? ` — kenaikan gaji +${merit.raisePct ?? 0}% (nominal di register merit — vault-gated)` : "") +
         (override ? ` — OVERRIDE DIREKSI atas syarat promosi (rating/band) — alasan: ${input.reason?.trim()}` : "") +
         ` (§32-3b, §35-19)`,
     },
@@ -1228,19 +1288,23 @@ export async function decidePip(
     seq: i + 1,
   }));
 
-  const docNo = await nextPerfNo(db, "PIP");
-  const pip = await db.pipPlan.create({
-    data: {
-      docNo,
-      employeeId: a.employee.id,
-      appraisalId: a.id,
-      startDate,
-      endDate,
-      targetsJson: JSON.stringify(normTargets),
-      reviewerId,
-      hrAdvisorId: inp.hrAdvisorId?.trim() || null,
-      status: "Draft", // aktivasi = P6 (approval PipPlan AS-PIP-STD) — P5 hanya Draft
-    },
+  // PERF-AUD: tabrakan penomoran (race P2002) → hitung ulang via retryOnUnique.
+  const { docNo, pip } = await retryOnUnique(async () => {
+    const docNo = await nextPerfNo(db, "PIP");
+    const pip = await db.pipPlan.create({
+      data: {
+        docNo,
+        employeeId: a.employee.id,
+        appraisalId: a.id,
+        startDate,
+        endDate,
+        targetsJson: JSON.stringify(normTargets),
+        reviewerId,
+        hrAdvisorId: inp.hrAdvisorId?.trim() || null,
+        status: "Draft", // aktivasi = P6 (approval PipPlan AS-PIP-STD) — P5 hanya Draft
+      },
+    });
+    return { docNo, pip };
   });
   // checkpoint 30/60/90 hari (seq 1..3)
   const DAY = 86_400_000;
@@ -1408,9 +1472,10 @@ export async function issueResultLetters(
       employee: { select: { id: true, fullName: true } },
       manager: { select: { fullName: true } },
     },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
     take: 500,
   });
+  rows.reverse(); // tampilan tetap docNo ASC
 
   const issued: { appraisalNo: string; employeeName: string; refNo: string }[] = [];
   const skippedExisting: { appraisalNo: string; employeeName: string; refNo: string }[] = [];

@@ -23,11 +23,18 @@ import { prefillFromPrevious } from "@/rekankerja/performance/services/perf-goal
 // ActivityLog di setiap mutasi.
 // ============================================================================
 
-/** Aktor goal (row-level ringan §11.3): super admin/HR tanpa employeeId → semua. */
+/** Aktor goal (row-level ringan §11.3): super admin/HR tanpa employeeId → semua.
+ *  PERF-AUD (persona HR konsisten): selain Admin platform/app, peran HR
+ *  (HR Manager/HR Staff) JUGA diakui sebagai aktor HR penuh — paritas dengan
+ *  talentHrActor/okr/pip (sebelumnya HR Staff gagal aksi 360/9-box/goals). */
+const PERF_HR_APP_ROLES = ["Admin", "HR Manager", "HR Staff"];
 export function goalActorOf(m: MenuActor) {
   return {
     employeeId: m.employeeId,
-    superAdmin: SUPER_ADMIN_APP_ROLES.includes(m.appUserRole ?? "") || SUPER_ADMIN_PLATFORM_ROLES.includes(m.role),
+    superAdmin:
+      SUPER_ADMIN_APP_ROLES.includes(m.appUserRole ?? "") ||
+      SUPER_ADMIN_PLATFORM_ROLES.includes(m.role) ||
+      PERF_HR_APP_ROLES.includes(m.appUserRole ?? ""),
   };
 }
 

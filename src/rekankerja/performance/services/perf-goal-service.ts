@@ -115,9 +115,10 @@ export async function listGoalParticipants(
       employee: { select: { employeeNo: true, fullName: true, orgUnitId: true } },
       kpis: { select: { target: true, thresholdMin: true, weight: true, polarity: true, measureMode: true, metric: true, updatedAt: true } },
     },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
     take: 500,
   });
+  rows.reverse(); // tampilan tetap docNo ASC
   const q = (opt.q ?? "").toLowerCase();
   return rows
     .filter((r) => !q || r.employee.fullName.toLowerCase().includes(q) || r.employee.employeeNo.toLowerCase().includes(q))

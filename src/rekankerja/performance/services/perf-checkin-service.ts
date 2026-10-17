@@ -152,6 +152,12 @@ export async function logCheckIn(db: TenantDb, actor: CheckinActor, input: LogCh
   if (!actor.superAdmin && actor.employeeId && ci.appraisal.managerId !== actor.employeeId) {
     throw new Error("Hanya atasan peserta yang mencatat hasil check-in (§27-2 — catatan atasan)");
   }
+  // PERF-AUD: hasil yang sudah tercatat TIDAK boleh ditimpa tanpa jejak —
+  // logCheckIn hanya utk jadwal Planned; koreksi sesi lanjutan = jadwalkan
+  // check-in baru (riwayat 1-on-1 tetap utuh utk audit).
+  if (ci.status !== "Planned") {
+    throw new Error(`Check-in sudah berstatus ${ci.status} — hasil tercatat tidak dapat ditimpa; jadwalkan check-in baru untuk sesi lanjutan`);
+  }
   assertCheckinWindow(ci.appraisal.cycle.status, ci.appraisal.cycle.code);
 
   const notes = {
@@ -377,6 +383,21 @@ export async function decideRevision(
 
   let applied = 0;
   if (decision === "approve") {
+    // PERF-AUD: revisi bobot harus menjaga Σ=100 + rentang per baris 1–100
+    // (paritas guard submit goals §35-5 — tanpa ini PIP/appraisal bisa NaN%).
+    const chById = new Map((payload.changes ?? []).filter((c) => c.kpiId).map((c) => [c.kpiId, c]));
+    let sumW = 0;
+    for (const k of a.kpis) {
+      const ch = chById.get(k.id);
+      const w = ch?.newWeight ?? k.weight;
+      if (!Number.isFinite(w) || w <= 0 || w > 100) {
+        throw new Error(`Bobot KPI "${k.title}" setelah revisi tidak valid (${w}) — harus angka 1–100`);
+      }
+      sumW += w;
+    }
+    if (Math.abs(sumW - 100) > 0.01) {
+      throw new Error(`Total bobot KPI setelah revisi ${Math.round(sumW)}% — harus tepat 100% (§35-5)`);
+    }
     for (const c of payload.changes ?? []) {
       await db.appraisalKpi.update({
         where: { id: c.kpiId },

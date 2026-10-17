@@ -199,9 +199,10 @@ export async function distribution(
       employee: { select: { id: true, employeeNo: true, fullName: true, orgUnitId: true } },
       manager: { select: { id: true, fullName: true } },
     },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
     take: 500,
   });
+  rows.reverse(); // tampilan tetap docNo ASC
 
   const unitIds = [...new Set(rows.map((r) => r.employee.orgUnitId).filter((x): x is string => !!x))];
   const units = unitIds.length > 0
@@ -318,9 +319,10 @@ export async function bellCurve(
       employee: { select: { id: true, employeeNo: true, fullName: true, orgUnitId: true } },
       manager: { select: { id: true, fullName: true } },
     },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
     take: 500,
   });
+  rows.reverse(); // tampilan tetap docNo ASC
   const unitIds = [...new Set(rows.map((r) => r.employee.orgUnitId).filter((x): x is string => !!x))];
   const units = unitIds.length > 0
     ? await db.orgUnit.findMany({ where: { id: { in: unitIds } }, select: { id: true, name: true } })
@@ -682,9 +684,10 @@ export async function finalizeBoard(
       manager: { select: { fullName: true } },
       kpis: { select: { isCritical: true, polarity: true, finalActual: true } },
     },
-    orderBy: { docNo: "asc" },
+    orderBy: { docNo: "desc" }, // PERF-AUD: cap menyimpan baris TERBARU
     take: 500,
   });
+  rows.reverse(); // tampilan tetap docNo ASC
 
   // peta grade/positionLevel (batch — utk deteksi penempatan tinggi)
   const gradeIds = [...new Set(rows.map((r) => r.employee.gradeId).filter((x): x is string => !!x))];

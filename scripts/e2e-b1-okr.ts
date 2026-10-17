@@ -65,7 +65,7 @@ function calcScore(krs: { polarity: string; baseline: number; target: number; cu
   const s = krs.reduce((acc, k) => {
     const span = k.target - k.baseline;
     if (!Number.isFinite(span) || span === 0) return acc;
-    const raw = k.polarity === "LowerIsBetter" ? (k.baseline - k.current) / span : (k.current - k.baseline) / span;
+    const raw = k.polarity === "LowerIsBetter" ? (k.baseline - k.current) / (k.baseline - k.target) : (k.current - k.baseline) / span;
     return acc + (k.weight / 100) * Math.min(1, Math.max(0, raw));
   }, 0);
   return Math.round(s * 100) / 100;

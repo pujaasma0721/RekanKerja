@@ -300,8 +300,11 @@ export async function aggregate360(db: TenantDb, appraisalId: string): Promise<{
       competencyId,
       name: g.name,
       kind: g.kind,
-      avg: g.scores.length ? Math.round((g.scores.reduce((s, v) => s + v, 0) / g.scores.length) * 10) / 10 : null,
-      count: g.scores.length,
+      // PERF-AUD F-06: anonimitas §37 "agregat ≥3" ditegakkan SERVER-SIDE —
+      // saat <3 reviewer, avg/count juga dinull-kan (bukan hanya komentar),
+      // paritas dengan pf24; UI saja tidak cukup (payload API bisa dibaca).
+      avg: enough && g.scores.length ? Math.round((g.scores.reduce((s, v) => s + v, 0) / g.scores.length) * 10) / 10 : null,
+      count: enough ? g.scores.length : 0,
       // komentar hanya utk agregat ≥3 reviewer (anonimitas §37)
       comments: enough ? g.comments : null,
     }));
@@ -572,4 +575,38 @@ export async function remindReviewer(db: TenantDb, actor: Actor360, feedbackId: 
     link: "ess:my-360",
   });
   return { notified: nid != null };
+}
+
+/** PERF-AUD F-05: tutup manual SATU undangan aktif (Invited → Expired) oleh
+ *  atasan peserta / HR — jalan keluar saat reviewer tidak kunjung mengisi
+ *  (terutama undangan TANPA tenggat yang tak pernah tersapu scheduler),
+ *  sehingga submitManager (§35-8 guard 4) tidak terblokir permanen.
+ *  ActivityLog TANPA nama reviewer (anonimitas §37). */
+export async function expireInvitation(db: TenantDb, actor: Actor360, feedbackId: string): Promise<{ id: string; status: string }> {
+  const fb = await db.feedback360.findUnique({
+    where: { id: feedbackId },
+    include: {
+      appraisal: {
+        select: {
+          docNo: true,
+          employee: { select: { fullName: true } },
+          manager: { select: { id: true } },
+          cycle: { select: { code: true } },
+        },
+      },
+    },
+  });
+  if (!fb) throw new Error("Undangan tidak ditemukan");
+  if (!actor.superAdmin && actor.employeeId && fb.appraisal.manager?.id !== actor.employeeId) {
+    throw new Error("Hanya atasan peserta atau HR yang dapat menutup undangan 360");
+  }
+  if (fb.status !== "Invited") throw new Error(`Undangan sudah berstatus ${fb.status}`);
+  await db.feedback360.update({ where: { id: feedbackId }, data: { status: "Expired" } });
+  await db.activityLog.create({
+    data: {
+      action: "Expired", entity: "Feedback360", entityId: feedbackId,
+      detail: `Undangan 360 untuk ${fb.appraisal.docNo} (${fb.appraisal.employee.fullName} — siklus ${fb.appraisal.cycle.code}) DITUTUP manual oleh atasan/HR — identitas reviewer tidak dicatat (§37; PERF-AUD F-05)`,
+    },
+  }).catch(() => { /* best effort */ });
+  return { id: feedbackId, status: "Expired" };
 }

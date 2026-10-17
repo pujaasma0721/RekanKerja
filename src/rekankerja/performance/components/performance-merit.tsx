@@ -98,6 +98,7 @@ const MERIT_STATUS_TONE: Record<string, string> = {
   Draft: "border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300",
   Submitted: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-400",
   Approved: "border-teal-300 bg-teal-50 text-teal-700 dark:border-teal-500/40 dark:bg-teal-500/10 dark:text-teal-300",
+  Applying: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-300",
   Applied: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-400",
   Rejected: "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-400",
   Cancelled: "border-slate-300 bg-slate-50 text-slate-400 line-through dark:border-slate-700 dark:bg-slate-900/60",
@@ -177,8 +178,22 @@ export function PerformanceMeritPage({ cycleId }: { cycleId: string }) {
   };
 
   const doCancel = async (row: MeritRow) => {
+    // PERF-AUD F-09 — pembatalan usulan yang SUDAH DISETUJUI wajib beralasan (≥10 kar).
+    let reason: string | undefined;
+    if (row.status === "Approved") {
+      const input = window.prompt(t(
+        "Alasan pembatalan usulan yang sudah disetujui (min. 10 karakter):",
+        "Reason for cancelling the approved recommendation (min. 10 characters):",
+      ));
+      if (input == null) return; // batal dialog
+      if (input.trim().length < 10) {
+        toast.error(t("Alasan pembatalan minimal 10 karakter.", "Cancellation reason must be at least 10 characters."));
+        return;
+      }
+      reason = input.trim();
+    }
     try {
-      await apiSend("/api/rekankerja/performance/merit", "POST", { action: "cancel", id: row.id });
+      await apiSend("/api/rekankerja/performance/merit", "POST", { action: "cancel", id: row.id, ...(reason ? { reason } : {}) });
       toast.success(t(`Usulan ${row.docNo} dibatalkan`, `Recommendation ${row.docNo} cancelled`));
       api.refresh();
     } catch (e) {
@@ -465,6 +480,7 @@ function MeritCard({
               <>
                 <Button size="sm" className="h-7 gap-1 text-[11px]" onClick={onApply}><CircleDollarSign className="h-3.5 w-3.5" /> {t("Terapkan ke Payroll", "Apply to Payroll")}</Button>
                 <Button size="sm" variant="outline" className="h-7 gap-1 text-[11px]" onClick={onPa}><TrendingUp className="h-3.5 w-3.5" /> {t("Buat PA", "Create PA")}</Button>
+                <Button size="sm" variant="outline" className="h-7 gap-1 text-[11px] text-rose-600 dark:text-rose-400" onClick={onCancel}><XCircle className="h-3.5 w-3.5" /> {t("Batalkan", "Cancel")}</Button>
               </>
             )}
             {(row.status === "Approved" || row.status === "Applied") && (

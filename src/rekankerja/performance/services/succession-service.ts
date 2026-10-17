@@ -192,11 +192,28 @@ export async function listSuccession(db: TenantDb, actor: SuccessionActor): Prom
       position: { select: { id: true, code: true, title: true, orgUnit: { select: { name: true } } } },
       candidates: {
         include: {
-          employee: { select: { id: true, employeeNo: true, fullName: true, orgUnit: { select: { name: true } } } },
+          employee: { select: { id: true, employeeNo: true, fullName: true, status: true, orgUnit: { select: { name: true } } } },
         },
       },
     },
   });
+
+  // PERF-AUD: PRUNE kandidat succession yang karyawannya sudah non-Active
+  // (berhenti/PhK/pensiun) — self-heal saat register dibuka; karyawan berhenti
+  // tidak bisa menjadi penerus. Ter-ActivityLog per batch (tanpa aktor — proses sistem).
+  const gone = rows.flatMap((r) =>
+    r.candidates.filter((c) => c.employee.status !== "Active")
+      .map((c) => ({ id: c.id, name: c.employee.fullName, no: c.employee.employeeNo })),
+  );
+  if (gone.length) {
+    await db.successorCandidate.deleteMany({ where: { id: { in: gone.map((g) => g.id) } } });
+    await db.activityLog.create({
+      data: {
+        action: "Deleted", entity: "SuccessorCandidate",
+        detail: `PRUNE otomatis ${gone.length} kandidat succession non-Active: ${gone.map((g) => `${g.name} (${g.no})`).join(", ").slice(0, 400)} — karyawan berhenti tidak dapat menjadi penerus`,
+      },
+    }).catch(() => { /* best effort */ });
+  }
 
   // pemegang jabatan saat ini per posisi (assignment aktif — batch 1 query)
   const positionIds = rows.map((r) => r.positionId);
@@ -215,7 +232,9 @@ export async function listSuccession(db: TenantDb, actor: SuccessionActor): Prom
   }
 
   const positions: SuccessionPositionRow[] = rows.map((r) => {
-    const readyNow = r.candidates.filter((c) => c.readiness === "ReadyNow").length;
+    // hanya kandidat Active (yang baru di-prune sudah tidak dipakai di sini)
+    const active = r.candidates.filter((c) => c.employee.status === "Active");
+    const readyNow = active.filter((c) => c.readiness === "ReadyNow").length;
     const inc = incumbentByPos.get(r.positionId) ?? null;
     return {
       id: r.id,
@@ -228,7 +247,7 @@ export async function listSuccession(db: TenantDb, actor: SuccessionActor): Prom
       critical: r.critical,
       targetSuccessors: r.targetSuccessors,
       note: r.note,
-      candidates: r.candidates
+      candidates: active
         .map((c): SuccessionCandidateRow => ({
           id: c.id,
           employeeId: c.employeeId,
