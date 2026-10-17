@@ -7,6 +7,9 @@
 //     (EEOC) per dimensi gender/umur/pendidikan + disclaimer fairness.
 //   · Proyeksi — prediktif heuristik (BUKAN ML): estimasi fill per posisi
 //     + PR berisiko (umur > proyeksi × faktor).
+//   · Dokumen Laporan — katalog 12 laporan distribusi siap cetak (SB-RC-RD
+//     — mirror T110–T113 HR/Leave/Attendance/Travel/Medical/Performance):
+//     form parameter → ReportSheet A4 → Cetak/PDF + XLSX.
 //   · Tampilan Tersimpan — saved views MILIK AKTOR + jadwal digest mingguan.
 // Kontrak API: src/rekankerja/recruitment/api/reports.ts (F8-BACKEND) —
 // GET ?section=…|?views=1|?export=… + POST view-save|view-delete|view-schedule.
@@ -16,6 +19,7 @@ import { useApi, apiSend, fmtIDR } from "@/rekankerja/shared/lib/api";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
+import { RecruitmentReportDocumentsTab } from "./report-documents/report-documents-tab";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +32,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
-  AlertTriangle, BarChart3, CalendarClock, CheckCircle2, ChevronDown, Clock, Coins, Download, FileSpreadsheet, FileText, Filter, Gauge,
+  AlertTriangle, BarChart3, CalendarClock, CheckCircle2, ChevronDown, Clock, Coins, Download, FileSpreadsheet, FileText, Filter, FolderOpen, Gauge,
   Info, Save, Scale, Target, Trash2, TrendingUp, UsersRound,
 } from "lucide-react";
 
@@ -107,7 +111,7 @@ interface SavedViewUI {
 // ============ label dwibahasa ============
 
 /** Tab laporan yang bisa disimpan/diterapkan ke filter SavedReportView. */
-const TAB_KEYS = ["dashboard", "metrics", "adverse-impact", "projections", "views"] as const;
+const TAB_KEYS = ["dashboard", "metrics", "adverse-impact", "projections", "documents", "views"] as const;
 
 /** View rekrutmen yang dikenal router (utk aksi "Terapkan" lintas view). */
 const RECRUITMENT_VIEWS = new Set([
@@ -263,6 +267,7 @@ export function ReportsPage() {
       metrics: { id: "Katalog Metrik", en: "Metrics Catalog" },
       "adverse-impact": { id: "Adverse Impact", en: "Adverse Impact" },
       projections: { id: "Proyeksi", en: "Projections" },
+      documents: { id: "Dokumen Laporan", en: "Report Documents" },
       views: { id: "Tampilan Tersimpan", en: "Saved Views" },
     };
     const e = m[key] ?? { id: key, en: key };
@@ -359,18 +364,19 @@ export function ReportsPage() {
         eyebrow={t("Recruitment · F8")}
         title={t("Laporan", "Reports")}
         description={t(
-          "Analitik & prediktif rekrutmen — dashboard kesehatan PR, katalog metrik standar, adverse impact 4/5ths, proyeksi heuristik, dan tampilan tersimpan pribadi.",
-          "Recruitment analytics & predictions — PR health dashboard, standard metrics catalog, 4/5ths adverse impact, heuristic projections, and personal saved views.",
+          "Analitik & prediktif rekrutmen — dashboard kesehatan PR, katalog metrik standar, adverse impact 4/5ths, proyeksi heuristik, dokumen laporan siap cetak, dan tampilan tersimpan pribadi.",
+          "Recruitment analytics & predictions — PR health dashboard, standard metrics catalog, 4/5ths adverse impact, heuristic projections, print-ready report documents, and personal saved views.",
         )}
       />
 
       <Tabs value={tab} onValueChange={onTabChange} className="w-full">
         <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-slate-100 p-1 dark:bg-slate-900">
-          <TabsTrigger value="dashboard">{t("Dashboard", "Dashboard")}</TabsTrigger>
-          <TabsTrigger value="metrics">{t("Katalog Metrik", "Metrics Catalog")}</TabsTrigger>
-          <TabsTrigger value="adverse-impact">{t("Adverse Impact", "Adverse Impact")}</TabsTrigger>
-          <TabsTrigger value="projections">{t("Proyeksi", "Projections")}</TabsTrigger>
-          <TabsTrigger value="views">{t("Tampilan Tersimpan", "Saved Views")}</TabsTrigger>
+          <TabsTrigger value="dashboard" className="gap-1.5 text-xs font-bold"><TrendingUp className="h-3.5 w-3.5" /> {t("Dashboard", "Dashboard")}</TabsTrigger>
+          <TabsTrigger value="metrics" className="gap-1.5 text-xs font-bold"><Gauge className="h-3.5 w-3.5" /> {t("Katalog Metrik", "Metrics Catalog")}</TabsTrigger>
+          <TabsTrigger value="adverse-impact" className="gap-1.5 text-xs font-bold"><Scale className="h-3.5 w-3.5" /> {t("Adverse Impact", "Adverse Impact")}</TabsTrigger>
+          <TabsTrigger value="projections" className="gap-1.5 text-xs font-bold"><CalendarClock className="h-3.5 w-3.5" /> {t("Proyeksi", "Projections")}</TabsTrigger>
+          <TabsTrigger value="documents" className="gap-1.5 text-xs font-bold"><FolderOpen className="h-3.5 w-3.5" /> {t("Dokumen Laporan", "Report Documents")}</TabsTrigger>
+          <TabsTrigger value="views" className="gap-1.5 text-xs font-bold"><Save className="h-3.5 w-3.5" /> {t("Tampilan Tersimpan", "Saved Views")}</TabsTrigger>
         </TabsList>
 
         {/* ==================== TAB: DASHBOARD ==================== */}
@@ -970,6 +976,11 @@ export function ReportsPage() {
               </div>
             </>
           )}
+        </TabsContent>
+
+        {/* ==================== TAB: DOKUMEN LAPORAN ==================== */}
+        <TabsContent value="documents" className="mt-4 space-y-4">
+          <RecruitmentReportDocumentsTab />
         </TabsContent>
 
         {/* ==================== TAB: TAMPILAN TERSIMPAN ==================== */}

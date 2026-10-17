@@ -84,6 +84,7 @@ Portal karir (publik)                HR / Recruiter
 | `/api/rekankerja/recruitment/demographics` | demographics | Demografi + silver medalist |
 | `/api/rekankerja/recruitment/ai` | applicants/selection | Parse CV, skor, NL-search, copilot |
 | `/api/rekankerja/recruitment/reports` | reports | Dashboard/metrik/adverse-impact + export CSV/XLSX/PDF |
+| `/api/rekankerja/recruitment/reports/documents` | reports | **SB-RC-RD**: 12 laporan distribusi siap cetak (4 grup: rencana & permintaan / lowongan & sourcing / seleksi & penilaian / offer & biaya) — `?id=_params` (opsi filter) · `?id=rc11…rc43` (dokumen JSON, filter server-side) · `&export=xlsx` (op:export, ActivityLog) |
 | `/api/rekankerja/recruitment/settings` | settings | Webhook, otomasi, pref, e-sign |
 | `/api/rekankerja/recruitment/compliance` | compliance | **F9**: DSR, consent, retensi, audit PII |
 
