@@ -827,6 +827,12 @@ export const BASE_EN: Record<string, string> = {
   "Piutang Asuransi": "Insurance Receivables",
   // P2-BENCHMARK — label nav/menu fase P2
   "Polis Asuransi Grup": "Group Insurance Policies",
+  // P2-SLICE-A (P2.1 LKS BPJS) — entri i18n slice A ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P2-SLICE-B (P2.2 web push) — entri i18n slice B ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P2-SLICE-C (P2.3 panel interview) — entri i18n slice C ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P2-SLICE-D (P2.4 offer versioning) — entri i18n slice D ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P2-SLICE-E (P2.5 benefits admin) — entri i18n slice E ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P2-SLICE-F (P2.6 escalation) — entri i18n slice F ditambah tepat di bawah baris ini (jangan hapus marker).
   "Basis Pengetahuan AI": "AI Knowledge Base",
   "AI & Pengetahuan": "AI & Knowledge",
   "Provider AI": "AI Provider",
