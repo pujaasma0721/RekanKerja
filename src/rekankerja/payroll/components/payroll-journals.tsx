@@ -25,7 +25,7 @@ interface JournalsData {
 
 export function PayrollJournalsPage() {
   const { navigate } = useNav();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [detail, setDetail] = useState<JournalRow & { lines: JournalLine[] } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -164,6 +164,16 @@ export function PayrollJournalsPage() {
                             <div className="flex justify-end gap-1">
                               <a href={`/api/rekankerja/payroll-journals?export=csv&id=${j.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300">
                                 <FileDown className="h-3 w-3" /> CSV
+                              </a>
+                              {/* P1.4-BM (D-BM11) — ekspor GL ke format akuntansi eksternal. */}
+                              <a href={`/api/rekankerja/payroll-journals?export=accurate&id=${j.id}&lang=${lang}`} title={t("Ekspor jurnal ke format impor Accurate", "Export journal to Accurate import format")} className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300">
+                                <FileDown className="h-3 w-3" /> Accurate
+                              </a>
+                              <a href={`/api/rekankerja/payroll-journals?export=jurnal&id=${j.id}&lang=${lang}`} title={t("Ekspor jurnal ke format impor Jurnal.id", "Export journal to Jurnal.id import format")} className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300">
+                                <FileDown className="h-3 w-3" /> Jurnal.id
+                              </a>
+                              <a href={`/api/rekankerja/payroll-journals?export=generic&id=${j.id}&lang=${lang}`} title={t("Ekspor jurnal format umum (D/K terpisah)", "Export journal in generic format (separate D/C)")} className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300">
+                                <FileDown className="h-3 w-3" /> {t("Umum", "Generic")}
                               </a>
                               <button
                                 onClick={() => j.runId ? navigate("payroll", "run", { id: j.runId }) : openDetail(j)}

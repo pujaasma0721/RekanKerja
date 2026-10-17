@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDateTime } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
-import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
+import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,12 +16,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { PlayCircle, Plus, Calculator, CheckCircle2, Wallet, Trash2, Play, ChevronRight, Receipt, Gift, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { PlayCircle, Plus, Calculator, CheckCircle2, XCircle, Wallet, Trash2, Play, ChevronRight, Receipt, Gift, ArrowUp, ArrowDown, ArrowUpDown, Clock4 } from "lucide-react";
 import { BonusMassalDialog } from "@/rekankerja/payroll/components/bonus-massal-dialog";
 import { PeriodRow, ProcessTypeRow, RunRow, PERIOD_STATUS_LABEL, PERIOD_STATUS_LABEL_EN, RUN_STATUS_LABEL, RUN_STATUS_LABEL_EN } from "@/rekankerja/payroll/components/payroll-types";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
 import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { BankExportMenu } from "@/rekankerja/payroll/components/bank-export-menu";
+// P1.4-BM (D-BM8) — pill status run dgn gaya amber utk PendingConfirm.
+import { RunStatusPill } from "@/rekankerja/payroll/components/run-status-pill";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 
@@ -32,7 +34,7 @@ const ADV_FIELDS: AdvFieldDef<RunRow>[] = [
   txt("runNo", "Run", "Run"),
   txt("periodName", "Period", "Period", (r) => r.period?.name),
   txt("processTypeName", "Jenis Proses", "Process Type", (r) => r.processType?.name),
-  sel("status", "Status", "Status", (["Draft", "Calculated", "Confirmed", "Paid", "Cancelled"] as const).map(
+  sel("status", "Status", "Status", (["Draft", "Calculated", "PendingConfirm", "Confirmed", "Paid", "Cancelled"] as const).map(
     (s) => [s, RUN_STATUS_LABEL[s] ?? s, RUN_STATUS_LABEL_EN[s] ?? s] as [string, string, string],
   )),
   num("employeeCount", "Karyawan", "Employees"),
@@ -71,21 +73,35 @@ export function PayrollRunsPage() {
   const { data, loading, refresh } = useApi<{ runs: RunRow[] }>(url, [periodFilter, statusFilter, sortKey, sortDir]);
   const periodsApi = useApi<{ periods: PeriodRow[] }>("/api/rekankerja/payroll-periods");
 
-  const act = async (run: RunRow, action: "calculate" | "confirm" | "markPaid" | "cancel") => {
-    const labels: Record<string, string> = {
-      calculate: "Menghitung payroll…", confirm: "Mengonfirmasi run…", markPaid: "Menandai dibayar…", cancel: "Membatalkan run…",
-    };
+  const act = async (run: RunRow, action: "calculate" | "confirm" | "confirmApprove" | "confirmReject" | "markPaid" | "cancel") => {
     const confirmMsgs: Record<string, string> = {
       confirm: t("Konfirmasi run {no}? Hasil akan dikunci & angsuran pinjaman akan dipotong.", "Confirm run {no}? Results will be locked & loan installments will be deducted.", { no: run.runNo }),
+      confirmApprove: t("Setujui finalisasi run {no}? Semua jenjang persetujuan selesai → run dikonfirmasi & jurnal diposting.", "Approve finalization of run {no}? All approval levels complete → run confirmed & journal posted.", { no: run.runNo }),
       markPaid: t("Tandai {no} sebagai DIBAYAR?", "Mark {no} as PAID?", { no: run.runNo }),
       cancel: t("Batalkan run {no}? Data hasil akan dihapus.", "Cancel run {no}? Result data will be deleted.", { no: run.runNo }),
     };
     if (confirmMsgs[action] && !window.confirm(confirmMsgs[action])) return;
     setBusyId(run.id);
     try {
-      const res = await apiSend<{ summary?: { employees: number; totalNet: number } }>("/api/rekankerja/payroll-runs", "PATCH", { id: run.id, action });
+      const body: Record<string, unknown> = { id: run.id, action };
+      // P1.4-BM (D-BM8) — penolakan finalisasi WAJIB beralasan (API 400 tanpa note).
+      if (action === "confirmReject") {
+        const note = window.prompt(t("Alasan penolakan finalisasi run {no} (wajib):", "Reason for rejecting finalization of run {no} (required):", { no: run.runNo }), "");
+        if (!note || !note.trim()) {
+          toast.info(t("Penolakan dibatalkan — alasan wajib diisi.", "Rejection cancelled — a reason is required."));
+          return;
+        }
+        body.note = note.trim();
+      }
+      const res = await apiSend<{ summary?: { employees: number; totalNet: number }; status?: string; chain?: { currentLevel: number; totalLevels: number } }>("/api/rekankerja/payroll-runs", "PATCH", body);
       if (action === "calculate" && res?.summary) {
         toast.success(t("Hitung selesai — {n} karyawan, THP {v}", "Calculation completed — {n} employees, net pay {v}", { n: res.summary.employees, v: fmtIDR(res.summary.totalNet) }));
+      } else if (action === "confirm" && res?.status === "PendingConfirm") {
+        toast.success(t("Run {no} diserahkan ke persetujuan finalisasi (jenjang {c}).", "Run {no} submitted for finalization approval (level {c}).", { no: run.runNo, c: `${res.chain?.currentLevel ?? 1}/${res.chain?.totalLevels ?? 1}` }));
+      } else if (action === "confirmApprove") {
+        toast.success(t("Finalisasi run {no} disetujui", "Finalization of run {no} approved", { no: run.runNo }));
+      } else if (action === "confirmReject") {
+        toast.info(t("Finalisasi run {no} ditolak — run kembali ke Terhitung", "Finalization of run {no} rejected — run returned to Calculated", { no: run.runNo }));
       } else {
         const verb = action === "confirm" ? t("dikonfirmasi", "confirmed") : action === "markPaid" ? t("ditandai dibayar", "marked as paid") : t("dibatalkan", "cancelled");
         toast.success(t("Run {no} {v}", "Run {no} {v}", { no: run.runNo, v: verb }));
@@ -151,6 +167,7 @@ export function PayrollRunsPage() {
               <SelectItem value="all">{t("Semua Status", "All Statuses")}</SelectItem>
               <SelectItem value="Draft">{t("Draft")}</SelectItem>
               <SelectItem value="Calculated">{t("Terhitung", "Calculated")}</SelectItem>
+              <SelectItem value="PendingConfirm">{t("Menunggu Persetujuan", "Pending Confirmation")}</SelectItem>
               <SelectItem value="Confirmed">{t("Dikonfirmasi", "Confirmed")}</SelectItem>
               <SelectItem value="Paid">{t("Dibayar", "Paid")}</SelectItem>
             </SelectContent>
@@ -196,7 +213,7 @@ export function PayrollRunsPage() {
                           {!r.calculateTax && <Badge variant="outline" className="text-[9px]">{t("tanpa pajak", "no tax")}</Badge>}
                         </div>
                       </TableCell>
-                      <TableCell><StatusPill status={r.status} /></TableCell>
+                      <TableCell><RunStatusPill status={r.status} /></TableCell>
                       <TableCell className="text-center text-xs font-semibold">{r.employeeCount || "—"}</TableCell>
                       <TableCell className="text-right text-xs">{r.status === "Draft" ? "—" : fmtIDR(r.totalBruto)}</TableCell>
                       <TableCell className="text-right text-xs text-brand-deep dark:text-brand/85">{r.status === "Draft" ? "—" : fmtIDR(r.totalTax)}</TableCell>
@@ -209,6 +226,14 @@ export function PayrollRunsPage() {
                           {r.status === "Calculated" && perms.canOp("payroll", "runs", "confirm") && (
                             <RunActionButton icon={CheckCircle2} label={t("Konfirmasi")} tone="emerald" disabled={busyId === r.id} onClick={() => act(r, "confirm")} />
                           )}
+                          {/* P1.4-BM (D-BM8) — run menunggu persetujuan finalisasi:
+                              tombol keputusan approver (otorisasi chain di server). */}
+                          {r.status === "PendingConfirm" && perms.canOp("payroll", "runs", "confirm") && (
+                            <>
+                              <RunActionButton icon={Clock4} label={t("Setujui", "Approve")} tone="emerald" disabled={busyId === r.id} onClick={() => act(r, "confirmApprove")} />
+                              <RunActionButton icon={XCircle} label={t("Tolak", "Reject")} tone="rose" disabled={busyId === r.id} onClick={() => act(r, "confirmReject")} />
+                            </>
+                          )}
                           {r.status === "Confirmed" && (
                             <>
                               {perms.canOp("payroll", "runs", "markPaid") && (
@@ -219,7 +244,7 @@ export function PayrollRunsPage() {
                               )}
                             </>
                           )}
-                          {(r.status === "Draft" || r.status === "Calculated") && perms.canOp("payroll", "runs", "cancel") && (
+                          {(r.status === "Draft" || r.status === "Calculated" || r.status === "PendingConfirm") && perms.canOp("payroll", "runs", "cancel") && (
                             <RunActionButton icon={Trash2} label="" tone="rose" disabled={busyId === r.id} onClick={() => act(r, "cancel")} />
                           )}
                           <RunActionButton icon={ChevronRight} label="" tone="stone" disabled={false} onClick={() => navigate("payroll", "run", { id: r.id })} />

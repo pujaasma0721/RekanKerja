@@ -385,7 +385,7 @@ export function FamilyDialog({
   onDone: () => void;
   edit?: FamilyRow | null;
 }) {
-  const [form, setForm] = useState({ relation: "Spouse", name: "", gender: "M", birthDate: "", occupation: "", isDependent: true });
+  const [form, setForm] = useState({ relation: "Spouse", name: "", gender: "M", birthDate: "", occupation: "", isDependent: true, nationalId: "" });
   const [busy, setBusy] = useState(false);
   const { t } = useI18n();
 
@@ -396,13 +396,21 @@ export function FamilyDialog({
           relation: edit.relation, name: edit.name, gender: edit.gender,
           birthDate: isoDate(edit.birthDate), occupation: edit.occupation ?? "",
           isDependent: edit.isDependent,
+          // P1.1-BM (D-BM4) — NIK keluarga (opsional, terenkripsi at-rest; API
+          // mengembalikan nilai terdekripsi utk prefill mode ubah).
+          nationalId: "nationalId" in edit ? String(edit.nationalId ?? "") : "",
         }
-      : { relation: "Spouse", name: "", gender: "M", birthDate: "", occupation: "", isDependent: true });
+      : { relation: "Spouse", name: "", gender: "M", birthDate: "", occupation: "", isDependent: true, nationalId: "" });
   }, [open, edit]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error(t("Nama anggota keluarga wajib diisi", "Family member name is required")); return; }
+    // D-BM4 — NIK 16 digit bila diisi.
+    if (form.nationalId && !/^\d{16}$/.test(form.nationalId)) {
+      toast.error(t("NIK anggota keluarga harus 16 digit angka", "The family member's NIK must be 16 digits"));
+      return;
+    }
     setBusy(true);
     try {
       const payload = {
@@ -412,6 +420,7 @@ export function FamilyDialog({
         birthDate: form.birthDate || null,
         occupation: form.occupation.trim() || null,
         isDependent: form.isDependent,
+        nationalId: form.nationalId || null,
       };
       // Task 50: respons PATCH/POST membawa ptkpPending — saran PTKP 1 Jan
       // tahun depan (tanpa tulis) bila relasi/tanggungan berubah.
@@ -482,6 +491,18 @@ export function FamilyDialog({
           </Field>
           <Field label={t("Pekerjaan", "Occupation")} htmlFor="f-occ">
             <Input id="f-occ" value={form.occupation} onChange={(e) => setForm((f) => ({ ...f, occupation: e.target.value }))} placeholder={t("Ibu Rumah Tangga", "Homemaker")} />
+          </Field>
+          {/* P1.1-BM (D-BM4) — NIK anggota keluarga opsional (terenkripsi at-rest). */}
+          <Field label={t("NIK Anggota Keluarga (opsional)", "Family Member NIK (optional)")} htmlFor="f-nik" className="sm:col-span-2">
+            <Input
+              id="f-nik"
+              value={form.nationalId}
+              onChange={(e) => setForm((f) => ({ ...f, nationalId: e.target.value.replace(/\D/g, "").slice(0, 16) }))}
+              placeholder={t("16 digit — dipakai untuk pendaftaran BPJS", "16 digits — used for BPJS enrolment")}
+              inputMode="numeric"
+              className="font-mono"
+              aria-label={t("NIK anggota keluarga", "Family member NIK")}
+            />
           </Field>
           <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3.5 dark:border-slate-800 sm:col-span-2">
             <div>

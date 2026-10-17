@@ -1,12 +1,18 @@
 // GET /api/rekankerja/ess/leave + POST ajukan cuti (kontrak T8-ESS-FRONTEND).
 // POST me-reuse leave-service submitRequest (validasi identik jalur admin:
 // saldo, bentrok, backdate guard, maks per permintaan, waiting period).
+// P1.2-BM (D-BM5): ESS juga bisa melampirkan dokumen pendukung (SKD dsb.) —
+// upload draf entityType "LeaveRequest" lalu rebind oleh submitRequest; gate
+// needDocs berlaku identik di jalur ini (service = single funnel).
 import { NextResponse } from "next/server";
 import { requireEss, fmtIsoDate } from "@/rekankerja/ess/api/ess-auth";
 import { listBalances, listRequests, submitRequest, cancelOwnRequest, FEMALE_ONLY_LEAVE } from "@/rekankerja/leave/services/leave-service";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/rekankerja/shared/services/email-service";
 import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-service";
+import {
+  attachmentsByEntityIds, deleteDraftAttachmentsByIds,
+} from "@/rekankerja/shared/services/attachment-service";
 
 // GET — saldo cuti tahun berjalan + riwayat permintaan saya.
 export async function GET(req: Request) {
@@ -33,6 +39,10 @@ export async function GET(req: Request) {
     const haveIds = new Set(visible.map((b) => b.leaveTypeId));
     const activeTypes = await db.leaveType.findMany({ where: { active: true } });
     const female = me?.gender === "F";
+    // P1.2-BM (D-BM5) — peta needDocs utk jenis bermata uang saldo (baris
+    // BalanceRow tidak memuat flag master ini) → form ESS bisa memblokir
+    // submit tanpa lampiran utk jenis wajib dokumen (SKD dsb.).
+    const needDocsById = new Map(activeTypes.map((t) => [t.id, t.needDocs]));
     const synth = activeTypes
       .filter(
         (t) =>
@@ -52,7 +62,12 @@ export async function GET(req: Request) {
         taken: 0,
         applied: 0,
         available: t.entitlement,
+        needDocs: t.needDocs,
       }));
+
+    // P1.2-BM (D-BM5) — jumlah lampiran per permintaan (ikon paperclip di
+    // daftar riwayat "Cuti Saya"; batch 1 kueri, tanpa N+1).
+    const attachMap = await attachmentsByEntityIds(db, "LeaveRequest", requests.map((r) => r.id));
 
     return NextResponse.json({
       balances: [...visible.map((b) => ({
@@ -64,6 +79,8 @@ export async function GET(req: Request) {
         taken: b.taken,
         applied: b.applied,
         available: b.remaining,
+        // P1.2-BM (D-BM5) — flag wajib dokumen pendukung (additive).
+        needDocs: needDocsById.get(b.leaveTypeId) ?? false,
       })), ...synth],
       requests: requests.map((r) => ({
         id: r.id,
@@ -76,6 +93,8 @@ export async function GET(req: Request) {
         // Task 99 — alasan keputusan approver (reject/cancel) terlihat ESS
         // (additive; klien lama mengabaikan field tak dikenal).
         decisionNote: r.decisionNote ?? null,
+        // P1.2-BM (D-BM5) — jumlah lampiran (paperclip) permintaan saya.
+        attachmentCount: attachMap.get(r.id)?.length ?? 0,
         approval:
           r.approval && r.approval.status === "InProgress"
             ? {
@@ -92,8 +111,9 @@ export async function GET(req: Request) {
 }
 
 // POST — ajukan cuti untuk DIRI SENDIRI.
-// Body: { typeId, dateFrom, dateTo, halfDay?, reason }
+// Body: { typeId, dateFrom, dateTo, halfDay?, reason, attachmentIds? }
 // halfDay=true → sesi akhir AM (setengah hari terakhir; satu tanggal = setengah hari).
+// P1.2-BM (D-BM5): attachmentIds = id draf lampiran (SKD dsb.) pra-submit.
 export async function POST(req: Request) {
   const m = await requireEss(req);
   if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
@@ -113,6 +133,10 @@ export async function POST(req: Request) {
     }
     if (!reason.trim()) return NextResponse.json({ error: "Alasan cuti wajib diisi" }, { status: 400 });
 
+    // P1.2-BM (D-BM5) — id draf lampiran (unggah pra-submit; di-rebind server).
+    const attachmentIds: string[] = Array.isArray(b.attachmentIds)
+      ? (b.attachmentIds as unknown[]).map((x) => String(x)).filter(Boolean)
+      : [];
     const res = await submitRequest(db, {
       employeeId,
       leaveTypeId: typeId,
@@ -127,6 +151,12 @@ export async function POST(req: Request) {
       // ActivityLog submit mencatat aktor NYATA (parity jalur admin
       // leave/api/requests.ts POST yang mempassing m.actor.name).
       actorName: fullName,
+      attachmentIds,
+    }).catch(async (e: unknown) => {
+      // gagal submit → sapu draf lampiran yang dikirim (best-effort, mirror
+      // medical/api/claims.ts POST) supaya tidak menumpuk jadi draf yatim.
+      if (attachmentIds.length > 0) await deleteDraftAttachmentsByIds(db, attachmentIds);
+      throw e;
     });
 
     // Fix audit 40 §5 minor#2 — paritas jalur admin: approver jenjang PERTAMA
@@ -160,8 +190,9 @@ export async function POST(req: Request) {
     // G5: ESS leave juga memicu webhook leave.submitted (konsistensi event lintas jalur)
     void dispatchWebhookEvent(db, null, "leave.submitted", {
       docNo: res.docNo, employeeId, dateFrom, dateTo, reason, source: "ESS",
+      attachmentCount: res.attachmentCount,
     });
-    return NextResponse.json({ docNo: res.docNo, status: "Submitted" }, { status: 201 });
+    return NextResponse.json({ docNo: res.docNo, status: "Submitted", attachmentCount: res.attachmentCount }, { status: 201 });
   } catch (e) {
     // validasi bisnis leave-service (saldo/bentrok/backdate/maks) → 400 ramah
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

@@ -8,11 +8,14 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Palmtree, Plus, Send, Loader2, AlertTriangle, Clock3, CalendarRange, Undo2, Users, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { Palmtree, Plus, Send, Loader2, AlertTriangle, Clock3, CalendarRange, Undo2, Users, ChevronLeft, ChevronRight, Download, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useApi, apiSend, fmtDate } from "@/rekankerja/shared/lib/api";
+import { useApi, apiSend, apiUpload, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
+// P1.2-BM (D-BM5) — unggah dokumen pendukung (SKD dsb.) saat mengajukan cuti
+// + penanda jumlah lampiran pada riwayat (pola ESS klaim travel Task 98).
+import { AttachmentUploadArea } from "@/rekankerja/shared/components/attachment-upload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +26,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ESS_BASE, submitLeave, pickNum } from "./ess-api";
-import type { EssLeaveData } from "./ess-types";
+import type { EssLeaveData, EssLeaveSubmitInput } from "./ess-types";
+
+/** P1.2-BM (D-BM5) — body submit cuti ESS + id draf lampiran (additive: tipe
+ *  kontrak ess-types.ts milik slice lain — intersection lokal tanpa mengubahnya). */
+type EssLeaveSubmitWithAttachments = EssLeaveSubmitInput & { attachmentIds?: string[] };
+/** P1.2-BM — baris riwayat cuti saya + jumlah lampiran (additive, defensif). */
+type EssLeaveRequestWithAttachments = EssLeaveData["requests"][number] & { attachmentCount?: number };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const monthISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -96,15 +105,28 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
     halfDay: false,
     reason: "",
   });
+  // P1.2-BM (D-BM5) — file dokumen pendukung pra-submit (diunggah sebagai draf
+  // entityType "LeaveRequest" saat submit, lalu di-rebind oleh server).
+  const [files, setFiles] = useState<File[]>([]);
 
   const balances = api.data?.balances ?? [];
   const requests = api.data?.requests ?? [];
 
   // jenis yang bisa diajukan — butuh id/typeId utk submit { typeId }
+  // P1.2-BM (D-BM5): needDocs ikut (baca defensif — field backend baru) supaya
+  // form bisa memblokir submit tanpa lampiran utk jenis wajib dokumen (SKD dsb.).
   const submitTypes = useMemo(
-    () => balances.map((b) => ({ id: (b.id ?? b.typeId ?? "") as string, name: b.name, available: b.available ?? 0 })).filter((x) => x.id),
+    () => balances
+      .map((b) => ({
+        id: (b.id ?? b.typeId ?? "") as string,
+        name: b.name,
+        available: b.available ?? 0,
+        needDocs: !!(b as { needDocs?: boolean }).needDocs,
+      }))
+      .filter((x) => x.id),
     [balances],
   );
+  const selectedNeedDocs = submitTypes.find((x) => x.id === form.typeId)?.needDocs === true;
 
   const daysHint = useMemo(() => {
     const a = new Date(form.dateFrom);
@@ -194,25 +216,54 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
     return cells;
   }, [calMonth, byDay]);
 
+  // P1.2-BM (D-BM5) — unggah file sebagai draf (entityId draft:{uuid}); server
+  // me-rebind ke permintaan saat POST cuti sukses; gagal submit → draf disapu.
+  async function uploadDraftFiles(): Promise<string[]> {
+    const ids: string[] = [];
+    for (const f of files) {
+      const form = new FormData();
+      form.append("file", f);
+      form.append("entityType", "LeaveRequest");
+      form.append("entityId", `draft:${crypto.randomUUID()}`);
+      const res = await apiUpload<{ id: string }>("/api/rekankerja/attachments", form);
+      ids.push(res.id);
+    }
+    return ids;
+  }
+
   const submit = async () => {
     if (busy) return;
     if (!form.typeId) { setFormError(t("Pilih jenis cuti terlebih dahulu.", "Please choose a leave type first.")); return; }
     if (!form.dateFrom || !form.dateTo) { setFormError(t("Tanggal mulai dan selesai wajib diisi.", "Start and end dates are required.")); return; }
     if (form.dateTo < form.dateFrom) { setFormError(t("Tanggal selesai tidak boleh sebelum tanggal mulai.", "The end date cannot precede the start date.")); return; }
     if (!form.reason.trim()) { setFormError(t("Alasan cuti wajib diisi.", "A leave reason is required.")); return; }
+    // P1.2-BM (D-BM5) — mirror enforcement server: jenis needDocs wajib lampiran.
+    if (selectedNeedDocs && files.length === 0) {
+      setFormError(t("Jenis cuti ini mewajibkan dokumen pendukung (mis. surat keterangan dokter) — unggah lampiran di bawah sebelum mengajukan.", "This leave type requires supporting documents (e.g. a doctor's note) — upload an attachment below before submitting."));
+      return;
+    }
     setBusy(true);
     setFormError(null);
     try {
-      const res = await submitLeave({
+      // 1) unggah draf lampiran dulu → 2) submit cuti dgn attachmentIds.
+      const attachmentIds = await uploadDraftFiles();
+      const body: EssLeaveSubmitWithAttachments = {
         typeId: form.typeId,
         dateFrom: form.dateFrom,
         dateTo: form.dateTo,
         halfDay: form.halfDay || undefined,
         reason: form.reason.trim(),
-      });
-      toast.success(t("{doc} diajukan — status {status}", "{doc} submitted — status {status}", { doc: res.docNo, status: reqStatusLabel(res.status, t) }));
+        attachmentIds,
+      };
+      const res = await submitLeave(body);
+      const attCount = (res as { attachmentCount?: number }).attachmentCount ?? 0;
+      toast.success(
+        t("{doc} diajukan — status {status}", "{doc} submitted — status {status}", { doc: res.docNo, status: reqStatusLabel(res.status, t) }) +
+        (attCount > 0 ? t(" · {n} lampiran", " · {n} attachments", { n: attCount }) : ""),
+      );
       setDialog(false);
       setForm({ typeId: "", dateFrom: todayISO(), dateTo: todayISO(), halfDay: false, reason: "" });
+      setFiles([]);
       api.refresh();
     } catch (e) {
       // error 400 validasi server → inline di dialog (bukan toast)
@@ -355,6 +406,8 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                 const levels = r.approval?.total ?? r.approvalLevels ?? null;
                 const approver = r.approval?.currentApproverName ?? r.currentApprover ?? null;
                 const waiting = ["Submitted", "Pending", "Prepared"].includes(r.status);
+                // P1.2-BM (D-BM5) — jumlah lampiran (paperclip) permintaan saya.
+                const attCount = (r as EssLeaveRequestWithAttachments).attachmentCount ?? 0;
                 const dateText = r.dateLabel
                   ?? (r.dateFrom ? `${fmtDate(r.dateFrom)}${r.dateTo && r.dateTo !== r.dateFrom ? ` – ${fmtDate(r.dateTo)}` : ""}` : null);
                 return (
@@ -367,6 +420,11 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] text-slate-400">
                         <span>{dateText ?? "—"}</span>
                         {r.days != null && <span>· {t("{n} hari", "{n} days", { n: r.days })}</span>}
+                        {attCount > 0 && (
+                          <span className="inline-flex items-center gap-1 font-semibold text-slate-500 dark:text-slate-400" title={t("{n} lampiran dokumen pendukung", "{n} supporting document attachments", { n: attCount })}>
+                            · <Paperclip className="h-3 w-3" aria-hidden /> {attCount}
+                          </span>
+                        )}
                       </p>
                       {waiting && (step != null || levels != null || approver) && (
                         <p className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -634,6 +692,21 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                 rows={3}
                 maxLength={300}
                 placeholder={t("Tuliskan alasan cuti Anda…", "Write your leave reason…")}
+              />
+            </div>
+
+            {/* P1.2-BM (D-BM5) — unggah dokumen pendukung (SKD dsb.) pra-submit;
+                gate needDocs di-enforce server (dan diblok client di atas). */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5 text-[12.5px] font-semibold">
+                <Paperclip className="h-3.5 w-3.5" aria-hidden />
+                {t("Lampiran Dokumen Pendukung", "Supporting Document Attachments")}
+                {selectedNeedDocs && <span className="text-rose-500 dark:text-rose-400">*</span>}
+              </Label>
+              <AttachmentUploadArea
+                files={files}
+                onChange={setFiles}
+                hint={selectedNeedDocs ? t("Jenis cuti ini mewajibkan dokumen pendukung — unggah minimal 1 file (mis. foto surat keterangan dokter).", "This leave type requires supporting documents — upload at least 1 file (e.g. a photo of the doctor's note).") : undefined}
               />
             </div>
 

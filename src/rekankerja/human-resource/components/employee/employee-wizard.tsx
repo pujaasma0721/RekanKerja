@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   UserPlus, User, Briefcase, Wallet, ClipboardCheck, CheckCircle2, ChevronLeft, ChevronRight,
   Check, Pencil, Scale, AlertTriangle, Ban, FileWarning, Users2, IdCard, Lightbulb, Sparkles,
-  Loader2, ArrowRight, Building2, Trash2, Mail, FileText,
+  Loader2, ArrowRight, Building2, Trash2, Mail, FileText, Phone, Heart, Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -106,6 +106,10 @@ export function OnboardingWizard() {
     setForm((f) => ({ ...f, [k]: v }));
     setErrors((e) => (e[k] ? { ...e, [k]: "" } : e));
   };
+  // P1.1-BM (D-BM2) — kontak darurat OPSIONAL saat onboarding (0–3 baris;
+  // tambahan bisa diatur nanti di profil karyawan). Telepon terenkripsi server;
+  // baris pertama otomatis jadi kontak utama bila tak ada yang ditandai.
+  const [ecRows, setEcRows] = useState<{ name: string; relationship: string; phone: string; isPrimary: boolean }[]>([]);
 
   // restore draft on mount (once)
   useEffect(() => {
@@ -170,9 +174,16 @@ export function OnboardingWizard() {
   const back = () => { setStep((s) => Math.max(s - 1, 1)); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const submit = async () => {
+    // P1.1-BM (D-BM2) — kontak darurat opsional: tiap baris harus lengkap.
+    const ecFilled = ecRows.filter((r) => r.name.trim() || r.phone.trim());
+    if (ecFilled.some((r) => !r.name.trim() || !r.phone.trim())) {
+      toast.error(t("Lengkapi nama & telepon setiap baris kontak darurat, atau hapus barisnya", "Complete the name & phone on each emergency contact row, or remove the row"));
+      setStep(1);
+      return;
+    }
     setBusy(true);
     try {
-      const res = await apiSend<{ employee: { id: string; employeeNo: string; fullName: string } }>("/api/rekankerja/employees", "POST", {
+      const res = await apiSend<{ employee: { id: string; employeeNo: string; fullName: string }; npwpWarning?: boolean }>("/api/rekankerja/employees", "POST", {
         ...form,
         baseSalary: Number(form.baseSalary) || 0,
         birthDate: form.birthDate || null,
@@ -185,12 +196,23 @@ export function OnboardingWizard() {
         contractStart: form.contractStart || null,
         contractEnd: form.contractEnd || null,
         renewalCount: Number(form.renewalCount) || 0,
+        // P1.1-BM (D-BM2) — kontak darurat opsional (telepon dienkripsi server;
+        // baris pertama otomatis utama bila tak ada yang ditandai — server-side).
+        emergencyContacts: ecFilled.map((r) => ({ name: r.name.trim(), relationship: r.relationship, phone: r.phone.trim(), isPrimary: r.isPrimary })),
       });
       setCreated(res.employee);
       setStep(5);
       try { localStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
       setDraftAt(null);
       toast.success(t("Karyawan {no} berhasil di-onboard", "Employee {no} successfully onboarded", { no: res.employee.employeeNo }));
+      // P1.1-BM (D-BM3) — NPWP advisori: format salah (bukan 15/16 digit)
+      // → warning; data TETAP tersimpan (tidak memblokir).
+      if (res.npwpWarning) {
+        toast.warning(t(
+          "Format NPWP bukan 15/16 digit — periksa kembali. Data tetap disimpan.",
+          "The NPWP format is not 15/16 digits — please double-check. The data is still saved.",
+        ));
+      }
     } catch (e) {
       toast.error((e as Error).message);
     } finally { setBusy(false); }
@@ -198,6 +220,7 @@ export function OnboardingWizard() {
 
   const reset = () => {
     setForm(EMPTY_FORM);
+    setEcRows([]);
     setCreated(null);
     setErrors({});
     setStep(1);
@@ -371,6 +394,94 @@ export function OnboardingWizard() {
                     <Field label={t("Kota", "City")}>
                       <Input value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="Surabaya" className="h-9" />
                     </Field>
+                  </div>
+
+                  {/* P1.1-BM (D-BM2) — kontak darurat opsional (0–3 baris) */}
+                  <div className="rounded-xl border border-slate-200/90 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-900/40">
+                    <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        <Heart className="h-3.5 w-3.5 text-rose-500" aria-hidden /> {t("Kontak Darurat (Opsional)", "Emergency Contact (Optional)")}
+                      </p>
+                      {ecRows.length < 3 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEcRows((rows) => [...rows, { name: "", relationship: "Pasangan", phone: "", isPrimary: rows.length === 0 }])}
+                          className="h-7 gap-1 rounded-lg px-2.5 text-[11px] font-bold"
+                        >
+                          <Plus className="h-3 w-3" /> {t("Tambah Kontak", "Add Contact")}
+                        </Button>
+                      )}
+                    </div>
+                    {ecRows.length === 0 ? (
+                      <p className="py-1.5 text-[11px] leading-relaxed text-slate-400">
+                        {t("Dihubungi perusahaan saat keadaan darurat — bisa dilengkapi nanti di profil karyawan.", "Contacted by the company during emergencies — can be completed later on the employee profile.")}
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {ecRows.map((row, i) => (
+                          <div key={i} className="grid gap-x-4 gap-y-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-[1fr_150px_1fr_auto]">
+                            <Field label={t("Nama", "Name")}>
+                              <Input
+                                value={row.name}
+                                onChange={(e) => setEcRows((rows) => rows.map((r, j) => j === i ? { ...r, name: e.target.value } : r))}
+                                placeholder={t("mis. Sinta Rahayu", "e.g. Sinta Rahayu")}
+                                className="h-9"
+                                aria-label={t("Nama kontak darurat ke-{n}", "Emergency contact #{n} name", { n: String(i + 1) })}
+                              />
+                            </Field>
+                            <Field label={t("Hubungan", "Relationship")}>
+                              <Select value={row.relationship} onValueChange={(v) => setEcRows((rows) => rows.map((r, j) => j === i ? { ...r, relationship: v } : r))}>
+                                <SelectTrigger className="h-9" aria-label={t("Hubungan kontak darurat ke-{n}", "Emergency contact #{n} relationship", { n: String(i + 1) })}><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {["Pasangan", "Anak", "Orang Tua", "Saudara", "Lainnya"].map((r) => (
+                                    <SelectItem key={r} value={r}>{t(r, r === "Pasangan" ? "Spouse" : r === "Anak" ? "Child" : r === "Orang Tua" ? "Parent" : r === "Saudara" ? "Sibling" : "Other")}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </Field>
+                            <Field label={t("Telepon", "Phone")}>
+                              <div className="relative">
+                                <Phone className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" aria-hidden />
+                                <Input
+                                  value={row.phone}
+                                  onChange={(e) => setEcRows((rows) => rows.map((r, j) => j === i ? { ...r, phone: e.target.value } : r))}
+                                  placeholder="0813 8765 4321"
+                                  inputMode="tel"
+                                  className="h-9 pl-8"
+                                  aria-label={t("Telepon kontak darurat ke-{n}", "Emergency contact #{n} phone", { n: String(i + 1) })}
+                                />
+                              </div>
+                            </Field>
+                            <div className="flex items-end gap-1.5 pb-0.5">
+                              <button
+                                type="button"
+                                onClick={() => setEcRows((rows) => rows.map((r, j) => j === i ? { ...r, isPrimary: !r.isPrimary } : r))}
+                                className={cn("h-9 rounded-lg border px-2 text-[10px] font-bold transition", row.isPrimary
+                                  ? "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400"
+                                  : "border-slate-200 text-slate-400 dark:border-slate-700")}
+                                aria-pressed={row.isPrimary}
+                                aria-label={t("Tandai kontak darurat ke-{n} sebagai utama", "Mark emergency contact #{n} as primary", { n: String(i + 1) })}
+                              >
+                                {t("Utama", "Primary")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEcRows((rows) => rows.filter((_, j) => j !== i))}
+                                className="h-9 rounded-lg px-2 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
+                                aria-label={t("Hapus baris kontak darurat ke-{n}", "Remove emergency contact row #{n}", { n: String(i + 1) })}
+                              >
+                                <Trash2 className="h-4 w-4" aria-hidden />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <p className="text-[11px] leading-relaxed text-slate-400">
+                          {t("Dihubungi perusahaan saat keadaan darurat — bisa dilengkapi nanti di profil karyawan.", "Contacted by the company during emergencies — can be completed later on the employee profile.")}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -561,6 +672,9 @@ export function OnboardingWizard() {
                     [t("Status"), form.maritalStatus ? t(form.maritalStatus, MARITAL_STATUSES_EN[form.maritalStatus] ?? form.maritalStatus) : "—"], [t("Agama", "Religion"), form.religion ? t(form.religion, RELIGIONS_EN[form.religion] ?? form.religion) : "—"], [t("Gol. Darah", "Blood Type"), form.bloodType || "—"],
                     [t("Email"), form.email || "—"], [t("Telepon"), form.phone || "—"],
                     [t("Alamat"), [form.address, form.city].filter(Boolean).join(", ") || "—"],
+                    [t("Kontak Darurat", "Emergency Contact"), ecRows.filter((r) => r.name.trim() || r.phone.trim()).length > 0
+                      ? ecRows.map((r, i) => `${i + 1}. ${r.name.trim() || "?"} (${r.relationship}) · ${r.phone.trim() || "?"}`).join(" · ")
+                      : "—"],
                   ]} />
                   <ReviewSection icon={Briefcase} title={t("Info Pekerjaan", "Job Details")} onEdit={() => setStep(2)} items={[
                     [t("Unit Organisasi"), selectedUnit?.name ?? "—"], [t("Posisi"), selectedPosition?.title ?? "—"],

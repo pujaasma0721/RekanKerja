@@ -20,6 +20,11 @@ import {
   effectiveEntitlement, leaveTypeRules, entitlementFor,
 } from "@/rekankerja/leave/services/entitlement";
 import { ruleContextMap, ruleContextForEmployee } from "@/rekankerja/shared/services/employee-rule-context";
+// P1.2-BM (D-BM5) — lampiran permintaan cuti (SKD surat dokter dsb.): pola
+// draft-upload → rebind T16-ATTACH yang sama dgn klaim travel/medical.
+import {
+  bindDraftAttachments, countDraftAttachmentsByIds,
+} from "@/rekankerja/shared/services/attachment-service";
 
 // ============ util ============
 
@@ -124,6 +129,8 @@ interface TypeLite {
   maxPerRequest: number; paid: boolean; cashable: boolean; periodMode: string;
   prorateMonthly: boolean; carryOverMax: number; waitingMonths: number;
   allowAdvance: boolean; allowHalfDay: boolean; active: boolean;
+  // P1.2-BM (D-BM5) — jenis wajib dokumen pendukung (gate lampiran submit).
+  needDocs: boolean;
   // Task 99 — policy v2 ringan (audit Leave G10): notice period, batas hari
   // berturut lintas permintaan, blackout dates. Default 0/[] = tanpa batas.
   noticeDays: number; maxConsecutiveDays: number; blackoutDates: string;
@@ -702,6 +709,9 @@ export interface SubmitRequestInput {
   note?: string;
   source?: string; // Admin|ESS
   actorName?: string; // pelapor (chain.createdBy)
+  /** P1.2-BM (D-BM5) — id draf lampiran (entityType "LeaveRequest") yang
+   *  diunggah pra-submit; di-rebind ke permintaan yang baru dibuat. */
+  attachmentIds?: string[];
 }
 
 export interface SubmitRequestResult {
@@ -711,6 +721,8 @@ export interface SubmitRequestResult {
   backToWork: string | null;
   approvalLevels: number;
   firstApprover: string | null;
+  /** P1.2-BM (D-BM5) — jumlah lampiran yang ter-rebind ke permintaan ini. */
+  attachmentCount: number;
 }
 
 /** Nomor dokumen berikutnya per prefix (LR/ML/LE) — max-suffix, bukan count+1,
@@ -807,6 +819,26 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
   if (!type || !type.active) throw new Error("Jenis cuti tidak ditemukan / tidak aktif");
   // Task 52-a — cuti khusus pekerja perempuan (melahirkan/keguguran/haid).
   assertGenderEligible(type, emp.gender);
+
+  // ===== P1.2-BM (D-BM5) — gate lampiran dokumen pendukung =====
+  // Jenis needDocs (mis. CT-SAKIT wajib SKD) TIDAK boleh diajukan tanpa
+  // lampiran — berlaku identik di jalur admin & ESS (single funnel ini).
+  // File diunggah PRA-submit ke /api/rekankerja/attachments (entityId
+  // "draft:{uuid}") lalu di-rebind ke permintaan setelah create sukses.
+  const attachmentIds = (input.attachmentIds ?? []).filter((x) => typeof x === "string" && x.trim()).map((x) => x.trim());
+  if (type.needDocs && attachmentIds.length === 0) {
+    throw new Error(
+      `Jenis cuti ${type.name} mewajibkan dokumen pendukung — unggah lampiran (JPG/PNG/WEBP/PDF, maks 5 MB) sebelum mengajukan cuti`,
+    );
+  }
+  // validasi draf: SEMUA id harus benar-benar draf LeaveRequest yang siap
+  // di-rebind (bukan id palsu / lampiran milik klaim lain / sudah ter-bound).
+  if (attachmentIds.length > 0) {
+    const draftCount = await countDraftAttachmentsByIds(db, "LeaveRequest", attachmentIds);
+    if (draftCount !== attachmentIds.length) {
+      throw new Error("Lampiran tidak valid — unggah ulang file lampiran lalu ajukan kembali");
+    }
+  }
 
   const from = dayStart(new Date(input.dateFrom));
   const to = dayStart(new Date(input.dateTo));
@@ -913,10 +945,15 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
     docType: "Leave", docId: created.id, employeeId: input.employeeId,
     createdBy: input.actorName ?? null,
   });
+  // P1.2-BM (D-BM5) — rebind draf lampiran ke permintaan yang baru dibuat
+  // (hanya baris draf entityType "LeaveRequest" — id final tidak bisa dibajak).
+  const boundAttachments = attachmentIds.length > 0
+    ? await bindDraftAttachments(db, "LeaveRequest", attachmentIds, created.id)
+    : 0;
   await db.activityLog.create({
     data: {
       action: "Submitted", entity: "LeaveRequest", entityId: docNo,
-      detail: `${docNo}: ${emp.fullName} — ${type.name} ${fmtDate(from)} → ${fmtDate(to)} (${calc.workingDays} hari) — approval berjenjang ${chain.totalLevels} level`,
+      detail: `${docNo}: ${emp.fullName} — ${type.name} ${fmtDate(from)} → ${fmtDate(to)} (${calc.workingDays} hari) — approval berjenjang ${chain.totalLevels} level${boundAttachments > 0 ? ` — ${boundAttachments} lampiran` : ""}`,
     },
   });
   return {
@@ -924,6 +961,7 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
     backToWork: calc.backToWork ? iso(calc.backToWork) : null,
     approvalLevels: chain.totalLevels,
     firstApprover: chain.steps[0]?.approverLabel ?? null,
+    attachmentCount: boundAttachments,
   };
 }
 

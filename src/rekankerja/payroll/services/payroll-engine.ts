@@ -187,6 +187,13 @@ export interface EngineRow {
   // periodWorkingDaysFull = hari kerja period penuh (penyebut faktor).
   periodWorkingDays?: number;
   periodWorkingDaysFull?: number;
+  // P1.4-BM (D-BM13) — JAM SHIFT MALAM karyawan dalam period (jendela
+  // 22:00–06:00, jam 2 desimal) dihitung payroll-service dari clock nyata
+  // AttendanceDaily (satu kueri batch per run — night-hours.ts). Variabel
+  // formula NIGHT_HOURS tersedia untuk komponen opsional NIGHT_PREM
+  // (formula seed: NIGHT_HOURS*BASE_SALARY/173 — PP 35/2021 1/173 basis jam).
+  // Undefined/0 = karyawan tanpa jam malam (formula tetap dievaluasi → 0).
+  nightHours?: number;
 }
 
 export interface EngineItem {
@@ -348,9 +355,15 @@ export function progressiveTax(pkp: number, brackets: EngineBracket[], hasNpwp: 
   return tax;
 }
 
-const floorToThousand = (n: number) => Math.floor(n / 1000) * 1000;
+// Pembulatan PKP ke bawah kelipatan Rp 1.000 (UU PPh Pasal 17 — PKP dibulatkan
+// penuh ribuan). P1.4-BM: diekspor utk simulasi THP (D-BM9) agar simulasi
+// memakai fungsi yang SAMA dgn run nyata (perubahan behavior-neutral).
+export const floorToThousand = (n: number) => Math.floor(n / 1000) * 1000;
 
-function terRateFor(brutoMonthly: number, taxStatus: string, ter: EngineTer[]): number | null {
+/** Rate TER resmi utk (bruto bulanan, status PTKP) — null bila tabel tidak
+ *  memuat lapisan utk nilai tsb (engine jatuh ke Pasal 17 + warning D-4).
+ *  P1.4-BM: diekspor utk simulasi THP (D-BM9) — fungsi yang sama dgn run. */
+export function terRateFor(brutoMonthly: number, taxStatus: string, ter: EngineTer[]): number | null {
   const cat = terCategoryOf(taxStatus);
   const rows = ter.filter((t) => t.category === cat).sort((a, b) => a.lowerLimit - b.lowerLimit);
   for (const t of rows) {
@@ -461,6 +474,9 @@ export function runPayroll(
       JPK_RATE_CO: reg.jpkCompanyRate, JPK_RATE_EMP: reg.jpkEmployeeRate,
       JKP_BASE: jkpBase, JKP_RATE_CO: reg.jkpCompanyRate, JKP_RATE_EMP: reg.jkpEmployeeRate,
       PTKP_VALUE: ptkpValue,
+      // P1.4-BM (D-BM13) — jam shift malam karyawan period (0 bila tanpa data
+      // clock malam) — variabel formula komponen NIGHT_PREM (opsional/tenant).
+      NIGHT_HOURS: row.nightHours ?? 0,
     };
 
     // --- 2. Komponen upah (Fixed/Formula/Percentage; Tax dihitung belakangan) ---

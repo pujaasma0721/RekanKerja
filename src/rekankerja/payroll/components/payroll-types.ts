@@ -79,6 +79,28 @@ export interface RunDetail {
   componentTotals: { code: string; name: string; type: string; wageType: string; total: number }[];
   /** Task 63 — log kejadian run (parameter kurang/anomali/info proses). */
   logs?: RunLog[];
+  /** P1.4-BM (D-BM8) — chain persetujuan finalisasi (hanya saat PendingConfirm). */
+  approvalChain?: ApprovalChainView;
+}
+
+export interface ApprovalChainView {
+  id: string;
+  docType: string;
+  docId: string;
+  status: string;
+  currentLevel: number;
+  totalLevels: number;
+  amount: number | null;
+  steps: {
+    levelNo: number;
+    approverType: string;
+    approverLabel: string;
+    approverEmployeeId: string | null;
+    status: string;
+    note: string | null;
+    decidedBy: string | null;
+    decidedAt: string | null;
+  }[];
 }
 
 export interface RunLog {
@@ -288,7 +310,8 @@ export const PERIOD_STATUS_LABEL: Record<string, string> = {
 };
 
 export const RUN_STATUS_LABEL: Record<string, string> = {
-  Draft: "Draft", Calculated: "Terhitung", Confirmed: "Dikonfirmasi", Paid: "Dibayar", Cancelled: "Dibatalkan",
+  Draft: "Draft", Calculated: "Terhitung", PendingConfirm: "Menunggu Persetujuan",
+  Confirmed: "Dikonfirmasi", Paid: "Dibayar", Cancelled: "Dibatalkan",
 };
 
 export const TAX_STATUS_OPTIONS: { value: string; label: string; ptkp: number }[] = [
@@ -310,6 +333,8 @@ export const FORMULA_VARIABLES = [
   { name: "BASE_SALARY", desc: "Gaji pokok dari penempatan aktif karyawan" },
   { name: "WORKING_DAYS", desc: "Hari kerja period (Senin–Jumat)" },
   { name: "PRORATE", desc: "Faktor prorata masa kerja (0–1)" },
+  // P1.4-BM (D-BM13) — jam shift malam (jendela 22:00–06:00) dari presensi nyata.
+  { name: "NIGHT_HOURS", desc: "Jam shift malam karyawan dalam period (22:00–06:00, presensi nyata) — komponen NIGHT_PREM" },
   { name: "BPJS_BASE", desc: "Basis BPJS (= gaji pokok)" },
   { name: "JHT_BASE", desc: "Basis JHT (tanpa batas)" },
   { name: "JP_BASE", desc: "Basis JP (dibatasi cap regulasi)" },
@@ -339,7 +364,8 @@ export const PERIOD_STATUS_LABEL_EN: Record<string, string> = {
 };
 
 export const RUN_STATUS_LABEL_EN: Record<string, string> = {
-  Draft: "Draft", Calculated: "Calculated", Confirmed: "Confirmed", Paid: "Paid", Cancelled: "Cancelled",
+  Draft: "Draft", Calculated: "Calculated", PendingConfirm: "Pending Confirmation",
+  Confirmed: "Confirmed", Paid: "Paid", Cancelled: "Cancelled",
 };
 
 export const TAX_STATUS_OPTION_EN: Record<string, string> = {

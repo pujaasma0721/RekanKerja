@@ -20,12 +20,16 @@ import { NonEmployeePaymentsPage } from "@/rekankerja/payroll/components/non-emp
 import { PayrollReportsPage } from "@/rekankerja/payroll/components/reports/payroll-reports-view";
 // B5-BL — benchmark gaji pasar (D-BL16/D-BL17): master impor survei + kompa-ratio.
 import { PayrollBenchmarkPage } from "@/rekankerja/payroll/components/payroll-benchmark";
+// P1.4-BM (D-BM9) — simulasi THP stateless (engine TER + Pasal 17 yang sama).
+import { PayrollSimulationPage } from "@/rekankerja/payroll/components/payroll-simulation";
 
 export function PayrollModule({ view }: { view: string }) {
   switch (view) {
     case "periods": return <PayrollPeriodsPage />;
     case "runs": return <PayrollRunsPage />;
     case "run": return <PayrollRunDetailPage />;
+    // P1.4-BM (D-BM9) — nav "simulation" (id terdaftar di app-shell PAYROLL_NAV).
+    case "simulation": return <PayrollSimulationPage />;
     case "components": return <WageComponentsPage />;
     case "templates": return <PayrollTemplatesPage />;
     case "profiles": return <PayrollProfilesPage />;

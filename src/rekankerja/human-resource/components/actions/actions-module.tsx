@@ -30,12 +30,19 @@ import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
 import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { LetterTemplatesView } from "./letter-templates-view";
 import { LetterPreviewDialog } from "../employee/letter-preview-dialog";
+// P1.1-BM (D-BM1) — register pengajuan ubah data diri ESS. Nav item
+// "profile-changes" terdaftar di seksi ACTIONS (HR_NAV Phase 0) sehingga
+// router section actions yang memanggilnya; komponen + mount router-nya ada
+// di employee-module.tsx (di-delegasikan — satunya sumber implementasi).
+import { ProfileChangesView } from "../employee/employee-module";
 
 export function ActionsModule({ view }: { view: string }) {
   const { params } = useNav();
   // Task 3-LETTERS: view "templates" (Dokumen & Surat → Template Surat) —
   // dicek PERTAMA agar tidak tertelan params.id detail pengajuan.
   if (view === "templates") return <LetterTemplatesView />;
+  // P1.1-BM (D-BM1) — dicek sebelum params.id agar tidak tertelan detail PA.
+  if (view === "profile-changes") return <ProfileChangesView />;
   if (params.id) return <ActionDetail />;
   if (view === "inbox") return <ApprovalInbox />;
   return <AllDocuments />;

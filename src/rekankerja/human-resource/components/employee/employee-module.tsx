@@ -33,7 +33,7 @@ import {
   Users, Search, ChevronLeft, ChevronRight, ArrowLeft, Mail, Phone, MapPin, Pencil,
   User, Briefcase, Heart, GraduationCap, History, Scale, Plus, Trash2, Calendar, IdCard,
   Landmark, Banknote, Clock3, ArrowRight, Building2, FileText, LogOut, OctagonX, FileWarning,
-  ClipboardEdit,
+  ClipboardEdit, CheckCircle2, XCircle, Loader2, PhoneCall, UserRoundCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -48,6 +48,9 @@ export function EmployeeModule({ view }: { view: string }) {
   if (view === "offboarding") return <OffboardingModule />;
   // Task 65 — checklist onboarding per bagian (proses penyambutan karyawan baru)
   if (view === "onboarding-checklist") return <OnboardingChecklistModule />;
+  // P1.1-BM (D-BM1) — register pengajuan ubah data diri dari ESS (nav HR
+  // section "Pengajuan & Persetujuan" → id "profile-changes").
+  if (view === "profile-changes") return <ProfileChangesView />;
   if (view === "detail") return <EmployeeDetail />;
   return <DirectoryView />;
 }
@@ -105,7 +108,9 @@ interface DetailEmp {
   workLocation?: { code: string; name: string; city: string | null } | null;
   manager: { id: string; fullName: string; employeeNo: string; photoUrl: string | null; position: { title: string } | null } | null;
   directReports: { id: string; fullName: string; employeeNo: string; photoUrl: string | null; status: string; position: { title: string } | null }[];
-  family: { id: string; relation: string; name: string; gender: string; birthDate: string | null; occupation: string | null; isDependent: boolean }[];
+  family: { id: string; relation: string; name: string; gender: string; birthDate: string | null; occupation: string | null; isDependent: boolean; nationalId: string | null }[];
+  // P1.1-BM (D-BM2) — kontak darurat (telepon didekripsi di batas API).
+  emergencyContacts: { id: string; name: string; relationship: string; phone: string; address: string | null; isPrimary: boolean; notes: string | null }[];
   education: { id: string; level: string; institution: string; major: string | null; startYear: number | null; endYear: number | null; gpa: number | null }[];
   experiences: { id: string; company: string; position: string; startDate: string | null; endDate: string | null; notes: string | null }[];
   disciplinary: { id: string; warningLevel: string; violation: string; sanction: string | null; issuedAt: string; expiresAt: string | null; notes: string | null }[];
@@ -171,6 +176,9 @@ function EmployeeDetail() {
   const openOffboarding = obBanner.data?.offboardings.find((o) => o.status === "Open") ?? null;
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState("personal");
+  // P1.1-BM (D-BM2) — dialog tambah/ubah kontak darurat di tab Personal.
+  const [ecOpen, setEcOpen] = useState(false);
+  const [ecEdit, setEcEdit] = useState<DetailEmp["emergencyContacts"][number] | null>(null);
   // Task 69 — perbaikan data pekerjaan tanpa Personnel Action (human error):
   // "Ubah Penempatan" (versi baru riwayat) + koreksi baris riwayat per langkah.
   const canUpdate = perms.can("hr", "directory", "update");
@@ -347,24 +355,90 @@ function EmployeeDetail() {
         </TabsList>
 
         <TabsContent value="personal">
-          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-            <CardContent className="p-6">
-              <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                <InfoItem icon={IdCard} label={t("NIK (KTP)", "NIK (ID Card)")} value={e.nationalId ?? "—"} mono />
-                <InfoItem icon={IdCard} label={t("NPWP")} value={e.taxId ?? "—"} mono />
-                <InfoItem icon={Heart} label={t("Status Pernikahan", "Marital Status")} value={e.maritalStatus ?? "—"} />
-                <InfoItem icon={User} label={t("Jenis Kelamin", "Gender")} value={genderLabel(e.gender)} />
-                <InfoItem icon={Calendar} label={t("Tempat, Tgl Lahir", "Place & Date of Birth")} value={[e.birthPlace, fmtDate(e.birthDate)].filter(Boolean).join(", ") || "—"} />
-                <InfoItem icon={User} label={t("Agama", "Religion")} value={e.religion ?? "—"} />
-                <InfoItem icon={Plus} label={t("Gol. Darah", "Blood Type")} value={e.bloodType ?? "—"} />
-                <InfoItem icon={Landmark} label={t("BPJS Kesehatan", "BPJS Health")} value={e.bpjsHealth ?? "—"} mono />
-                <InfoItem icon={Landmark} label={t("BPJS Ketenagakerjaan", "BPJS Employment")} value={e.bpjsEmpSkill ?? "—"} mono />
-                <InfoItem icon={Landmark} label={t("Bank")} value={e.bankName ?? "—"} />
-                <InfoItem icon={Landmark} label={t("No. Rekening", "Account No.")} value={e.bankAccount ?? "—"} mono />
-                <InfoItem icon={MapPin} label={t("Alamat")} value={[e.address, e.city].filter(Boolean).join(", ") || "—"} span />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+              <CardContent className="p-6">
+                <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                  <InfoItem icon={IdCard} label={t("NIK (KTP)", "NIK (ID Card)")} value={e.nationalId ?? "—"} mono />
+                  <InfoItem icon={IdCard} label={t("NPWP")} value={e.taxId ?? "—"} mono />
+                  <InfoItem icon={Heart} label={t("Status Pernikahan", "Marital Status")} value={e.maritalStatus ?? "—"} />
+                  <InfoItem icon={User} label={t("Jenis Kelamin", "Gender")} value={genderLabel(e.gender)} />
+                  <InfoItem icon={Calendar} label={t("Tempat, Tgl Lahir", "Place & Date of Birth")} value={[e.birthPlace, fmtDate(e.birthDate)].filter(Boolean).join(", ") || "—"} />
+                  <InfoItem icon={User} label={t("Agama", "Religion")} value={e.religion ?? "—"} />
+                  <InfoItem icon={Plus} label={t("Gol. Darah", "Blood Type")} value={e.bloodType ?? "—"} />
+                  <InfoItem icon={Landmark} label={t("BPJS Kesehatan", "BPJS Health")} value={e.bpjsHealth ?? "—"} mono />
+                  <InfoItem icon={Landmark} label={t("BPJS Ketenagakerjaan", "BPJS Employment")} value={e.bpjsEmpSkill ?? "—"} mono />
+                  <InfoItem icon={Landmark} label={t("Bank")} value={e.bankName ?? "—"} />
+                  <InfoItem icon={Landmark} label={t("No. Rekening", "Account No.")} value={e.bankAccount ?? "—"} mono />
+                  <InfoItem icon={MapPin} label={t("Alamat")} value={[e.address, e.city].filter(Boolean).join(", ") || "—"} span />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* P1.1-BM (D-BM2) — kontak darurat: daftar + CRUD di profil HR */}
+            <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+              <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <PhoneCall className="h-4 w-4 text-rose-500" aria-hidden /> {t("Kontak Darurat", "Emergency Contacts")}
+                </CardTitle>
+                {perms.can("hr", "directory", "create") && (
+                  <Button variant="outline" size="sm" onClick={() => { setEcEdit(null); setEcOpen(true); }} className="gap-1.5 text-xs font-bold">
+                    <Plus className="h-3.5 w-3.5" /> {t("Tambah Kontak", "Add Contact")}
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-2.5 pt-0">
+                {e.emergencyContacts.length > 0 ? e.emergencyContacts.map((c) => (
+                  <div key={c.id} className="group flex items-center gap-3 rounded-xl border border-slate-100 p-3.5 transition hover:ov-border-accent dark:border-slate-800">
+                    <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", c.isPrimary ? "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}
+                      aria-hidden
+                    >
+                      <UserRoundCheck className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800 dark:text-slate-200">
+                        {c.name}
+                        {c.isPrimary && <Badge variant="outline" className="rounded-full px-1.5 text-[9px] font-bold text-rose-600 dark:text-rose-400">{t("Utama", "Primary")}</Badge>}
+                      </p>
+                      <p className="truncate text-[11px] text-slate-400">
+                        {c.relationship} · <span className="font-mono">{c.phone}</span>{c.address ? ` · ${c.address}` : ""}
+                      </p>
+                    </div>
+                    {perms.can("hr", "directory", "update") && (
+                      <button
+                        onClick={() => { setEcEdit(c); setEcOpen(true); }}
+                        className="rounded-lg p-2 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                        aria-label={t("Ubah kontak darurat {n}", "Edit emergency contact {n}", { n: c.name })}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                    {perms.can("hr", "directory", "delete") && (
+                      <button
+                        onClick={() => { void (async () => {
+                          try {
+                            await apiSend(`/api/rekankerja/family?kind=emergency&id=${c.id}`, "DELETE");
+                            toast.success(t("Kontak darurat dihapus", "Emergency contact deleted"));
+                            refresh();
+                          } catch (err) { toast.error((err as Error).message); }
+                        })(); }}
+                        className="rounded-lg p-2 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
+                        aria-label={t("Hapus kontak darurat {n}", "Delete emergency contact {n}", { n: c.name })}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                )) : (
+                  <EmptyState
+                    title={t("Belum ada kontak darurat", "No emergency contacts yet")}
+                    description={t("Tambahkan orang yang dapat dihubungi perusahaan saat keadaan darurat.", "Add people the company can contact during emergencies.")}
+                    icon={PhoneCall}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="work">
@@ -477,7 +551,8 @@ function EmployeeDetail() {
             items={e.family.map((f) => ({
               id: f.id,
               title: f.name,
-              subtitle: `${f.relation} · ${f.gender === "F" ? t("Perempuan", "Female") : t("Laki-laki", "Male")}${f.birthDate ? ` · ${fmtDate(f.birthDate)}` : ""}`,
+              // P1.1-BM (D-BM4) — NIK keluarga tampil TERMASK (pola NIK list).
+              subtitle: `${f.relation} · ${f.gender === "F" ? t("Perempuan", "Female") : t("Laki-laki", "Male")}${f.birthDate ? ` · ${fmtDate(f.birthDate)}` : ""}${f.nationalId ? ` · NIK ${f.nationalId.slice(0, 2)}••••••••${f.nationalId.slice(-4)}` : ""}`,
               right: [f.occupation ?? "", f.isDependent ? t("Dependen", "Dependent") : t("Non-dependen", "Non-dependent")].filter(Boolean).join(" · ") || "—",
               onDelete: async () => {
                 // Task 50: hapus keluarga TIDAK mengubah PTKP efektif — saran
@@ -629,6 +704,15 @@ function EmployeeDetail() {
       </Tabs>
 
       <EditEmployeeDialog open={editOpen} setOpen={(v) => { setEditOpen(v); if (!v) refresh(); }} employee={e} />
+      {/* P1.1-BM (D-BM2) — dialog tambah/ubah kontak darurat (tab Personal). */}
+      <EmergencyContactDialog
+        key={ecEdit?.id ?? "new"}
+        open={ecOpen}
+        setOpen={(v) => { setEcOpen(v); if (!v) setEcEdit(null); }}
+        employeeId={e.id}
+        edit={ecEdit}
+        onSaved={() => refresh()}
+      />
       {/* Task 69 — ubah penempatan aktif (tanpa PA; tercatat sbg riwayat ManualEdit) */}
       {canUpdate && placementOpen && (
         <PlacementChangeDialog
@@ -971,16 +1055,23 @@ function AddFamilyDialog({ employeeId, onSaved }: { employeeId: string; onSaved:
   const [name, setName] = useState("");
   const [gender, setGender] = useState("F");
   const [occupation, setOccupation] = useState("");
+  // P1.1-BM (D-BM4) — NIK anggota keluarga opsional (fondasi BPJS family P2.1).
+  const [nationalId, setNationalId] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(true);
   const submit = async () => {
     if (!name.trim()) { toast.error(t("Nama wajib diisi", "Name is required")); return; }
+    // D-BM4 — 16 digit bila diisi (disamarkan at-rest; tampil masked di daftar).
+    if (nationalId && !/^\d{16}$/.test(nationalId)) {
+      toast.error(t("NIK anggota keluarga harus 16 digit angka", "The family member's NIK must be 16 digits"));
+      return;
+    }
     setBusy(true);
     try {
       // Task 50: respons membawa ptkpPending (profil bersumber "auto") —
       // saran dari data keluarga BARU, TANPA menulis PTKP efektif: perubahan
       // berlaku pada refresh 1 Januari tahun berikutnya.
-      const r = (await apiSend("/api/rekankerja/family", "POST", { employeeId, relation, name, gender, occupation: occupation || null })) as { ptkpPending?: { current: string; next: string; nextYear: number } | null };
+      const r = (await apiSend("/api/rekankerja/family", "POST", { employeeId, relation, name, gender, occupation: occupation || null, nationalId: nationalId || null })) as { ptkpPending?: { current: string; next: string; nextYear: number } | null };
       if (r?.ptkpPending && r.ptkpPending.next !== r.ptkpPending.current) {
         toast.success(t(
           "Anggota keluarga ditambahkan — PTKP akan menjadi {s} pada 1 Jan {y} (perubahan berlaku tahun depan)",
@@ -1019,6 +1110,18 @@ function AddFamilyDialog({ employeeId, onSaved }: { employeeId: string; onSaved:
           <div className="sm:col-span-2">
             <Label className="text-xs">{t("Pekerjaan", "Occupation")}</Label>
             <Input value={occupation} onChange={(e) => setOccupation(e.target.value)} className="mt-1.5" />
+          </div>
+          <div className="sm:col-span-2">
+            <Label className="text-xs">{t("NIK Anggota Keluarga (opsional)", "Family Member NIK (optional)")}</Label>
+            <Input
+              value={nationalId}
+              onChange={(e) => setNationalId(e.target.value.replace(/\D/g, "").slice(0, 16))}
+              placeholder={t("16 digit — dipakai untuk pendaftaran BPJS", "16 digits — used for BPJS enrolment")}
+              inputMode="numeric"
+              className="mt-1.5 font-mono"
+              aria-label={t("NIK anggota keluarga", "Family member NIK")}
+            />
+            <p className="mt-1 text-[10px] text-slate-400">{t("Tersimpan terenkripsi; fondasi data peserta BPJS keluarga.", "Stored encrypted; foundation for family BPJS enrolment data.")}</p>
           </div>
         </div>
         <DialogFooter>
@@ -1171,15 +1274,23 @@ function EditEmployeeDialog({ open, setOpen, employee }: { open: boolean; setOpe
     }
     setBusy(true);
     try {
-      await apiSend(`/api/rekankerja/employee-detail?id=${employee.id}`, "PATCH", {
+      const r = (await apiSend<{ npwpWarning?: boolean }>(`/api/rekankerja/employee-detail?id=${employee.id}`, "PATCH", {
         ...form,
         ...(isPkwt ? {
           contractStart: form.contractStart || null,
           contractEnd: form.contractEnd || null,
           renewalCount: Number(form.renewalCount) || 0,
         } : {}),
-      });
+      })) as { npwpWarning?: boolean };
       toast.success(t("Data karyawan diperbarui", "Employee data updated"));
+      // P1.1-BM (D-BM3) — NPWP advisori: salah format (bukan 15/16 digit) →
+      // warning; data TETAP tersimpan (tidak memblokir).
+      if (r?.npwpWarning) {
+        toast.warning(t(
+          "Format NPWP bukan 15/16 digit — periksa kembali. Data tetap disimpan.",
+          "The NPWP format is not 15/16 digits — please double-check. The data is still saved.",
+        ));
+      }
       setOpen(false);
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
@@ -1490,6 +1601,503 @@ function CorrectJobRowDialog({ row, onClose, opts, onSaved }: {
           <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
           <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan Koreksi")}</Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ================= P1.1-BM (D-BM2): DIALOG KONTAK DARURAT =================
+function EmergencyContactDialog({ open, setOpen, employeeId, edit, onSaved }: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  employeeId: string;
+  edit: DetailEmp["emergencyContacts"][number] | null;
+  onSaved: () => void;
+}) {
+  const { t } = useI18n();
+  // prefill via initializer — dialog di-mount key=id per baris (state baru tiap ganti).
+  const [form, setForm] = useState(() => ({
+    name: edit?.name ?? "",
+    relationship: edit?.relationship ?? "Pasangan",
+    phone: edit?.phone ?? "",
+    address: edit?.address ?? "",
+    isPrimary: edit?.isPrimary ?? false,
+  }));
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!form.name.trim() || !form.phone.trim()) {
+      toast.error(t("Nama & telepon kontak darurat wajib diisi", "The emergency contact's name & phone are required"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const body = {
+        kind: "emergency",
+        ...(edit ? { id: edit.id } : { employeeId }),
+        name: form.name.trim(),
+        relationship: form.relationship,
+        phone: form.phone.trim(),
+        address: form.address.trim() || null,
+        isPrimary: form.isPrimary,
+      };
+      await apiSend("/api/rekankerja/family", edit ? "PATCH" : "POST", body);
+      toast.success(
+        edit
+          ? t("Kontak darurat diperbarui", "Emergency contact updated")
+          : t("Kontak darurat ditambahkan", "Emergency contact added"),
+        { description: t("Telepon tersimpan terenkripsi (enc:v1).", "The phone number is stored encrypted (enc:v1).") },
+      );
+      setOpen(false);
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!busy) setOpen(v); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <PhoneCall className="h-4 w-4 text-rose-500" aria-hidden />
+            {edit ? t("Ubah Kontak Darurat", "Edit Emergency Contact") : t("Tambah Kontak Darurat", "Add Emergency Contact")}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Label className="text-xs">{t("Nama")} *</Label>
+            <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="mt-1.5" placeholder={t("mis. Sinta Rahayu", "e.g. Sinta Rahayu")} />
+          </div>
+          <div>
+            <Label className="text-xs">{t("Hubungan", "Relationship")}</Label>
+            <Select value={form.relationship} onValueChange={(v) => setForm((f) => ({ ...f, relationship: v }))}>
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["Pasangan", "Anak", "Orang Tua", "Saudara", "Lainnya"].map((r) => (
+                  <SelectItem key={r} value={r}>{t(r, r === "Pasangan" ? "Spouse" : r === "Anak" ? "Child" : r === "Orang Tua" ? "Parent" : r === "Saudara" ? "Sibling" : "Other")}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">{t("Telepon", "Phone")} *</Label>
+            <Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="mt-1.5" inputMode="tel" placeholder="0813 8765 4321" />
+          </div>
+          <div className="sm:col-span-2">
+            <Label className="text-xs">{t("Alamat (opsional)", "Address (optional)")}</Label>
+            <Input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className="mt-1.5" />
+          </div>
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3 dark:border-slate-800 sm:col-span-2">
+            <div>
+              <p className="text-sm font-semibold">{t("Kontak Utama", "Primary Contact")}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t("Dihubungi pertama saat keadaan darurat.", "Contacted first during an emergency.")}</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={form.isPrimary}
+              onChange={(e) => setForm((f) => ({ ...f, isPrimary: e.target.checked }))}
+              className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-600 dark:border-slate-700"
+              aria-label={t("Tandai sebagai kontak utama", "Mark as primary contact")}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>{t("Batal")}</Button>
+          <Button onClick={() => void submit()} disabled={busy} className="font-bold">
+            {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("Menyimpan…")}</> : t("Simpan")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ================= P1.1-BM (D-BM1): PENGAJUAN UBAH DATA (ADMIN) ============
+// Register pengajuan ubah data diri dari ESS: tabel + dialog detail
+// before→after + approve/reject (catatan wajib saat menolak).
+
+interface ProfileChangeRowUi {
+  id: string;
+  docNo: string;
+  status: string;
+  reason: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  employee: { id: string; employeeNo: string; fullName: string };
+  entries: (
+    | { kind: "field"; field: string; label: string; labelEn: string; before: string | null; after: string | null }
+    | { kind: "contact"; op: "add" | "update" | "remove"; contactId: string | null; after: { name: string; relationship: string; phone: string; isPrimary: boolean }; before: { name: string; relationship: string; phone: string; isPrimary: boolean } | null }
+  )[];
+  approval: { status: string; currentLevel: number; totalLevels: number; currentApprover: string | null } | null;
+}
+
+const PC_RELATION_EN: Record<string, string> = {
+  "Pasangan": "Spouse", "Anak": "Child", "Orang Tua": "Parent", "Saudara": "Sibling", "Lainnya": "Other",
+};
+
+const PC_OP_LABEL: Record<string, string> = { add: "Tambah", update: "Ubah", remove: "Hapus" };
+const PC_OP_LABEL_EN: Record<string, string> = { add: "Add", update: "Edit", remove: "Remove" };
+
+// Exported: nav "Pengajuan Ubah Data" hidup di seksi ACTIONS (HR_NAV Phase 0)
+// → di-render ActionsModule yang mendelegasikan ke sini (mount router employee-
+// module tetap berlaku bila item dipindah ke seksi Karyawan).
+export function ProfileChangesView() {
+  const { t } = useI18n();
+  const perms = useMenuPerms();
+  const [status, setStatus] = useState("all");
+  const [q, setQ] = useState("");
+  const api = useApi<{ rows: ProfileChangeRowUi[]; stats: { total: number; submitted: number; approved: number; rejected: number; cancelled: number } }>(
+    `/api/rekankerja/hr/profile-changes?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
+  );
+  const [detail, setDetail] = useState<ProfileChangeRowUi | null>(null);
+  const [busy, setBusy] = useState(false);
+  // op khusus "approve" (MENU_OPS hr:profile-changes — key "approve", bukan
+  // aksi dasar CRUD) → canOp, bukan can.
+  const canDecide = perms.canOp("hr", "profile-changes", "approve");
+
+  const decide = async (row: ProfileChangeRowUi, action: "approve" | "reject", note?: string) => {
+    setBusy(true);
+    try {
+      const res = (await apiSend<{ status: string; docNo: string }>("/api/rekankerja/hr/profile-changes", "PATCH", {
+        id: row.id, action, note: note || null,
+      })) as { status: string; docNo: string };
+      toast.success(
+        action === "approve"
+          ? t("Pengajuan {doc} disetujui — perubahan diterapkan", "Request {doc} approved — changes applied", { doc: res.docNo })
+          : t("Pengajuan {doc} ditolak", "Request {doc} rejected", { doc: res.docNo }),
+      );
+      setDetail(null);
+      api.refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally { setBusy(false); }
+  };
+
+  const rows = api.data?.rows ?? [];
+  const stats = api.data?.stats;
+
+  return (
+    <div>
+      <PageHeader
+        eyebrow={t("Karyawan")}
+        title={t("Pengajuan Ubah Data", "Profile Change Requests")}
+        description={t(
+          "Pengajuan perubahan data diri karyawan dari ESS — field pribadi saja (alamat, telepon, email pribadi, status pernikahan, kontak darurat); data master tetap via Personnel Action.",
+          "Employee self-submitted personal data change requests — private fields only (address, phone, personal email, marital status, emergency contacts); master data stays via Personnel Action.",
+        )}
+      />
+
+      {/* filter status + pencarian */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {([["all", t("Semua", "All")], ["Submitted", t("Menunggu", "Pending")], ["Approved", t("Disetujui", "Approved")], ["Rejected", t("Ditolak", "Rejected")], ["Cancelled", t("Dibatalkan", "Cancelled")]] as const).map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => setStatus(v)}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-[12px] font-bold transition",
+                status === v
+                  ? "border-transparent ov-fill"
+                  : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
+              )}
+            >
+              {label}
+              {v === "Submitted" && (stats?.submitted ?? 0) > 0 && (
+                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-bold tabular-nums text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">{stats!.submitted}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="relative ml-auto w-full sm:w-64">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" aria-hidden />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("Cari no. pengajuan / karyawan…", "Search request no. / employee…")}
+            className="h-9 pl-8"
+            aria-label={t("Cari pengajuan", "Search requests")}
+          />
+        </div>
+      </div>
+
+      {api.loading && !api.data ? (
+        <LoadingRows rows={6} />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          title={t("Belum ada pengajuan", "No requests yet")}
+          description={t("Pengajuan ubah data diri karyawan dari ESS akan tampil di sini.", "Employee-submitted personal data change requests will appear here.")}
+          icon={IdCard}
+        />
+      ) : (
+        <>
+          {/* tabel desktop */}
+          <Card className="hidden overflow-hidden rounded-2xl border-slate-200/80 py-0 shadow-sm dark:border-slate-800 md:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="pl-5">{t("No. Pengajuan", "Request No.")}</TableHead>
+                  <TableHead>{t("Karyawan", "Employee")}</TableHead>
+                  <TableHead>{t("Perubahan", "Changes")}</TableHead>
+                  <TableHead>{t("Alasan", "Reason")}</TableHead>
+                  <TableHead>{t("Diajukan", "Submitted")}</TableHead>
+                  <TableHead>{t("Status")}</TableHead>
+                  <TableHead className="pr-5 text-right">{t("Aksi", "Actions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <TableRow key={r.id} className="cursor-pointer" onClick={() => setDetail(r)}>
+                    <TableCell className="pl-5 font-mono text-[12px] font-bold">{r.docNo}</TableCell>
+                    <TableCell>
+                      <p className="text-[13px] font-bold">{r.employee.fullName}</p>
+                      <p className="font-mono text-[11px] text-slate-400">{r.employee.employeeNo}</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {r.entries.map((en, i) => (
+                          <span key={i} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            {en.kind === "field" ? t(en.label, en.labelEn) : t("Kontak", "Contact")}
+                          </span>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-56">
+                      <span className="block truncate text-[12px] text-slate-500" title={r.reason ?? undefined}>{r.reason ?? "—"}</span>
+                    </TableCell>
+                    <TableCell className="text-[12px] text-slate-500">{fmtDate(r.createdAt)}</TableCell>
+                    <TableCell><StatusPill status={r.status} /></TableCell>
+                    <TableCell className="pr-5 text-right">
+                      {r.status === "Submitted" && canDecide ? (
+                        <Button size="sm" variant="outline" className="h-8 rounded-lg px-3 text-[11px] font-bold" onClick={(e) => { e.stopPropagation(); setDetail(r); }}>
+                          {t("Putuskan", "Decide")}
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="ghost" className="h-8 rounded-lg px-3 text-[11px] font-bold" onClick={(e) => { e.stopPropagation(); setDetail(r); }}>
+                          {t("Detail")}
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* kartu mobile */}
+          <div className="space-y-3 md:hidden">
+            {rows.map((r) => (
+              <Card key={r.id} className="cursor-pointer rounded-2xl border-slate-200/80 py-0 shadow-sm transition hover:ov-border-accent dark:border-slate-800" onClick={() => setDetail(r)}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-mono text-[12px] font-bold">{r.docNo}</p>
+                      <p className="mt-0.5 truncate text-[13px] font-bold">{r.employee.fullName}</p>
+                      <p className="font-mono text-[11px] text-slate-400">{r.employee.employeeNo} · {fmtDate(r.createdAt)}</p>
+                    </div>
+                    <StatusPill status={r.status} />
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {r.entries.map((en, i) => (
+                      <span key={i} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        {en.kind === "field" ? t(en.label, en.labelEn) : t("Kontak", "Contact")}
+                      </span>
+                    ))}
+                  </div>
+                  {r.reason && (
+                    <p className="mt-1.5 line-clamp-2 text-[11px] italic text-slate-400">“{r.reason}”</p>
+                  )}
+                  {r.status === "Submitted" && canDecide && (
+                    <Button size="sm" variant="outline" className="mt-2.5 h-8 w-full rounded-lg text-[11px] font-bold">
+                      {t("Putuskan", "Decide")}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+
+      {detail && (
+        <ProfileChangeDetailDialog
+          row={detail}
+          busy={busy}
+          canDecide={canDecide}
+          onClose={() => setDetail(null)}
+          onDecide={decide}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProfileChangeDetailDialog({ row, busy, canDecide, onClose, onDecide }: {
+  row: ProfileChangeRowUi;
+  busy: boolean;
+  canDecide: boolean;
+  onClose: () => void;
+  onDecide: (row: ProfileChangeRowUi, action: "approve" | "reject", note?: string) => Promise<void>;
+}) {
+  const { t } = useI18n();
+  const [note, setNote] = useState("");
+  const [confirmReject, setConfirmReject] = useState(false);
+  const hasMarital = row.entries.some((e) => e.kind === "field" && e.field === "maritalStatus");
+
+  const reject = async () => {
+    await onDecide(row, "reject", note);
+    setConfirmReject(false);
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v && !busy) onClose(); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
+            <IdCard className="h-4 w-4 ov-text-accent" aria-hidden />
+            {t("Pengajuan {doc}", "Request {doc}", { doc: row.docNo })}
+            <StatusPill status={row.status} />
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3.5">
+          {/* identitas pengaju */}
+          <div className="rounded-xl bg-slate-50 px-3.5 py-2.5 dark:bg-slate-900/40">
+            <p className="text-[13px] font-bold">{row.employee.fullName} <span className="font-mono text-[11px] font-semibold text-slate-400">· {row.employee.employeeNo}</span></p>
+            <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+              {t("Diajukan {d}", "Submitted {d}", { d: fmtDate(row.createdAt) })}
+              {row.reason ? ` — ${t("alasan", "reason")}: ${row.reason}` : ""}
+            </p>
+          </div>
+
+          {/* perubahan field: before → after */}
+          <div>
+            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{t("Rincian Perubahan", "Change Details")}</p>
+            <div className="space-y-1.5">
+              {row.entries.map((en, i) => (
+                <div key={i} className="rounded-xl border border-slate-100 p-3 dark:border-slate-800">
+                  {en.kind === "field" ? (
+                    <>
+                      <p className="text-[12px] font-bold">{t(en.label, en.labelEn)}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px]">
+                        <span className="max-w-full break-all rounded-lg bg-slate-100 px-2 py-1 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                          {en.before ?? "—"}
+                        </span>
+                        <ArrowRight className="h-3 w-3 shrink-0 text-slate-400" aria-hidden />
+                        <span className="max-w-full break-all rounded-lg bg-brand/10 px-2 py-1 font-bold text-brand-deep dark:text-brand/85">
+                          {en.after ?? "—"}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="flex items-center gap-1.5 text-[12px] font-bold">
+                        <PhoneCall className="h-3.5 w-3.5 text-rose-500" aria-hidden />
+                        {t("Kontak Darurat", "Emergency Contact")}
+                        <Badge variant="outline" className="rounded-full px-1.5 text-[9px] font-bold">{t(PC_OP_LABEL[en.op], PC_OP_LABEL_EN[en.op])}</Badge>
+                        {en.after.isPrimary && <Badge variant="outline" className="rounded-full px-1.5 text-[9px] font-bold text-rose-600 dark:text-rose-400">{t("Utama", "Primary")}</Badge>}
+                      </p>
+                      <div className="mt-1.5 space-y-1 text-[12px] text-slate-600 dark:text-slate-300">
+                        <p>
+                          {en.after.name} · {t(en.after.relationship, PC_RELATION_EN[en.after.relationship] ?? en.after.relationship)} · <span className="font-mono">{en.after.phone}</span>
+                        </p>
+                        {en.op === "update" && en.before && (
+                          <p className="text-[11px] text-slate-400">
+                            {t("Sebelumnya", "Before")}: {en.before.name} · {en.before.relationship} · <span className="font-mono">{en.before.phone}</span>
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* advisori PTKP: perubahan status pernikahan memengaruhi PTKP saat snapshot tahunan */}
+          {hasMarital && (
+            <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-3.5 py-2.5 text-[11px] leading-relaxed text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+              <FileWarning className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              {t(
+                "Perubahan status pernikahan memengaruhi PTKP pada snapshot tahunan berikutnya (1 Januari) — bukan pajak bulan berjalan.",
+                "The marital status change affects PTKP at the next annual snapshot (Jan 1) — not the current month's tax.",
+              )}
+            </p>
+          )}
+
+          {/* jejak keputusan */}
+          {row.status !== "Submitted" && (
+            <div className="rounded-xl bg-slate-50 px-3.5 py-2.5 text-[11.5px] leading-relaxed text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
+              {row.decidedAt && <p>{t("Diputuskan {d}", "Decided {d}", { d: fmtDate(row.decidedAt) })}</p>}
+              {row.decisionNote && <p className="mt-0.5 italic">“{row.decisionNote}”</p>}
+            </div>
+          )}
+
+          {/* approval berjalan */}
+          {row.status === "Submitted" && row.approval && (
+            <p className="text-[11px] text-slate-400">
+              {t("Jalur persetujuan jenjang {cur}/{total} — menunggu {who}.", "Approval chain level {cur}/{total} — waiting for {who}.", {
+                cur: String(row.approval.currentLevel), total: String(row.approval.totalLevels),
+                who: row.approval.currentApprover ?? "—",
+              })}
+            </p>
+          )}
+
+          {/* catatan keputusan + aksi */}
+          {row.status === "Submitted" && canDecide && (
+            <div className="space-y-2.5 border-t border-slate-100 pt-3 dark:border-slate-800">
+              <div>
+                <Label htmlFor="pc-note" className="text-xs">{t("Catatan keputusan (wajib saat menolak)", "Decision note (required when rejecting)")}</Label>
+                <Input
+                  id="pc-note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="mt-1.5"
+                  placeholder={t("mis. dokumen pendukung diperlukan…", "e.g. supporting documents needed…")}
+                  maxLength={500}
+                />
+              </div>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => {
+                    if (note.trim().length < 5) {
+                      toast.error(t("Alasan penolakan wajib diisi (minimal 5 karakter)", "A rejection reason is required (at least 5 characters)"));
+                      return;
+                    }
+                    setConfirmReject(true);
+                  }}
+                  className="gap-1.5 border-rose-200 font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10"
+                >
+                  <XCircle className="h-4 w-4" /> {t("Tolak", "Reject")}
+                </Button>
+                <Button disabled={busy} onClick={() => void onDecide(row, "approve", note || undefined)} className="gap-1.5 font-bold">
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  {t("Setujui & Terapkan", "Approve & Apply")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <AlertDialog open={confirmReject} onOpenChange={setConfirmReject}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("Tolak pengajuan ini?", "Reject this request?")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("Karyawan akan menerima notifikasi beserta alasan penolakan Anda.", "The employee will receive a notification including your rejection reason.")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={busy}>{t("Batal")}</AlertDialogCancel>
+              <AlertDialogAction className="bg-rose-600 hover:bg-rose-700" disabled={busy} onClick={() => void reject()}>
+                {t("Tolak Pengajuan", "Reject Request")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );

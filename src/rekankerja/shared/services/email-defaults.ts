@@ -59,6 +59,13 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     subject: "Klaim Settlement {{docNo}} DITOLAK",
     body: "Halo {{nama}},\n\nMohon maaf, klaim settlement Anda ({{docNo}}) DITOLAK.\n- Alasan: {{catatan}}\n\n---\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
   },
+  // P1.5-BM (D-BM14) — pengingat settlement travel (scheduler D+N lewat
+  // settlementDay; kirim ke pelaku perjalanan + atasan langsung).
+  {
+    event: "travel.settlement.reminder", label: "Travel — Pengingat Settlement", notifyEmployee: true, notifyApprover: false, notifyHrd: false,
+    subject: "[Pengingat] Settlement travel {{docNo}} lewat {{hariTerlambat}} hari",
+    body: "Halo {{nama}},\n\nPerjalanan dinas Anda ({{docNo}}) telah selesai, namun klaim & settlement belum diajukan:\n- Batas pengajuan: {{batasHari}} hari setelah kembali\n- Telah terlambat: {{hariTerlambat}} hari\n\nMohon segera ajukan klaim & settlement di modul Travel (Klaim & Settlement) agar reimbursement/kekurangan uang muka dapat diproses. Pengingat ini juga dikirim ke atasan langsung Anda.\n\n---\nEmail otomatis scheduler RekanKerja HRIS — tidak perlu dibalas.",
+  },
   {
     event: "medical.claim.submitted", label: "Klaim Medis — Diajukan", notifyEmployee: false, notifyApprover: true, notifyHrd: false,
     subject: "[Perlu Persetujuan] Klaim Medis {{docNo}} — {{nama}}",
@@ -301,6 +308,9 @@ const PH_BERLAKUSAMPAI: PlaceholderDef = { key: "berlakuSampai", label: "Batas o
 const PH_STATUSOFFER: PlaceholderDef = { key: "statusOffer", label: "Status offer", contoh: "DITERIMA / DITOLAK / Sent" };
 const PH_SISAHARI: PlaceholderDef = { key: "sisaHari", label: "Sisa waktu offer", contoh: "2 hari lagi" };
 const PH_EMPLOYEE_NO: PlaceholderDef = { key: "employeeNo", label: "Nomor karyawan hasil rekrutmen", contoh: "MII00041" };
+// P1.5-BM (D-BM14) — placeholder pengingat settlement travel
+const PH_BATASHARI: PlaceholderDef = { key: "batasHari", label: "Batas hari settlement (template travel)", contoh: "14" };
+const PH_HARITERLAMBAT: PlaceholderDef = { key: "hariTerlambat", label: "Hari keterlambatan settlement", contoh: "3" };
 
 export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "leave.submitted": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_JUMLAHHARI, PH_ALASAN],
@@ -312,6 +322,7 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "travel.claim.submitted": [PH_NAMA, PH_DOC, PH_JUMLAH, PH_PERIODE],
   "travel.claim.approved": [PH_NAMA, PH_DOC, PH_JUMLAH, PH_PERIODE, PH_CATATAN],
   "travel.claim.rejected": [PH_NAMA, PH_DOC, PH_JUMLAH, PH_PERIODE, PH_CATATAN],
+  "travel.settlement.reminder": [PH_NAMA, PH_DOC, PH_BATASHARI, PH_HARITERLAMBAT],
   "overtime.submitted": [PH_NAMA, PH_DOC, PH_TANGGAL, PH_JUMLAHJAM, PH_ALASAN],
   "medical.claim.submitted": [PH_NAMA, PH_DOC, PH_JENIS, PH_JUMLAH],
   "medical.claim.approved": [PH_NAMA, PH_DOC, PH_JENIS, PH_JUMLAH, PH_CATATAN],

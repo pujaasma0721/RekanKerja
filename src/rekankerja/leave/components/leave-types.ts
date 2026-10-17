@@ -1,5 +1,7 @@
 "use client";
 // RekanKerja Leave — shared types (padanan modul Leave Administration)
+import type { AttachmentMetaUI } from "@/rekankerja/shared/components/attachment-upload";
+
 export interface EmployeeOption {
   id: string; employeeNo: string; fullName: string;
 }
@@ -66,6 +68,10 @@ export interface RequestRowUI {
   approval?: ApprovalChainUI | null;
   /** Task 99 (F2-1) — sinyal risiko pola cuti (hanya diisi pada approval inbox). */
   risk?: LeaveRiskSignalsUI | null;
+  /** P1.2-BM (D-BM5) — metadata lampiran (SKD dsb.) permintaan ini. */
+  attachments?: AttachmentMetaUI[];
+  /** P1.2-BM (D-BM5) — jumlah lampiran (badge "lampiran n"). */
+  attachmentCount?: number;
 }
 
 /** Ringkasan jalur approval berjenjang pada row list (Task 25). */

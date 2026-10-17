@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/human-resource/services/profile-change-service.ts",
+    "src/rekankerja/human-resource/api/profile-changes.ts",
+    "src/rekankerja/human-resource/api/family.ts",
+    "src/rekankerja/human-resource/api/employees.ts",
+    "src/rekankerja/human-resource/api/employee-detail.ts",
+    "src/rekankerja/human-resource/components/employee/employee-module.tsx",
+    "src/rekankerja/human-resource/components/employee/detail-dialogs.tsx",
+    "src/rekankerja/human-resource/components/employee/employee-wizard.tsx",
+    "src/rekankerja/human-resource/components/actions/actions-module.tsx",
+    "src/rekankerja/ess/api/profile-changes.ts",
+    "src/rekankerja/ess/api/me.ts",
+    "src/rekankerja/ess/components/ess-profile.tsx",
+    "src/rekankerja/ess/components/ess-types.ts",
+    "src/app/api/rekankerja/hr/profile-changes/route.ts",
+    "src/app/api/rekankerja/ess/profile-changes/route.ts",
+    "scripts/e2e-p1-profile-change.ts"
+  ]
+}

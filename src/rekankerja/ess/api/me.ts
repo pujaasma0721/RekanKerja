@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { requireEss, fmtIsoDate, essCanAdmin } from "@/rekankerja/ess/api/ess-auth";
 import { okrFeatureOn } from "@/rekankerja/performance/services/okr-service";
+// P1.1-BM (D-BM2) — kontak darurat di profil ESS (telepon didekripsi di batas).
+import { serializeEmergencyContacts } from "@/rekankerja/human-resource/services/profile-change-service";
 
 export async function GET(req: Request) {
   const m = await requireEss(req);
@@ -40,6 +42,13 @@ export async function GET(req: Request) {
     // aktif; D-BL2 default OFF — kegagalan baca setting → anggap off).
     let okrEnabled = false;
     try { okrEnabled = await okrFeatureOn(db); } catch { okrEnabled = false; }
+    // P1.1-BM (D-BM2) — kontak darurat milik sendiri (self-scope penuh —
+    // hak melihat data sendiri; telepon didekripsi di batas serializer).
+    const contacts = await db.emergencyContact.findMany({
+      where: { employeeId },
+      orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+    });
+    const emergencyContacts = serializeEmergencyContacts(contacts, tenantCryptoForDb(db));
 
     return NextResponse.json({
       employee: {
@@ -64,6 +73,8 @@ export async function GET(req: Request) {
         bpjsHealth: tenantCryptoForDb(db).decryptText(emp.bpjsHealth),
         bpjsEmpSkill: tenantCryptoForDb(db).decryptText(emp.bpjsEmpSkill),
       },
+      // P1.1-BM (D-BM2) — kontak darurat (telepon didekripsi di batas).
+      emergencyContacts,
       companyName: emp.company?.name ?? null,
       role: m.actor.appUserRole,
       canAdmin: essCanAdmin(m.actor),

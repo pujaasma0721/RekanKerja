@@ -4,14 +4,39 @@ import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { trFor, locFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 
-// GET /api/rekankerja/payroll-run-export?id=&bank=umum|bca|mandiri|bni
+// GET /api/rekankerja/payroll-run-export?id=&bank=umum|bca|mandiri|bni[&layout=corporate|simple]
 // File transfer bank (pattern "Transfer Bank Payment": file per bank).
 // Baris difilter sesuai bank terdaftar pada profil/employee; "umum" = rekap semua.
+//
+// P1.4-BM (D-BM10) — layout KORPORAT: format upload portal payroll korporat
+// per bank (kolom serial/rekening/nama/nominal berita; nominal ANGKA POLOS tanpa
+// pemisah ribuan — mesin bank menolak "15.000.000"). layout=simple (DEFAULT)
+// = format lama persis (backward-compat — konsumen lama tak terdampak).
 const BANKS: Record<string, { label: string; match: (bank: string) => boolean }> = {
   bca: { label: "BCA", match: (b) => b.includes("BCA") },
   mandiri: { label: "Mandiri", match: (b) => b.includes("MANDIRI") || b.includes("BANK SYARIAH") },
   bni: { label: "BNI", match: (b) => b.includes("BNI") },
 };
+
+// --- Konfigurasi rekening SUMBER perusahaan per bank (PLACEHOLDER KODE) --------
+// Master "rekening bank perusahaan" BELUM ada di RekanKerja (Company hanya
+// menyimpan NPWP per kantor). Rekening sumber di-hard-code kosong di sini —
+// TAMPILKAN di baris judul file korporat; isi sebelum dipakai ke portal bank:
+//   1. BCA: m-BCA/klikBCA bisnis → "Transfer Dana > Payroll" (sumber debet).
+//   2. Mandiri: CMS (Business Portal) → identitas pengirim perusahaan.
+//   3. BNI: e-Channel BNI corporate → rekening debet payroll.
+const CORPORATE_SOURCE_ACCOUNT: Record<string, string> = {
+  bca: "",      // TODO: rekening korporat BCI perusahaan (cth "8070123456")
+  mandiri: "",  // TODO: rekening korporat Mandiri perusahaan
+  bni: "",      // TODO: rekening korporat BNI perusahaan
+};
+
+/** Guard formula-injection CSV utk teks user (nama/keterangan) — string yang
+ *  diawali = + - @ / tab / CR diprefix "'" (pola jurnal CSV payroll-journals). */
+function gi(s: string | null | undefined): string {
+  const v = s ?? "";
+  return /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,6 +51,9 @@ export async function GET(req: NextRequest) {
 
     const id = req.nextUrl.searchParams.get("id");
     const bankKey = (req.nextUrl.searchParams.get("bank") ?? "umum").toLowerCase();
+    // P1.4-BM (D-BM10) — layout korporat (upload portal payroll bank) vs simple
+    // (default = format lama persis, backward-compat).
+    const layout = req.nextUrl.searchParams.get("layout") === "corporate" ? "corporate" : "simple";
     // BL-5 (tier-2 export): bahasa header/judul file — default EN (pola BL-4).
     const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
     // header CSV manual → trFor per kolom (exact-match BASE_EN, fallback identity).
@@ -107,6 +135,42 @@ export async function GET(req: NextRequest) {
     const bankTitle = (label: string) =>
       `${label} — ${run.runNo} · ${matched.length} pegawai · Rp ${Math.round(totalNet).toLocaleString("id-ID")}`;
 
+    // ===== P1.4-BM (D-BM10) — LAYOUT KORPORAT (upload portal payroll bank) =====
+    // Nominal ANGKA POLOS (tanpa pemisah); serial urut; keterangan fixed; nama
+    // di-guard formula-injection. Rekening sumber perusahaan dari placeholder
+    // kode CORPORATE_SOURCE_ACCOUNT (master bank perusahaan belum ada).
+    if (layout === "corporate") {
+      const source = CORPORATE_SOURCE_ACCOUNT[bankKey] ?? "";
+      const sourceNote = source ? ` · SUMBER DANA: ${source}` : " · SUMBER DANA: (konfigurasi rekening korporat belum diisi)";
+      let header: string[];
+      const rows = matched.map((l, i) => {
+        const nom = Math.round(l.net);
+        if (bankKey === "bca") {
+          // BCA payroll korporat: serial, rekening, nama penerima, nominal, keterangan.
+          return [i + 1, accountOf(l), `"${gi(l.employeeName)}"`, nom, `"${gi(ket)}"`].join(";");
+        }
+        if (bankKey === "mandiri") {
+          // Mandiri CMS (Business Portal): serial, rekening, nama, nominal, REF.
+          return [i + 1, accountOf(l), `"${gi(l.employeeName)}"`, nom, `"${l.employeeNo}"`].join(";");
+        }
+        // BNI payroll korporat: serial, rekening, nama penerima, nominal, keterangan.
+        return [i + 1, accountOf(l), `"${gi(l.employeeName)}"`, nom, `"${gi(ket)}"`].join(";");
+      });
+      if (bankKey === "bca") header = ["NO", "NO_REKENING", "NAMA_PENERIMA", "NOMINAL", "KETERANGAN"];
+      else if (bankKey === "mandiri") header = ["NO", "NO_REKENING", "NAMA_PENERIMA", "NOMINAL", "REF"];
+      else header = ["NO", "NO_REKENING", "NAMA_PENERIMA", "NOMINAL", "KETERANGAN"];
+      const csv = [
+        `${bank.label} PAYROLL TRANSFER (KORPORAT)${sourceNote} — ${run.runNo} · ${matched.length} pegawai · Rp ${Math.round(totalNet).toLocaleString("id-ID")}`,
+        header.join(";"),
+        ...rows,
+      ].join("\n");
+      await db.activityLog.create({
+        data: { action: "Exported", entity: "PayrollRun", entityId: run.id, detail: `Ekspor file bank ${bank.label} (layout korporat) run ${run.runNo} (${matched.length} pegawai)` },
+      });
+      return csvResponse(csv, `rekankerja-${bankKey}-korporat-${run.runNo}.csv`);
+    }
+
+    // ===== LAYOUT SIMPLE (default — format lama persis) =====
     let csv: string;
     if (bankKey === "bca") {
       // BCA payroll: NO;NO_REKENING;NAMA;NOMINAL;KETERANGAN

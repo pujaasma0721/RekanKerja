@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { requireMenuViewAny, requireMenuAction, type MenuActor } from "@/rekankerja/shared/services/menu-access";
+import { availableHolidayYears, importHolidayDataset } from "@/rekankerja/time-attendance/services/holiday-dataset";
 
 // ============ T9-HOLIDAY — Kalender Hari Libur (CRUD + import tahunan) =======
 // GET  /api/rekankerja/attendance/holidays?year=2026 — daftar libur tahun tsb
-//      + tahun tersedia + ringkasan per jenis (National/Joint/Company).
-// POST — dua mode:
+//      + tahun tersedia + ringkasan per jenis (National/Joint/Company)
+//      + datasetYears (tahun dataset SKB bundled yang bisa diimpor — P1.5 D-BM12).
+// POST — tiga mode:
+//      {action:"import-dataset", year}  → impor dataset SKB 3 Menteri resmi
+//                                        yang dibundel (P1.5 D-BM12) — guard
+//                                        AKSI KHUSUS op:import (bukan create);
+//                                        idempoten per (date,name), libur Company
+//                                        & baris manual tenant tidak tersentuh
 //      {date, name, kind}             → tambah satu hari libur
 //      {rows: [{date, name, kind}]}   → import massal (CSV tahunan dari UI) —
 //                                       idempoten per (date,name): duplikat dilewati
@@ -79,13 +86,17 @@ export async function GET(req: NextRequest) {
     const allDates = await db.holidayDate.findMany({ select: { date: true } });
     const years = [...new Set(allDates.map((d) => d.date.getFullYear()))].sort((a, b) => a - b);
 
+    // P1.5 (D-BM12) — tahun dataset SKB bundled yang bisa diimpor tenant
+    // (pilihan di dialog "Impor Dataset Nasional" UI Kalender Libur).
+    const datasetYears = availableHolidayYears();
+
     const stats = {
       total: holidays.length,
       national: holidays.filter((h) => h.kind === "National").length,
       joint: holidays.filter((h) => h.kind === "Joint").length,
       company: holidays.filter((h) => h.kind === "Company").length,
     };
-    return NextResponse.json({ year, years, holidays, stats });
+    return NextResponse.json({ year, years, datasetYears, holidays, stats });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -111,12 +122,33 @@ function validateRow(raw: { date?: unknown; name?: unknown; kind?: unknown }, i:
   return [{ date: d, dateStr, name, kind }, ""];
 }
 
-// POST — tambah tunggal / import massal (idempoten per date+name)
+// POST — impor dataset nasional / tambah tunggal / import massal (idempoten per date+name)
 export async function POST(req: NextRequest) {
   try {
+    const b = await req.json();
+
+    // ---- P1.5 (D-BM12) — mode impor dataset nasional: {action:"import-dataset", year} ----
+    // Guard AKSI KHUSUS op:import (menu-perms "attendance:holidays" key "import") —
+    // beda dari mode tunggal/massal CSV yang memakai aksi "create".
+    if (b.action === "import-dataset") {
+      const m = await requireMenuAction(req, "attendance:holidays", "op:import");
+      if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+      const year = Number(b.year);
+      const datasetYears = availableHolidayYears();
+      if (!Number.isInteger(year) || !datasetYears.includes(year)) {
+        return NextResponse.json(
+          { error: `Tahun dataset tidak tersedia — pilih salah satu: ${datasetYears.join(", ") || "(belum ada dataset)"}` },
+          { status: 400 },
+        );
+      }
+      const { total, inserted } = await importHolidayDataset(m.db, year);
+      await logHoliday(m.db, m.actor, "Created", `import-dataset-${year}`,
+        `Impor dataset libur nasional ${year}: ${inserted} baru dari ${total} baris SKB`);
+      return NextResponse.json({ total, inserted, existing: total - inserted }, { status: 201 });
+    }
+
     const m = await requireMenuAction(req, "attendance:holidays", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-    const b = await req.json();
 
     // ---- mode import massal: {rows: [{date,name,kind}]} ----
     if (Array.isArray(b.rows)) {

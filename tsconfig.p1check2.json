@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/leave/api/requests.ts",
+    "src/rekankerja/leave/services/leave-service.ts",
+    "src/rekankerja/leave/components/leave-requests.tsx",
+    "src/rekankerja/leave/components/leave-approval.tsx",
+    "src/rekankerja/leave/components/leave-types.ts",
+    "src/rekankerja/ess/api/leave.ts",
+    "src/rekankerja/ess/components/ess-leave.tsx",
+    "src/rekankerja/ess/api/claims-medical.ts",
+    "src/rekankerja/ess/components/ess-claims.tsx",
+    "src/rekankerja/ess/components/ess-types.ts",
+    "src/rekankerja/ess/components/ess-api.ts",
+    "src/rekankerja/shared/components/attachment-upload.tsx",
+    "scripts/e2e-p1-attachments.ts"
+  ]
+}

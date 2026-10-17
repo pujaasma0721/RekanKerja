@@ -6,6 +6,11 @@ import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/rekankerj
 import { sendWaBatch, sendWa, approverPhonesOf, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-service";
+// P1.2-BM (D-BM5) — metadata lampiran per permintaan (badge + chips di UI
+// approval) + sapu draf bila submit gagal (pola medical/api/claims.ts POST).
+import {
+  attachmentsByEntityIds, deleteDraftAttachmentsByIds,
+} from "@/rekankerja/shared/services/attachment-service";
 
 // GET /api/rekankerja/leave/requests?status=&employeeId=&year= — daftar permintaan
 // (padanan LeaveRequest.jsp / LeaveRequestToApprove.jsp).
@@ -28,6 +33,14 @@ export async function GET(req: NextRequest) {
       sortDir: sp.get("sortDir") === "desc" ? "desc" : sp.get("sortDir") === "asc" ? "asc" : undefined,
       withRisk: status === "Submitted",
     });
+    // P1.2-BM (D-BM5) — sertai metadata lampiran per permintaan (batch 1 kueri):
+    // badge "lampiran n" di daftar + chips tampil/unduh di dialog persetujuan.
+    const attachMap = await attachmentsByEntityIds(db, "LeaveRequest", requests.map((r) => r.id));
+    const requestsWithAttachments = requests.map((r) => ({
+      ...r,
+      attachments: attachMap.get(r.id) ?? [],
+      attachmentCount: attachMap.get(r.id)?.length ?? 0,
+    }));
     const stats = {
       total: requests.length,
       submitted: requests.filter((r) => r.status === "Submitted").length,
@@ -38,7 +51,7 @@ export async function GET(req: NextRequest) {
       pendingDays: Math.round(requests.filter((r) => r.status === "Submitted").reduce((s, r) => s + r.workingDays, 0) * 100) / 100,
       approvedDays: Math.round(requests.filter((r) => r.status === "Approved" || r.status === "MassLeave").reduce((s, r) => s + r.workingDays, 0) * 100) / 100,
     };
-    return NextResponse.json({ requests, stats });
+    return NextResponse.json({ requests: requestsWithAttachments, stats });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -69,7 +82,17 @@ export async function POST(req: NextRequest) {
       const res = await previewRequest(db, input);
       return NextResponse.json(res);
     }
-    const res = await submitRequest(db, input);
+    // P1.2-BM (D-BM5) — id draf lampiran (entityType "LeaveRequest") yang
+    // diunggah pra-submit; submitRequest me-rebind ke permintaan baru.
+    const attachmentIds: string[] = Array.isArray(b.attachmentIds)
+      ? (b.attachmentIds as unknown[]).map((x) => String(x)).filter(Boolean)
+      : [];
+    const res = await submitRequest(db, { ...input, attachmentIds }).catch(async (e: unknown) => {
+      // gagal submit → sapu draf lampiran yang dikirim (best-effort, mirror
+      // medical/api/claims.ts POST) supaya tidak menumpuk jadi draf yatim.
+      if (attachmentIds.length > 0) await deleteDraftAttachmentsByIds(db, attachmentIds);
+      throw e;
+    });
 
     // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
     void (async () => {
@@ -115,6 +138,7 @@ export async function POST(req: NextRequest) {
           leaveTypeId: input.leaveTypeId, leaveTypeName: type?.name ?? null,
           dateFrom: input.dateFrom, dateTo: input.dateTo,
           workingDays: res.workingDays, reason: input.reason || null, source: "app",
+          attachmentCount: res.attachmentCount,
         });
       } catch { /* notifikasi tidak pernah mengganggu proses utama */ }
     })();

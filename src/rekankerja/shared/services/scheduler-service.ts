@@ -104,6 +104,15 @@ const TA_TRANSFER_D_DAYS = 3;
 /** Retensi notifikasi (hari) untuk housekeeping. */
 const NOTIFICATION_RETENTION_DAYS = 180;
 
+// ---------- P1.5-BM (D-BM14): pengingat settlement travel ----------
+
+/** Batas aman per run — maks request yang diingatkan per siklus per tenant. */
+const TRAVEL_SETTLEMENT_BATCH_CAP = 25;
+/** Jeda minimal antar pengingat utk request yang sama (hari). */
+const TRAVEL_SETTLEMENT_REMINDER_GAP_DAYS = 3;
+/** Default tenggat settlement bila template tidak menyatakan (hari). */
+const TRAVEL_SETTLEMENT_DEFAULT_DAYS = 14;
+
 /** Role AppUser yang dianggap tim Admin/HR (penerima pengingat scheduler). */
 const HR_ROLES = ["Admin", "HR Manager", "HR Staff"];
 
@@ -1356,6 +1365,269 @@ async function jobAttendanceTransferReminder(db: TenantDb): Promise<{ periods: n
   return { periods: sent, notif };
 }
 
+// ---------- P1.5-BM (D-BM14): pengingat settlement travel ----------
+
+/**
+ * P1.5-BM (D-BM14) — pengingat settlement perjalanan dinas (job harian
+ * "travel-settlement-reminder"):
+ *   • populasi: TravelRequest status Approved, perjalanan SELESAI
+ *     (tanggal akhir destinasi terakhir — fallback dateTo request — < hari ini),
+ *     BELUM ada klaim linked (claims none + claimRequestedAt null), dan hari
+ *     sejak akhir perjalanan > template.settlementDay (default 14; 0 = template
+ *     tanpa tenggat → skip, mirror settlementDue null di travel-service);
+ *   • aksi: notifikasi in-app + email event "travel.settlement.reminder" ke
+ *     pelaku perjalanan DAN atasan langsung (EmployeeAssignment aktif managerId);
+ *   • idempoten: claimReminder atomik per (request, hari) — mirror job
+ *     sla-approval — + jeda maksimal 1× per 3 hari per request via cek baris
+ *     ActivityLog terakhir (claim "Reminder"/Scheduler ber-prefix + jejak audit
+ *     "SettlementReminder"/TravelRequest entityId=request.id);
+ *   • batch cap 25 per run per tenant (aman utk tenant padat);
+ *   • defensif: tabel travel belum termigrasi di tenant → skip senyap.
+ */
+export interface OverdueTravelSettlement {
+  id: string;
+  docNo: string;
+  employeeId: string;
+  employeeNo: string;
+  employeeName: string;
+  employeeEmail: string | null;
+  /** Atasan langsung (assignment aktif) — null bila tidak ditemukan. */
+  managerId: string | null;
+  managerName: string | null;
+  managerEmail: string | null;
+  /** Tanggal akhir perjalanan (destinasi terakhir; fallback dateTo request). */
+  tripEnd: Date;
+  /** Batas hari settlement template (settlementDay). */
+  settlementDay: number;
+  /** Hari sejak akhir perjalanan (≥ 1). */
+  daysSinceTripEnd: number;
+  /** Keterlambatan melewati batas (daysSinceTripEnd − settlementDay, ≥ 1). */
+  lateDays: number;
+}
+
+/**
+ * Seleksi MURNI request yang melewati tenggat settlement (tanpa efek samping —
+ * di-export utk pengujian e2e scripts/e2e-p1-holidays-reminder.ts).
+ */
+export async function pickOverdueSettlements(
+  db: TenantDb,
+  today: Date,
+  cap: number = TRAVEL_SETTLEMENT_BATCH_CAP,
+): Promise<OverdueTravelSettlement[]> {
+  const todayStart = startOfDay(today);
+  let rows: Array<{
+    id: string;
+    docNo: string;
+    dateTo: Date;
+    employee: { id: string; employeeNo: string; fullName: string; email: string | null } | null;
+    template: { settlementDay: number } | null;
+    destinations: { dateTo: Date }[];
+    managerId: string | null;
+  }>;
+  try {
+    rows = await db.travelRequest.findMany({
+      where: {
+        status: "Approved",
+        claimRequestedAt: null,
+        claims: { none: {} },
+        // pra-filter longgar (superset): kaki perjalanan terakhir bisa > dateTo header
+        OR: [{ dateTo: { lt: todayStart } }, { destinations: { some: { dateTo: { lt: todayStart } } } }],
+      },
+      select: {
+        id: true,
+        docNo: true,
+        dateTo: true,
+        employee: {
+          select: {
+            id: true,
+            employeeNo: true,
+            fullName: true,
+            email: true,
+            assignments: { where: { validTo: null }, select: { managerId: true }, take: 1 },
+          },
+        },
+        template: { select: { settlementDay: true } },
+        destinations: { orderBy: { dateTo: "desc" }, select: { dateTo: true }, take: 1 },
+      },
+      orderBy: { dateTo: "asc" },
+      take: Math.max(1, cap) * 4,
+    }).then((rs) =>
+      rs.map((r) => ({
+        id: r.id,
+        docNo: r.docNo,
+        dateTo: r.dateTo,
+        employee: r.employee
+          ? {
+              id: r.employee.id,
+              employeeNo: r.employee.employeeNo,
+              fullName: r.employee.fullName,
+              email: r.employee.email,
+            }
+          : null,
+        template: r.template,
+        destinations: r.destinations,
+        managerId: r.employee?.assignments[0]?.managerId ?? null,
+      })),
+    );
+  } catch {
+    return []; // tabel travel belum termigrasi di tenant ini → skip senyap
+  }
+
+  const managerIds = [...new Set(rows.map((r) => r.managerId).filter((x): x is string => x != null))];
+  const managers = managerIds.length > 0
+    ? await db.employee
+        .findMany({ where: { id: { in: managerIds } }, select: { id: true, fullName: true, email: true } })
+        .catch(() => [])
+    : [];
+  const managerById = new Map(managers.map((m) => [m.id, m]));
+
+  const out: OverdueTravelSettlement[] = [];
+  for (const r of rows) {
+    const settlementDay = r.template?.settlementDay ?? TRAVEL_SETTLEMENT_DEFAULT_DAYS;
+    if (settlementDay <= 0) continue; // template tanpa tenggat settlement
+    if (!r.employee) continue; // relasi karyawan hilang (data legacy) → skip
+    // akhir perjalanan = kaki destinasi TERAKHIR (dateTo maks); fallback header
+    const tripEnd = startOfDay(r.destinations[0]?.dateTo ?? r.dateTo);
+    const daysSinceTripEnd = Math.round((todayStart.getTime() - tripEnd.getTime()) / DAY_MS);
+    if (daysSinceTripEnd <= settlementDay) continue; // belum lewat tenggat
+    const mgr = r.managerId ? managerById.get(r.managerId) : undefined;
+    out.push({
+      id: r.id,
+      docNo: r.docNo,
+      employeeId: r.employee.id,
+      employeeNo: r.employee.employeeNo,
+      employeeName: r.employee.fullName,
+      employeeEmail: r.employee.email,
+      managerId: r.managerId,
+      managerName: mgr?.fullName ?? null,
+      managerEmail: mgr?.email ?? null,
+      tripEnd,
+      settlementDay,
+      daysSinceTripEnd,
+      lateDays: daysSinceTripEnd - settlementDay,
+    });
+    if (out.length >= cap) break;
+  }
+  return out;
+}
+
+/** Diekspor utk pengujian langsung (pola test-p7-scheduler / e2e-p1). */
+export async function jobTravelSettlementReminders(db: TenantDb): Promise<{ requests: number; notif: number }> {
+  const now = new Date();
+  const todayKey = dayKey(now);
+  const candidates = await pickOverdueSettlements(db, now);
+  let sent = 0;
+  let notif = 0;
+  for (const r of candidates) {
+    // (1) jeda 3 hari per request: pengingat terakhir masih < 3 hari → skip.
+    // Sumber marker: baris claim "Reminder"/Scheduler ber-prefix travel-settlement
+    // + jejak audit "SettlementReminder"/TravelRequest entityId=request.id.
+    try {
+      const last = await db.activityLog.findFirst({
+        where: {
+          OR: [
+            { action: "Reminder", entity: "Scheduler", entityId: { startsWith: `travel-settlement:${r.id}:` } },
+            { action: "SettlementReminder", entity: "TravelRequest", entityId: r.id },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      });
+      if (last && now.getTime() - last.createdAt.getTime() < TRAVEL_SETTLEMENT_REMINDER_GAP_DAYS * DAY_MS) {
+        continue; // masih dalam jeda 3 hari
+      }
+    } catch {
+      // ActivityLog belum termigrasi → lanjut (claimReminder di bawah menahan hari ini)
+    }
+
+    // (2) klaim atomik per (request, hari) — mirror job sla-approval (anti dobel
+    // antar-proses siklus 6-jam / PM2 cluster).
+    const key = `travel-settlement:${r.id}:${todayKey}`;
+    const claimed = await claimReminder(
+      db,
+      key,
+      `Pengingat settlement travel ${r.docNo} (${r.employeeName}) lewat ${r.lateDays} hari — belum ada klaim`,
+    );
+    if (!claimed) continue;
+
+    // (3) notifikasi in-app → pelaku perjalanan + atasan langsung.
+    const title = `Settlement travel ${r.docNo} lewat ${r.lateDays} hari`;
+    const rTrv = await notifyEvent(db, {
+      to: "employee",
+      employeeId: r.employeeId,
+      docType: "Travel",
+      docNo: r.docNo,
+      title,
+      body:
+        `Perjalanan dinas ${r.docNo} telah selesai ${fmtDate(r.tripEnd)} namun klaim & settlement belum diajukan ` +
+        `(batas ${r.settlementDay} hari setelah kembali — terlambat ${r.lateDays} hari). ` +
+        `Mohon segera ajukan klaim settlement di modul Travel agar reimbursement/kekurangan uang muka diproses.`,
+      kind: "travel",
+      link: "travel:travel-claim",
+    });
+    notif += rTrv.recipients.length;
+    if (r.managerId) {
+      const rMgr = await notifyEvent(db, {
+        to: "employee",
+        employeeId: r.managerId,
+        docType: "Travel",
+        docNo: r.docNo,
+        title,
+        body:
+          `Perjalanan dinas ${r.docNo} (${r.employeeName}, ${r.employeeNo}) selesai ${fmtDate(r.tripEnd)} namun klaim & settlement ` +
+          `belum diajukan (terlambat ${r.lateDays} hari dari batas ${r.settlementDay} hari). ` +
+          `Mohon ingatkan bawahan Anda mengajukan klaim settlement di modul Travel.`,
+        kind: "travel",
+        link: "travel:travel-claim",
+      });
+      notif += rMgr.recipients.length;
+    }
+
+    // (4) email event travel.settlement.reminder → pelaku perjalanan + atasan
+    // langsung (fire-and-forget, try/catch ekstra — never-throw).
+    const to: EmailRecipient[] = [];
+    if (r.employeeEmail) to.push({ email: r.employeeEmail, name: r.employeeName });
+    if (r.managerEmail && r.managerEmail !== r.employeeEmail) {
+      to.push({ email: r.managerEmail, name: r.managerName ?? r.employeeName });
+    }
+    if (to.length > 0) {
+      try {
+        // P1.5-BM: AWAIT (beda dari job lain yang fire-and-forget) — job batch
+        // harian ini ditulis EmailLog-nya secara deterministik sebelum fungsi
+        // kembali (e2e meng-assert baris log tepat setelah run; 25 email maks
+        // per run = tetap cepat, dan tanpa SMTP event langsung ter-log Skipped).
+        await notifyEmailEvent(db, {
+          event: "travel.settlement.reminder",
+          to,
+          data: {
+            nama: r.employeeName,
+            docNo: r.docNo,
+            batasHari: String(r.settlementDay),
+            hariTerlambat: String(r.lateDays),
+          },
+        });
+      } catch {
+        // never-throw — email tidak boleh menggagalkan pengingat
+      }
+    }
+
+    // (5) jejak audit per request (sekaligus marker jeda 3-hari).
+    await writeActivity(db, {
+      action: "SettlementReminder",
+      entity: "TravelRequest",
+      entityId: r.id,
+      employeeId: r.employeeId,
+      detail:
+        `Pengingat settlement travel ${r.docNo} (${r.employeeName}, ${r.employeeNo}) — perjalanan selesai ` +
+        `${fmtDate(r.tripEnd)}, batas ${r.settlementDay} hari, terlambat ${r.lateDays} hari; belum ada klaim. ` +
+        `Penerima: karyawan${r.managerId ? " + atasan langsung" : ""}` +
+        (to.length > 0 ? `; email: ${to.map((x) => x.email).join(", ")}` : ""),
+    });
+    sent++;
+  }
+  return { requests: sent, notif };
+}
+
 // ---------- F7-REC: job otomasi rekrutmen ----------
 
 /** Ambang hari overdue → level eskalasi SLA tahap seleksi. */
@@ -1655,6 +1927,10 @@ export interface SchedulerJobCounts {
   attendanceOtAging: number;
   /** Task 100 (G4) — period dengan jendela TA berakhir yang diingatkan utk transfer. */
   attendanceTransferReminders: number;
+  /** P1.5-BM (D-BM14) — request travel Approved selesai tanpa klaim yang melewati
+   *  settlementDay template dan diingatkan job travel-settlement-reminder
+   *  (maks 1×/3 hari per request; ke karyawan + atasan langsung). */
+  travelSettlementReminded: number;
   /** F2-REC — pelamar talent pool yang otomatis jadi Outdated oleh job
    *  applicant-outdated (keepOnFileUntil lewat; idempoten by filter Active). */
   applicantOutdatedRows: number;
@@ -1763,6 +2039,7 @@ export async function runAllJobs(
     attendanceClockoutReminded: 0,
     attendanceOtAging: 0,
     attendanceTransferReminders: 0,
+    travelSettlementReminded: 0,
     applicantOutdatedRows: 0,
     selectionReminded: 0,
     selectionNotified: 0,
@@ -1882,6 +2159,15 @@ export async function runAllJobs(
   await guarded("attendance-transfer-reminder", async () => {
     const r = await jobAttendanceTransferReminder(db);
     jobs.attendanceTransferReminders = r.periods;
+    notificationsSent += r.notif;
+  });
+  // P1.5-BM (D-BM14) — pengingat settlement travel: request Approved, perjalanan
+  // selesai tanpa klaim melewati settlementDay template (default 14) → nudge
+  // in-app + email ke pelaku perjalanan + atasan langsung; maks 1×/3 hari per
+  // request (dedupe ActivityLog + claimReminder atomik per hari).
+  await guarded("travel-settlement-reminder", async () => {
+    const r = await jobTravelSettlementReminders(db);
+    jobs.travelSettlementReminded = r.requests;
     notificationsSent += r.notif;
   });
   // F2-REC — talent pool: pelamar keep-on-file lewat → Outdated otomatis.
@@ -2084,6 +2370,7 @@ export async function runAllJobs(
     (jobs.attendanceClockoutReminded > 0 ? `, ${jobs.attendanceClockoutReminded} pengingat clock-out terkirim` : "") +
     (jobs.attendanceOtAging > 0 ? `, ${jobs.attendanceOtAging} lembur aging diingatkan` : "") +
     (jobs.attendanceTransferReminders > 0 ? `, ${jobs.attendanceTransferReminders} pengingat transfer TA terkirim` : "") +
+    (jobs.travelSettlementReminded > 0 ? `, ${jobs.travelSettlementReminded} pengingat settlement travel terkirim (D-BM14)` : "") +
     (jobs.applicantOutdatedRows > 0 ? `, ${jobs.applicantOutdatedRows} pelamar talent pool otomatis Outdated (keep-on-file habis)` : "") +
     (jobs.selectionReminded > 0 ? `, ${jobs.selectionReminded} tahap seleksi diingatkan (SLA)` : "") +
     (jobs.offerExpiredRows > 0 ? `, ${jobs.offerExpiredRows} offer otomatis kedaluwarsa` : "") +

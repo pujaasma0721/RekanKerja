@@ -16,8 +16,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { RequestRowUI, LEAVE_STATUS_LABEL, LEAVE_STATUS_LABEL_EN, SESSION_LABEL, SESSION_LABEL_EN, fmtDay } from "./leave-types";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+// P1.2-BM (D-BM5) — chips tampil/unduh lampiran (SKD dsb.) pada dialog
+// keputusan + badge jumlah lampiran di antrean (pola medical approval).
+import { AttachmentChips, AttachmentCountBadge } from "@/rekankerja/shared/components/attachment-upload";
 import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
-import { CheckCircle2, XCircle, Ban, Inbox, Search, CalendarClock, ShieldCheck, ShieldAlert } from "lucide-react";
+import { CheckCircle2, XCircle, Ban, Inbox, Search, CalendarClock, ShieldCheck, ShieldAlert, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
@@ -194,6 +197,18 @@ export function LeaveApprovalPage() {
                       <TableCell>
                         <p className="text-xs text-slate-700 dark:text-slate-200">{r.leaveTypeName}</p>
                         <p className="max-w-52 truncate text-[10px] text-slate-400" title={r.reason ?? ""}>{r.reason}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          {(r.attachmentCount ?? 0) > 0 && <AttachmentCountBadge count={r.attachmentCount ?? 0} />}
+                          {/* P1.2-BM (D-BM5) — jenis wajib dokumen tapi belum ada
+                              lampiran (pengajuan legacy pra-upload) → minta karyawan
+                              serahkan fisik / ajukan ulang sebelum menyetujui. */}
+                          {r.needDocs && (r.attachmentCount ?? 0) === 0 && (
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+                              <Paperclip className="h-2.5 w-2.5" aria-hidden />
+                              {t("dokumen belum terunggah", "documents not uploaded")}
+                            </span>
+                          )}
+                        </div>
                         {(() => {
                           const badges = riskBadges(r);
                           return badges.length > 0 ? (
@@ -281,6 +296,21 @@ export function LeaveApprovalPage() {
                   {target.leaveTypeName} · {new Date(target.dateFrom).toLocaleDateString(locale)} {t(SESSION_LABEL[target.sessionFrom], SESSION_LABEL_EN[target.sessionFrom])} → {new Date(target.dateTo).toLocaleDateString(locale)} {t(SESSION_LABEL[target.sessionTo], SESSION_LABEL_EN[target.sessionTo])} · {fmtDay(target.workingDays)} {t("hari kerja", "working days")}
                 </p>
                 <p className="mt-0.5 text-slate-400">{t("Alasan:", "Reason:")} {target.reason}</p>
+              </div>
+              {/* P1.2-BM (D-BM5) — lampiran dokumen pendukung utk verifikasi
+                  approver (klik = tampil/unduh; mirror medical claims detail). */}
+              <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  <Paperclip className="h-3 w-3" aria-hidden />
+                  {t("Lampiran Dokumen Pendukung", "Supporting Document Attachments")}
+                </p>
+                <AttachmentChips attachments={target.attachments ?? []} />
+                {target.needDocs && (target.attachmentCount ?? 0) === 0 && (
+                  <p className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
+                    <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                    {t("Jenis ini mewajibkan dokumen pendukung namun belum ada lampiran terunggah — minta karyawan menyerahkan/mengunggah dokumen sebelum menyetujui.", "This type requires supporting documents but none are uploaded — ask the employee to hand over/upload the document before approving.")}
+                  </p>
+                )}
               </div>
               {action === "approve" && (
                 <div className="flex items-start gap-2 rounded-lg bg-brand/10 p-2.5 text-[11px] leading-relaxed text-brand-deep dark:bg-brand/30 dark:text-brand/85">

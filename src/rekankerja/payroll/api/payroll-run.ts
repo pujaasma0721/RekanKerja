@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
+// P1.4-BM (D-BM8) — chain persetujuan finalisasi utk banner status PendingConfirm.
+import { getApprovalChain } from "@/rekankerja/shared/services/approval-engine";
 
 // GET /api/rekankerja/payroll-run?id= — detail run + lines + items
 export async function GET(req: NextRequest) {
@@ -44,9 +46,16 @@ export async function GET(req: NextRequest) {
         aggByCode.set(item.code, cur);
       }
     }
+    // P1.4-BM (D-BM8) — run menunggu persetujuan finalisasi → sertakan chain
+    // (jenjang + approver + status) utk banner & tombol Setujui/Tolak di UI.
+    const approvalChain = run.status === "PendingConfirm"
+      ? await getApprovalChain(db, "PayrollRunConfirm", run.id)
+      : null;
+
     return NextResponse.json({
       run: dec,
       componentTotals: [...aggByCode.values()].sort((a, b) => a.type.localeCompare(b.type) || a.code.localeCompare(b.code)),
+      ...(approvalChain ? { approvalChain } : {}),
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

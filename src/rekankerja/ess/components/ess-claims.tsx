@@ -41,7 +41,7 @@ import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
 import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import type {
   EssClaimsData, EssRecord,
-  EssMedicalClaimType,
+  EssMedicalClaimType, EssMedicalClaimSubmitInput,
   EssTravelClaimRequestOption,
   EssTravelTemplateOption,
   EssTravelExpenseTypeOption,
@@ -51,6 +51,10 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 
 /** Sentinel "klaim mandiri" — Radix Select tidak mengizinkan value string kosong. */
 const MANDIRI = "__mandiri__";
+
+/** P1.2-BM (D-BM6) — body submit klaim medis ESS + id draf foto struk
+ *  (additive: tipe kontrak ess-types.ts milik slice lain — intersection lokal). */
+type EssMedicalSubmitWithAttachments = EssMedicalClaimSubmitInput & { attachmentIds?: string[] };
 
 /** Task adv-search — field Advance Search klaim medis saya (client-side).
  *  Riwayat dibaca defensif pickStr/pickNum (nama field backend bisa varian)
@@ -161,6 +165,9 @@ function MedicalClaimDialog({
   const [forDependent, setForDependent] = useState(false);
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<MedLine[]>([emptyMedLine()]);
+  // P1.2-BM (D-BM6) — foto struk pra-submit (diunggah sebagai draf entityType
+  // "MedicalClaim" saat submit, lalu di-rebind oleh server ke klaim baru).
+  const [files, setFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -170,6 +177,7 @@ function MedicalClaimDialog({
     setLines([emptyMedLine()]);
     setLetterNo("");
     setForDependent(false);
+    setFiles([]);
     fetchMedicalClaimForm()
       .then((d) => {
         setTypes(d.types);
@@ -185,6 +193,21 @@ function MedicalClaimDialog({
   const setLine = (i: number, patch: Partial<MedLine>) => {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   };
+
+  // P1.2-BM (D-BM6) — unggah foto struk sebagai draf (entityId draft:{uuid});
+  // server me-rebind ke klaim saat POST sukses (mirror tab travel Task 98).
+  async function uploadDraftFiles(): Promise<string[]> {
+    const ids: string[] = [];
+    for (const f of files) {
+      const fd = new FormData();
+      fd.append("file", f);
+      fd.append("entityType", "MedicalClaim");
+      fd.append("entityId", `draft:${crypto.randomUUID()}`);
+      const res = await apiUpload<{ id: string }>("/api/rekankerja/attachments", fd);
+      ids.push(res.id);
+    }
+    return ids;
+  }
 
   const submit = async () => {
     if (busy) return;
@@ -203,12 +226,15 @@ function MedicalClaimDialog({
     setBusy(true);
     setFormError(null);
     try {
-      const res = await submitMedicalClaim({
+      // 1) unggah draf foto struk dulu → 2) submit klaim dgn attachmentIds.
+      const attachmentIds = await uploadDraftFiles();
+      const body: EssMedicalSubmitWithAttachments = {
         typeId,
         claimDate,
         letterNo: letterNo.trim() || undefined, // W3-1 (fix G-2) — passthrough ESS
         forDependent: forDependent || undefined,
         note: note.trim() || undefined,
+        attachmentIds,
         lines: clean.map((l) => ({
           treatedName: l.treatedName.trim(),
           treatment: l.treatment.trim() || undefined,
@@ -218,7 +244,8 @@ function MedicalClaimDialog({
           hospital: l.hospital.trim() || undefined,
           billAmount: Number(l.billAmount) || 0,
         })),
-      });
+      };
+      const res = await submitMedicalClaim(body);
       toast.success(
         t("Klaim {doc} diajukan — menunggu persetujuan {who}", "Claim {doc} submitted — awaiting {who}", { doc: res.docNo, who: res.firstApprover ?? "approver" }),
         { description: trServer(res.receiptNote) },
@@ -248,8 +275,8 @@ function MedicalClaimDialog({
           </DialogTitle>
           <DialogDescription>
             {t(
-              "Reimbursement medis Anda — nilai pengajuan diverifikasi approver, kwitansi asli diserahkan ke HR.",
-              "Your medical reimbursement — the approver verifies the requested amount; hand the original receipts to HR.",
+              "Reimbursement medis Anda — nilai pengajuan diverifikasi approver; unggah foto struk agar verifikasi lebih cepat (kwitansi asli tetap dapat diminta HR).",
+              "Your medical reimbursement — the approver verifies the requested amount; upload receipt photos for faster verification (originals may still be requested by HR).",
             )}
           </DialogDescription>
         </DialogHeader>
@@ -326,7 +353,7 @@ function MedicalClaimDialog({
                   {selected.needReceipt && (
                     <p className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
                       <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-                      {t("Jenis ini mewajibkan kwitansi — serahkan kwitansi asli ke HR untuk verifikasi sebelum klaim disetujui.", "This type requires receipts — hand the originals to HR for verification before approval.")}
+                      {t("Jenis ini mewajibkan kwitansi — unggah foto struk pada bagian Lampiran Foto Struk agar verifikasi lebih cepat; kwitansi asli tetap dapat diminta HR.", "This type requires receipts — upload receipt photos under Receipt Photos for faster verification; originals may still be requested by HR.")}
                     </p>
                   )}
                 </div>
@@ -433,6 +460,20 @@ function MedicalClaimDialog({
               <div className="space-y-1">
                 <Label className="text-xs font-bold">{t("Catatan (opsional)", "Note (optional)")}</Label>
                 <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("Info tambahan utk approver…", "Extra info for the approver…")} className="rounded-xl" />
+              </div>
+
+              {/* P1.2-BM (D-BM6) — upload foto struk pra-submit (mirror tab travel:
+                  draf di-rebind server ke klaim yang dibuat; deklarasi tetap ada). */}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5 text-xs font-bold">
+                  <Paperclip className="h-3.5 w-3.5" aria-hidden />
+                  {t("Lampiran Foto Struk (foto dari ponsel)", "Receipt Photos (phone photos)")}
+                </Label>
+                <AttachmentUploadArea
+                  files={files}
+                  onChange={setFiles}
+                  hint={selected?.needReceipt ? t("Jenis {x} mewajibkan kwitansi — unggah minimal 1 foto struk", "Type {x} requires receipts — upload at least 1 receipt photo", { x: selected.name }) : undefined}
+                />
               </div>
 
               <FormError message={formError} />

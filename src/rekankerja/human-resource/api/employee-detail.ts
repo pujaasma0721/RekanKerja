@@ -6,6 +6,9 @@ import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { computePkwtInfo } from "@/rekankerja/human-resource/services/pkwt";
 import { maskEmployeePii, type PiiScope } from "@/rekankerja/human-resource/api/employees";
+// P1.1-BM — NPWP advisori (D-BM3) di jalur simpan PATCH + kontak darurat
+// (D-BM2) & NIK keluarga (D-BM4) di serializer GET.
+import { npwpAdvisory, serializeEmergencyContacts } from "@/rekankerja/human-resource/services/profile-change-service";
 
 // GET /api/rekankerja/employee-detail?id=
 // Response: employee (data personal + pekerjaan saat ini hasil flatten assignment aktif)
@@ -43,6 +46,9 @@ export async function GET(req: NextRequest) {
         companyOffice: { select: { code: true, name: true, city: true } },
         workLocation: { select: { code: true, name: true, city: true } },
         family: { orderBy: { birthDate: "asc" } },
+        // P1.1-BM (D-BM2) — kontak darurat di profil HR (telepon didekripsi
+        // di batas; dibatalkan utk pemanggil LIMITED — PII pihak ketiga).
+        emergencyContacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
         education: { orderBy: { endYear: "desc" } },
         experiences: { orderBy: { endDate: "desc" } },
         disciplinary: { orderBy: { issuedAt: "desc" } },
@@ -149,7 +155,7 @@ export async function GET(req: NextRequest) {
       orderBy: { employeeNo: "asc" },
     });
 
-    const { assignments: _curAssignments, ...personal } = employee;
+    const { assignments: _curAssignments, emergencyContacts: _emergencyContactsRaw, ...personal } = employee;
     // 28-c: NIK/NPWP/rekening terenkripsi di DB — dekripsi utk tampilan detail
     // (profil HR; decryptText meloloskan plaintext legacy).
     // Task 52-d: no. BPJS ikut terenkripsi.
@@ -158,6 +164,13 @@ export async function GET(req: NextRequest) {
     personal.bankAccount = tcD.decryptText(personal.bankAccount);
     personal.bpjsHealth = tcD.decryptText(personal.bpjsHealth);
     personal.bpjsEmpSkill = tcD.decryptText(personal.bpjsEmpSkill);
+    // P1.1-BM (D-BM4) — NIK anggota keluarga terenkripsi at-rest → dekripsi
+    // di batas (UI menampilkan TERMASK di daftar; nilai penuh dipakai prefill
+    // dialog ubah — pola PII 3-tier employees.ts: full/self melihat nilai,
+    // limited tidak melihat keluarga sama sekali).
+    personal.family = personal.family.map((f) => ({ ...f, nationalId: tcD.decryptText(f.nationalId) }));
+    // P1.1-BM (D-BM2) — kontak darurat: telepon didekripsi di batas serializer.
+    const emergencyContacts = serializeEmergencyContacts(_emergencyContactsRaw, tcD);
     // M-9 / 42-e: pemanggil LIMITED → PII sensitif di-mask (pola sama dgn
     // list /employees) + seksi personal lanjutan dikosongkan: keluarga = PII
     // pihak ketiga/dependen (nama + tanggal lahir); pendidikan/pengalaman/
@@ -185,6 +198,8 @@ export async function GET(req: NextRequest) {
     });
     const flat = {
       ...personal,
+      // P1.1-BM (D-BM2) — kontak darurat (empty utk limited — di atas).
+      emergencyContacts: piiScope === "limited" ? [] : emergencyContacts,
       orgUnitId: cur?.orgUnitId ?? null,
       positionId: cur?.positionId ?? null,
       gradeId: cur?.gradeId ?? null,
@@ -320,6 +335,15 @@ export async function PATCH(req: NextRequest) {
       if (b[f] === undefined) continue;
       data[f] = ENCRYPTED_PERSONAL.has(f) ? tcW.encryptText(b[f] as string | null) : b[f];
     }
+    // P1.1-BM (D-BM3) — NPWP advisori: normalisasi titik/garis; salah format
+    // (bukan 15/16 digit) → warning di respons (toast UI) namun TETAP
+    // DISIMPAN — tidak memblokir data lama; tanpa checksum DJP.
+    let npwpWarning = false;
+    if (b.taxId !== undefined) {
+      const npwp = npwpAdvisory(b.taxId != null ? String(b.taxId) : null);
+      data.taxId = npwp.value != null ? tcW.encryptText(npwp.value) : null;
+      npwpWarning = npwp.warning;
+    }
     if (b.birthDate !== undefined) data.birthDate = b.birthDate ? new Date(b.birthDate) : null;
     if (b.joinDate !== undefined) data.joinDate = b.joinDate ? new Date(b.joinDate) : undefined;
     // Fix audit 40 M-13 — hanya jalur pengosongan (null/"") yang lolos guard di atas.
@@ -374,6 +398,7 @@ export async function PATCH(req: NextRequest) {
     });
     // fix K-3: response memakai bentuk read-path (GET) — NIK/NPWP/rekening
     // di-dekripsi (decryptText meloloskan plaintext legacy), bukan ciphertext.
+    // P1.1-BM (D-BM3) — npwpWarning: sinyal advisori format utk toast UI.
     return NextResponse.json({
       employee: {
         ...employee,
@@ -383,6 +408,7 @@ export async function PATCH(req: NextRequest) {
         bpjsHealth: tcW.decryptText(employee.bpjsHealth),
         bpjsEmpSkill: tcW.decryptText(employee.bpjsEmpSkill),
       },
+      npwpWarning,
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

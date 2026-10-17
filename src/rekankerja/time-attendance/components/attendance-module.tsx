@@ -18,6 +18,10 @@ import { AttendanceOpenShiftPage } from "@/rekankerja/time-attendance/components
 import { AttendanceKioskPage } from "@/rekankerja/time-attendance/components/attendance-kiosk";
 // T12-REPORTS — laporan attendance agregat (padanan Laporan HR)
 import { AttendanceReportsPage } from "@/rekankerja/time-attendance/components/attendance-reports";
+// P1.3-BM (D-BM7) — regularisasi absensi mandiri: inbox approval koreksi
+// absensi yang diajukan karyawan dari ESS (item menu attendance:regularization
+// di-wire koordinator Phase 0).
+import { AttendanceRegularizationPage } from "@/rekankerja/time-attendance/components/attendance-regularization";
 
 export function AttendanceModule({ view }: { view: string }) {
   switch (view) {
@@ -40,6 +44,8 @@ export function AttendanceModule({ view }: { view: string }) {
     case "kiosk-qr": return <AttendanceKioskPage />;
     // T12-REPORTS — laporan attendance (menu attendance:reports)
     case "reports": return <AttendanceReportsPage />;
+    // P1.3-BM (D-BM7) — regularisasi absensi (menu attendance:regularization)
+    case "regularization": return <AttendanceRegularizationPage />;
     default: return <AttendanceOverview />;
   }
 }

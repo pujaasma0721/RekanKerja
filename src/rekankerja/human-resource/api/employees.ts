@@ -10,6 +10,9 @@ import { tenantCryptoForDb, type FieldCrypto } from "@/rekankerja/shared/lib/fie
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot, decryptBaseSalary, type DbOrTx } from "@/rekankerja/human-resource/services/assignment";
 import { validateSalaryAgainstGrade, PATargetError } from "@/rekankerja/human-resource/services/pa-targets";
+// P1.1-BM (D-BM3) — NPWP advisori (format 15/16 digit, tanpa checksum) +
+// D-BM2 — blok kontak darurat opsional saat onboarding.
+import { npwpAdvisory, type EmergencyContactView } from "@/rekankerja/human-resource/services/profile-change-service";
 import { toXlsxMulti, xlsxResponse, exportFilename, type ExportColumn } from "@/rekankerja/shared/lib/export";
 import { type Lang } from "@/rekankerja/shared/lib/i18n-core";
 import { parseAdvSearchReq, advPrismaWhere, type AdvServerField } from "@/rekankerja/shared/services/adv-search-server";
@@ -527,13 +530,18 @@ export async function POST(req: NextRequest) {
       ? { contractStart: null, contractEnd: null, renewalCount: 0 }
       : { contractStart, contractEnd, renewalCount };
 
+    // P1.1-BM (D-BM3) — NPWP advisori: normalisasi titik/garis; 15/16 digit
+    // valid → simpan bentuk normal; SALAH FORMAT → warning (respons
+    // npwpWarning utk toast UI) namun data TETAP DISIMPAN (tidak memblokir).
+    const npwp = npwpAdvisory(b.taxId != null ? String(b.taxId) : null);
+
     const employee = await createEmployeeWithAssignment(db, prefix, {
       fullName: b.fullName,
       gender: b.gender ?? "M",
       birthPlace: b.birthPlace ?? null,
       birthDate: b.birthDate ? new Date(b.birthDate) : null,
       nationalId: b.nationalId ?? null,
-      taxId: b.taxId ?? null,
+      taxId: npwp.value,
       maritalStatus: b.maritalStatus ?? null,
       religion: b.religion ?? null,
       bloodType: b.bloodType ?? null,
@@ -561,6 +569,53 @@ export async function POST(req: NextRequest) {
       changeReason: "Initial",
       notes: "Penempatan awal saat onboarding",
     }, tenantCryptoForDb(db));
+
+    // P1.1-BM (D-BM2) — kontak darurat opsional dari wizard (langkah Data
+    // Personal): maks 3 baris; telepon TERENKRIPSI enc:v1 (pola PII 28-c).
+    // Gagal validasi baris → 400 ramah (karyawan tetap sudah dibuat; wizard
+    // menampilkan error dan HR bisa menambah kontak setelahnya di profil).
+    let emergencyContacts: EmergencyContactView[] = [];
+    if (Array.isArray(b.emergencyContacts) && b.emergencyContacts.length > 0) {
+      const tc = tenantCryptoForDb(db);
+      const rows = (b.emergencyContacts as Record<string, unknown>[]).slice(0, 3);
+      const seenPrimary = rows.some((r) => r.isPrimary === true);
+      for (const [i, raw] of rows.entries()) {
+        const name = String(raw.name ?? "").trim().slice(0, 100);
+        const relationship = String(raw.relationship ?? "").trim().slice(0, 50);
+        const phone = String(raw.phone ?? "").trim().slice(0, 30);
+        if (!name || !relationship || !phone) {
+          return NextResponse.json(
+            { error: `Kontak darurat ke-${i + 1}: nama, hubungan & telepon wajib diisi (karyawan sudah dibuat — lengkapi kontak di profilnya)` },
+            { status: 400 },
+          );
+        }
+        // baris pertama otomatis utama bila tak ada yang ditandai
+        const isPrimary = raw.isPrimary === true || (!seenPrimary && i === 0);
+        const c = await db.emergencyContact.create({
+          data: {
+            employeeId: employee.id,
+            name,
+            relationship,
+            // encryptText(maybe-null) → string | null; phone divalidasi
+            // non-kosong di atas — kembalikan string (kolom NOT NULL).
+            phone: tc.encryptText(phone) ?? "",
+            address: raw.address != null && String(raw.address).trim() !== "" ? String(raw.address).trim().slice(0, 300) : null,
+            isPrimary,
+          },
+        });
+        emergencyContacts.push({
+          id: c.id, name, relationship, phone,
+          address: c.address, isPrimary: c.isPrimary, notes: c.notes,
+        });
+      }
+      await db.activityLog.create({
+        data: {
+          appUserId: actor.appUserId,
+          action: "Created", entity: "EmergencyContact", employeeId: employee.id,
+          detail: `${emergencyContacts.length} kontak darurat ditambahkan saat onboarding ${employee.fullName} (${employee.employeeNo})`,
+        },
+      }).catch(() => { /* best-effort */ });
+    }
 
     await db.activityLog.create({
       data: {
@@ -610,6 +665,10 @@ export async function POST(req: NextRequest) {
           bpjsHealth: employee.bpjsHealth == null ? null : tcResp.decryptText(employee.bpjsHealth),
           bpjsEmpSkill: employee.bpjsEmpSkill == null ? null : tcResp.decryptText(employee.bpjsEmpSkill),
         },
+        // P1.1-BM (D-BM3) — sinyal advisori NPWP utk toast UI (data tetap tersimpan).
+        npwpWarning: npwp.warning,
+        // P1.1-BM (D-BM2) — kontak darurat hasil create (telepon plaintext utk UI).
+        emergencyContacts,
       },
       { status: 201 },
     );

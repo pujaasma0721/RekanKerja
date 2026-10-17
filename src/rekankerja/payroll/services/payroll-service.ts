@@ -9,12 +9,21 @@ import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";import 
   EngineTer, EngineRegulation, EngineRunResult,
 } from "@/rekankerja/payroll/services/payroll-engine";
 import { ComponentRuleLite } from "@/rekankerja/payroll/services/component-rules";
+// P1.4-BM (D-BM13) — jam shift malam per karyawan period (batch 1 kueri/run).
+import { nightHoursForPeriod } from "@/rekankerja/payroll/services/night-hours";
 import { generateJournalForRun } from "@/rekankerja/payroll/services/payroll-journal";
 import { markClaimsPaidForRun } from "@/rekankerja/payroll/services/benefit-service";
 import { markOvertimePaidForRun, countScheduledWorkingDaysPure, dayStart } from "@/rekankerja/time-attendance/services/attendance-service";
 import { markEncashmentPaidForRun } from "@/rekankerja/leave/services/leave-service";
 import { markTravelPaidForRun } from "@/rekankerja/travel/services/travel-service";
 import { markMedicalPaidForRun } from "@/rekankerja/medical/services/medical-service";
+// P1.4-BM (D-BM8) — approval chain finalisasi run payroll (docType terdaftar
+// di approval-engine Phase 0; struktur AKTIF opsional per tenant → default OFF).
+import {
+  getApprovalChain as getChainView,
+  startApprovalChain,
+  type ChainView,
+} from "@/rekankerja/shared/services/approval-engine";
 
 export async function getActiveRegulation(db: TenantDb): Promise<EngineRegulation> {
   const r = await db.payrollRegulation.findFirst({ where: { active: true }, orderBy: { validFrom: "desc" } });
@@ -291,6 +300,15 @@ export async function buildRunRowsWithLog(
 
   const workingDays = workingDaysBetween(period.startDate, period.endDate);
   const rows: EngineRow[] = [];
+
+  // P1.4-BM (D-BM13) — JAM SHIFT MALAM: satu kueri batched per RUN (bukan per
+  // karyawan), hanya dijalankan bila ada komponen upah aktif yang formulanya
+  // memakai variabel NIGHT_HOURS — tenant tanpa komponen premi malam tidak
+  // membayar kueri tambahan sama sekali (perilaku run lama tak berubah).
+  const usesNightHours = components.some((c) => /NIGHT_HOURS/i.test(c.formula ?? ""));
+  const nightHoursByEmp = usesNightHours
+    ? await nightHoursForPeriod(db, activeEmployees.map((e) => e.id), period.startDate, period.endDate)
+    : null;
 
   // Semantik multi-run (perilaku standar industri): hanya run SALARY yang memproses
   // payroll penuh (template + periodic + pinjaman). Run THR/BONUS/TERMINATION/
@@ -748,6 +766,8 @@ export async function buildRunRowsWithLog(
       ...(wdByEmp.has(emp.id)
         ? { periodWorkingDays: wdByEmp.get(emp.id)!.empDays, periodWorkingDaysFull: wdByEmp.get(emp.id)!.fullDays }
         : {}),
+      // P1.4-BM (D-BM13) — jam malam karyawan (var formula NIGHT_HOURS).
+      ...(nightHoursByEmp ? { nightHours: nightHoursByEmp.get(emp.id) ?? 0 } : {}),
       // K-1: konteks regular YTD (run suplemental; fallback gaji bulanan profil).
       regularIncomeYtd: ctx && ctx.months > 0 ? ctx.bruto : baseSalary,
       regularIuranYtd: ctx && ctx.months > 0 ? ctx.iuran : 0,
@@ -783,6 +803,11 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
   if (!run) throw new Error("Run payroll tidak ditemukan");
   if (run.status === "Confirmed" || run.status === "Paid") {
     throw new Error("Run yang sudah dikonfirmasi/dibayar tidak dapat dihitung ulang");
+  }
+  // P1.4-BM (D-BM8): run menunggu keputusan approval chain — kalkulasi ulang
+  // harus menunggu pengajuan finalisasi DITOLAK dulu (status kembali Calculated).
+  if (run.status === "PendingConfirm") {
+    throw new Error("Run sedang menunggu persetujuan finalisasi — tolak pengajuannya dulu (aksi Tolak pada run) sebelum menghitung ulang");
   }
 
   // --- Fase 1: komputasi murni (baca input + runPayroll; nol mutasi DB) ---
@@ -917,14 +942,90 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
   return result;
 }
 
+// ===== P1.4-BM (D-BM8) — APPROVAL CHAIN FINALISASI RUN PAYROLL ============
+// docType "PayrollRunConfirm" (sudah terdaftar di approval-engine + Settings
+// sejak Phase 0). Bila tenant MEMBUAT struktur aktif utk docType ini, aksi
+// "confirm" TIDAK lagi langsung mengeksekusi confirmRun: run masuk status
+// "PendingConfirm" + ApprovalChain dibuat; approve jenjang TERAKHIR barulah
+// confirmRun dijalankan (API memirror notifikasi pasca-konfirmasi jalur lama:
+// email payroll.run.confirmed + in-app admins + webhook payroll.confirmed).
+// Tanpa struktur aktif → perilaku lama 1-klik (backward-compat, default OFF).
+
+/** Struktur approval AKTIF utk finalisasi run? (null = tidak ada → jalur lama). */
+export async function findRunConfirmStructure(db: TenantDb): Promise<boolean> {
+  const s = await db.approvalStructure.findFirst({
+    where: { docType: "PayrollRunConfirm", active: true },
+    select: { id: true },
+  });
+  return s != null;
+}
+
+/**
+ * Buat chain PayrollRunConfirm utk run. Pemohon = aktor yang menekan konfirmasi
+ * (biasanya admin payroll). Aktor TERTAUT karyawan → startApprovalChain biasa
+ * (resolusi struktur 6-dimensi + fallback engine). Aktor TANPA karyawan →
+ * fallback chain engine: satu jenjang Admin/HR Workspace (pemohon bukan
+ * karyawan — tidak ada atasan yang bisa dicari).
+ */
+export async function startRunConfirmChain(
+  db: TenantDb,
+  run: { id: string; runNo: string },
+  actor: { employeeId: string | null; appUserId: string | null; name: string },
+): Promise<ChainView> {
+  if (actor.employeeId) {
+    return startApprovalChain(db, {
+      docType: "PayrollRunConfirm",
+      docId: run.id,
+      employeeId: actor.employeeId,
+      createdBy: actor.appUserId ?? actor.name,
+    });
+  }
+  const existing = await getChainView(db, "PayrollRunConfirm", run.id);
+  if (existing) return existing;
+  const chain = await db.approvalChain.create({
+    data: {
+      docType: "PayrollRunConfirm",
+      docId: run.id,
+      structureId: null,
+      employeeId: "", // pemohon bukan karyawan (AppUser murni admin)
+      currentLevel: 1,
+      totalLevels: 1,
+      createdBy: actor.appUserId ?? actor.name,
+      steps: {
+        create: [{
+          levelNo: 1,
+          approverType: "HR_ADMIN",
+          approverLabel: "Admin/HR Workspace (default — pemohon tanpa data karyawan)",
+          status: "Current",
+        }],
+      },
+    },
+    include: { steps: { orderBy: { levelNo: "asc" } } },
+  });
+  return {
+    id: chain.id, docType: chain.docType, docId: chain.docId, structureId: chain.structureId,
+    status: chain.status, currentLevel: chain.currentLevel, totalLevels: chain.totalLevels, amount: chain.amount,
+    steps: chain.steps.map((s) => ({
+      levelNo: s.levelNo, approverType: s.approverType, approverLabel: s.approverLabel,
+      approverEmployeeId: s.approverEmployeeId, minAmount: s.minAmount, maxAmount: s.maxAmount,
+      status: s.status, note: s.note, decidedBy: s.decidedBy, decidedAt: s.decidedAt,
+    })),
+  };
+}
+
 // Konfirmasi run: kunci hasil + apply angsuran pinjaman (status Deducted).
+// P1.4-BM (D-BM8): menerima dari status "Calculated" (jalur lama 1-klik)
+// ATAU "PendingConfirm" (ujung approval chain finalisasi — API sudah memastikan
+// chain berstatus Approved sebelum memanggil ini).
 export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
   const run = await db.payrollRun.findUnique({
     where: { id: runId },
     include: { lines: { include: { items: true } }, period: true, processType: true },
   });
   if (!run) throw new Error("Run payroll tidak ditemukan");
-  if (run.status !== "Calculated") throw new Error("Run harus berstatus Calculated sebelum dikonfirmasi");
+  if (run.status !== "Calculated" && run.status !== "PendingConfirm") {
+    throw new Error("Run harus berstatus Calculated sebelum dikonfirmasi");
+  }
   // 28-c: konteks dekripsi per-tenant — item run tersimpan terenkripsi.
   const tc = tenantCryptoForDb(db);
   // M-8: kolom buku pinjaman NOT NULL (String) — encryptMoney non-null.

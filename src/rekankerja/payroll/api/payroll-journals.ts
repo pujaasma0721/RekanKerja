@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { generateJournalForRun } from "@/rekankerja/payroll/services/payroll-journal";
+import { trFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 
 // GET /api/rekankerja/payroll-journals            → daftar jurnal + run yang belum diposting
 // GET /api/rekankerja/payroll-journals?id=        → detail jurnal (dengan lines)
@@ -30,6 +31,78 @@ export async function GET(req: NextRequest) {
         include: { lines: { orderBy: { sequence: "asc" } } },
       });
       if (!journal) return NextResponse.json({ error: "Jurnal tidak ditemukan" }, { status: 404 });
+
+      // ===== P1.4-BM (D-BM11) — ekspor GL ke format akuntansi eksternal =====
+      // accurate|jurnal|generic: nominal via dm (vault-aware), D/K dipecah ke
+      // kolom Debit/Credit terpisah sesuai konvensi impor tiap sistem.
+      const glFormat = exportCsv === "accurate" || exportCsv === "jurnal" || exportCsv === "generic" ? exportCsv : null;
+      if (glFormat) {
+        const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
+        const H = (idText: string, enText: string) => trFor(lang, idText, enText);
+        const gi = (s: string | null | undefined): string => {
+          const v = s ?? "";
+          return /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+        };
+        const isoDate = (d: Date) => new Date(d).toISOString().slice(0, 10);
+        const dec = (v: string | null) => String(Math.round(dm(v)));
+        let header: string;
+        let rows: string[];
+        if (glFormat === "accurate") {
+          header = ["Date", "RefNo", "Description", "Account", "AccountName", "Debit", "Credit", "Currency"].join(";");
+          rows = journal.lines.map((l) => [
+            isoDate(journal.journalDate),
+            `"${gi(journal.journalNo)}"`,
+            `"${gi(journal.description)}"`,
+            gi(l.accountCode),
+            `"${gi(l.accountName)}"`,
+            l.position === "Debit" ? dec(l.amount) : "0",
+            l.position === "Credit" ? dec(l.amount) : "0",
+            "IDR",
+          ].join(";"));
+        } else if (glFormat === "jurnal") {
+          header = ["Transaction Date", "Memo", "Account Code", "Account Name", "Debit", "Credit"].join(";");
+          rows = journal.lines.map((l) => [
+            isoDate(journal.journalDate),
+            `"${gi(journal.description)}"`,
+            gi(l.accountCode),
+            `"${gi(l.accountName)}"`,
+            l.position === "Debit" ? dec(l.amount) : "0",
+            l.position === "Credit" ? dec(l.amount) : "0",
+          ].join(";"));
+        } else {
+          header = [
+            H("No Jurnal", "Journal No"), H("Tanggal", "Date"), H("Keterangan", "Description"),
+            H("Akun", "Account"), H("Nama Akun", "Account Name"), H("Debit", "Debit"), H("Kredit", "Credit"),
+            H("Komponen", "Wage Code"), H("Memo Baris", "Line Memo"),
+          ].join(";");
+          rows = journal.lines.map((l) => [
+            `"${gi(journal.journalNo)}"`,
+            isoDate(journal.journalDate),
+            `"${gi(journal.description)}"`,
+            gi(l.accountCode),
+            `"${gi(l.accountName)}"`,
+            l.position === "Debit" ? dec(l.amount) : "0",
+            l.position === "Credit" ? dec(l.amount) : "0",
+            gi(l.wageCode) || "",
+            `"${gi(l.memo)}"`,
+          ].join(";"));
+        }
+        const totalD = journal.lines.filter((l) => l.position === "Debit").reduce((s, l) => s + Math.round(dm(l.amount)), 0);
+        const totalC = journal.lines.filter((l) => l.position === "Credit").reduce((s, l) => s + Math.round(dm(l.amount)), 0);
+        const footer = ["", "", `"${H("TOTAL — seimbang", "TOTAL — balanced")}"`, "", "", String(totalD), String(totalC)].join(";");
+        const csv = [
+          `${H("RekanKerja — Ekspor Jurnal GL", "RekanKerja — GL Journal Export")} (${glFormat}) — ${gi(journal.journalNo)} / ${gi(journal.runNo ?? "-")}`,
+          header,
+          ...rows,
+          footer,
+        ].join("\n");
+        return new NextResponse(csv, {
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="rekankerja-gl-${glFormat}-${journal.journalNo}.csv"`,
+          },
+        });
+      }
 
       if (exportCsv === "csv") {
         // AUD-DEPLOY (2-b MED-4) — CSV formula injection: string user yang

@@ -29,6 +29,10 @@ export const ATTACHMENT_ENTITY_MENUS: Record<string, string> = {
   // P1.2-BM (D-BM5) — lampiran permintaan cuti (SKD surat dokter dsb.):
   // guard admin = aksi create menu leave; ESS boleh unggah utk cuti MILIK SENDIRI.
   LeaveRequest: "leave:leave-request",
+  // P1.3-BM (D-BM7) — bukti regularisasi absensi (foto clock dsb.):
+  // guard admin = aksi create menu attendance:regularization; ESS boleh unggah
+  // utk pengajuan regularisasi MILIK SENDIRI.
+  AttendanceRegularization: "attendance:regularization",
 };
 
 /** Aktor minimal untuk cek izin baca lampiran (subset MenuActor). */
@@ -105,6 +109,15 @@ export async function attachmentReadAllowed(
       });
       return req?.employeeId === ctx.actor.employeeId;
     }
+    if (att.entityType === "AttendanceRegularization") {
+      // P1.3-BM (D-BM7) — bukti regularisasi absensi milik karyawan sendiri
+      // (approver membaca via menu attendance:regularization — guard #2 di atas).
+      const req = await ctx.db.attendanceRegularizationRequest.findUnique({
+        where: { id: att.entityId },
+        select: { employeeId: true },
+      });
+      return req?.employeeId === ctx.actor.employeeId;
+    }
     if (att.entityType === "EmployeeDocument") {
       const doc = await ctx.db.employeeDocument.findUnique({
         where: { id: att.entityId },
@@ -160,6 +173,11 @@ async function essOwnerEmployeeIdOf(
     const r = await db.leaveRequest.findUnique({ where: { id: entityId }, select: { employeeId: true } });
     return r?.employeeId ?? null;
   }
+  if (entityType === "AttendanceRegularization") {
+    // P1.3-BM (D-BM7) — kepemilikan pengajuan regularisasi absensi.
+    const r = await db.attendanceRegularizationRequest.findUnique({ where: { id: entityId }, select: { employeeId: true } });
+    return r?.employeeId ?? null;
+  }
   return null;
 }
 
@@ -202,7 +220,7 @@ export async function POST(req: NextRequest) {
     if (m.ok) {
       dbRef = m.db;
       uploaderId = m.actor.appUserId ?? m.actor.userId;
-    } else if (entityType === "TravelClaim" || entityType === "MedicalClaim" || entityType === "LeaveRequest") {
+    } else if (entityType === "TravelClaim" || entityType === "MedicalClaim" || entityType === "LeaveRequest" || entityType === "AttendanceRegularization") {
       // Task 98 (F1-5) — ESS boleh mengunggah kwitansi TravelClaim MILIK SENDIRI
       // (draft pra-submit, atau klaim final miliknya) tanpa menu admin travel:
       // menutup temuan VLM walkthrough 97 "critical issue" — karyawan menyimpan

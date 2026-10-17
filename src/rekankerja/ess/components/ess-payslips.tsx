@@ -3,8 +3,11 @@
 // membuka detail kartu slip: pendapatan & potongan terpisah, gross, total
 // potongan, dan NET besar di bawah + status run. Intent "line:{id}" dari
 // dashboard membuka detail langsung.
+// P1.4-BM (D-BM9): tab "Simulasi Gaji" — estimasi THP hypothetical memakai
+// engine TER + Pasal 17 yang sama dgn run nyata; TANPA prefill data upah
+// nyata (kebijakan vault — slip ESS digerbang, simulasi input manual murni).
 import { useMemo, useState } from "react";
-import { ArrowLeft, ReceiptText, Loader2, AlertTriangle, TrendingUp, TrendingDown, Wallet, Info, FileDown } from "lucide-react";
+import { ArrowLeft, ReceiptText, Loader2, AlertTriangle, TrendingUp, TrendingDown, Wallet, Info, FileDown, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, fmtIDR, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
@@ -16,6 +19,8 @@ import { ESS_BASE } from "./ess-api";
 import type { EssPayslipDetail, EssPayslipItem, EssPayslipLine } from "./ess-types";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
 import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
+// P1.4-BM (D-BM9) — form simulasi THP (dipakai ulang dari modul Payroll).
+import { ThpSimulationForm } from "@/rekankerja/payroll/components/payroll-simulation";
 
 interface EssPayslipsProps { intent: string | null }
 
@@ -80,6 +85,8 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
   const [lineId, setLineId] = useState<string | null>(() => (intent && intent.startsWith("line:") ? intent.slice(5) : null));
   // Task adv-search — kondisi advance search utk daftar slip (personal ESS).
   const [adv, setAdv] = useState<AdvSearch | null>(null);
+  // P1.4-BM (D-BM9) — tab internal: daftar slip | simulasi gaji (hipotetis).
+  const [tab, setTab] = useState<"slips" | "simulation">("slips");
 
   const list = useApi<{ slips: EssPayslipLine[] }>(`${ESS_BASE}/payslips`);
   const detail = useApi<EssPayslipDetail>(lineId ? `${ESS_BASE}/payslips/detail?lineId=${encodeURIComponent(lineId)}` : null, [lineId]);
@@ -179,6 +186,23 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
     );
   }
 
+  // ===== TAB SIMULASI GAJI (P1.4-BM D-BM9) =====
+  if (!lineId && tab === "simulation") {
+    return (
+      <div className="space-y-4">
+        <PageHeader
+          eyebrow={t("Employee Self Service", "Employee Self Service")}
+          title={t("Simulasi Gaji", "Salary Simulation")}
+          description={t(
+            "Estimasi take-home-pay hypothetical dengan engine yang sama dengan payroll nyata (TER PMK 168/2023 + Pasal 17). Input manual murni — tidak membaca data gaji Anda.",
+            "Hypothetical take-home-pay estimate using the same engine as real payroll (TER PMK 168/2023 + Article 17). Manual inputs only — your actual salary data is not read.",
+          )}
+        />
+        <ThpSimulationForm ess />
+      </div>
+    );
+  }
+
   // ===== DAFTAR =====
   return (
     <div className="space-y-4">
@@ -188,6 +212,23 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
         description={t("Riwayat slip gaji periode Anda — klik untuk melihat rincian.", "Your payslip history by period — click for the breakdown.")}
         actions={<AdvSearchButton fields={SLIP_ADV_FIELDS} value={adv} onChange={setAdv} />}
       />
+      {/* P1.4-BM (D-BM9) — tab internal daftar slip / simulasi gaji */}
+      <div className="flex max-w-md rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-900">
+        <button
+          onClick={() => setTab("slips")}
+          className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition", tab === "slips" ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-50" : "text-slate-500")}
+          aria-pressed={tab === "slips"}
+        >
+          <ReceiptText className="h-3.5 w-3.5" aria-hidden /> {t("Slip Saya", "My Slips")}
+        </button>
+        <button
+          onClick={() => setTab("simulation")}
+          className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition", tab === "simulation" ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-50" : "text-slate-500")}
+          aria-pressed={tab === "simulation"}
+        >
+          <Calculator className="h-3.5 w-3.5" aria-hidden /> {t("Simulasi Gaji", "Salary Simulation")}
+        </button>
+      </div>
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {list.loading && !list.data ? (

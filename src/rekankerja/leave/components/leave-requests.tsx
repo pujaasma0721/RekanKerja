@@ -2,7 +2,7 @@
 // RekanKerja Leave — Permintaan Cuti: form auto-compute (padanan LeaveRequest.jsp)
 // hari kerja dihitung dari jadwal absensi, saldo & HP kembali kerja otomatis.
 import { useEffect, useMemo, useState } from "react";
-import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
+import { useApi, apiSend, apiUpload } from "@/rekankerja/shared/lib/api";
 import { nextServerSort, ServerSortHead, type ServerSortDir } from "@/rekankerja/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
@@ -19,8 +19,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { RequestRowUI, LeaveTypeRow, EmployeeOption, LEAVE_STATUS_LABEL, SESSION_LABEL, SESSION_LABEL_EN, fmtDay } from "./leave-types";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
+// P1.2-BM (D-BM5) — unggah dokumen pendukung (SKD dsb.) saat mengajukan cuti
+// + badge jumlah lampiran di daftar (pola T16-ATTACH medical/travel).
+import { AttachmentUploadArea, AttachmentCountBadge } from "@/rekankerja/shared/components/attachment-upload";
 import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
-import { Inbox, Plus, Search, CalendarClock, Send, Ban, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Inbox, Plus, Search, CalendarClock, Send, Ban, CheckCircle2, AlertTriangle, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 
@@ -73,6 +76,9 @@ export function LeaveRequestsPage() {
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
+  // P1.2-BM (D-BM5) — file lampiran dokumen pendukung pra-submit (diunggah
+  // sebagai draf entityType "LeaveRequest" saat submit, lalu di-rebind server).
+  const [files, setFiles] = useState<File[]>([]);
   const [form, setForm] = useState({
     employeeId: "", leaveTypeId: "", dateFrom: todayISO(), sessionFrom: "AM",
     dateTo: todayISO(), sessionTo: "PM", reason: "", note: "",
@@ -119,17 +125,40 @@ export function LeaveRequestsPage() {
 
   const selectedType = (typesApi.data?.types ?? []).find((ty) => ty.id === form.leaveTypeId);
 
+  // P1.2-BM (D-BM5) — unggah file sebagai draf (entityId draft:{uuid}); server
+  // me-rebind ke permintaan saat POST cuti sukses; gagal submit → draf disapu.
+  async function uploadDraftFiles(): Promise<string[]> {
+    const ids: string[] = [];
+    for (const f of files) {
+      const form = new FormData();
+      form.append("file", f);
+      form.append("entityType", "LeaveRequest");
+      form.append("entityId", `draft:${crypto.randomUUID()}`);
+      const res = await apiUpload<{ id: string }>("/api/rekankerja/attachments", form);
+      ids.push(res.id);
+    }
+    return ids;
+  }
+
   const submit = async () => {
     if (!form.employeeId || !form.leaveTypeId) { toast.error(t("Karyawan & jenis cuti wajib dipilih", "Employee & leave type are required")); return; }
     if (!form.reason.trim()) { toast.error(t("Alasan cuti wajib diisi", "Leave reason is required")); return; }
+    // P1.2-BM (D-BM5) — mirror enforcement server: jenis needDocs wajib lampiran.
+    if (selectedType?.needDocs && files.length === 0) {
+      toast.error(t("Jenis cuti {x} mewajibkan dokumen pendukung — unggah lampiran di bawah sebelum mengajukan", "Leave type {x} requires supporting documents — upload an attachment below before submitting", { x: selectedType.name }));
+      return;
+    }
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; workingDays: number; remaining: number; backToWork: string | null; approvalLevels?: number; firstApprover?: string | null }>(
-        "/api/rekankerja/leave/requests", "POST", form,
+      // 1) unggah draf lampiran dulu → 2) submit cuti dgn attachmentIds.
+      const attachmentIds = await uploadDraftFiles();
+      const res = await apiSend<{ docNo: string; workingDays: number; remaining: number; backToWork: string | null; approvalLevels?: number; firstApprover?: string | null; attachmentCount?: number }>(
+        "/api/rekankerja/leave/requests", "POST", { ...form, attachmentIds },
       );
       toast.success(
         t("{doc} diajukan — {d} hari kerja, sisa saldo {r}", "{doc} submitted — {d} working days, remaining balance {r}", { doc: res.docNo, d: res.workingDays, r: res.remaining }) +
-        (res.firstApprover ? t(" · menunggu approval {a}", " · awaiting approval by {a}", { a: res.firstApprover }) + (res.approvalLevels && res.approvalLevels > 1 ? t(" (jenjang 1/{n})", " (tier 1/{n})", { n: res.approvalLevels }) : "") : ""),
+        (res.firstApprover ? t(" · menunggu approval {a}", " · awaiting approval by {a}", { a: res.firstApprover }) + (res.approvalLevels && res.approvalLevels > 1 ? t(" (jenjang 1/{n})", " (tier 1/{n})", { n: res.approvalLevels }) : "") : "") +
+        ((res.attachmentCount ?? 0) > 0 ? t(" · {n} lampiran", " · {n} attachments", { n: res.attachmentCount ?? 0 }) : ""),
       );
       setDialog(false);
       api.refresh();
@@ -189,6 +218,7 @@ export function LeaveRequestsPage() {
                 dateFrom: todayISO(), sessionFrom: "AM", dateTo: todayISO(), sessionTo: "PM", reason: "", note: "",
               });
               setPreview(null);
+              setFiles([]);
               setDialog(true);
             }} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> {t("Ajukan Cuti", "Request Leave")}
@@ -260,6 +290,7 @@ export function LeaveRequestsPage() {
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-slate-700 dark:text-slate-200">{r.docNo}</p>
                         <p className="text-[10px] text-slate-400">{new Date(r.requestDate).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "2-digit" })} · {r.source}</p>
+                        {(r.attachmentCount ?? 0) > 0 && <AttachmentCountBadge count={r.attachmentCount ?? 0} />}
                       </TableCell>
                       <TableCell>
                         <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{r.employeeNo}</p>
@@ -415,10 +446,26 @@ export function LeaveRequestsPage() {
               <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder={t("Opsional — no. surat dsb.", "Optional — letter no. etc.")} className="h-8 text-xs" />
             </div>
             {selectedType?.needDocs && (
-              <p className="rounded-lg bg-amber-50 px-3 py-2 text-[10px] font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
-                {t("Jenis ini memerlukan dokumen pendukung — serahkan ke HR saat approval.", "This type requires supporting documents — hand them to HR during approval.")}
+              <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[10px] font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                <Paperclip className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                {t("Jenis ini mewajibkan dokumen pendukung (mis. surat keterangan dokter) — unggah lampiran di bawah sebelum mengajukan.", "This type requires supporting documents (e.g. a doctor's note) — upload an attachment below before submitting.")}
               </p>
             )}
+
+            {/* P1.2-BM (D-BM5) — upload dokumen pendukung pra-submit (SKD dsb.);
+                gate needDocs di-enforce server (dan diblok client di atas). */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5 text-xs font-bold">
+                <Paperclip className="h-3.5 w-3.5" aria-hidden />
+                {t("Lampiran Dokumen Pendukung", "Supporting Document Attachments")}
+                {selectedType?.needDocs && <span className="text-rose-500 dark:text-rose-400">*</span>}
+              </Label>
+              <AttachmentUploadArea
+                files={files}
+                onChange={setFiles}
+                hint={selectedType?.needDocs ? t("Jenis {x} mewajibkan lampiran — unggah minimal 1 dokumen", "Type {x} requires attachments — upload at least 1 document", { x: selectedType.name }) : undefined}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)} className="text-xs font-bold">{t("Batal")}</Button>

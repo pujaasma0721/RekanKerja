@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { ApiErrorState, todayISO } from "@/rekankerja/time-attendance/components/attendance-ui";
 import {
-  CalendarDays, Plus, Pencil, Trash2, Upload, Sparkles, CalendarRange, Info, Loader2,
+  CalendarDays, Plus, Pencil, Trash2, Upload, Sparkles, CalendarRange, Info, Loader2, Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +36,8 @@ interface HolidayRow {
 interface HolidaysResponse {
   year: number;
   years: number[];
+  /** P1.5 (D-BM12) — tahun dataset SKB bundled yang bisa diimpor tenant. */
+  datasetYears?: number[];
   holidays: HolidayRow[];
   stats: { total: number; national: number; joint: number; company: number };
 }
@@ -68,6 +70,7 @@ export function AttendanceHolidaysPage() {
   const [dialog, setDialog] = useState(false);
   const [edit, setEdit] = useState<HolidayRow | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [datasetOpen, setDatasetOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<HolidayRow | null>(null);
   const [form, setForm] = useState({ date: "", name: "", kind: "National" });
   const [busy, setBusy] = useState(false); // G11: dialog simpan sedang mengirim
@@ -161,6 +164,9 @@ export function AttendanceHolidaysPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Button variant="outline" onClick={() => setDatasetOpen(true)} className="gap-2 font-bold">
+              <Database className="h-4 w-4" /> {t("Impor Dataset Nasional", "Import National Dataset")}
+            </Button>
             <Button variant="outline" onClick={() => setImportOpen(true)} className="gap-2 font-bold">
               <Upload className="h-4 w-4" /> {t("Import Kalender", "Import Calendar")}
             </Button>
@@ -363,6 +369,18 @@ export function AttendanceHolidaysPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ==== dialog impor dataset nasional (P1.5 D-BM12) ==== */}
+      <DatasetImportDialog
+        open={datasetOpen}
+        onOpenChange={setDatasetOpen}
+        year={year}
+        datasetYears={api.data?.datasetYears ?? []}
+        onImported={() => {
+          api.refresh();
+          setDatasetOpen(false);
+        }}
+      />
+
       {/* ==== dialog import kalender ==== */}
       <HolidayImportDialog
         open={importOpen}
@@ -427,6 +445,89 @@ function MiniMonth({
         })}
       </div>
     </div>
+  );
+}
+
+// ============ dialog impor dataset nasional SKB (P1.5 D-BM12) ============
+
+function DatasetImportDialog({
+  open, onOpenChange, year, datasetYears, onImported,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  year: number;
+  datasetYears: number[];
+  onImported: () => void;
+}) {
+  const { t } = useI18n();
+  // default: tahun yang sedang dilihat bila tersedia, selain itu tahun terbaru
+  const [pick, setPick] = useState<number>(datasetYears.includes(year) ? year : datasetYears[datasetYears.length - 1] ?? year);
+  const [busy, setBusy] = useState(false);
+
+  const doImport = async () => {
+    if (!pick) return;
+    setBusy(true);
+    try {
+      const res = await apiSend<{ total: number; inserted: number; existing: number }>(
+        "/api/rekankerja/attendance/holidays", "POST", { action: "import-dataset", year: pick },
+      );
+      toast.success(
+        res.inserted > 0
+          ? t("{n} baris baru ditambahkan ({m} sudah ada)", "{n} new rows added ({m} already exist)", { n: res.inserted, m: res.existing })
+          : t("Semua {n} baris dataset sudah ada — tidak ada perubahan", "All {n} dataset rows already exist — no changes", { n: res.total }),
+      );
+      onImported();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal mengimpor dataset", "Failed to import dataset"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
+      <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Database className="h-4 w-4 ov-text-accent" /> {t("Impor Dataset Nasional", "Import National Dataset")}
+          </DialogTitle>
+        </DialogHeader>
+        {datasetYears.length === 0 ? (
+          <p className="text-[13px] text-slate-500">
+            {t("Belum ada dataset yang dibundel. Dataset resmi SKB 3 Menteri ditambahkan ke aplikasi setiap kali SKB terbaru terbit (± Oktober).", "No bundled dataset available yet. Official SKB datasets are added to the application each time a new decree is issued (± October).")}
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Tahun dataset", "Dataset year")}</Label>
+              <Select value={String(pick)} onValueChange={(v) => setPick(parseInt(v, 10))}>
+                <SelectTrigger className="text-sm" aria-label={t("Pilih tahun dataset", "Select dataset year")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {datasetYears.map((y) => (
+                    <SelectItem key={y} value={String(y)} className="text-sm font-bold">{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="flex items-start gap-2 rounded-xl border border-slate-200/70 bg-slate-50/60 px-3 py-2.5 text-[11px] leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900/40">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+              {t(
+                "Data resmi SKB 3 Menteri (Menag, Menaker, MenPAN-RB) yang dibundel bersama aplikasi — hari libur nasional + cuti bersama. Baris yang sudah ada dengan nama sama tidak diduplikasi; libur Perusahaan (Company) milik tenant tidak tersentuh.",
+                "Official data from the Joint Decree of 3 Ministers (Religious Affairs, Manpower, PAN-RB) bundled with the application — national holidays + joint leave. Rows already present with the same name are not duplicated; your Company holidays are untouched.",
+              )}
+            </p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy} className="font-bold">{t("Batal", "Cancel")}</Button>
+          <Button onClick={doImport} disabled={busy || datasetYears.length === 0} className="gap-1.5 font-bold">
+            {busy ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("Mengimpor…", "Importing…")}</> : <><Database className="h-3.5 w-3.5" /> {t("Impor {y}", "Import {y}", { y: pick })}</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

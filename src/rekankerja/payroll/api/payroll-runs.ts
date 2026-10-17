@@ -4,7 +4,15 @@ import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
-import { nextRunNo, calculateAndSaveRun, confirmRun, recalcEmployeesForConfirmedRun } from "@/rekankerja/payroll/services/payroll-service";
+import { nextRunNo, calculateAndSaveRun, confirmRun, recalcEmployeesForConfirmedRun, findRunConfirmStructure, startRunConfirmChain } from "@/rekankerja/payroll/services/payroll-service";
+// P1.4-BM (D-BM8) — approval chain finalisasi run payroll.
+import {
+  getApprovalChain,
+  decideApprovalChain,
+  cancelApprovalChain,
+  DecisionConflictError,
+  DecisionForbiddenError,
+} from "@/rekankerja/shared/services/approval-engine";
 import { notifyEmailEvent, approverEmailsOf, sendPayslipEmail } from "@/rekankerja/shared/services/email-service";
 import { sendWa } from "@/rekankerja/shared/services/wa-service";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
@@ -150,23 +158,25 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH /api/rekankerja/payroll-runs — action: calculate | confirm | markPaid |
-//       cancel | send-slips | recalcEmployees  { id | runId }
+// PATCH /api/rekankerja/payroll-runs — action: calculate | confirm | confirmApprove |
+//       confirmReject | markPaid | cancel | send-slips | recalcEmployees  { id | runId }
 // Task 32-d: guard hak AKSI menu per pengguna — op:calculate / op:confirm /
 // op:markPaid / op:cancel pada payroll:runs; send-slips → op:export (T10).
 // Task 64j: recalcEmployees (hitung ulang parsial run Confirmed) → op:calculate
 // (membutuhkan hak menghitung; hasil kembali ke status Calculated).
+// P1.4-BM (D-BM8): confirmApprove/confirmReject → op:confirm (memutus jalur
+// persetujuan finalisasi memakai hak finalisasi yang sama).
 // Body dibaca SEKALI sebelum guard (aksi menentukan op menu yang dicek).
 export async function PATCH(req: NextRequest) {
   try {
     const b = await req.json();
     if (!(b.id || b.runId) || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
-    if (!["calculate", "confirm", "markPaid", "cancel", "send-slips", "recalcEmployees"].includes(b.action)) {
+    if (!["calculate", "confirm", "confirmApprove", "confirmReject", "markPaid", "cancel", "send-slips", "recalcEmployees"].includes(b.action)) {
       return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });
     }
     const m = b.action === "calculate" || b.action === "recalcEmployees"
       ? await requireMenuAction(req, "payroll:runs", "op:calculate")
-      : b.action === "confirm"
+      : b.action === "confirm" || b.action === "confirmApprove" || b.action === "confirmReject"
         ? await requireMenuAction(req, "payroll:runs", "op:confirm")
         : b.action === "markPaid"
           ? await requireMenuAction(req, "payroll:runs", "op:markPaid")
@@ -207,42 +217,152 @@ export async function PATCH(req: NextRequest) {
         });
       }
       case "confirm": {
+        // ===== P1.4-BM (D-BM8) — approval chain finalisasi (opsional per tenant).
+        // Struktur AKTIF docType "PayrollRunConfirm" ada → "confirm" = MENYERAHKAN
+        // run ke persetujuan berjenjang (status PendingConfirm), BUKAN langsung
+        // mengeksekusi confirmRun. Tanpa struktur → jalur lama 1-klik di bawah
+        // (backward-compat — default OFF).
+        if (await findRunConfirmStructure(db)) {
+          // RACE-SAFE: re-check status sebelum mutasi — hanya Calculated.
+          if (run.status !== "Calculated") {
+            return NextResponse.json(
+              { error: `Run berstatus ${run.status} — hanya run Terhitung (Calculated) yang dapat diserahkan ke persetujuan finalisasi` },
+              { status: 409 },
+            );
+          }
+          // chain terminal lama (Rejected/Cancelled dari pengajuan sebelumnya)
+          // → bersihkan supaya pengajuan ulang membentuk chain baru (pola merit;
+          // jejak keputusan lama tetap ter-audit di ActivityLog + note step).
+          const prevChain = await getApprovalChain(db, "PayrollRunConfirm", runId);
+          if (prevChain && (prevChain.status === "Rejected" || prevChain.status === "Cancelled")) {
+            await db.approvalChain.delete({ where: { docType_docId: { docType: "PayrollRunConfirm", docId: runId } } });
+          }
+          const chain = await startRunConfirmChain(db, { id: run.id, runNo: run.runNo }, {
+            employeeId: actor.employeeId,
+            appUserId: actor.appUserId,
+            name: actor.name,
+          });
+          // flip status KONDISIONAL — dua klik confirm paralel hanya satu menang.
+          const upd = await db.payrollRun.updateMany({
+            where: { id: runId, status: "Calculated" },
+            data: { status: "PendingConfirm" },
+          });
+          if (upd.count !== 1) {
+            // kalah race — chain yang baru terbentuk dibatalkan agar tidak menggantung.
+            if (chain.status === "InProgress") await cancelApprovalChain(db, "PayrollRunConfirm", runId);
+            return NextResponse.json({ error: "Run sudah diproses permintaan lain — muat ulang daftar run" }, { status: 409 });
+          }
+          const firstApprover = chain.steps.find((s) => s.status === "Current")?.approverLabel ?? "-";
+          await db.activityLog.create({
+            data: {
+              action: "Updated", entity: "PayrollRun", entityId: runId, appUserId: actor.appUserId ?? undefined,
+              detail: `Run ${run.runNo} diserahkan ke persetujuan finalisasi (${chain.totalLevels} jenjang — menunggu: ${firstApprover}) oleh ${actor.name}`,
+            },
+          });
+          // Notifikasi in-app approver jenjang aktif (NEVER-THROW). Template email
+          // default TIDAK ada utk event ini → in-app saja (kebijakan D-BM8).
+          void notifyEvent(db, {
+            to: "nextApprover", docType: "PayrollRunConfirm", docNo: run.runNo, docId: runId,
+            title: `Persetujuan Finalisasi Run ${run.runNo}`,
+            body: `Run payroll periode ${run.period?.name ?? "-"} menunggu persetujuan finalisasi Anda (jenjang ${chain.currentLevel}/${chain.totalLevels}).`,
+            kind: "payroll", link: "payroll:runs",
+          });
+          return NextResponse.json({ ok: true, status: "PendingConfirm", chain });
+        }
         await confirmRun(db, b.id);
         // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
-        void (async () => {
-          try {
-            const fresh = await db.payrollRun.findUnique({
-              where: { id: b.id },
-              select: { runNo: true, period: { select: { name: true } }, _count: { select: { lines: true } } },
-            });
-            notifyEmailEvent(db, {
-              event: "payroll.run.confirmed",
-              to: await approverEmailsOf(db),
-              data: {
-                runNo: fresh?.runNo ?? "-", periode: fresh?.period?.name ?? "-",
-                jumlah: String(fresh?._count?.lines ?? 0), total: "-",
-              },
-            });
-            // ===== Notifikasi in-app (T11-NOTIF) — "Run {no} Confirmed" ke
-            // semua AppUser Admin/HR aktif (maks 5) =====
-            if (fresh) {
-              await notifyEvent(db, {
-                to: "admins", docType: "PayrollRun", docNo: fresh.runNo,
-                title: `Run ${fresh.runNo} Confirmed`,
-                body: `Run payroll periode ${fresh.period?.name ?? "-"} (${fresh._count?.lines ?? 0} karyawan) dikonfirmasi — jurnal terpasang, siap ditandai dibayar.`,
-                kind: "payroll", link: "payroll:runs",
-              });
-            }
-            // ===== Webhook (T18-API) — payroll.confirmed, fire-and-forget =====
-            await dispatchWebhookEvent(db, null, "payroll.confirmed", {
-              runId: String(b.id), runNo: fresh?.runNo ?? null,
-              period: fresh?.period?.name ?? null,
-              employees: fresh?._count?.lines ?? 0,
-              status: "Confirmed", confirmedBy: m.actor.name,
-            });
-          } catch { /* never */ }
-        })();
+        firePostConfirmNotifications(db, m.actor.name, String(b.id));
         return NextResponse.json({ ok: true });
+      }
+      // P1.4-BM (D-BM8) — approver menyetujui SATU jenjang chain finalisasi;
+      // jenjang terakhir (final) mengeksekusi confirmRun jalur lama.
+      case "confirmApprove": {
+        if (run.status !== "PendingConfirm") {
+          return NextResponse.json(
+            { error: `Run berstatus ${run.status} — persetujuan finalisasi hanya untuk run yang menunggu (PendingConfirm)` },
+            { status: 409 },
+          );
+        }
+        let decision;
+        try {
+          decision = await decideApprovalChain(db, {
+            docType: "PayrollRunConfirm", docId: runId, action: "approve",
+            note: typeof b.note === "string" && b.note.trim() ? b.note.trim() : undefined,
+            actor: { role: actor.role, employeeId: actor.employeeId, name: actor.name, appUserId: actor.appUserId },
+          });
+        } catch (e) {
+          if (e instanceof DecisionConflictError) return NextResponse.json({ error: e.message }, { status: 409 });
+          if (e instanceof DecisionForbiddenError) return NextResponse.json({ error: e.message }, { status: 403 });
+          throw e;
+        }
+        const approvedLevel = decision.final ? decision.chain.totalLevels : decision.chain.currentLevel - 1;
+        await db.activityLog.create({
+          data: {
+            action: "Updated", entity: "PayrollRun", entityId: runId, appUserId: actor.appUserId ?? undefined,
+            detail: `Persetujuan finalisasi jenjang ${approvedLevel}/${decision.chain.totalLevels} run ${run.runNo} oleh ${actor.name}${decision.final ? " — SEMUA jenjang selesai" : ""}`,
+          },
+        });
+        if (!decision.final) {
+          // jenjang berikutnya aktif → notif approver baru (in-app, NEVER-THROW).
+          void notifyEvent(db, {
+            to: "nextApprover", docType: "PayrollRunConfirm", docNo: run.runNo, docId: runId,
+            title: `Persetujuan Finalisasi Run ${run.runNo}`,
+            body: `Run payroll periode ${run.period?.name ?? "-"} menunggu persetujuan finalisasi Anda (jenjang ${decision.chain.currentLevel}/${decision.chain.totalLevels}).`,
+            kind: "payroll", link: "payroll:runs",
+          });
+          return NextResponse.json({ ok: true, final: false, chain: decision.chain });
+        }
+        // FINAL — jalankan confirmRun (guard service menerima dari PendingConfirm;
+        // run yang berubah status di celah race → error status jelas dari service).
+        await confirmRun(db, runId);
+        // Mirror notifikasi pasca-konfirmasi jalur lama (email + in-app + webhook).
+        firePostConfirmNotifications(db, m.actor.name, runId);
+        return NextResponse.json({ ok: true, final: true, chain: decision.chain });
+      }
+      // P1.4-BM (D-BM8) — approver menolak: run kembali ke Calculated (hasil
+      // hitungan tetap utuh — bisa diperbaiki lalu diajukan ulang).
+      case "confirmReject": {
+        const note = typeof b.note === "string" ? b.note.trim() : "";
+        if (!note) {
+          return NextResponse.json({ error: "Alasan penolakan (note) wajib diisi" }, { status: 400 });
+        }
+        if (run.status !== "PendingConfirm") {
+          return NextResponse.json(
+            { error: `Run berstatus ${run.status} — penolakan finalisasi hanya untuk run yang menunggu (PendingConfirm)` },
+            { status: 409 },
+          );
+        }
+        let decision;
+        try {
+          decision = await decideApprovalChain(db, {
+            docType: "PayrollRunConfirm", docId: runId, action: "reject", note,
+            actor: { role: actor.role, employeeId: actor.employeeId, name: actor.name, appUserId: actor.appUserId },
+          });
+        } catch (e) {
+          if (e instanceof DecisionConflictError) return NextResponse.json({ error: e.message }, { status: 409 });
+          if (e instanceof DecisionForbiddenError) return NextResponse.json({ error: e.message }, { status: 403 });
+          throw e;
+        }
+        // balikkan status run → Calculated (KONDISIONAL — race terhadap cancel
+        // paralel; kalah race → run sudah Cancelled, dilaporkan apa adanya).
+        const upd = await db.payrollRun.updateMany({
+          where: { id: runId, status: "PendingConfirm" },
+          data: { status: "Calculated" },
+        });
+        await db.activityLog.create({
+          data: {
+            action: "Updated", entity: "PayrollRun", entityId: runId, appUserId: actor.appUserId ?? undefined,
+            detail: `Pengajuan finalisasi run ${run.runNo} DITOLAK oleh ${actor.name} — run kembali ke status Terhitung. Alasan: ${note}`,
+          },
+        });
+        // notif tim Admin/HR (in-app) supaya pengaju tahu pengajuan ditolak.
+        void notifyEvent(db, {
+          to: "admins", docType: "PayrollRunConfirm", docNo: run.runNo, docId: runId,
+          title: `Finalisasi Run ${run.runNo} Ditolak`,
+          body: `Pengajuan finalisasi run payroll ${run.runNo} ditolak — run kembali ke status Terhitung. Alasan: ${note}`,
+          kind: "payroll", link: "payroll:runs",
+        });
+        return NextResponse.json({ ok: true, status: upd.count === 1 ? "Calculated" : run.status, chain: decision.chain });
       }
       case "markPaid": {
         if (run.status !== "Confirmed") {
@@ -298,9 +418,14 @@ export async function PATCH(req: NextRequest) {
             { status: 409 }
           );
         }
+        // P1.4-BM (D-BM8): run menunggu persetujuan → hentikan chain-nya dulu
+        // (chain InProgress → Cancelled, jejak tetap terbaca) sebelum batalkan.
+        if (run.status === "PendingConfirm") {
+          await cancelApprovalChain(db, "PayrollRunConfirm", runId, actor.name);
+        }
         await db.payrollRun.update({ where: { id: runId }, data: { status: "Cancelled" } });
         await db.payrollRunLine.deleteMany({ where: { runId } });
-        await db.activityLog.create({ data: { action: "Cancelled", entity: "PayrollRun", entityId: runId, appUserId: actor.appUserId ?? undefined, detail: `Run ${run.runNo} dibatalkan` } });
+        await db.activityLog.create({ data: { action: "Cancelled", entity: "PayrollRun", entityId: runId, appUserId: actor.appUserId ?? undefined, detail: `Run ${run.runNo} dibatalkan${run.status === "PendingConfirm" ? " (beserta pengajuan persetujuan finalisasi)" : ""}` } });
         return NextResponse.json({ ok: true });
       }
       case "send-slips": {
@@ -322,6 +447,43 @@ export async function PATCH(req: NextRequest) {
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
+}
+
+// ---- P1.4-BM (D-BM8): notifikasi pasca-konfirmasi jalur lama — dipakai -----
+// ---- BERSAMA oleh confirm langsung (tanpa struktur) DAN ujung approve -----
+// ---- chain finalisasi (perilaku identik: email + in-app + webhook). --------
+async function firePostConfirmNotifications(db: TenantDb, actorName: string, runId: string): Promise<void> {
+  try {
+    const fresh = await db.payrollRun.findUnique({
+      where: { id: runId },
+      select: { runNo: true, period: { select: { name: true } }, _count: { select: { lines: true } } },
+    });
+    notifyEmailEvent(db, {
+      event: "payroll.run.confirmed",
+      to: await approverEmailsOf(db),
+      data: {
+        runNo: fresh?.runNo ?? "-", periode: fresh?.period?.name ?? "-",
+        jumlah: String(fresh?._count?.lines ?? 0), total: "-",
+      },
+    });
+    // ===== Notifikasi in-app (T11-NOTIF) — "Run {no} Confirmed" ke
+    // semua AppUser Admin/HR aktif (maks 5) =====
+    if (fresh) {
+      await notifyEvent(db, {
+        to: "admins", docType: "PayrollRun", docNo: fresh.runNo,
+        title: `Run ${fresh.runNo} Confirmed`,
+        body: `Run payroll periode ${fresh.period?.name ?? "-"} (${fresh._count?.lines ?? 0} karyawan) dikonfirmasi — jurnal terpasang, siap ditandai dibayar.`,
+        kind: "payroll", link: "payroll:runs",
+      });
+    }
+    // ===== Webhook (T18-API) — payroll.confirmed, fire-and-forget =====
+    await dispatchWebhookEvent(db, null, "payroll.confirmed", {
+      runId, runNo: fresh?.runNo ?? null,
+      period: fresh?.period?.name ?? null,
+      employees: fresh?._count?.lines ?? 0,
+      status: "Confirmed", confirmedBy: actorName,
+    });
+  } catch { /* never */ }
 }
 
 // ---- aksi send-slips (T10-PAYSLIP-PDF) --------------------------------

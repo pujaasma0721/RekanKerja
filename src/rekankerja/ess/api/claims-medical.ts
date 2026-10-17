@@ -9,12 +9,12 @@
 //        tanggal M-2, dedupe kwitansi M-8, enforce plafon pool K-1/K-2/K-3,
 //        approval berjenjang "Medical").
 //
-// Lampiran kwitansi: ESS TIDAK menegakkan upload lampiran (endpoint
-// /api/rekankerja/attachments ter-guard menu medical:medical-claim milik HR —
-// pekerja ESS tidak punya akses upload). Klaim ESS bersifat deklarasi
-// pekerja: notifikasi approver menyebut verifikasi kwitansi fisik, dan
-// approver dapat me-RETURN klaim bila kwitansi tidak diserahkan (guard
-// lampiran jalur admin tetap utuh).
+// Lampiran kwitansi (P1.2-BM D-BM6): ESS kini bisa mengunggah foto struk
+// (entityType "MedicalClaim", pola draft-upload travel Task 98) — endpoint
+// /api/rekankerja/attachments mengizinkan ESS utk klaim MILIK SENDIRI.
+// Deklarasi tetap ada (klaim tetap bisa diajukan tanpa lampiran — verifikasi
+// fisik oleh HR/approver bila diperlukan); guard needReceipt jalur admin
+// tetap utuh — approver melihat lampiran saat memverifikasi klaim.
 import { NextResponse } from "next/server";
 import { requireEss } from "@/rekankerja/ess/api/ess-auth";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
@@ -22,6 +22,10 @@ import { previewClaim, submitClaim } from "@/rekankerja/medical/services/medical
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/rekankerja/shared/services/email-service";
 import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-service";
+// P1.2-BM (D-BM6) — rebind draf lampiran struk ke klaim yang dibuat.
+import {
+  bindDraftAttachments, deleteDraftAttachmentsByIds,
+} from "@/rekankerja/shared/services/attachment-service";
 
 // GET — jenis benefit aktif + saldo (form pengajuan klaim medis ESS).
 export async function GET(req: Request) {
@@ -80,11 +84,12 @@ export async function GET(req: Request) {
 }
 
 // POST — ajukan klaim medis untuk diri sendiri.
-// Body: { typeId, claimDate, forDependent?, note?,
+// Body: { typeId, claimDate, forDependent?, note?, attachmentIds?,
 //         lines: [{ treatedName, treatment?, treatmentDate?, receiptNo?,
 //                   physician?, hospital?, note?, billAmount,
 //                   reimburseAmount?, approvedAmount? }] }
 // approvedAmount (nilai yang diajukan direimburse) default = billAmount.
+// P1.2-BM (D-BM6): attachmentIds = id draf foto struk pra-submit (opsional).
 export async function POST(req: Request) {
   const m = await requireEss(req);
   if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
@@ -101,6 +106,11 @@ export async function POST(req: Request) {
     if (!Array.isArray(b.lines) || b.lines.length === 0) {
       return NextResponse.json({ error: "Klaim wajib memuat minimal satu baris perawatan" }, { status: 400 });
     }
+    // P1.2-BM (D-BM6) — id draf foto struk (opsional; di-rebind setelah klaim
+    // dibuat). Deklarasi tetap diizinkan tanpa lampiran (verifikasi HR).
+    const attachmentIds: string[] = Array.isArray(b.attachmentIds)
+      ? (b.attachmentIds as unknown[]).map((x) => String(x)).filter(Boolean)
+      : [];
     // W3-1 (fix G-2): jenis needLetter — nomor surat rujukan wajib dijalur ESS
     // juga (guard service submitClaim tetap sebagai lapis kedua).
     const letterType = await db.medicalBenefitType.findUnique({
@@ -154,7 +164,18 @@ export async function POST(req: Request) {
       },
       appUserId,
       { appUserId, employeeId },
-    );
+    ).catch(async (e: unknown) => {
+      // gagal submit → sapu draf lampiran yang dikirim (best-effort, mirror
+      // medical/api/claims.ts POST) supaya tidak menumpuk jadi draf yatim.
+      if (attachmentIds.length > 0) await deleteDraftAttachmentsByIds(db, attachmentIds);
+      throw e;
+    });
+
+    // P1.2-BM (D-BM6) — rebind draf foto struk ke klaim yang baru dibuat
+    // (hanya baris draf entityType "MedicalClaim" — tidak bisa membajak milik lain).
+    const boundAttachments = attachmentIds.length > 0
+      ? await bindDraftAttachments(db, "MedicalClaim", attachmentIds, res.id)
+      : 0;
 
     // ===== Notifikasi (mirror jalur admin medical/api/claims.ts POST) =====
     const total = res.totalBill;
@@ -173,7 +194,7 @@ export async function POST(req: Request) {
         await notifyEvent(db, {
           to: "nextApprover", docType: "Medical", docNo: res.docNo,
           title: `Klaim medis ${res.docNo} menunggu persetujuan Anda`,
-          body: `${fullName} — ${type?.name ?? "klaim medis"}, total tagihan Rp ${total.toLocaleString("id-ID")} (diajukan via ESS — kwitansi asli diverifikasi saat approval)`,
+          body: `${fullName} — ${type?.name ?? "klaim medis"}, total tagihan Rp ${total.toLocaleString("id-ID")} (diajukan via ESS${boundAttachments > 0 ? ` — ${boundAttachments} foto struk terlampir` : " — kwitansi asli dapat diminta saat verifikasi"})`,
           kind: "medical", link: "medical:medical-approval",
         });
       } catch { /* notifikasi tidak boleh mengganggu proses utama ESS */ }
@@ -182,6 +203,7 @@ export async function POST(req: Request) {
       docNo: res.docNo, employeeId, employeeName: fullName,
       totalBill: total, lineCount: (b.lines as unknown[]).length,
       source: "ess",
+      attachmentCount: boundAttachments,
     });
 
     return NextResponse.json(
@@ -189,8 +211,12 @@ export async function POST(req: Request) {
         // Task 82-b: `warnings` (validasi lembut klaim dependent, audit T10)
         // ikut via spread — ADDITIVE, field lain tidak berubah.
         ...res,
+        // P1.2-BM (D-BM6) — jumlah foto struk yang ter-rebind ke klaim ini.
+        attachmentCount: boundAttachments,
         receiptNote:
-          "Kwitansi asli/tagihan tetap diserahkan ke HR untuk verifikasi sebelum klaim disetujui.",
+          boundAttachments > 0
+            ? `${boundAttachments} foto struk terlampir pada klaim — approver dapat memverifikasi langsung; kwitansi asli tetap dapat diminta HR bila diperlukan.`
+            : "Kwitansi asli/tagihan dapat diminta HR untuk verifikasi sebelum klaim disetujui — unggah foto struk saat pengajuan untuk mempercepat.",
       },
       { status: 201 },
     );

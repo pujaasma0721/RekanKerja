@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDate, fmtDateTime } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
-import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
+import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,15 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle, RefreshCw, FileSignature } from "lucide-react";
+import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle, RefreshCw, FileSignature, Clock4 } from "lucide-react";
 import { EsignSignDialog } from "@/rekankerja/shared/components/esign/sign-dialog";
 import { RunDetail, RunLine, RunLog, UmkLineWarning, TAX_STATUS_LABEL, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN, WAGE_TYPE_LABEL } from "@/rekankerja/payroll/components/payroll-types";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
 import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { BankExportMenu } from "@/rekankerja/payroll/components/bank-export-menu";
+// P1.4-BM (D-BM8) — pill status + aksi persetujuan finalisasi run.
+import { RunStatusPill } from "@/rekankerja/payroll/components/run-status-pill";
+import { Textarea } from "@/components/ui/textarea";
 import { BpjsExportButton, PayrollRegisterExportButton, MonthlyReportExportButton } from "@/rekankerja/payroll/components/payroll-report-buttons";
 import { cn } from "@/lib/utils";
 import { useI18n, loc, locActivity } from "@/rekankerja/shared/lib/i18n";
@@ -64,6 +67,10 @@ export function PayrollRunDetailPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [recalcBusy, setRecalcBusy] = useState(false);
   const [recalcResult, setRecalcResult] = useState<{ recalculated: number; skipped: string[]; newJournalNo: string | null } | null>(null);
+  // P1.4-BM (D-BM8) — dialog penolakan finalisasi (alasan wajib).
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
   const { data, loading, error, refresh } = useApi<RunDetail>(params.id ? `/api/rekankerja/payroll-run?id=${params.id}` : null);
 
@@ -76,7 +83,7 @@ export function PayrollRunDetailPage() {
     if (msgs[action] && !window.confirm(msgs[action])) return;
     setBusy(true);
     try {
-      const res = await apiSend<{ logCounts?: { error: number; warning: number; info: number } }>(
+      const res = await apiSend<{ logCounts?: { error: number; warning: number; info: number }; status?: string; chain?: { currentLevel: number; totalLevels: number } }>(
         "/api/rekankerja/payroll-runs", "PATCH", { id: data.run.id, action }
       );
       if (action === "calculate") {
@@ -86,11 +93,37 @@ export function PayrollRunDetailPage() {
         } else {
           toast.success(t("Perhitungan selesai", "Calculation completed"));
         }
+      } else if (action === "confirm" && res?.status === "PendingConfirm") {
+        // P1.4-BM (D-BM8) — tenant memakai chain finalisasi: run masuk antrean
+        // persetujuan (bukan dikonfirmasi langsung).
+        toast.success(t("Run diserahkan ke persetujuan finalisasi (jenjang {c}).", "Run submitted for finalization approval (level {c}).", { c: `${res.chain?.currentLevel ?? 1}/${res.chain?.totalLevels ?? 1}` }));
       } else {
         toast.success(action === "confirm" ? t("Run dikonfirmasi", "Run confirmed") : t("Run ditandai dibayar", "Run marked as paid"));
       }
       refresh();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  };
+
+  // P1.4-BM (D-BM8) — keputusan approver finalisasi run (approve 1 jenjang /
+  // reject wajib alasan; otorisasi chain divalidasi server-side).
+  const decide = async (kind: "confirmApprove" | "confirmReject", note?: string) => {
+    if (!data) return;
+    setConfirmBusy(true);
+    try {
+      const res = await apiSend<{ final?: boolean; chain?: { currentLevel: number; totalLevels: number } }>(
+        "/api/rekankerja/payroll-runs", "PATCH", { id: data.run.id, action: kind, ...(kind === "confirmReject" && note ? { note } : {}) },
+      );
+      if (kind === "confirmApprove") {
+        toast.success(res?.final
+          ? t("Semua jenjang selesai — run dikonfirmasi & jurnal diposting.", "All levels complete — run confirmed & journal posted.")
+          : t("Jenjang disetujui — menunggu jenjang berikutnya ({c}).", "Level approved — awaiting next level ({c}).", { c: `${res?.chain?.currentLevel ?? "?"}/${res?.chain?.totalLevels ?? "?"}` }));
+      } else {
+        toast.info(t("Pengajuan finalisasi ditolak — run kembali ke status Terhitung.", "Finalization request rejected — run returned to Calculated."));
+      }
+      setRejectOpen(false);
+      setRejectNote("");
+      refresh();
+    } catch (e) { toast.error((e as Error).message); } finally { setConfirmBusy(false); }
   };
 
   // T10 — kirim slip gaji PDF massal via email ke seluruh karyawan run.
@@ -209,6 +242,17 @@ export function PayrollRunDetailPage() {
                 <CheckCircle2 className="h-4 w-4" /> {t("Konfirmasi")}
               </Button>
             )}
+            {/* P1.4-BM (D-BM8) — keputusan approver finalisasi (chain aktif). */}
+            {run.status === "PendingConfirm" && perms.canOp("payroll", "runs", "confirm") && (
+              <>
+                <Button onClick={() => decide("confirmApprove")} disabled={busy || confirmBusy} className="gap-2 bg-brand font-bold hover:bg-brand/70">
+                  <Clock4 className="h-4 w-4" /> {t("Setujui Finalisasi", "Approve Finalization")}
+                </Button>
+                <Button onClick={() => setRejectOpen(true)} disabled={busy || confirmBusy} variant="outline" className="gap-2 rounded-xl border-rose-200 font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10">
+                  <XCircle className="h-4 w-4" /> {t("Tolak", "Reject")}
+                </Button>
+              </>
+            )}
             {run.status === "Confirmed" && (
               <>
                 {perms.canOp("payroll", "runs", "markPaid") && (
@@ -255,7 +299,7 @@ export function PayrollRunDetailPage() {
                 </button>
               </>
             )}
-            <StatusPill status={run.status} />
+            <RunStatusPill status={run.status} />
           </div>
         }
       />
@@ -278,6 +322,57 @@ export function PayrollRunDetailPage() {
             <button type="button" onClick={() => setRecalcResult(null)} className="shrink-0 rounded-md p-1 text-emerald-700/60 transition hover:text-emerald-900 dark:text-emerald-400/60 dark:hover:text-emerald-300" aria-label={t("Tutup", "Close")}>
               <XCircle className="h-4 w-4" />
             </button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* P1.4-BM (D-BM8) — banner persetujuan finalisasi (run PendingConfirm):
+          jenjang chain + approver aktif; otorisasi keputusan server-side. */}
+      {run.status === "PendingConfirm" && data.approvalChain && (
+        <Card className="mb-4 rounded-2xl border-amber-200 bg-amber-50/70 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10">
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="flex items-center gap-2 text-[13px] font-bold text-amber-800 dark:text-amber-300">
+                <Clock4 className="h-4 w-4" aria-hidden />
+                {t(
+                  "Menunggu persetujuan finalisasi — jenjang {c} dari {t}",
+                  "Awaiting finalization approval — level {c} of {t}",
+                  { c: String(data.approvalChain.currentLevel), t: String(data.approvalChain.totalLevels) },
+                )}
+              </p>
+              <span className="text-[11px] text-amber-700/80 dark:text-amber-400/80">
+                {t("Hasil belum terkunci — jurnal & potongan baru berjalan setelah semua jenjang menyetujui.", "Results are not locked yet — journal & deductions only run after every level approves.")}
+              </span>
+            </div>
+            <div className="mt-3 max-h-64 space-y-1.5 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-300/60">
+              {data.approvalChain.steps.map((s) => (
+                <div key={s.levelNo} className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200/70 bg-white/80 px-3 py-2 dark:border-amber-500/20 dark:bg-slate-900/60">
+                  <span className={cn(
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold",
+                    s.status === "Approved" && "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+                    s.status === "Current" && "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
+                    s.status === "Rejected" && "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
+                    s.status === "Waiting" && "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500",
+                  )}>
+                    {s.levelNo}
+                  </span>
+                  <span className="min-w-0 flex-1 text-[12px] font-semibold text-slate-700 dark:text-slate-200">{s.approverLabel}</span>
+                  {s.decidedBy && (
+                    <span className="text-[10.5px] text-slate-400">{t("diputus oleh {n}", "decided by {n}", { n: s.decidedBy })}{s.decidedAt ? ` · ${fmtDateTime(s.decidedAt)}` : ""}</span>
+                  )}
+                  <span className={cn(
+                    "rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                    s.status === "Approved" && "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400",
+                    s.status === "Current" && "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400",
+                    s.status === "Rejected" && "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400",
+                    s.status === "Waiting" && "border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500",
+                  )}>
+                    {s.status === "Current" ? t("Menunggu", "Current") : s.status === "Waiting" ? t("Antre", "Waiting") : s.status === "Approved" ? t("Disetujui", "Approved") : s.status}
+                  </span>
+                  {s.note && <span className="w-full text-[10.5px] italic text-slate-400">“{locActivity(s.note)}”</span>}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -596,6 +691,41 @@ export function PayrollRunDetailPage() {
 
       {/* payslip dialog */}
       <PaySlipDialog line={slipLine} onClose={() => setSlipLine(null)} context={{ runNo: run.runNo, periodName: run.period.name, processName: run.processType.name, status: run.status }} />
+
+      {/* P1.4-BM (D-BM8) — dialog penolakan finalisasi (alasan wajib). */}
+      <Dialog open={rejectOpen} onOpenChange={(v) => { if (!v) { setRejectOpen(false); setRejectNote(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <XCircle className="h-4 w-4 text-rose-500" /> {t("Tolak Finalisasi Run {no}", "Reject Finalization of Run {no}", { no: run.runNo })}
+            </DialogTitle>
+            <DialogDescription>
+              {t("Run kembali ke status Terhitung — hasil perhitungan tetap utuh dan bisa diajukan ulang.", "The run returns to Calculated — calculation results stay intact and can be re-submitted.")}
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <label htmlFor="reject-note" className="text-xs font-bold">{t("Alasan penolakan (wajib)", "Rejection reason (required)")}</label>
+            <Textarea
+              id="reject-note"
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              placeholder={t("cth: komponen tunjangan transport belum final", "e.g. transport allowance components not final yet")}
+              className="mt-1.5 min-h-24 rounded-xl text-[12.5px]"
+              aria-label={t("Alasan penolakan", "Rejection reason")}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectOpen(false); setRejectNote(""); }}>{t("Batal")}</Button>
+            <Button
+              disabled={confirmBusy || !rejectNote.trim()}
+              onClick={() => decide("confirmReject", rejectNote.trim())}
+              className="gap-2 bg-rose-600 font-bold text-white hover:bg-rose-700"
+            >
+              {confirmBusy ? t("Menolak…", "Rejecting…") : t("Tolak Finalisasi", "Reject Finalization")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
