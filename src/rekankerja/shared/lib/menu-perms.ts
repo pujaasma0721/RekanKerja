@@ -99,6 +99,8 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "schedule", label: "Menjadwalkan pembayaran", hint: "Menjadwalkan klaim ke periode bayar" },
     { key: "markPaid", label: "Menandai dibayar", hint: "Menandai klaim benefit terbayar" },
   ],
+  // P1.4-BM (D-BM11) — ekspor jurnal ke format akuntansi (Accurate/Jurnal/generik)
+  "payroll:journals": [{ key: "export", label: "Mengekspor jurnal", hint: "Mengunduh jurnal payroll (CSV/GL akuntansi)" }],
 
   // Attendance — persetujuan kehadiran
   "attendance:overtime": [{ key: "approve", label: "Menyetujui / menolak lembur", hint: "Memutuskan pengajuan lembur (overtime)" }],
@@ -106,6 +108,8 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   "attendance:assignment-schedule": [{ key: "end", label: "Mengakhiri penugasan jadwal", hint: "Mengakhiri assign jadwal karyawan" }],
   // P1.3-BM — regularisasi absensi mandiri: memutuskan pengajuan karyawan
   "attendance:regularization": [{ key: "approve", label: "Menyetujui / menolak regularisasi", hint: "Memutuskan pengajuan regularisasi absensi (lupa absen / jam salah)" }],
+  // P1.5-BM (D-BM12) — impor dataset kalender libur nasional (SKB) + CSV
+  "attendance:holidays": [{ key: "import", label: "Mengimpor kalender libur", hint: "Impor dataset SKB 3 Menteri & impor massal CSV" }],
 
   // Leave
   "leave:leave-request": [{ key: "cancel", label: "Membatalkan pengajuan cuti", hint: "Membatalkan permintaan cuti (draft/pending)" }],
