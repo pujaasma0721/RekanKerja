@@ -21,7 +21,7 @@ export type DbOrTx = TenantDb | Prisma.TransactionClient;
 
 // ============ konstanta domain ============
 
-export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal", "MeritRecommendation", "PipPlan", "ProbationDecision"] as const;
+export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim", "RecruitmentPR", "RecruitmentOffer", "PerformanceAppraisal", "MeritRecommendation", "PipPlan", "ProbationDecision", "ProfileChange", "AttendanceReg", "PayrollRunConfirm"] as const;
 export type ApprovalDocType = (typeof APPROVAL_DOC_TYPES)[number];
 
 /** docType yang jenjangnya bisa memakai syarat nominal (besaran). */
@@ -46,6 +46,15 @@ export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   MeritRecommendation: "Usulan Merit (Performance)",
   PipPlan: "Program Perbaikan Kinerja — PIP (Performance)",
   ProbationDecision: "Keputusan Masa Percobaan (Performance)",
+  // P1-BENCHMARK — docType baru (default: TANPA template aktif — chain baru
+  // terbentuk bila admin membuat ApprovalStructure utk docType ini):
+  // • ProfileChange (P1.1 D-BM1): pengajuan ubah data diri ESS → HR.
+  // • AttendanceReg (P1.3 D-BM7): regularisasi absensi mandiri → atasan/HR.
+  // • PayrollRunConfirm (P1.4 D-BM8): finalisasi run payroll (amount =
+  //   total net run TERENKRIPSI → chain tier nominal TIDAK dipakai — konstanta).
+  ProfileChange: "Pengajuan Ubah Data Diri (ESS)",
+  AttendanceReg: "Regularisasi Absensi (Kehadiran)",
+  PayrollRunConfirm: "Finalisasi Run Payroll (Payroll)",
 };
 
 export const APPROVER_TYPE_LABEL: Record<string, string> = {

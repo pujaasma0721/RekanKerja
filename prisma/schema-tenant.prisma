@@ -383,6 +383,15 @@ model Employee {
   // B4-BL — succession planning: kandidat penerus (bisa di beberapa peran).
   successorCandidacies SuccessorCandidate[]  @relation("SuccessorEmployee")
 
+  // P1.1-BM — kontak darurat karyawan; pengajuan ubah data diri (ESS);
+  // P1.6-BM — pengajuan referral karyawan (staging HR).
+  emergencyContacts      EmergencyContact[]
+  profileChangeRequests EmployeeProfileChangeRequest[] @relation("PcrEmployee")
+  profileChangeDecided  EmployeeProfileChangeRequest[] @relation("PcrDecider")
+  referralSubmissions   ReferralSubmission[] @relation("ReferrerEmployee")
+  // P1.3-BM — regularisasi absensi (lupa absen / jam salah) diajukan karyawan.
+  attendanceRegularizations AttendanceRegularizationRequest[] @relation("ArEmployee")
+
   // AUD-DEPLOY (3-a H-3): hampir semua query modul memfilter status
   // ("Active" utk daftar payroll/attendance/leave) — seq scan per query.
   @@index([status])
@@ -434,12 +443,113 @@ model EmployeeFamily {
   birthDate   DateTime?
   occupation  String?
   isDependent Boolean   @default(true)
+  // P1.1-BM (D-BM4): NIK anggota keluarga — TERENKRIPSI (enc:v1:t:…),
+  // opsional; fondasi data peserta BPJS (file LKS JKN memuat NIK family — P2.1).
+  nationalId  String?
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   // AUD-DEPLOY (3-a M-13): include family per karyawan (profil payroll,
   // derivasi PTKP) tanpa seq scan.
   @@index([employeeId])
+}
+
+// P1.1-BM (D-BM2) — kontak darurat karyawan: 1–N, tipe + prioritas + relasi.
+// Nomor telepon TERENKRIPSI (enc:v1:t:…) — PII nomor pribadi.
+model EmergencyContact {
+  id          String   @id @default(cuid())
+  employeeId  String
+  name        String
+  relationship String  // lookup: Pasangan|Anak|Orang Tua|Saudara|Lainnya
+  phone       String   // no. telepon — TERENKRIPSI aplikasi (enc:v1:t:…)
+  address     String?
+  isPrimary   Boolean  @default(false)
+  notes       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
+// P1.1-BM (D-BM1) — pengajuan perubahan data diri dari ESS (bukan tulis
+// langsung): whitelist field pribadi non-master; field gaji/organisasi/
+// kepegawaian TETAP hanya via PersonnelAction (ditolak di sini).
+// Status Submitted→Approved/Rejected; approve akhir = patch otomatis oleh
+// service (before/after di ActivityLog — D-BM1).
+model EmployeeProfileChangeRequest {
+  id          String   @id @default(cuid())
+  docNo       String   @unique // PCR-2026-0001
+  employeeId  String
+  fieldsJson  String   // [{field, label, before, after}] — whitelist divalidasi service
+  reason      String?
+  status      String   @default("Submitted") // Submitted|Approved|Rejected|Cancelled
+  decidedById String?
+  decidedAt   DateTime?
+  decisionNote String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employee  Employee  @relation("PcrEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  decidedBy Employee? @relation("PcrDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, status])
+  @@index([status])
+}
+
+// P1.3-BM (D-BM7) — regularisasi absensi mandiri ("lupa absen"/jam salah):
+// diajukan karyawan ESS → approval chain docType "AttendanceReg" → approve
+// akhir = apply override-daily + regenerate (reuse jalur admin) + ActivityLog.
+// Cap aktif 4/bulan/karyawan (guard service); alasan wajib ≥10 karakter.
+model AttendanceRegularizationRequest {
+  id          String   @id @default(cuid())
+  docNo       String   @unique // AR-2026-0001
+  employeeId  String
+  workDate    DateTime @db.Date
+  kind        String   // MissingClockIn|MissingClockOut|WrongTime|MissingBoth
+  clockIn     String?  // HH:mm (diajukan)
+  clockOut    String?  // HH:mm (diajukan)
+  reason      String   // wajib ≥10 karakter
+  attachmentIds String @default("[]") // JSON [attachmentId] — bukti opsional
+  status      String   @default("Submitted") // Submitted|Approved|Rejected|Cancelled
+  decidedById String?
+  decidedAt   DateTime?
+  decisionNote String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employee Employee @relation("ArEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, status])
+  @@index([status])
+  @@index([workDate])
+}
+
+// P1.6-BM (D-BM15) — staging pengajuan referral dari ESS: karyawan mengajukan
+// kenalan (nama/email/WA + lowongan + pesan) → HR verifikasi (ala staging
+// lamaran publik ringan) → verifikasi = createApplicant (source Referral,
+// referrerEmployeeId tercatat — B8 tracker lanjut dari situ).
+model ReferralSubmission {
+  id          String   @id @default(cuid())
+  docNo       String   @unique // RF-2026-0001
+  referrerEmployeeId String
+  jobOpeningId String? // lowongan terkait (opsional)
+  candidateName String
+  candidateEmail String?
+  candidatePhone String?
+  note        String?  // pesan/kenapa layak dirujuk
+  status      String   @default("Submitted") // Submitted|Verified|Rejected|Duplicate
+  verifyNote  String?
+  verifiedById String?
+  verifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  referrer Employee @relation("ReferrerEmployee", fields: [referrerEmployeeId], references: [id], onDelete: Cascade)
+
+  @@index([referrerEmployeeId, status])
+  @@index([status])
 }
 
 model EmployeeEducation {

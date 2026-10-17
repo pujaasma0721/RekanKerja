@@ -5383,3 +5383,113 @@ ALTER TABLE "PrSelectionStage" ADD CONSTRAINT "PrSelectionStage_prId_fkey" FOREI
 
 -- AddForeignKey (SB-RC-BL)
 ALTER TABLE "PrSelectionStage" ADD CONSTRAINT "PrSelectionStage_selectionProcessId_fkey" FOREIGN KEY ("selectionProcessId") REFERENCES "SelectionProcess"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- ============================================================
+-- P1-BENCHMARK (DEVELOPMENT-PLAN-BENCHMARK.md §4 P1.1/P1.3/P1.6)
+-- 4 tabel baru + 1 kolom — idempoten utk tenant existing via
+-- scripts/migrate-p1-benchmark.ts (CREATE TABLE IF NOT EXISTS / ADD COLUMN
+-- IF NOT EXISTS); bagi tenant baru CREATE TABLE di provisioning sudah
+-- mencakup semuanya.
+-- ============================================================
+
+-- AddColumn (P1.1 D-BM4 — NIK anggota keluarga, terenkripsi aplikasi enc:v1:t:)
+ALTER TABLE "EmployeeFamily" ADD COLUMN IF NOT EXISTS "nationalId" TEXT;
+
+-- CreateTable (P1.1 D-BM2 — kontak darurat karyawan)
+CREATE TABLE IF NOT EXISTS "EmergencyContact" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "relationship" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "address" TEXT,
+    "isPrimary" BOOLEAN NOT NULL DEFAULT false,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmergencyContact_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable (P1.1 D-BM1 — pengajuan ubah data diri ESS + approval)
+CREATE TABLE IF NOT EXISTS "EmployeeProfileChangeRequest" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "fieldsJson" TEXT NOT NULL,
+    "reason" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Submitted',
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmployeeProfileChangeRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable (P1.3 D-BM7 — regularisasi absensi mandiri + approval)
+CREATE TABLE IF NOT EXISTS "AttendanceRegularizationRequest" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "workDate" DATE NOT NULL,
+    "kind" TEXT NOT NULL,
+    "clockIn" TEXT,
+    "clockOut" TEXT,
+    "reason" TEXT NOT NULL,
+    "attachmentIds" TEXT NOT NULL DEFAULT '[]',
+    "status" TEXT NOT NULL DEFAULT 'Submitted',
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AttendanceRegularizationRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable (P1.6 D-BM15 — staging pengajuan referral ESS)
+CREATE TABLE IF NOT EXISTS "ReferralSubmission" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "referrerEmployeeId" TEXT NOT NULL,
+    "jobOpeningId" TEXT,
+    "candidateName" TEXT NOT NULL,
+    "candidateEmail" TEXT,
+    "candidatePhone" TEXT,
+    "note" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Submitted',
+    "verifyNote" TEXT,
+    "verifiedById" TEXT,
+    "verifiedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ReferralSubmission_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex (P1.1/P1.3/P1.6)
+CREATE INDEX IF NOT EXISTS "EmergencyContact_employeeId_idx" ON "EmergencyContact"("employeeId");
+CREATE UNIQUE INDEX IF NOT EXISTS "EmployeeProfileChangeRequest_docNo_key" ON "EmployeeProfileChangeRequest"("docNo");
+CREATE INDEX IF NOT EXISTS "EmployeeProfileChangeRequest_employeeId_status_idx" ON "EmployeeProfileChangeRequest"("employeeId", "status");
+CREATE INDEX IF NOT EXISTS "EmployeeProfileChangeRequest_status_idx" ON "EmployeeProfileChangeRequest"("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "AttendanceRegularizationRequest_docNo_key" ON "AttendanceRegularizationRequest"("docNo");
+CREATE INDEX IF NOT EXISTS "AttendanceRegularizationRequest_employeeId_status_idx" ON "AttendanceRegularizationRequest"("employeeId", "status");
+CREATE INDEX IF NOT EXISTS "AttendanceRegularizationRequest_status_idx" ON "AttendanceRegularizationRequest"("status");
+CREATE INDEX IF NOT EXISTS "AttendanceRegularizationRequest_workDate_idx" ON "AttendanceRegularizationRequest"("workDate");
+CREATE UNIQUE INDEX IF NOT EXISTS "ReferralSubmission_docNo_key" ON "ReferralSubmission"("docNo");
+CREATE INDEX IF NOT EXISTS "ReferralSubmission_referrerEmployeeId_status_idx" ON "ReferralSubmission"("referrerEmployeeId", "status");
+CREATE INDEX IF NOT EXISTS "ReferralSubmission_status_idx" ON "ReferralSubmission"("status");
+
+-- AddForeignKey (P1.1/P1.3/P1.6)
+ALTER TABLE "EmergencyContact" DROP CONSTRAINT IF EXISTS "EmergencyContact_employeeId_fkey";
+ALTER TABLE "EmergencyContact" ADD CONSTRAINT "EmergencyContact_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "EmployeeProfileChangeRequest" DROP CONSTRAINT IF EXISTS "EmployeeProfileChangeRequest_employeeId_fkey";
+ALTER TABLE "EmployeeProfileChangeRequest" ADD CONSTRAINT "EmployeeProfileChangeRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "EmployeeProfileChangeRequest" DROP CONSTRAINT IF EXISTS "EmployeeProfileChangeRequest_decidedById_fkey";
+ALTER TABLE "EmployeeProfileChangeRequest" ADD CONSTRAINT "EmployeeProfileChangeRequest_decidedById_fkey" FOREIGN KEY ("decidedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "AttendanceRegularizationRequest" DROP CONSTRAINT IF EXISTS "AttendanceRegularizationRequest_employeeId_fkey";
+ALTER TABLE "AttendanceRegularizationRequest" ADD CONSTRAINT "AttendanceRegularizationRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ReferralSubmission" DROP CONSTRAINT IF EXISTS "ReferralSubmission_referrerEmployeeId_fkey";
+ALTER TABLE "ReferralSubmission" ADD CONSTRAINT "ReferralSubmission_referrerEmployeeId_fkey" FOREIGN KEY ("referrerEmployeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -26,6 +26,9 @@ export const ATTACHMENT_ENTITY_MENUS: Record<string, string> = {
   TravelClaim: "travel:travel-claim",
   MedicalClaim: "medical:medical-claim",
   EmployeeDocument: "hr:directory",
+  // P1.2-BM (D-BM5) — lampiran permintaan cuti (SKD surat dokter dsb.):
+  // guard admin = aksi create menu leave; ESS boleh unggah utk cuti MILIK SENDIRI.
+  LeaveRequest: "leave:leave-request",
 };
 
 /** Aktor minimal untuk cek izin baca lampiran (subset MenuActor). */
@@ -94,6 +97,14 @@ export async function attachmentReadAllowed(
       });
       return claim?.employeeId === ctx.actor.employeeId;
     }
+    if (att.entityType === "LeaveRequest") {
+      // P1.2-BM — lampiran cuti milik karyawan sendiri (SKD dsb.).
+      const req = await ctx.db.leaveRequest.findUnique({
+        where: { id: att.entityId },
+        select: { employeeId: true },
+      });
+      return req?.employeeId === ctx.actor.employeeId;
+    }
     if (att.entityType === "EmployeeDocument") {
       const doc = await ctx.db.employeeDocument.findUnique({
         where: { id: att.entityId },
@@ -126,6 +137,30 @@ function inferMime(name: string): string {
     case "pdf": return "application/pdf";
     default: return "";
   }
+}
+
+/**
+ * P1.2-BM — employeeId pemilik dokumen ESS (TravelClaim/MedicalClaim/
+ * LeaveRequest) utk guard kepemilikan upload id-final; null bila tidak ditemukan.
+ */
+async function essOwnerEmployeeIdOf(
+  db: TenantDb,
+  entityType: string,
+  entityId: string,
+): Promise<string | null> {
+  if (entityType === "TravelClaim") {
+    const c = await db.travelClaim.findUnique({ where: { id: entityId }, select: { employeeId: true } });
+    return c?.employeeId ?? null;
+  }
+  if (entityType === "MedicalClaim") {
+    const c = await db.medicalClaim.findUnique({ where: { id: entityId }, select: { employeeId: true } });
+    return c?.employeeId ?? null;
+  }
+  if (entityType === "LeaveRequest") {
+    const r = await db.leaveRequest.findUnique({ where: { id: entityId }, select: { employeeId: true } });
+    return r?.employeeId ?? null;
+  }
+  return null;
 }
 
 // POST — upload lampiran (multipart/form-data: file, entityType, entityId).
@@ -167,22 +202,26 @@ export async function POST(req: NextRequest) {
     if (m.ok) {
       dbRef = m.db;
       uploaderId = m.actor.appUserId ?? m.actor.userId;
-    } else if (entityType === "TravelClaim") {
+    } else if (entityType === "TravelClaim" || entityType === "MedicalClaim" || entityType === "LeaveRequest") {
+      // Task 98 (F1-5) — ESS boleh mengunggah kwitansi TravelClaim MILIK SENDIRI
+      // (draft pra-submit, atau klaim final miliknya) tanpa menu admin travel:
+      // menutup temuan VLM walkthrough 97 "critical issue" — karyawan menyimpan
+      // struk di ponsel tapi harus menyerahkan fisik ke HR (audit trail hilang).
+      // P1.2-BM (D-BM6/D-BM5) — jalur yang sama utk kwitansi klaim medis ESS &
+      // lampiran cuti (SKD) milik sendiri: draf pra-submit bebas; id final
+      // harus milik karyawan aktor.
       const ess = await requireEss(req);
       if (!ess.ok) {
         return NextResponse.json({ error: ess.error }, { status: ess.status });
       }
       const { db: essDb, employeeId, appUserId, platformUserId } = ess.actor;
-      // draf pra-submit bebas (klaim akan dibuat karyawan sendiri via POST ESS
-      // yang me-rebind); id final = klaim harus milik karyawan aktor.
+      // draf pra-submit bebas (dokumen akan dibuat karyawan sendiri via POST ESS
+      // yang me-rebind); id final = dokumen harus milik karyawan aktor.
       if (!entityId.startsWith(DRAFT_ENTITY_PREFIX)) {
-        const claim = await essDb.travelClaim.findUnique({
-          where: { id: entityId },
-          select: { employeeId: true },
-        });
-        if (!claim || claim.employeeId !== employeeId) {
+        const ownerId = await essOwnerEmployeeIdOf(essDb, entityType, entityId);
+        if (!ownerId || ownerId !== employeeId) {
           return NextResponse.json(
-            { error: "Kwitansi hanya bisa diunggah untuk klaim travel milik Anda" },
+            { error: "Lampiran hanya bisa diunggah untuk dokumen milik Anda" },
             { status: 403 },
           );
         }

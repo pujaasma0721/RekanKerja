@@ -206,6 +206,10 @@ const COMP_DEFS: CompDef[] = [
   { code: "TKEHADIRAN", name: "Tunjangan Kehadiran", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 0, accountDebitCode: "5102" },
   { code: "BEN_MED", name: "Benefit Medis (Reimburse)", type: "Earning", wageType: "CompensationNatura", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable", accountDebitCode: "5104" },
   { code: "BEN_GEN", name: "Benefit Karyawan", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Irregular", accountDebitCode: "5104" },
+  // P1.5-BM (D-BM13) — premi shift malam: jam malam (22:00–06:00) dari
+  // AttendanceDaily dikirim engine sbg NIGHT_HOURS; TIDAK dimasukkan ke template
+  // mana pun — tenant mengaktifkan sendiri (komponen opsional per tenant).
+  { code: "NIGHT_PREM", name: "Tunjangan Shift Malam", type: "Earning", wageType: "Compensation", calcMethod: "Formula", formula: "NIGHT_HOURS*BASE_SALARY/173", sptReference: "Tunjangan" },
 ];
 
 const TPL_DEFS: { code: string; name: string; description: string; components: string[] }[] = [

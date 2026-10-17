@@ -115,6 +115,10 @@ const DOC_TYPE_LABEL: Record<string, string> = {
   Medical: "Klaim Medis",
   Overtime: "Lembur",
   RecruitmentPR: "Permintaan Karyawan (PR)",
+  // P1-BENCHMARK — docType baru (chain opsional per tenant).
+  ProfileChange: "Pengajuan Ubah Data Diri",
+  AttendanceReg: "Regularisasi Absensi",
+  PayrollRunConfirm: "Finalisasi Run Payroll",
 };
 
 /** Status period payroll yang masih "aktif" (belum diproses/ditutup). */

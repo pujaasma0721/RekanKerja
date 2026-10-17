@@ -44,6 +44,11 @@ const DOC_TYPES = [
   { value: "RecruitmentPR", label: "Permintaan Karyawan (PR)", en: "Personnel Requisition (PR)" },
   { value: "PerformanceAppraisal", label: "Penilaian Kinerja (Performance)", en: "Performance Appraisal" },
   { value: "MeritRecommendation", label: "Usulan Merit (Performance)", en: "Merit Recommendation (Performance)" },
+  // P1-BENCHMARK — docType baru (D-BM1/D-BM7/D-BM8): default TANPA struktur
+  // aktif — chain hanya terbentuk bila admin membuat struktur utk docType ini.
+  { value: "ProfileChange", label: "Pengajuan Ubah Data Diri (ESS)", en: "Profile Change Request (ESS)" },
+  { value: "AttendanceReg", label: "Regularisasi Absensi (Kehadiran)", en: "Attendance Regularization" },
+  { value: "PayrollRunConfirm", label: "Finalisasi Run Payroll (Payroll)", en: "Payroll Run Confirmation" },
 ] as const;
 const AMOUNT_DOC_TYPES = ["Travel", "Medical", "Loan", "TravelClaim", "RecruitmentPR", "MeritRecommendation"];
 

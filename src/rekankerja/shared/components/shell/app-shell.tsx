@@ -36,7 +36,7 @@ import {
   KeyRound, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Waypoints, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
-  ClipboardList,
+  ClipboardList, ClipboardPen,
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
   MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
@@ -138,6 +138,9 @@ const HR_NAV: NavGroup[] = [
   { section: "actions", label: "Pengajuan & Persetujuan", children: [
     { id: "inbox", label: "Menunggu Persetujuan", icon: Inbox, badge: "pending" },
     { id: "all", label: "Semua Pengajuan", icon: Workflow },
+    // P1.1-BM (D-BM1) — pengajuan ubah data diri dari ESS (whitelist field
+    // pribadi; field master tetap via Personnel Action).
+    { id: "profile-changes", label: "Pengajuan Ubah Data", icon: IdCard },
   ] },
   { section: "actions", label: "Dokumen & Surat", children: [
     { id: "templates", label: "Template Surat", icon: FileText },
@@ -160,6 +163,9 @@ const PAYROLL_NAV: NavGroup[] = [
   { section: "payroll", label: "Periode & Proses", children: [
     { id: "periods", label: "Periode Payroll", icon: CalendarRange },
     { id: "runs", label: "Proses & Hasil", icon: PlayCircle, badge: "runsDraft" },
+    // P1.4-BM (D-BM9) — simulasi take-home-pay stateless (engine TER +
+    // Pasal 17 yang sama dgn run nyata — estimasi, tidak persist domain).
+    { id: "simulation", label: "Simulasi THP", icon: Calculator },
   ], matchViews: ["run"] },
   { section: "payroll", label: "Master Data", children: [
     { id: "components", label: "Komponen Upah", icon: Coins },
@@ -209,6 +215,9 @@ const ATTENDANCE_NAV: NavGroup[] = [
     // 27-e — papan kehadiran real-time (siapa di kantor sekarang)
     { id: "liveboard", label: "Papan Kehadiran", icon: Radar },
     { id: "absence", label: "Absensi & Izin", icon: XCircle },
+    // P1.3-BM (D-BM7) — regularisasi absensi mandiri karyawan ("lupa absen"):
+    // pengajuan ESS → approval berjenjang → auto-apply override + regen.
+    { id: "regularization", label: "Regularisasi Absensi", icon: ClipboardPen },
     { id: "overtime", label: "Lembur (Overtime)", icon: Clock },
     { id: "workoff", label: "Work Off Permission", icon: CheckCircle2 },
     // 27-g — persetujuan tukar shift antar karyawan (ESS mengajukan)

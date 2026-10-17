@@ -82,6 +82,9 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "coordinate", label: "Koordinator checklist", hint: "Mencentang tugas semua bagian, tambah/hapus tugas, tutup proses" },
   ],
   "hr:all": [{ key: "approve", label: "Menyetujui / menolak pengajuan", hint: "Aksi Setujui & Tolak pada daftar semua pengajuan" }],
+  // P1.1-BM — pengajuan ubah data diri ESS: memutuskan (patch otomatis saat
+  // approve akhir — before/after ter-audit ActivityLog).
+  "hr:profile-changes": [{ key: "approve", label: "Menyetujui / menolak pengajuan ubah data", hint: "Memutuskan pengajuan perubahan data diri karyawan dari ESS" }],
 
   // Payroll — proses run & benefit
   "payroll:runs": [
@@ -101,6 +104,8 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   "attendance:overtime": [{ key: "approve", label: "Menyetujui / menolak lembur", hint: "Memutuskan pengajuan lembur (overtime)" }],
   "attendance:workoff": [{ key: "approve", label: "Menyetujui / menolak work off", hint: "Memutuskan izin work off" }],
   "attendance:assignment-schedule": [{ key: "end", label: "Mengakhiri penugasan jadwal", hint: "Mengakhiri assign jadwal karyawan" }],
+  // P1.3-BM — regularisasi absensi mandiri: memutuskan pengajuan karyawan
+  "attendance:regularization": [{ key: "approve", label: "Menyetujui / menolak regularisasi", hint: "Memutuskan pengajuan regularisasi absensi (lupa absen / jam salah)" }],
 
   // Leave
   "leave:leave-request": [{ key: "cancel", label: "Membatalkan pengajuan cuti", hint: "Membatalkan permintaan cuti (draft/pending)" }],
