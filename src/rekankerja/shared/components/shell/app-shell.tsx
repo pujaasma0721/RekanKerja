@@ -40,7 +40,7 @@ import {
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
   MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
-  UsersRound, UserRoundCheck, Handshake, PieChart, Settings, Target, ListChecks, MessagesSquare, Grid3x3, LifeBuoy, Hourglass, Telescope} from "lucide-react";
+  UsersRound, UserRoundCheck, Handshake, PieChart, Settings, Target, ListChecks, MessagesSquare, Grid3x3, LifeBuoy, Hourglass, Telescope, Wrench, Route} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanySwitcher } from "./company-switcher";
 
@@ -121,6 +121,10 @@ const HR_NAV: NavGroup[] = [
   { section: "position", label: "Posisi & Jabatan", children: [
     { id: "list", label: "Daftar Posisi", icon: BriefcaseBusiness },
     { id: "jobs", label: "Katalog Jabatan", icon: FileText },
+    // P3.2-BM (D-BM24) — katalog keahlian organisasi (EmployeeSkill dinilai di detail karyawan)
+    { id: "skills", label: "Katalog Keahlian", icon: Wrench },
+    // P3.5-BM (D-BM27) — register jalur karier posisi → posisi berikutnya
+    { id: "career-paths", label: "Jalur Karier", icon: Route },
     { id: "grades", label: "Grade & Level", icon: GraduationCap },
     { id: "levels", label: "Level Jabatan", icon: TrendingUp },
   ] },

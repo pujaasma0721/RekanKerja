@@ -14,7 +14,7 @@ import {
   LayoutDashboard, UserRound, Palmtree, Fingerprint, ReceiptText, HeartPulse, ClipboardList, ClipboardCheck, FileText,
   Bell, Moon, Sun, LogOut, KeyRound, X, CheckCheck, MoreHorizontal, ArrowRight, Check,
   Waypoints, ChevronDown, Building2, Clock as ClockIcon, UserRoundSearch, ListChecks,
-  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package, CalendarPlus, Target, Users, UserRoundCheck,
+  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package, CalendarPlus, Target, Users, UserRoundCheck, Route,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, initials, fmtDateTime } from "@/rekankerja/shared/lib/api";
@@ -64,6 +64,9 @@ import { EssMyAppraisalPage } from "./ess-my-appraisal";
 import { EssMy360Page } from "./ess-my-360";
 // B1-BL — OKR Saya: objective kuartalan + board transparan (D-BL3)
 import { EssMyOkrPage } from "./ess-my-okr";
+// P3.3/P3.5-BM — Tim Saya (D-BM25) + Jalur Karier Saya (D-BM27)
+import { EssMyTeamPage } from "./ess-my-team";
+import { EssMyCareerPage } from "./ess-my-career";
 // Task 52-f — kanal whistleblowing TPKS (anonim) utk semua pekerja.
 import { WhistleblowForm, WB_CATEGORIES } from "@/rekankerja/whistleblow/components/whistleblow-form";
 import { Siren, Ticket, MessagesSquare } from "lucide-react";
@@ -78,6 +81,8 @@ const ESS_NAV: EssNavItem[] = [
   { id: "payslips", label: "Slip Gaji", en: "Payslips", short: "Slip", shortEn: "Pay", icon: ReceiptText },
   { id: "claims", label: "Klaim Saya", en: "My Claims", short: "Klaim", shortEn: "Claims", icon: HeartPulse },
   { id: "requests", label: "Pengajuan", en: "Requests", short: "Ajukan", shortEn: "Requests", icon: ClipboardList },
+  // P3.3-BM (D-BM25) — Tim Saya: workspace atasan (nav DIFILTER bila !isManager)
+  { id: "my-team", label: "Tim Saya", en: "My Team", short: "Tim", shortEn: "Team", icon: Users },
   // F1-REC — Rekrutmen: PR saya (MyPersonnelRequisition) + approval
   // (MyPersonnelRequisitionToApprove) — padanan ESS.
   { id: "my-pr", label: "PR Saya", en: "My Requisitions", short: "PR", shortEn: "PR", icon: ClipboardList },
@@ -102,6 +107,8 @@ const ESS_NAV: EssNavItem[] = [
   { id: "my-360", label: "360 Saya", en: "My 360", short: "360", shortEn: "360", icon: Users },
   // B1-BL — OKR Saya (kuartalan, D-BL2/D-BL3): nav DIFILTER bila !me.okrEnabled
   { id: "my-okr", label: "OKR Saya", en: "My OKR", short: "OKR", shortEn: "OKR", icon: Target },
+  // P3.5-BM (D-BM27) — Jalur Karier Saya (career pathing + syarat skill)
+  { id: "my-career", label: "Jalur Karier Saya", en: "My Career Path", short: "Karier", shortEn: "Career", icon: Route },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)
   { id: "letters", label: "Surat", en: "Letters", short: "Surat", shortEn: "Letters", icon: FileText },
   // Task 27-f/g/b — pengumuman / tukar shift / aset saya
@@ -129,9 +136,12 @@ const ESS_TABS_DESKTOP: EssView[] = ["dashboard", "leave", "attendance", "paysli
 const subscribeNoop = () => () => {};
 
 /** B1-BL — nav ESS efektif: item "my-okr" tampil HANYA bila mode OKR aktif
- * (okrEnabled dari /ess/me — D-BL2 default OFF; dipanggil setelah me siap). */
-function essNavOf(me: { okrEnabled?: boolean } | null): EssNavItem[] {
-  return me?.okrEnabled ? ESS_NAV : ESS_NAV.filter((n) => n.id !== "my-okr");
+ * (okrEnabled dari /ess/me — D-BL2 default OFF; dipanggil setelah me siap).
+ * P3.3-BM (D-BM25) — "Tim Saya" hanya bila isManager (atasan langsung). */
+function essNavOf(me: { okrEnabled?: boolean; isManager?: boolean } | null): EssNavItem[] {
+  let nav = me?.okrEnabled ? ESS_NAV : ESS_NAV.filter((n) => n.id !== "my-okr");
+  if (!me?.isManager) nav = nav.filter((n) => n.id !== "my-team");
+  return nav;
 }
 
 // Task 103-e — label dwibahasa utk role akun ESS di menu avatar. Mencakup
@@ -687,6 +697,8 @@ export function EssShell() {
             {view === "my-360" && <EssMy360Page />}
             {/* B1-BL — OKR Saya: objective kuartalan + board transparan */}
             {view === "my-okr" && <EssMyOkrPage />}
+            {view === "my-team" && <EssMyTeamPage />}
+            {view === "my-career" && <EssMyCareerPage />}
             {view === "assets" && <EssAssets />}
             {view === "whistleblow" && (
               <div className="mx-auto max-w-2xl">

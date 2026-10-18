@@ -83,6 +83,8 @@ export interface EssMe {
   canAdmin: boolean;
   /** B1-BL — mode OKR kuartalan tenant aktif? (nav "OKR Saya" tampil bila true — D-BL2 default OFF) */
   okrEnabled?: boolean;
+  /** P3.3-BM (D-BM25) — karyawan punya bawahan aktif? (nav "Tim Saya" tampil bila true) */
+  isManager?: boolean;
 }
 
 // ============ 2. GET /ess/dashboard ============

@@ -931,6 +931,11 @@ export const BASE_EN: Record<string, string> = {
   // P3-SLICE-D end.
   // P3-SLICE-E (P3.5 career pathing) — entri i18n slice E ditambah tepat di bawah baris ini (jangan hapus marker).
   // P3-SLICE-E end.
+  // — P3-BM Phase 0b: label nav admin bersama (single-arg t() dari app-shell) —
+  "Katalog Keahlian": "Skill Catalog",
+  "Jalur Karier": "Career Paths",
+  "Tim Saya": "My Team",
+  "Jalur Karier Saya": "My Career Path",
 
   // — Task BL-2 (audit bilingual): vocabulary header dokumen laporan (layar TH
   //    + XLSX header/sheet-name/sel status). Sumber: audit AST 6 modul report

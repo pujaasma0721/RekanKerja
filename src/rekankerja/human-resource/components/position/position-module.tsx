@@ -27,9 +27,14 @@ import { cn } from "@/lib/utils";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
 import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 import { PositionLevelView } from "./level-view";
+// P3-BM — katalog keahlian (D-BM24) + register jalur karier (D-BM27)
+import { SkillsCatalogView } from "./skills-view";
+import { CareerPathsView } from "./career-paths-view";
 
 export function PositionModule({ view }: { view: string }) {
   if (view === "jobs") return <JobLibrary />;
+  if (view === "skills") return <SkillsCatalogView />;
+  if (view === "career-paths") return <CareerPathsView />;
   if (view === "grades") return <GradeList />;
   if (view === "levels") return <PositionLevelView />;
   return <PositionList />;

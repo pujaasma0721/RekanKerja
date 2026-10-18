@@ -386,7 +386,15 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   "hr:custom-reports": [
     { key: "run", label: "Menjalankan laporan kustom", hint: "Tombol Jalankan pada laporan kustom tersimpan" },
     { key: "export", label: "Mengekspor hasil laporan", hint: "Tombol ekspor CSV/Excel hasil laporan kustom" },
+    // P3.4-BM (D-BM26) — scheduled delivery: kirim XLSX periodik per saved report
+    { key: "schedule", label: "Menjadwalkan kiriman laporan", hint: "Mengatur/menghapus jadwal kirim email XLSX laporan kustom" },
   ],
+  // P3.2-BM (D-BM24) — katalog keahlian: menilai level keahlian karyawan di detail karyawan
+  "hr:skills": [
+    { key: "assess", label: "Menilai keahlian karyawan", hint: "Menambah/mengubah penilaian level 1–5 keahlian di detail karyawan" },
+  ],
+  // P3.5-BM (D-BM27) — register jalur karier posisi → posisi berikutnya
+  "hr:career-paths": [],
 };
 
 /** Operasi khusus yang terdaftar untuk sebuah key menu. */
