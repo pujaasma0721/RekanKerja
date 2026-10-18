@@ -3244,7 +3244,31 @@ model CustomReport {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // P3.4-BM (D-BM26) — jadwal kirim email XLSX periodik (satu per laporan)
+  schedule    ReportSchedule?
+
   @@index([entity])
+}
+
+// P3.4-BM (D-BM26) — jadwal pengiriman laporan kustom (pola digest rekrutmen;
+// idempoten via claimReminder key tanggal + advisory-lock scheduler)
+model ReportSchedule {
+  id          String   @id @default(cuid())
+  reportId    String
+  frequency   String // Daily|Weekly|Monthly
+  dayOfWeek   Int? // 0–6 (Weekly)
+  dayOfMonth  Int? // 1–28 (Monthly)
+  hour        Int      @default(7) // jam kirim WIB
+  recipients  String // email tujuan — dipisah koma/titik-koma
+  active      Boolean  @default(true)
+  lastRunAt   DateTime?
+  lastStatus  String? // OK|Error|Skipped|...
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  report CustomReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId])
 }
 
 // ============ Task 52-f — WHISTLEBLOWING / TPKS (UU 12/2022 Ps.22-24) ============

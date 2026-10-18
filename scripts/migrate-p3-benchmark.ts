@@ -52,6 +52,14 @@ const DDL: string[] = [
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "CareerPath_pkey" PRIMARY KEY ("id"))`,
+  `CREATE TABLE IF NOT EXISTS "ReportSchedule" (
+    "id" TEXT NOT NULL, "reportId" TEXT NOT NULL, "frequency" TEXT NOT NULL,
+    "dayOfWeek" INTEGER, "dayOfMonth" INTEGER, "hour" INTEGER NOT NULL DEFAULT 7,
+    "recipients" TEXT NOT NULL, "active" BOOLEAN NOT NULL DEFAULT true,
+    "lastRunAt" TIMESTAMP(3), "lastStatus" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "ReportSchedule_pkey" PRIMARY KEY ("id"))`,
   // --- kolom baru (idempoten) ---
   `ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "familyId" TEXT`,
   `ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "mission" TEXT`,
@@ -69,6 +77,7 @@ const DDL: string[] = [
   `CREATE INDEX IF NOT EXISTS "EmployeeSkill_employeeId_idx" ON "EmployeeSkill"("employeeId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "CareerPath_fromPositionId_toPositionId_key" ON "CareerPath"("fromPositionId", "toPositionId")`,
   `CREATE INDEX IF NOT EXISTS "CareerPath_fromPositionId_idx" ON "CareerPath"("fromPositionId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ReportSchedule_reportId_key" ON "ReportSchedule"("reportId")`,
   // --- FK (drop-if-exists lalu add — idempoten) ---
   `ALTER TABLE "JobFamily" DROP CONSTRAINT IF EXISTS "JobFamily_parentId_fkey"`,
   `ALTER TABLE "JobFamily" ADD CONSTRAINT "JobFamily_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "JobFamily"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
@@ -82,6 +91,8 @@ const DDL: string[] = [
   `ALTER TABLE "CareerPath" ADD CONSTRAINT "CareerPath_fromPositionId_fkey" FOREIGN KEY ("fromPositionId") REFERENCES "Position"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
   `ALTER TABLE "CareerPath" DROP CONSTRAINT IF EXISTS "CareerPath_toPositionId_fkey"`,
   `ALTER TABLE "CareerPath" ADD CONSTRAINT "CareerPath_toPositionId_fkey" FOREIGN KEY ("toPositionId") REFERENCES "Position"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "ReportSchedule" DROP CONSTRAINT IF EXISTS "ReportSchedule_reportId_fkey"`,
+  `ALTER TABLE "ReportSchedule" ADD CONSTRAINT "ReportSchedule_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "CustomReport"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
 ];
 
 /** Slug kode family dari nama kategori: "Teknis & IT" → "TEKNIS-IT" (prefix JF-). */
@@ -169,7 +180,7 @@ export async function main(schemas?: string[]): Promise<void> {
       }
 
       console.log(`    backfill: ${families} family baru, ${linked} job ter-naut; seed ${skills} skill baru`);
-      for (const tbl of ["JobFamily", "SkillCatalog", "EmployeeSkill", "CareerPath"]) {
+      for (const tbl of ["JobFamily", "SkillCatalog", "EmployeeSkill", "CareerPath", "ReportSchedule"]) {
         const r = await c.query<{ n: number }>(
           `SELECT COUNT(*)::int AS n FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2`,
           [schemaName, tbl],

@@ -5707,3 +5707,23 @@ ALTER TABLE "CareerPath" DROP CONSTRAINT IF EXISTS "CareerPath_fromPositionId_fk
 ALTER TABLE "CareerPath" ADD CONSTRAINT "CareerPath_fromPositionId_fkey" FOREIGN KEY ("fromPositionId") REFERENCES "Position"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "CareerPath" DROP CONSTRAINT IF EXISTS "CareerPath_toPositionId_fkey";
 ALTER TABLE "CareerPath" ADD CONSTRAINT "CareerPath_toPositionId_fkey" FOREIGN KEY ("toPositionId") REFERENCES "Position"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- P3.4-BM (D-BM26) — jadwal kirim laporan kustom
+CREATE TABLE IF NOT EXISTS "ReportSchedule" (
+    "id" TEXT NOT NULL,
+    "reportId" TEXT NOT NULL,
+    "frequency" TEXT NOT NULL,
+    "dayOfWeek" INTEGER,
+    "dayOfMonth" INTEGER,
+    "hour" INTEGER NOT NULL DEFAULT 7,
+    "recipients" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "lastRunAt" TIMESTAMP(3),
+    "lastStatus" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "ReportSchedule_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "ReportSchedule_reportId_key" ON "ReportSchedule"("reportId");
+ALTER TABLE "ReportSchedule" DROP CONSTRAINT IF EXISTS "ReportSchedule_reportId_fkey";
+ALTER TABLE "ReportSchedule" ADD CONSTRAINT "ReportSchedule_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "CustomReport"("id") ON DELETE CASCADE ON UPDATE CASCADE;
