@@ -112,7 +112,153 @@ export const LIMITS = {
   runPageSize: 500,
   exportRows: 5000,
   maxTextLength: 200,
+  // P3.4-BM (D-BM26) — batas agregasi/pivot.
+  maxAggregates: 8,
+  maxPivotCols: 30,
 };
+
+// ================= AGREGASI & PIVOT (P3.4-BM / D-BM26) =================
+
+/** Fungsi agregat yang didukung (count = jumlah baris grup, ala COUNT(*)). */
+export type AggFn = "sum" | "avg" | "count";
+
+export const AGG_FNS: Record<AggFn, { label: string; labelEn: string }> = {
+  sum: { label: "Jumlah (Σ)", labelEn: "Sum" },
+  avg: { label: "Rata-rata", labelEn: "Average" },
+  count: { label: "Hitung baris", labelEn: "Count rows" },
+};
+
+/** Spesifikasi agregat ternormalisasi (satu baris agregasi di UI). */
+export interface NormalizedAggregate {
+  def: ReportFieldDef;
+  fn: AggFn;
+  /** key kolom hasil (aman identifier) — alias user atau agg_<fn>_<field>. */
+  key: string;
+  /** label tampilan utama (alias user bila diisi). */
+  alias: string;
+}
+
+/** Spesifikasi pivot ternormalisasi (2 dimensi: baris × kolom). */
+export interface NormalizedPivot {
+  rowField: ReportFieldDef;
+  colField: ReportFieldDef;
+  valueFn: "count" | "sum";
+  valueField: ReportFieldDef | null;
+}
+
+export interface ValidatedAggregation {
+  groupBy: ReportFieldDef | null;
+  aggregates: NormalizedAggregate[];
+  pivot: NormalizedPivot | null;
+}
+
+/** true bila mode agregasi aktif (groupBy / aggregates / pivot ada). */
+export const hasAggregation = (a: ValidatedAggregation | null): boolean =>
+  a != null && (a.groupBy != null || a.aggregates.length > 0 || a.pivot != null);
+
+/** Sanitasi alias → key kolom aman (identifier + tidak menabrak field katalog). */
+function aliasKey(raw: string): string {
+  const s = raw.trim().replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
+  return s && /^[A-Za-z]/.test(s) ? `u_${s}` : "";
+}
+
+/**
+ * Validasi + normalisasi bagian agregasi payload {groupBy, aggregates, pivot}
+ * — field HARUS ada di katalog entity (whitelist server-side); sum/avg hanya
+ * utk field numerik; groupBy/pivot rowField/colField TIDAK boleh field uang
+ * terenkripsi (ciphertext tak bermakna sbg kunci); pivot 2-dim eksklusif dgn
+ * groupBy. Alias user opsional (key unik dijamin, tabrakan → suffix _2, _3…).
+ */
+export function validateAggregation(
+  ent: ReportEntityDef,
+  input: { groupBy?: unknown; aggregates?: unknown; pivot?: unknown },
+): ValidatedAggregation {
+  // ---- groupBy ----
+  let groupBy: ReportFieldDef | null = null;
+  if (input.groupBy != null && input.groupBy !== "") {
+    const def = ent.fields.find((f) => f.key === String(input.groupBy));
+    if (!def) throw new ReportSpecError(`Field grup "${String(input.groupBy)}" tidak dikenal pada entity ${ent.label}`);
+    if (def.encrypted) throw new ReportSpecError(`Field "${def.label}" terenkripsi dan tidak dapat dipakai sebagai kelompok`);
+    groupBy = def;
+  }
+
+  // ---- aggregates ----
+  const aggregates: NormalizedAggregate[] = [];
+  if (input.aggregates != null) {
+    if (!Array.isArray(input.aggregates)) throw new ReportSpecError("aggregates harus berupa array");
+    if (input.aggregates.length > LIMITS.maxAggregates) {
+      throw new ReportSpecError(`Maksimal ${LIMITS.maxAggregates} agregat per laporan`);
+    }
+    const usedKeys = new Set<string>();
+    for (const item of input.aggregates) {
+      const raw = (item ?? {}) as Record<string, unknown>;
+      const def = ent.fields.find((f) => f.key === String(raw.field ?? ""));
+      if (!def) throw new ReportSpecError(`Field agregat "${String(raw.field ?? "")}" tidak dikenal pada entity ${ent.label}`);
+      const fn = String(raw.fn ?? "") as AggFn;
+      if (!AGG_FNS[fn]) throw new ReportSpecError(`Fungsi agregat "${String(raw.fn ?? "")}" tidak dikenal (sum/avg/count)`);
+      if ((fn === "sum" || fn === "avg") && def.type !== "number") {
+        throw new ReportSpecError(`Agregat ${fn} hanya berlaku utk field angka — "${def.label}" bertipe ${def.type}`);
+      }
+      const alias = String(raw.alias ?? "").trim().slice(0, 60);
+      let key = (alias ? aliasKey(alias) : "") || `agg_${fn}_${def.key}`;
+      for (let i = 2; usedKeys.has(key); i++) key = `${key}_${i}`;
+      usedKeys.add(key);
+      aggregates.push({ def, fn, key, alias });
+    }
+  }
+
+  // ---- pivot (2 dimensi) ----
+  let pivot: NormalizedPivot | null = null;
+  if (input.pivot != null && typeof input.pivot === "object") {
+    if (groupBy) throw new ReportSpecError("Pivot 2 dimensi tidak dapat digabung dengan kelompok (groupBy)");
+    const p = input.pivot as Record<string, unknown>;
+    const rowField = ent.fields.find((f) => f.key === String(p.rowField ?? ""));
+    if (!rowField) throw new ReportSpecError(`Field baris pivot "${String(p.rowField ?? "")}" tidak dikenal pada entity ${ent.label}`);
+    if (rowField.encrypted) throw new ReportSpecError(`Field "${rowField.label}" terenkripsi dan tidak dapat dipakai sebagai dimensi pivot`);
+    const colField = ent.fields.find((f) => f.key === String(p.colField ?? ""));
+    if (!colField) throw new ReportSpecError(`Field kolom pivot "${String(p.colField ?? "")}" tidak dikenal pada entity ${ent.label}`);
+    if (colField.encrypted) throw new ReportSpecError(`Field "${colField.label}" terenkripsi dan tidak dapat dipakai sebagai dimensi pivot`);
+    if (colField.key === rowField.key) throw new ReportSpecError("Field baris dan kolom pivot harus berbeda");
+    const valueFn = String(p.valueFn ?? "count") === "sum" ? "sum" : "count";
+    let valueField: ReportFieldDef | null = null;
+    if (valueFn === "sum") {
+      valueField = ent.fields.find((f) => f.key === String(p.valueField ?? "")) ?? null;
+      if (!valueField) throw new ReportSpecError("Field nilai pivot wajib dipilih utk fungsi sum");
+      if (valueField.type !== "number") {
+        throw new ReportSpecError(`Sum pivot hanya utk field angka — "${valueField.label}" bertipe ${valueField.type}`);
+      }
+    }
+    pivot = { rowField, colField, valueFn, valueField };
+  }
+
+  return { groupBy, aggregates, pivot };
+}
+
+/** Kunci tampilan nilai grup/pivot (date → YYYY-MM-DD; null → "(kosong)"). */
+function groupKeyOf(v: unknown, type: FieldType): string {
+  if (v == null || v === "") return "(kosong)";
+  if (v instanceof Date) return type === "date" ? v.toISOString().slice(0, 10) : v.toISOString();
+  return String(v);
+}
+
+/** Hitung SATU agregat atas nilai field dari baris grup (count = jml baris).
+ *  Uang terenkripsi TANPA money-view → null + masked (TIDAK difabrikasi). */
+function computeAggregate(
+  fn: AggFn,
+  values: unknown[],
+  moneyMasked: boolean,
+): { value: number | null; masked: boolean } {
+  if (moneyMasked && (fn === "sum" || fn === "avg")) return { value: null, masked: true };
+  if (fn === "count") return { value: values.length, masked: false };
+  let sum = 0;
+  let n = 0;
+  for (const v of values) {
+    const num = typeof v === "number" ? v : Number(v);
+    if (Number.isFinite(num)) { sum += num; n++; }
+  }
+  if (n === 0) return { value: null, masked: false };
+  return { value: fn === "sum" ? sum : sum / n, masked: false };
+}
 
 // ================= KATALOG ENTITY (whitelist server-side) =================
 
@@ -297,6 +443,8 @@ export function catalogPayload() {
     })),
     ops: FILTER_OPS,
     opsByType: OPS_BY_TYPE,
+    // P3.4-BM (D-BM26) — label fungsi agregat utk UI builder.
+    aggFns: AGG_FNS,
     limits: LIMITS,
   };
 }
@@ -554,7 +702,7 @@ function appMatch(op: FilterOp, actual: unknown, value: unknown): boolean {
 
 export interface RunResult {
   entity: string;
-  columns: { key: string; label: string; labelEn: string; type: FieldType }[];
+  columns: { key: string; label: string; labelEn: string; type: FieldType; masked?: boolean }[];
   /** nilai mentah (tanggal = ISO string — diformat di UI; uang terenkripsi
    *  sudah terdekripsi menjadi number). */
   rows: Record<string, unknown>[];
@@ -566,17 +714,53 @@ export interface RunResult {
    *  diterapkan IN-APP (post-dekripsi), total = hasil filter JS (batas aman
    *  baris yang dibaca = exportRows). */
   inAppFiltered?: boolean;
+  // ---- P3.4-BM (D-BM26) — mode hasil ----
+  /** "plain" (default) | "grouped" | "summary" | "pivot". */
+  mode?: "plain" | "grouped" | "summary" | "pivot";
+  /** jumlah baris data yang benar-benar discan (≤ takeCap) saat agregasi. */
+  scanned?: number;
+  /** cap scan aktif saat agregasi (default 5000 — bisa dioverride internal). */
+  takeCap?: number;
+  /** true bila minimal satu agregat uang ter-mask (tanpa money-view) → nilai
+   *  null — TIDAK difabrikasi (invarian paling diaudit platform ini). */
+  maskedAggregates?: boolean;
+  /** baris ringkasan agregat (mode summary — tanpa groupBy). */
+  aggregates?: { key: string; label: string; labelEn: string; value: number | null; masked: boolean }[];
+  /** matriks pivot 2-dim (mode pivot). */
+  pivot?: {
+    rowField: { key: string; label: string; labelEn: string; type: FieldType };
+    colField: { key: string; label: string; labelEn: string; type: FieldType };
+    valueFn: "count" | "sum";
+    valueField: { key: string; label: string; labelEn: string; type: FieldType } | null;
+    rowKeys: string[];
+    colKeys: string[];
+    cells: Record<string, Record<string, number | null>>;
+    masked?: boolean;
+  };
+}
+
+/** Opsi internal eksekusi laporan (P3.4-BM) — take-cap baris agregasi. */
+export interface RunOptions {
+  /** cap jumlah baris yang discan utk agregasi/pivot (default 5000). */
+  takeCap?: number;
 }
 
 /** 45-b: mv (MoneyView) WAJIB — gerbang vault uang: field terenkripsi (uang)
  *  → null saat masked; angka polos & tanggal tetap lewat (pola dm lama). */
 export async function runReport(
   db: TenantDb,
-  input: { entity?: unknown; fields?: unknown; filters?: unknown; page?: unknown },
+  input: { entity?: unknown; fields?: unknown; filters?: unknown; page?: unknown;
+    groupBy?: unknown; aggregates?: unknown; pivot?: unknown },
   mv: MoneyView,
+  opts: RunOptions = {},
 ): Promise<RunResult> {
   const { entity: ent, fields, filters } = validateSpec(input);
   const page = Math.max(1, Math.trunc(Number(input.page ?? 1)) || 1);
+  // P3.4-BM (D-BM26): mode agregasi (groupBy/aggregates/pivot) → jalur khusus
+  // (take-cap + dekripsi uang hanya dgn money-view; tanpa agregasi perilaku
+  // lama tak berubah — backward compatible).
+  const agg = validateAggregation(ent, input);
+  if (hasAggregation(agg)) return runAggregatedReport(db, ent, filters, agg, mv, opts);
   // 28-c: pisahkan filter SQL vs filter field TERENKRIPSI (uang payroll).
   // Filter terenkripsi tidak dapat dievaluasi database (random-IV ciphertext,
   // bukan angka) → fetch baris (cap LIMITS.exportRows) → dekripsi → filter JS.
@@ -647,6 +831,211 @@ export async function runReport(
     pageSize: LIMITS.runPageSize,
     truncated: total > page * LIMITS.runPageSize,
     inAppFiltered: true,
+  };
+}
+
+// ================= RUN AGREGASI / PIVOT (P3.4-BM / D-BM26) =================
+
+/**
+ * Jalur eksekusi agregasi (groupBy / aggregates / pivot):
+ *  · TAKE-CAP: baris yang discan dibatasi `opts.takeCap` (default 5000) —
+ *    baris terfilter melebihi cap → agregasi dijalankan pada cap baris
+ *    PERTAMA + flag truncated:true + scanned:N (UI: banner "terpotong").
+ *  · UANG: nilai field terenkripsi hanya didekripsi bila mv.canSee —
+ *    agregat uang tanpa money-view → null + masked (TIDAK difabrikasi).
+ *  · Filter field terenkripsi tetap IN-APP (pola 28-c runReport).
+ */
+async function runAggregatedReport(
+  db: TenantDb,
+  ent: ReportEntityDef,
+  filters: NormalizedFilter[],
+  agg: ValidatedAggregation,
+  mv: MoneyView,
+  opts: RunOptions,
+): Promise<RunResult> {
+  const takeCap = Math.max(1, Math.trunc(opts.takeCap ?? 0) || LIMITS.exportRows);
+  const sqlFilters = filters.filter((f) => !f.def.encrypted);
+  const appFilters = filters.filter((f) => f.def.encrypted);
+  const where = buildWhere(sqlFilters);
+  // field yang perlu dibaca dr DB: dimensi + sumber agregat saja.
+  const needed = new Set<string>();
+  if (agg.groupBy) needed.add(agg.groupBy.key);
+  for (const a of agg.aggregates) needed.add(a.def.key);
+  if (agg.pivot) {
+    needed.add(agg.pivot.rowField.key);
+    needed.add(agg.pivot.colField.key);
+    if (agg.pivot.valueField) needed.add(agg.pivot.valueField.key);
+  }
+  const fields = ent.fields.filter((f) => needed.has(f.key));
+  const select = buildSelect(fields);
+  const orderBy = [nested(
+    ent.fields.find((f) => f.key === ent.defaultField)?.path ?? ["employeeNo"],
+    "asc",
+  )];
+  const dl = delegateOf(db, ent.model);
+  const tc = tenantCryptoForDb(db);
+  // 45-b: enc:v1:n saat masked → null (vault uang); plaintext/angka tetap.
+  const dm = (v: unknown): unknown => {
+    if (v == null) return null;
+    if (!mv.canSee && isEncrypted(String(v))) return null;
+    return isEncrypted(String(v)) ? tc.decryptMoney(String(v)) : Number(v);
+  };
+  const decode = (r: Record<string, unknown>): Record<string, unknown> => {
+    const o: Record<string, unknown> = {};
+    for (const f of fields) o[f.key] = f.encrypted ? dm(readPath(r, f.path)) : readPath(r, f.path);
+    return o;
+  };
+
+  // ---- fetch (≤ takeCap) + total → truncated/scanned ----
+  let rows: Record<string, unknown>[];
+  let total: number;
+  let truncated: boolean;
+  if (appFilters.length === 0) {
+    const [rawRows, countAll] = await Promise.all([
+      dl.findMany({ where, select, orderBy, take: takeCap } as never),
+      dl.count({ where } as never),
+    ]);
+    rows = rawRows.map(decode);
+    total = countAll;
+    truncated = countAll > takeCap;
+  } else {
+    // jalur in-app (28-c): baca ≤ cap → dekripsi → filter JS; total pasca
+    // filter (batas bawah bila raw menyentuh cap — truncated tetap jujur).
+    const rawRows = await dl.findMany({ where, select, orderBy, take: takeCap } as never);
+    let filtered = rawRows.map(decode);
+    for (const f of appFilters) filtered = filtered.filter((row) => appMatch(f.op, row[f.field], f.value));
+    rows = filtered;
+    total = filtered.length;
+    truncated = rawRows.length === takeCap;
+  }
+  const scanned = rows.length;
+  const meta = { entity: ent.key, page: 1, pageSize: LIMITS.runPageSize, scanned, takeCap };
+
+  // ---- mask uang: agregat field terenkripsi tanpa money-view → null ----
+  const maskedOf = (def: ReportFieldDef): boolean => def.encrypted && !mv.canSee;
+
+  // ---- mode PIVOT ----
+  if (agg.pivot) {
+    const { rowField, colField, valueFn, valueField } = agg.pivot;
+    const rowOrder: string[] = [];
+    const colOrder: string[] = [];
+    const buckets = new Map<string, Map<string, unknown[]>>();
+    for (const row of rows) {
+      const rk = groupKeyOf(row[rowField.key], rowField.type);
+      const ck = groupKeyOf(row[colField.key], colField.type);
+      if (!rowOrder.includes(rk)) rowOrder.push(rk);
+      if (!colOrder.includes(ck)) colOrder.push(ck);
+      let byCol = buckets.get(rk);
+      if (!byCol) { byCol = new Map(); buckets.set(rk, byCol); }
+      let cell = byCol.get(ck);
+      if (!cell) { cell = []; byCol.set(ck, cell); }
+      cell.push(valueFn === "sum" && valueField ? row[valueField.key] : row);
+    }
+    rowOrder.sort((a, b) => a.localeCompare(b, "id", { numeric: true }));
+    colOrder.sort((a, b) => a.localeCompare(b, "id", { numeric: true }));
+    if (colOrder.length > LIMITS.maxPivotCols) {
+      throw new ReportSpecError(
+        `Field kolom pivot "${colField.label}" memiliki ${colOrder.length} nilai unik — terlalu banyak nilai unik (maks ${LIMITS.maxPivotCols}); persempit filter`,
+      );
+    }
+    const valueMasked = valueFn === "sum" && valueField != null && maskedOf(valueField);
+    const cells: Record<string, Record<string, number | null>> = {};
+    for (const rk of rowOrder) {
+      const byCol: Record<string, number | null> = {};
+      for (const ck of colOrder) {
+        const values = buckets.get(rk)?.get(ck) ?? [];
+        byCol[ck] = computeAggregate(valueFn === "sum" ? "sum" : "count", values, valueMasked).value;
+      }
+      cells[rk] = byCol;
+    }
+    return {
+      ...meta,
+      mode: "pivot",
+      columns: [],
+      rows: [],
+      total: scanned,
+      truncated,
+      maskedAggregates: valueMasked || undefined,
+      pivot: {
+        rowField: { key: rowField.key, label: rowField.label, labelEn: rowField.labelEn, type: rowField.type },
+        colField: { key: colField.key, label: colField.label, labelEn: colField.labelEn, type: colField.type },
+        valueFn,
+        valueField: valueField
+          ? { key: valueField.key, label: valueField.label, labelEn: valueField.labelEn, type: valueField.type }
+          : null,
+        rowKeys: rowOrder,
+        colKeys: colOrder,
+        cells,
+        ...(valueMasked ? { masked: true } : {}),
+      },
+    };
+  }
+
+  // ---- hitung agregat (dipakai mode grouped & summary) ----
+  const aggMeta = agg.aggregates.map((a) => ({
+    norm: a,
+    masked: maskedOf(a.def),
+    label: a.alias || `${AGG_FNS[a.fn].label} ${a.def.label}`,
+    labelEn: a.alias || `${AGG_FNS[a.fn].labelEn} ${a.def.labelEn}`,
+  }));
+  const anyMasked = aggMeta.some((m) => m.masked);
+  const aggColumns = aggMeta.map((m) => ({
+    key: m.norm.key, label: m.label, labelEn: m.labelEn, type: "number" as FieldType,
+    ...(m.masked ? { masked: true } : {}),
+  }));
+  const computeRow = (bucket: Record<string, unknown>[]): Record<string, unknown> => {
+    const o: Record<string, unknown> = {};
+    for (const m of aggMeta) {
+      o[m.norm.key] = computeAggregate(m.norm.fn, bucket.map((r) => r[m.norm.def.key]), m.masked).value;
+    }
+    return o;
+  };
+
+  // ---- mode GROUPED ----
+  if (agg.groupBy) {
+    const groupBy = agg.groupBy;
+    const groups = new Map<string, { value: unknown; bucket: Record<string, unknown>[] }>();
+    for (const row of rows) {
+      const gv = row[groupBy.key];
+      const key = groupKeyOf(gv, groupBy.type);
+      let g = groups.get(key);
+      if (!g) { g = { value: gv, bucket: [] }; groups.set(key, g); }
+      g.bucket.push(row);
+    }
+    const sorted = [...groups.entries()].sort((a, b) =>
+      groupKeyOf(a[1].value, groupBy.type).localeCompare(groupKeyOf(b[1].value, groupBy.type), "id", { numeric: true }));
+    const outRows = sorted.map(([, g]) => ({ [groupBy.key]: g.value, ...computeRow(g.bucket) }));
+    return {
+      ...meta,
+      mode: "grouped",
+      columns: [
+        { key: groupBy.key, label: groupBy.label, labelEn: groupBy.labelEn, type: groupBy.type },
+        ...aggColumns,
+      ],
+      rows: outRows,
+      total: outRows.length,
+      truncated,
+      ...(anyMasked ? { maskedAggregates: true } : {}),
+    };
+  }
+
+  // ---- mode SUMMARY (agregat tanpa grup) ----
+  const summary = aggMeta.map((m) => ({
+    key: m.norm.key,
+    label: m.label,
+    labelEn: m.labelEn,
+    value: computeAggregate(m.norm.fn, rows.map((r) => r[m.norm.def.key]), m.masked).value,
+    masked: m.masked,
+  }));
+  return {
+    ...meta,
+    mode: "summary",
+    columns: aggColumns,
+    rows: [Object.fromEntries(summary.map((s) => [s.key, s.value]))],
+    total: 1,
+    truncated,
+    aggregates: summary,
+    ...(anyMasked ? { maskedAggregates: true } : {}),
   };
 }
 
@@ -752,6 +1141,45 @@ export interface SavedReportRow {
   filters: { field: string; op: string; value: string }[];
   createdAt: string;
   updatedAt: string;
+  /** P3.4-BM (D-BM26) — jadwal kirim email XLSX (satu per laporan; null = belum ada). */
+  schedule?: SerializedSchedule | null;
+}
+
+/** Baris ReportSchedule → payload UI (tanggal ISO). */
+export interface SerializedSchedule {
+  id: string;
+  reportId: string;
+  frequency: string;
+  dayOfWeek: number | null;
+  dayOfMonth: number | null;
+  hour: number;
+  recipients: string[];
+  active: boolean;
+  lastRunAt: string | null;
+  lastStatus: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function serializeSchedule(r: {
+  id: string; reportId: string; frequency: string; dayOfWeek: number | null;
+  dayOfMonth: number | null; hour: number; recipients: string; active: boolean;
+  lastRunAt: Date | null; lastStatus: string | null; createdAt: Date; updatedAt: Date;
+}): SerializedSchedule {
+  return {
+    id: r.id,
+    reportId: r.reportId,
+    frequency: r.frequency,
+    dayOfWeek: r.dayOfWeek,
+    dayOfMonth: r.dayOfMonth,
+    hour: r.hour,
+    recipients: r.recipients.split(/[,;]+/).map((s) => s.trim()).filter(Boolean),
+    active: r.active,
+    lastRunAt: r.lastRunAt ? r.lastRunAt.toISOString() : null,
+    lastStatus: r.lastStatus,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  };
 }
 
 /** Serialisasi baris CustomReport → row UI (fieldsJson/filtersJson diparse

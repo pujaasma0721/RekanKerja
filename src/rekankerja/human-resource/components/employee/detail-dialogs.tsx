@@ -18,8 +18,9 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
   RELIGIONS, RELIGIONS_EN, MARITAL_STATUSES, MARITAL_STATUSES_EN, BLOOD_TYPES, BANKS, WORK_SHIFTS, WORK_SHIFTS_EN, EDUCATION_LEVELS, RELATIONS, WARNING_LEVELS,
+  SKILL_LEVELS, SKILL_LEVEL_LABEL, SKILL_LEVEL_LABEL_EN,
   type EmployeeDetail, type EmployeeOptions,
-  type FamilyRow, type EducationRow, type ExperienceRow,
+  type FamilyRow, type EducationRow, type ExperienceRow, type EmployeeSkillRow,
 } from "./types";
 
 const isoDate = (d: string | null | undefined) => (d ? new Date(d).toISOString().slice(0, 10) : "");
@@ -824,6 +825,126 @@ export function DisciplinaryDialog({
             <Textarea id="d-notes" rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder={t("Kronologi / bukti pendukung…", "Chronology / supporting evidence…")} />
           </Field>
           <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={t("Catat Pelanggaran", "Record Violation")} />
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============ 8. TAMBAH / UBAH PENILAIAN KEAHLIAN (P3.2-BM D-BM24) ============
+// Upsert EmployeeSkill via POST /api/rekankerja/skills action=assess-employee
+// (guard menu op:assess server-side). Level 1–5 + bukti + tanggal asesmen.
+export function EmployeeSkillDialog({
+  open, onOpenChange, employeeId, employeeName, onDone, edit,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  employeeId: string;
+  employeeName: string;
+  onDone: () => void;
+  edit?: EmployeeSkillRow | null;
+}) {
+  // katalog keahlian AKTIF utk picker (mode ?options — ringan, tanpa usage)
+  const opts = useApi<{ skills: { id: string; code: string; name: string; category: string | null }[] }>(
+    open ? "/api/rekankerja/skills?options=1" : null, [open],
+  );
+  const [form, setForm] = useState({ skillId: "", level: "3", evidence: "", assessedAt: "" });
+  const [busy, setBusy] = useState(false);
+  const { t } = useI18n();
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(edit
+      ? {
+          skillId: edit.skillId,
+          level: String(edit.level),
+          evidence: edit.evidence ?? "",
+          assessedAt: isoDate(edit.assessedAt),
+        }
+      : { skillId: "", level: "3", evidence: "", assessedAt: today() });
+  }, [open, edit]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.skillId) { toast.error(t("Pilih keahlian dari katalog", "Pick a skill from the catalog")); return; }
+    setBusy(true);
+    try {
+      await apiSend("/api/rekankerja/skills", "POST", {
+        action: "assess-employee",
+        employeeId,
+        skillId: form.skillId,
+        level: Number(form.level),
+        evidence: form.evidence.trim() || null,
+        assessedAt: form.assessedAt || null,
+      });
+      toast.success(
+        edit
+          ? t("Penilaian keahlian diperbarui", "Skill assessment updated")
+          : t("Penilaian keahlian ditambahkan", "Skill assessment added"),
+        { description: t("{name} — level {lvl}.", "{name} — level {lvl}.", { name: employeeName, lvl: form.level }) },
+      );
+      onOpenChange(false);
+      onDone();
+    } catch (err) {
+      toast.error(
+        edit
+          ? t("Gagal menyimpan penilaian keahlian", "Failed to save the skill assessment")
+          : t("Gagal menambah penilaian keahlian", "Failed to add the skill assessment"),
+        { description: (err as Error).message },
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{edit ? t("Ubah Penilaian Keahlian", "Edit Skill Assessment") : t("Tambah Penilaian Keahlian", "Add Skill Assessment")}</DialogTitle>
+          <DialogDescription>{t("Tingkat kecekatan {name} pada keahlian katalog (1–5).", "Proficiency of {name} on a catalog skill (1–5).", { name: employeeName })}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="grid gap-4 py-1 sm:grid-cols-2">
+          <Field label={t("Keahlian", "Skill") + " *"} className="sm:col-span-2">
+            <Select value={form.skillId} onValueChange={(v) => setForm((f) => ({ ...f, skillId: v }))}>
+              <SelectTrigger className="h-11" aria-label={t("Keahlian katalog", "Catalog skill")} disabled={!!edit}>
+                <SelectValue placeholder={t("Pilih keahlian aktif…", "Pick an active skill…")} />
+              </SelectTrigger>
+              <SelectContent className="max-h-64">
+                {(opts.data?.skills ?? []).map((s) => (
+                  <SelectItem key={s.id} value={s.id} className="py-2.5">
+                    {s.name}{s.category ? ` — ${s.category}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {edit && <p className="mt-1 text-[10px] text-slate-400">{t("Keahlian tidak bisa diganti saat mengubah — hapus lalu tambah yang baru.", "The skill cannot be changed while editing — delete it then add the new one.")}</p>}
+          </Field>
+          <Field label={t("Level *", "Level *")} className="sm:col-span-2">
+            <Select value={form.level} onValueChange={(v) => setForm((f) => ({ ...f, level: v }))}>
+              <SelectTrigger className="h-11" aria-label={t("Level keahlian", "Skill level")}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {SKILL_LEVELS.map((l) => (
+                  <SelectItem key={l} value={String(l)} className="py-2.5">{t(SKILL_LEVEL_LABEL[l]!, SKILL_LEVEL_LABEL_EN[l]!)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label={t("Bukti / Catatan", "Evidence / Notes")} htmlFor="es-ev" className="sm:col-span-2">
+            <Textarea
+              id="es-ev"
+              rows={2}
+              maxLength={500}
+              value={form.evidence}
+              onChange={(e) => setForm((f) => ({ ...f, evidence: e.target.value }))}
+              placeholder={t("Sertifikat, hasil asesmen, observasi atasan…", "Certificate, assessment result, manager observation…")}
+            />
+            <p className="text-[10px] text-slate-400">{t("Opsional, maks 500 karakter.", "Optional, max 500 characters.")}</p>
+          </Field>
+          <Field label={t("Tanggal Penilaian", "Assessment Date")} htmlFor="es-date" className="sm:col-span-2">
+            <Input id="es-date" type="date" value={form.assessedAt} onChange={(e) => setForm((f) => ({ ...f, assessedAt: e.target.value }))} />
+          </Field>
+          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={edit ? t("Simpan Perubahan", "Save Changes") : t("Tambah Penilaian", "Add Assessment")} />
         </form>
       </DialogContent>
     </Dialog>

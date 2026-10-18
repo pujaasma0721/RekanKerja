@@ -7,6 +7,7 @@ import {
   listSuccession, positionsForPicker, suggestCandidates, upsertPosition, deletePosition,
   addCandidate, updateCandidate, removeCandidate, refreshAllRisk, exportSuccessionXlsx,
   successionHrActor, successionViewerOk, successionSummary, successionErrStatus, SuccessionError,
+  toggleDevNote, type DevNoteItem,
 } from "@/rekankerja/performance/services/succession-service";
 import { xlsxResponse } from "@/rekankerja/shared/lib/export";
 import type { Lang } from "@/rekankerja/shared/lib/i18n-core";
@@ -24,7 +25,11 @@ import type { Lang } from "@/rekankerja/shared/lib/i18n-core";
 //   POST {action:suggest}                  → saran kandidat 9-box (D-BL13)
 //   POST {action:addCandidate}             → tambah kandidat (guard duplikat 409,
 //                                           pemegang jabatan 400, snapshot otomatis)
-//   POST {action:updateCandidate}          → ubah readiness/devNotes (+refreshRisk)
+//   POST {action:updateCandidate}          → ubah readiness/devNotes (+refreshRisk;
+//                                           P3.5: devNotesItems [{action,done}] →
+//                                           simpan TER-STRUKTUR JSON v1 — D-BM27)
+//   POST {action:toggleDevNote}            → centang/buka satu aksi pengembangan
+//                                           terstruktur (P3.5 — D-BM27, HR/admin)
 //   POST {action:removeCandidate}         → hapus kandidat
 //   POST {action:refreshAllRisk}          → refresh flightRisk satu peran
 //   POST {action:exportXlsx&lang=}         → XLSX dwibahasa (D-BL15 — binary)
@@ -93,6 +98,7 @@ export async function POST(req: NextRequest) {
       suggest: "op:candidate/manage",
       addCandidate: "op:candidate/manage",
       updateCandidate: "op:candidate/manage",
+      toggleDevNote: "op:candidate/manage",
       removeCandidate: "op:candidate/manage",
       refreshAllRisk: "op:candidate/manage",
       exportXlsx: "op:export",
@@ -141,7 +147,17 @@ export async function POST(req: NextRequest) {
           id: String(b.id ?? ""),
           readiness: b.readiness == null ? undefined : String(b.readiness),
           devNotes: b.devNotes === undefined ? undefined : (b.devNotes == null ? null : String(b.devNotes)),
+          // P3.5-BM (D-BM27): aksi pengembangan TER-STRUKTUR — array {action, done}
+          devNotesItems: b.devNotesItems === undefined ? undefined : (b.devNotesItems as DevNoteItem[]),
           refreshRisk: b.refreshRisk === true,
+        });
+        return NextResponse.json(res);
+      }
+      case "toggleDevNote": {
+        const res = await toggleDevNote(db, actor, {
+          id: String(b.id ?? ""),
+          index: Number(b.index),
+          done: b.done === true,
         });
         return NextResponse.json(res);
       }

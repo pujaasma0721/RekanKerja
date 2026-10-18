@@ -38,6 +38,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Data karyawan tidak ditemukan" }, { status: 404 });
     }
     const a = emp.assignments[0];
+    // P3.3-BM (D-BM25) — atasan langsung? true iff ada assignment AKTIF
+    // (validTo null) bawahan yang manajernya = karyawan ini DAN bawahan
+    // masih Active → nav ESS "Tim Saya" tampil (filter essNavOf).
+    const activeReportCount = await db.employeeAssignment.count({
+      where: { managerId: employeeId, validTo: null, employee: { status: "Active" } },
+    });
     // B1-BL — mode OKR kuartalan tenant (nav "OKR Saya" tampil HANYA bila
     // aktif; D-BL2 default OFF — kegagalan baca setting → anggap off).
     let okrEnabled = false;
@@ -79,6 +85,8 @@ export async function GET(req: Request) {
       role: m.actor.appUserRole,
       canAdmin: essCanAdmin(m.actor),
       okrEnabled,
+      // P3.3-BM (D-BM25) — flag atasan langsung (nav "Tim Saya").
+      isManager: activeReportCount > 0,
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

@@ -53,6 +53,46 @@ export interface SuccessionActor {
   isHr: boolean;
 }
 
+// ============ P3.5-BM (D-BM27) — aksi pengembangan TER-STRUKTUR ============
+// devNotes tetap SATU kolom teks (tanpa kolom/model baru) dengan DUA bentuk:
+//   • v1 ter-struktur: {"v":1,"items":[{"action":"<teks ≤200>","done":bool}]} —
+//     maks 10 item; dirender checklist interaktif (toggle HR/admin — read-mostly).
+//   • teks biasa (legacy pra-P3.5): dirender apa adanya — kompatibel penuh.
+// Batas scope D-BM28 tetap: aksi pengembangan = TEKS SAJA — tidak ada
+// kursus/sesi/e-learning/modul training.
+
+/** Satu aksi pengembangan terstruktur (teks + status selesai). */
+export interface DevNoteItem {
+  action: string;
+  done: boolean;
+}
+
+export const DEV_NOTES_MAX_ITEMS = 10;
+export const DEV_NOTE_MAX_LEN = 200;
+
+/** Hasil parse devNotes: v1 ter-struktur ATAU teks legacy (null = kosong). */
+export type ParsedDevNotes =
+  | { v1: true; items: DevNoteItem[] }
+  | { v1: false; text: string | null };
+
+/** Parse isi kolom devNotes — v1 JSON bila valid, selain itu teks legacy. */
+export function parseDevNotes(raw: string | null | undefined): ParsedDevNotes {
+  if (raw == null || raw.trim() === "") return { v1: false, text: null };
+  try {
+    const parsed = JSON.parse(raw) as { v?: unknown; items?: unknown };
+    if (parsed && typeof parsed === "object" && parsed.v === 1 && Array.isArray(parsed.items)) {
+      const items: DevNoteItem[] = parsed.items.map((x) => ({
+        action: String((x as { action?: unknown })?.action ?? ""),
+        done: (x as { done?: unknown })?.done === true,
+      }));
+      return { v1: true, items };
+    }
+  } catch {
+    // bukan JSON → teks legacy, dirender apa adanya
+  }
+  return { v1: false, text: raw };
+}
+
 /** Aktor HR/admin (helper re-export utk API). */
 export function successionHrActor(role: string | null | undefined, appUserRole: string | null | undefined): boolean {
   return talentHrActor(role, appUserRole);
@@ -156,6 +196,9 @@ export interface SuccessionCandidateRow {
   suggested9Box: string | null;
   flightRisk: number | null;
   devNotes: string | null;
+  /** P3.5-BM (D-BM27): aksi pengembangan ter-struktur bila v1 — null bila
+   * teks legacy/kosong (UI merender devNotes apa adanya). */
+  devNotesItems: DevNoteItem[] | null;
 }
 
 export interface SuccessionPositionRow {
@@ -258,6 +301,7 @@ export async function listSuccession(db: TenantDb, actor: SuccessionActor): Prom
           suggested9Box: c.suggested9Box,
           flightRisk: c.flightRisk,
           devNotes: c.devNotes,
+          devNotesItems: ((p) => (p.v1 ? p.items : null))(parseDevNotes(c.devNotes)),
         }))
         .sort((a, b) =>
           (READINESS_RANK[a.readiness] ?? 9) - (READINESS_RANK[b.readiness] ?? 9) ||
@@ -484,6 +528,7 @@ async function loadRow(db: TenantDb, id: string): Promise<SuccessionPositionRow 
         suggested9Box: c.suggested9Box,
         flightRisk: c.flightRisk,
         devNotes: c.devNotes,
+        devNotesItems: ((p) => (p.v1 ? p.items : null))(parseDevNotes(c.devNotes)),
       }))
       .sort((a, b) =>
         (READINESS_RANK[a.readiness] ?? 9) - (READINESS_RANK[b.readiness] ?? 9) ||
@@ -654,12 +699,21 @@ export async function addCandidate(
 }
 
 /** Ubah kandidat: readiness/devNotes (keputusan manual HR) + refreshRisk=true
- * → hitung ulang flightRisk SEKARANG (snapshot on-demand). */
+ * → hitung ulang flightRisk SEKARANG (snapshot on-demand).
+ * P3.5-BM (D-BM27): devNotesItems (array {action, done}) → simpan TER-STRUKTUR
+ * {"v":1,"items":[…]} di kolom devNotes yang sama; devNotes string tetap jalan
+ * (legacy) — keduanya saling eksklusif per panggilan. */
 export async function updateCandidate(
   db: TenantDb,
   actor: SuccessionActor,
-  input: { id: string; readiness?: string; devNotes?: string | null; refreshRisk?: boolean },
-): Promise<{ id: string; readiness: string; devNotes: string | null; flightRisk: number | null }> {
+  input: {
+    id: string;
+    readiness?: string;
+    devNotes?: string | null;
+    devNotesItems?: DevNoteItem[];
+    refreshRisk?: boolean;
+  },
+): Promise<{ id: string; readiness: string; devNotes: string | null; devNotesItems: DevNoteItem[] | null; flightRisk: number | null }> {
   assertMutator(actor);
   const existing = await db.successorCandidate.findUnique({
     where: { id: input.id },
@@ -674,6 +728,34 @@ export async function updateCandidate(
     throw new SuccessionError(`Readiness harus salah satu dari ${READINESS_VALUES.join(" | ")}`, 400);
   }
 
+  // P3.5-BM — validasi aksi pengembangan terstruktur (bentuk disimpan JSON v1)
+  let structuredJson: string | null | undefined;
+  if (input.devNotesItems !== undefined) {
+    if (!Array.isArray(input.devNotesItems)) {
+      throw new SuccessionError("devNotesItems harus berupa array [{action, done}]", 400);
+    }
+    if (input.devNotesItems.length > DEV_NOTES_MAX_ITEMS) {
+      throw new SuccessionError(`Maksimal ${DEV_NOTES_MAX_ITEMS} aksi pengembangan per kandidat`, 400);
+    }
+    const seen = new Set<string>();
+    for (const item of input.devNotesItems) {
+      const action = String(item?.action ?? "").trim();
+      if (!action) throw new SuccessionError("Teks aksi pengembangan wajib diisi (hapus baris kosong)", 400);
+      if (action.length > DEV_NOTE_MAX_LEN) {
+        throw new SuccessionError(`Teks aksi pengembangan maksimal ${DEV_NOTE_MAX_LEN} karakter`, 400);
+      }
+      const key = action.toLowerCase();
+      if (seen.has(key)) {
+        throw new SuccessionError("Aksi pengembangan tidak boleh duplikat (teks sama)", 400);
+      }
+      seen.add(key);
+    }
+    structuredJson = JSON.stringify({
+      v: 1,
+      items: input.devNotesItems.map((x) => ({ action: String(x.action).trim(), done: x.done === true })),
+    });
+  }
+
   let flightRisk = existing.flightRisk;
   if (input.refreshRisk) {
     const risk = await attritionRiskOf(db, existing.employeeId);
@@ -684,21 +766,82 @@ export async function updateCandidate(
     where: { id: existing.id },
     data: {
       readiness: input.readiness ?? undefined,
-      devNotes: input.devNotes === undefined ? undefined : (String(input.devNotes).trim() || null),
+      // terstruktur menang bila dikirim; selain itu jalur teks legacy tetap dipakai
+      devNotes: structuredJson !== undefined
+        ? structuredJson
+        : input.devNotes === undefined
+          ? undefined
+          : (String(input.devNotes).trim() || null),
       flightRisk,
     },
   });
+  const savedParsed = parseDevNotes(updated.devNotes);
   await db.activityLog.create({
     data: {
       action: "Updated", entity: "SuccessorCandidate", entityId: updated.id, employeeId: existing.employeeId,
       detail: `Kandidat ${existing.employee.fullName} pada "${existing.successionPosition.position.title}" diubah oleh ${actor.name}: ${[
         input.readiness != null ? `readiness ${existing.readiness} → ${input.readiness}` : null,
-        input.devNotes !== undefined ? "catatan pengembangan diperbarui" : null,
+        structuredJson !== undefined
+          ? `aksi pengembangan terstruktur disimpan (${savedParsed.v1 ? savedParsed.items.length : 0} aksi, ${savedParsed.v1 ? savedParsed.items.filter((x) => x.done).length : 0} selesai)`
+          : input.devNotes !== undefined ? "catatan pengembangan diperbarui" : null,
         input.refreshRisk ? `flightRisk di-refresh → ${updated.flightRisk ?? "—"}` : null,
-      ].filter(Boolean).join(" · ") || "tanpa perubahan"} (D-BL13/D-BL14)`,
+      ].filter(Boolean).join(" · ") || "tanpa perubahan"} (D-BL13/D-BL14/D-BM27)`,
     },
   });
-  return { id: updated.id, readiness: updated.readiness, devNotes: updated.devNotes, flightRisk: updated.flightRisk };
+  return {
+    id: updated.id,
+    readiness: updated.readiness,
+    devNotes: updated.devNotes,
+    devNotesItems: savedParsed.v1 ? savedParsed.items : null,
+    flightRisk: updated.flightRisk,
+  };
+}
+
+/** P3.5-BM (D-BM27) — centang/buka SATU aksi pengembangan terstruktur
+ * (checklist read-mostly; toggle hanya HR/admin). Hanya utk devNotes bentuk
+ * v1 — teks legacy ditolak 400 (konversikan dulu lewat editor terstruktur). */
+export async function toggleDevNote(
+  db: TenantDb,
+  actor: SuccessionActor,
+  input: { id: string; index: number; done: boolean },
+): Promise<{ id: string; devNotesItems: DevNoteItem[] }> {
+  assertMutator(actor);
+  if (!Number.isInteger(input.index) || input.index < 0) {
+    throw new SuccessionError("Indeks aksi pengembangan tidak valid", 400);
+  }
+  const existing = await db.successorCandidate.findUnique({
+    where: { id: input.id },
+    include: {
+      employee: { select: { id: true, fullName: true } },
+      successionPosition: { include: { position: { select: { title: true } } } },
+    },
+  });
+  if (!existing) throw new SuccessionError("Kandidat tidak ditemukan", 404);
+
+  const parsed = parseDevNotes(existing.devNotes);
+  if (!parsed.v1) {
+    throw new SuccessionError(
+      "Catatan pengembangan kandidat ini masih teks biasa — simpan dulu lewat editor aksi terstruktur sebelum mencentang",
+      400,
+    );
+  }
+  if (input.index >= parsed.items.length) {
+    throw new SuccessionError("Indeks aksi pengembangan di luar jangkauan", 400);
+  }
+  const items = parsed.items.map((x, i) => (i === input.index ? { ...x, done: input.done } : x));
+  const updated = await db.successorCandidate.update({
+    where: { id: existing.id },
+    data: { devNotes: JSON.stringify({ v: 1, items }) },
+  });
+  await db.activityLog.create({
+    data: {
+      action: "Updated", entity: "SuccessorCandidate", entityId: updated.id, employeeId: existing.employeeId,
+      detail:
+        `Aksi pengembangan #${input.index + 1} kandidat ${existing.employee.fullName} pada "${existing.successionPosition.position.title}" ` +
+        `${input.done ? "dicentang selesai" : "dibuka kembali"} oleh ${actor.name}: "${items[input.index]!.action.slice(0, 120)}" (D-BM27 teks terstruktur)`,
+    },
+  });
+  return { id: updated.id, devNotesItems: items };
 }
 
 /** Hapus kandidat dari register. */
@@ -805,6 +948,17 @@ export function localize9BoxSnapshot(snapshot: string | null, lang: Lang): strin
   return snapshot;
 }
 
+/** P3.5-BM (D-BM27) — render devNotes utk XLSX: v1 ter-struktur → daftar
+ * "aksi (selesai)" ; teks legacy → apa adanya. */
+export function devNotesToText(raw: string | null, lang: Lang): string | null {
+  const parsed = parseDevNotes(raw);
+  if (!parsed.v1) return parsed.text;
+  if (parsed.items.length === 0) return null;
+  return parsed.items
+    .map((x) => `${x.action}${x.done ? (lang === "en" ? " (done)" : " (selesai)") : ""}`)
+    .join(" • ");
+}
+
 /** Laporan XLSX succession dwibahasa (D-BL15): Sheet "Rencana Suksesi"
  * (coverage per peran) + Sheet "Kandidat" (daftar penerus). */
 export async function exportSuccessionXlsx(
@@ -871,7 +1025,7 @@ export async function exportSuccessionXlsx(
         READINESS_LABELS[c.readiness] ? L(READINESS_LABELS[c.readiness].id, READINESS_LABELS[c.readiness].en) : c.readiness,
         localize9BoxSnapshot(c.suggested9Box, lang) ?? "—",
         c.flightRisk ?? "—",
-        c.devNotes ?? "—",
+        devNotesToText(c.devNotes, lang) ?? "—",
       ]),
     ),
   };

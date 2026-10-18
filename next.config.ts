@@ -11,13 +11,13 @@ const nextConfig: NextConfig = {
   // preview-chat-<sessionId>.space-z.ai yang di-proxy ke port 3000; tanpa ini
   // Next 16 menolak resource /_next/* dari origin asing (warning kini,
   // blokir 403 di versi mayor berikutnya). Wildcard mencakup semua sesi chat.
-  allowedDevOrigins: ["*.space-z.ai"],
+  allowedDevOrigins: ["*.space-z.ai", "127.0.0.1", "localhost"],
   // nodemailer dimuat saat RUNTIME dari node_modules (tidak dibundel saat build)
   // → bila paket belum terpasang, app tetap jalan; kirim email didegradasi jadi
   // pesan jelas di log/tes kirim, BUKAN build error mematikan seluruh aplikasi.
   // web-push (P2.2-BM D-BM17): pola sama — lazy import server-side di
   // push-service; push didegradasi tenang bila paket tak terpasang.
-  serverExternalPackages: ["nodemailer", "web-push"],
+  serverExternalPackages: ["nodemailer", "web-push", "agent-base", "https-proxy-agent"],
   // indikator dev-tools Next.js (portal mengambang kiri-bawah) menutupi tombol
   // Pengaturan di rail — dimatikan agar preview bersih; error tetap terlihat di dev.log
   devIndicators: false,

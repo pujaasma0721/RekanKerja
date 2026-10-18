@@ -1,4 +1,5 @@
 #!/bin/bash
+# Watchdog dev server RekanKerja — restart otomatis bila mati.
 cd /home/z/my-project
 while true; do
   NODE_OPTIONS="--max-old-space-size=2304" bun run dev >> dev.log 2>&1

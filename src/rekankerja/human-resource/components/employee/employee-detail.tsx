@@ -13,18 +13,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   ArrowLeft, Mail, Phone, UserRound, Pencil, Plus, IdCard, Landmark, Heart, ShieldAlert,
   CalendarDays, Sparkles, Droplets, MapPin, Building2, Wallet, Banknote, BriefcaseBusiness,
-  GraduationCap, Users, Clock3, Scale, BookOpen, History, ChevronRight, TriangleAlert, UserMinus,
+  GraduationCap, Users, Clock3, Scale, BookOpen, History, ChevronRight, TriangleAlert, UserMinus, Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import {
   EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN, RELATION_LABEL, RELATION_LABEL_EN, WARNING_LEVEL_META, WARNING_LEVEL_LABEL_EN,
-  type EmployeeDetailResp, type FamilyRow, type EducationRow, type ExperienceRow,
+  SKILL_LEVEL_LABEL, SKILL_LEVEL_LABEL_EN,
+  type EmployeeDetailResp, type FamilyRow, type EducationRow, type ExperienceRow, type EmployeeSkillRow,
 } from "./types";
 import { EmployeeAvatar } from "./employee-avatar";
 import {
   EditPersonalDialog, EditWorkDialog, FamilyDialog, EducationDialog,
-  ExperienceDialog, DisciplinaryDialog, DeleteRecordButton,
+  ExperienceDialog, DisciplinaryDialog, DeleteRecordButton, EmployeeSkillDialog,
 } from "./detail-dialogs";
 
 // item grid data personal
@@ -89,6 +90,13 @@ export function EmployeeDetail({ id }: { id: string }) {
   const [eduOpen, setEduOpen] = useState(false);
   const [expOpen, setExpOpen] = useState(false);
   const [discOpen, setDiscOpen] = useState(false);
+  // P3.2-BM (D-BM24) — tab Keahlian: penilaian EmployeeSkill karyawan ini.
+  // Di-load via API skills (skema akses data sama dgn /employee-detail —
+  // requireScoped), terpisah dari payload detail supaya modul terpisah rapi.
+  const skillsApi = useApi<{ skills: EmployeeSkillRow[] }>(`/api/rekankerja/skills?employeeId=${encodeURIComponent(id)}`, [id]);
+  const empSkills = skillsApi.data?.skills ?? [];
+  const [skillOpen, setSkillOpen] = useState(false);
+  const [skillEdit, setSkillEdit] = useState<EmployeeSkillRow | null>(null);
   // Task 82-c: baris yang sedang di-ubah — mode edit dialog (null = mode tambah).
   const [familyEdit, setFamilyEdit] = useState<FamilyRow | null>(null);
   const [eduEdit, setEduEdit] = useState<EducationRow | null>(null);
@@ -244,6 +252,8 @@ export function EmployeeDetail({ id }: { id: string }) {
               { v: "pendidikan", label: t("Pendidikan ({n})", "Education ({n})", { n: e.education.length }), icon: GraduationCap },
               { v: "pengalaman", label: t("Pengalaman ({n})", "Experience ({n})", { n: e.experiences.length }), icon: History },
               { v: "disiplin", label: t("Disiplin ({n})", "Discipline ({n})", { n: e.disciplinary.length }), icon: Scale },
+              // P3.2-BM (D-BM24) — keahlian karyawan (level 1–5 + bukti)
+              { v: "keahlian", label: t("Keahlian ({n})", "Skills ({n})", { n: empSkills.length }), icon: Wrench },
             ].map((tb) => (
               <TabsTrigger
                 key={tb.v}
@@ -613,6 +623,79 @@ export function EmployeeDetail({ id }: { id: string }) {
             )}
           </SectionCard>
         </TabsContent>
+        {/* ===== TAB: KEAHLIAN (P3.2-BM D-BM24) ===== */}
+        <TabsContent value="keahlian" className="mt-0">
+          <SectionCard
+            title={t("Keahlian ({n})", "Skills ({n})", { n: empSkills.length })}
+            description={t("Penilaian tingkat kecekatan 1–5 per keahlian katalog organisasi.", "Proficiency assessment levels 1–5 per organization catalog skill.")}
+            icon={Wrench}
+            action={
+              perms.canOp("hr", "skills", "assess") && (
+                <Button size="sm" className="h-11 gap-2 px-4 font-bold" onClick={() => setSkillOpen(true)}>
+                  <Plus className="h-4 w-4" /> {t("Nilai", "Assess")}
+                </Button>
+              )
+            }
+          >
+            {skillsApi.loading && !skillsApi.data ? (
+              <LoadingRows rows={3} />
+            ) : empSkills.length === 0 ? (
+              <EmptyState
+                title={t("Belum ada penilaian keahlian", "No skill assessments yet")}
+                description={t("Tambahkan penilaian level 1–5 dari katalog keahlian organisasi.", "Add a level 1–5 assessment from the organization skill catalog.")}
+                icon={<Wrench className="h-6 w-6" />}
+              />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {empSkills.map((s) => (
+                  <div key={s.id} className="group relative rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 transition hover:ov-border-accent dark:border-slate-800 dark:bg-slate-900/40">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{s.skill.name}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          {s.skill.category && <Badge variant="outline" className="text-[10px] font-bold">{s.skill.category}</Badge>}
+                          <span className="font-mono text-[10px] text-slate-400">{s.skill.code}</span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-start gap-1">
+                        {perms.canOp("hr", "skills", "assess") && (
+                          <>
+                            <Button
+                              variant="ghost" size="icon"
+                              className="h-8 w-8 text-slate-400 hover:ov-text-accent dark:hover:bg-slate-800"
+                              aria-label={t("Ubah penilaian {s}", "Edit {s} assessment", { s: s.skill.name })}
+                              onClick={() => { setSkillEdit(s); setSkillOpen(true); }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <DeleteRecordButton
+                              url={`/api/rekankerja/skills?employeeSkillId=${s.id}`}
+                              title={t("Hapus penilaian {s}?", "Delete {s} assessment?", { s: s.skill.name })}
+                              description={t("Penilaian keahlian ini akan dihapus permanen dari profil.", "This skill assessment will be permanently removed from the profile.")}
+                              onDone={() => { skillsApi.refresh(); }}
+                              className="h-8 w-8"
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {/* level 1–5 — 5 dot terisi + label dwibahasa */}
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1" aria-label={t("Level {n} dari 5", "Level {n} of 5", { n: s.level })}>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <span key={n} className={cn("h-2 w-2 rounded-full", n <= s.level ? "bg-brand" : "bg-slate-200 dark:bg-slate-700")} />
+                        ))}
+                      </span>
+                      <Badge className="text-[10px] font-bold">{t(SKILL_LEVEL_LABEL[s.level] ?? String(s.level), SKILL_LEVEL_LABEL_EN[s.level] ?? String(s.level))}</Badge>
+                    </div>
+                    {s.evidence && <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{s.evidence}</p>}
+                    <p className="mt-2 text-[11px] text-slate-400">{t("Dinilai {d}", "Assessed {d}", { d: fmtDate(s.assessedAt) })}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </TabsContent>
       </Tabs>
 
       {/* ============ dialogs ============ */}
@@ -622,6 +705,15 @@ export function EmployeeDetail({ id }: { id: string }) {
       <EducationDialog open={eduOpen} onOpenChange={(v) => { setEduOpen(v); if (!v) setEduEdit(null); }} employeeId={e.id} employeeName={e.fullName} onDone={refresh} edit={eduEdit} />
       <ExperienceDialog open={expOpen} onOpenChange={(v) => { setExpOpen(v); if (!v) setExpEdit(null); }} employeeId={e.id} employeeName={e.fullName} onDone={refresh} edit={expEdit} />
       <DisciplinaryDialog open={discOpen} onOpenChange={setDiscOpen} employeeId={e.id} employeeName={e.fullName} onDone={refresh} />
+      {/* P3.2-BM (D-BM24) — dialog penilaian keahlian (upsert EmployeeSkill) */}
+      <EmployeeSkillDialog
+        open={skillOpen}
+        onOpenChange={(v) => { setSkillOpen(v); if (!v) setSkillEdit(null); }}
+        employeeId={e.id}
+        employeeName={e.fullName}
+        onDone={() => { skillsApi.refresh(); }}
+        edit={skillEdit}
+      />
     </div>
   );
 }

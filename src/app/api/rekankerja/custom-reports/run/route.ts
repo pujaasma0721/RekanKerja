@@ -18,11 +18,16 @@ export async function POST(req: NextRequest) {
     const b = await req.json().catch(() => ({}));
     // 45-b: gerbang vault uang — aktor requireMenuAction (userId+role).
     const mv = await getMoneyView(m.db, { userId: m.actor.userId, membershipRole: m.actor.role });
+    // P3.4-BM (D-BM26): groupBy/aggregates/pivot divalidasi katalog service-side
+    // (ReportSpecError → 400); uang tanpa money-view → agregat null + masked.
     const res = await runReport(m.db, {
       entity: b.entity,
       fields: b.fields,
       filters: b.filters,
       page: b.page,
+      groupBy: b.groupBy,
+      aggregates: b.aggregates,
+      pivot: b.pivot,
     }, mv);
     return NextResponse.json(res);
   } catch (e) {

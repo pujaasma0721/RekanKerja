@@ -922,10 +922,77 @@ export const BASE_EN: Record<string, string> = {
   "Lapor": "Report",
   "Kanal pelaporan anonim & penanganan (TPKS)": "Anonymous reporting & handling channel (SVA)",
   // P3-SLICE-A (P3.1 job architecture) — entri i18n slice A ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P3.1-BM (D-BM23) — header/sheet/judul XLSX laporan struktur jabatan + pesan
+  // server statis job family & job profile (exact-match trServer):
+  "Struktur Jabatan": "Job Structure",
+  "Laporan Struktur Jabatan": "Job Structure Report",
+  "Kode Family": "Family Code",
+  "Kode Job": "Job Code",
+  "Judul Job": "Job Title",
+  "Jumlah Posisi": "Number of Positions",
+  "Posisi Terisi": "Positions Filled",
+  "Kode dan nama family wajib diisi": "Family code and name are required",
+  "Kode family maksimal 40 karakter": "Family code is limited to 40 characters",
+  "Nama family maksimal 100 karakter": "Family name is limited to 100 characters",
+  "Kode family sudah dipakai — gunakan kode lain": "Family code is already in use — choose another code",
+  "Family tidak ditemukan": "Family not found",
+  "Parent family tidak ditemukan": "Parent family not found",
+  "Family jabatan maksimal 2 tingkat — sub-family tidak dapat memiliki sub-family lagi":
+    "Job families support a maximum of 2 levels — a sub-family cannot have sub-families",
+  "Family yang memiliki sub-family tidak dapat dipindahkan di bawah family lain":
+    "A family with sub-families cannot be moved under another family",
+  "Family tidak dapat menjadi parent-nya sendiri": "A family cannot be its own parent",
+  "Family jabatan masih memiliki job terkait — pindahkan job ke family lain dahulu":
+    "This job family still has linked jobs — move them to another family first",
+  "Family jabatan masih memiliki sub-family — hapus sub-family dahulu":
+    "This job family still has sub-families — delete them first",
+  "Family jabatan tidak ditemukan": "Job family not found",
+  "Syarat pendidikan tidak valid (pilih SMA/SMK, D3, S1, S2, atau S3)":
+    "Invalid education requirement (choose SMA/SMK, D3, S1, S2, or S3)",
+  "Mission maksimal 2000 karakter": "Mission is limited to 2000 characters",
+  "Kondisi kerja maksimal 2000 karakter": "Working conditions is limited to 2000 characters",
+  "Item tugas maksimal 500 karakter": "Each duty item is limited to 500 characters",
+  "Item kualifikasi maksimal 500 karakter": "Each qualification item is limited to 500 characters",
+  "Maksimal 20 item tugas": "Duties are limited to 20 items",
+  "Maksimal 20 item kualifikasi": "Qualifications are limited to 20 items",
+  "Tugas harus berupa daftar teks": "Duties must be a list of text",
+  "Kualifikasi harus berupa daftar teks": "Qualifications must be a list of text",
   // P3-SLICE-A end.
   // P3-SLICE-B (P3.2 skills foundation) — entri i18n slice B ditambah tepat di bawah baris ini (jangan hapus marker).
   // P3-SLICE-B end.
   // P3-SLICE-C (P3.3 Tim Saya) — entri i18n slice C ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P3.3-BM (D-BM25) — workspace atasan "Tim Saya" (server-errors + label UI):
+  "Hanya untuk atasan langsung": "Only for direct managers",
+  "Anda bukan approver jenjang berjalan untuk pengajuan ini (atau keputusan sudah diproses) — muat ulang daftar.": "You are not the current-tier approver for this request (or it has already been decided) — reload the list.",
+  "kind & id wajib (leave|workoff|overtime|travel)": "kind & id are required (leave|workoff|overtime|travel)",
+  "Ringkasan tim langsung Anda: kehadiran, cuti, dan persetujuan menunggu.": "Your direct team at a glance: attendance, leave, and pending approvals.",
+  "Jumlah anggota tim langsung (aktif)": "Direct team members (active)",
+  "Hadir hari ini": "Present today",
+  "Cuti hari ini": "On leave today",
+  "Menunggu approval": "Awaiting approval",
+  "Menunggu Persetujuan": "Awaiting Approval",
+  "Pengajuan anggota tim yang menunggu keputusan Anda": "Team requests awaiting your decision",
+  "Tidak ada pengajuan yang menunggu Anda": "No requests awaiting you",
+  "Semua pengajuan anggota tim sudah diputuskan.": "All team requests have been decided.",
+  "Setujui pengajuan ini?": "Approve this request?",
+  "Tolak pengajuan ini?": "Reject this request?",
+  "Anggota Tim": "Team Members",
+  "Posisi · Unit": "Position · Unit",
+  "Tenure": "Tenure",
+  "Kehadiran 7 Hari": "7-Day Attendance",
+  "Alasan penolakan wajib diisi untuk jenis ini": "A rejection note is required for this kind",
+  "Tanggal Penting Mendatang": "Upcoming Key Dates",
+  "Anniversary & akhir kontrak ≤ 60 hari": "Anniversaries & contract ends within 60 days",
+  "Belum ada tanggal penting mendatang": "No upcoming key dates",
+  "tahun": "years",
+  "Akhir kontrak": "Contract end",
+  "Detail kehadiran 7 hari terakhir": "7-day attendance detail",
+  "Kontrak berakhir ≤ 60 hari": "Contract ends within 60 days",
+  "Belum ada baris kehadiran 7 hari terakhir": "No attendance rows in the last 7 days",
+  "Tim kosong": "Empty team",
+  "Belum ada anggota tim aktif yang melapor ke Anda.": "No active team members report to you yet.",
+  "Cuti mendatang": "Upcoming leave",
+  "Pengajuan menunggu": "Pending requests",
   // P3-SLICE-C end.
   // P3-SLICE-D (P3.4 analytics pivot) — entri i18n slice D ditambah tepat di bawah baris ini (jangan hapus marker).
   // P3-SLICE-D end.

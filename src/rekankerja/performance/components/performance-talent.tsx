@@ -21,6 +21,11 @@
 //     + aksi peran (edit target/kritis/catatan, segarkan semua risiko, hapus).
 //   • Dialog tambah kandidat: "Sarankan Kandidat" (9-box + saran readiness —
 //     D-BL13) ATAU cari manual; readiness 4 opsi + devNotes textarea.
+//   • P3.5-BM (D-BM27): aksi pengembangan TER-STRUKTUR — devNotes bentuk
+//     {"v":1,"items":[{action,done}]} dirender CHECKLIST (centang HR/admin,
+//     read-mostly — toggle PATCH toggleDevNote + ActivityLog); teks legacy
+//     dirender apa adanya (kompatibel). Editor dialog = baris aksi ≤10 ×
+//     ≤200 kar. TEKS SAJA — BUKAN modul training (D-BM28 exclude permanen).
 //   • HANYA dirender bila GET talent mengirim field `succession` (aktor
 //     HR/Direksi — D-BL12; cakupan tim atasan tidak melihat register).
 // Dwibahasa penuh t() BASE_EN. DialogContent sm:max-w-* (Aturan Emas).
@@ -38,12 +43,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   TrendingUp, Search, AlertTriangle, ChevronDown, ChevronRight, Users,
-  Plus, Download, RefreshCw, Pencil, Trash2, Crown, UserPlus, Loader2, Lightbulb,
+  Plus, Download, RefreshCw, Pencil, Trash2, Crown, UserPlus, Loader2, Lightbulb, ListChecks,
 } from "lucide-react";
 
 const TALENT_API = "/api/rekankerja/performance/talent";
@@ -422,6 +428,8 @@ interface SuccCandidate {
   id: string; employeeId: string; employeeNo: string; fullName: string;
   unitName: string | null; readiness: string; suggested9Box: string | null;
   flightRisk: number | null; devNotes: string | null;
+  /** P3.5-BM (D-BM27): aksi terstruktur bila devNotes JSON v1 — null bila teks legacy. */
+  devNotesItems: { action: string; done: boolean }[] | null;
 }
 interface SuccPosition {
   id: string; positionId: string; positionTitle: string; positionCode: string;
@@ -623,29 +631,76 @@ function SuccessionSection() {
     } finally { setBusy(""); }
   };
 
-  // ---- dialog kandidat (ubah readiness/devNotes) ----
+  // ---- dialog kandidat (ubah readiness + aksi pengembangan terstruktur) ----
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<{ cand: SuccCandidate; pos: SuccPosition } | null>(null);
-  const [editForm, setEditForm] = useState<{ readiness: string; devNotes: string }>({ readiness: "", devNotes: "" });
+  const [editForm, setEditForm] = useState<{ readiness: string; items: { action: string; done: boolean }[] }>({
+    readiness: "", items: [],
+  });
 
   const openCandEdit = (pos: SuccPosition, cand: SuccCandidate) => {
     setEditTarget({ cand, pos });
-    setEditForm({ readiness: cand.readiness, devNotes: cand.devNotes ?? "" });
+    // seed editor: v1 terstruktur → baris; teks legacy → 1 baris (HR bebas mengubah
+    // sebelum simpan — simpan mengonversi ke bentuk terstruktur, D-BM27)
+    const seed = cand.devNotesItems
+      ? cand.devNotesItems.map((x) => ({ action: x.action, done: x.done }))
+      : cand.devNotes
+        ? [{ action: cand.devNotes, done: false }]
+        : [];
+    setEditForm({ readiness: cand.readiness, items: seed });
     setEditOpen(true);
+  };
+
+  const addEditItem = () => {
+    if (editForm.items.length >= 10) {
+      toast.error(t("Maksimal {n} aksi pengembangan per kandidat", "At most {n} development actions per candidate", { n: "10" }));
+      return;
+    }
+    setEditForm((f) => ({ ...f, items: [...f.items, { action: "", done: false }] }));
+  };
+  const setEditItem = (idx: number, patch: Partial<{ action: string; done: boolean }>) => {
+    setEditForm((f) => ({ ...f, items: f.items.map((x, i) => (i === idx ? { ...x, ...patch } : x)) }));
+  };
+  const removeEditItem = (idx: number) => {
+    setEditForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
   };
 
   const submitEdit = async (refreshRisk = false) => {
     if (!editTarget) return;
+    const items = editForm.items.map((x) => ({ action: x.action.trim(), done: x.done })).filter((x) => x.action);
+    if (items.some((x) => x.action.length > 200)) {
+      toast.error(t("Teks aksi pengembangan maksimal 200 karakter", "Development action text is limited to 200 characters"));
+      return;
+    }
+    const lower = items.map((x) => x.action.toLowerCase());
+    if (new Set(lower).size !== lower.length) {
+      toast.error(t("Aksi pengembangan tidak boleh duplikat (teks sama)", "Development actions must not duplicate (same text)"));
+      return;
+    }
     setBusy("edit");
     try {
       await apiSend(`${TALENT_API}`, "POST", {
         action: "updateCandidate", id: editTarget.cand.id,
-        readiness: editForm.readiness, devNotes: editForm.devNotes, refreshRisk,
+        readiness: editForm.readiness, devNotesItems: items, refreshRisk,
       });
       toast.success(refreshRisk
         ? t("Kandidat diperbarui + risiko attrisi di-segarkan", "Candidate updated + attrition risk refreshed")
         : t("Kandidat diperbarui", "Candidate updated"));
       setEditOpen(false);
+      api.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal", "Failed"));
+    } finally { setBusy(""); }
+  };
+
+  // ---- P3.5-BM: centang/buka satu aksi pengembangan (checklist read-mostly) ----
+  const toggleDevItem = async (cand: SuccCandidate, index: number, done: boolean) => {
+    setBusy(`dev-${cand.id}-${index}`);
+    try {
+      await apiSend(`${TALENT_API}`, "POST", { action: "toggleDevNote", id: cand.id, index, done });
+      toast.success(done
+        ? t("Aksi ditandai selesai", "Action marked as done")
+        : t("Aksi dibuka kembali", "Action reopened"));
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal", "Failed"));
@@ -922,7 +977,44 @@ function SuccessionSection() {
                           <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
                             {t("risiko", "risk")} {riskBadge(c.flightRisk)}
                           </span>
-                          {c.devNotes && (
+                          {/* P3.5-BM (D-BM27): aksi pengembangan — checklist terstruktur
+                              (v1) ATAU teks legacy apa adanya */}
+                          {c.devNotesItems != null ? (
+                            <div className="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-2.5 py-2 dark:border-slate-800 dark:bg-slate-900/40">
+                              <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                <ListChecks className="h-3 w-3" aria-hidden />
+                                {t("Aksi Pengembangan", "Development Actions")}
+                                {c.devNotesItems.length > 0 && (
+                                  <span className="tabular-nums">
+                                    {t("{d}/{n} selesai", "{d}/{n} done", {
+                                      d: String(c.devNotesItems.filter((x) => x.done).length),
+                                      n: String(c.devNotesItems.length),
+                                    })}
+                                  </span>
+                                )}
+                              </p>
+                              {c.devNotesItems.length === 0 ? (
+                                <p className="mt-1 text-[11px] italic text-slate-400">{t("belum ada aksi", "no actions yet")}</p>
+                              ) : (
+                                <div className="mt-1 space-y-0.5">
+                                  {c.devNotesItems.map((item, i) => (
+                                    <label key={i} className="flex min-w-0 items-start gap-2">
+                                      <Checkbox
+                                        checked={item.done}
+                                        disabled={!isHr || busy === `dev-${c.id}-${i}`}
+                                        onCheckedChange={(v) => toggleDevItem(c, i, v === true)}
+                                        className="mt-0.5 h-3.5 w-3.5"
+                                        aria-label={item.action}
+                                      />
+                                      <span className={cn("min-w-0 text-[11px] leading-snug", item.done ? "text-slate-400 line-through" : "text-slate-600 dark:text-slate-300")}>
+                                        {item.action}
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : c.devNotes && (
                             <span className="w-full truncate text-[11px] italic text-slate-500 dark:text-slate-400" title={c.devNotes}>
                               {t("pengembangan", "dev")}: {c.devNotes}
                             </span>
@@ -1174,14 +1266,58 @@ function SuccessionSection() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label>{t("Catatan aksi pengembangan (teks — D-BL14)", "Development action notes (text — D-BL14)")}</Label>
-                <Textarea
-                  rows={3}
-                  value={editForm.devNotes}
-                  onChange={(e) => setEditForm((f) => ({ ...f, devNotes: e.target.value }))}
-                  placeholder={t("Aksi pengembangan konkret utk mempersiapkan penerus…", "Concrete development actions to prepare the successor…")}
-                />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-1.5">
+                    <ListChecks className="h-3.5 w-3.5 text-brand" aria-hidden />
+                    {t("Aksi pengembangan (teks terstruktur — D-BM27)", "Development actions (structured text — D-BM27)")}
+                  </Label>
+                  <span className="text-[10px] font-bold tabular-nums text-slate-400">{editForm.items.length}/10</span>
+                </div>
+                <div className="space-y-1.5">
+                  {editForm.items.length === 0 && (
+                    <p className="text-[11px] italic text-slate-400">
+                      {t("Belum ada aksi — tambahkan baris pertama.", "No actions yet — add the first row.")}
+                    </p>
+                  )}
+                  {editForm.items.map((item, idx) => (
+                    <div key={idx} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 p-2 dark:border-slate-800">
+                      <span className="w-5 shrink-0 text-center text-[10px] font-black tabular-nums text-slate-400">{idx + 1}</span>
+                      <Checkbox
+                        checked={item.done}
+                        onCheckedChange={(v) => setEditItem(idx, { done: v === true })}
+                        className="h-4 w-4 shrink-0"
+                        aria-label={t("Tandai selesai", "Mark as done")}
+                      />
+                      <Input
+                        value={item.action}
+                        maxLength={200}
+                        onChange={(e) => setEditItem(idx, { action: e.target.value })}
+                        placeholder={t("Aksi pengembangan konkret…", "Concrete development action…")}
+                        className="h-8 min-w-40 flex-1 rounded-xl"
+                        aria-label={t("Teks aksi pengembangan", "Development action text")}
+                      />
+                      <Button
+                        size="sm" variant="ghost" className="h-8 w-8 shrink-0 p-0 text-rose-600 hover:text-rose-700 dark:text-rose-400"
+                        onClick={() => removeEditItem(idx)}
+                        title={t("Hapus baris", "Remove row")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                        <span className="sr-only">{t("Hapus baris", "Remove row")}</span>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-xl" onClick={addEditItem} disabled={editForm.items.length >= 10}>
+                  <Plus className="h-3.5 w-3.5" aria-hidden />
+                  {t("Tambah Aksi", "Add Action")}
+                </Button>
+                <p className="text-[10px] text-slate-400">
+                  {t(
+                    "Teks saja, maks 10 aksi × 200 karakter — bukan modul pelatihan (D-BM28). Menyimpan mengonversi catatan lama ke bentuk terstruktur.",
+                    "Text only, max 10 actions × 200 characters — not a training module (D-BM28). Saving converts legacy notes into the structured form.",
+                  )}
+                </p>
               </div>
             </div>
           )}

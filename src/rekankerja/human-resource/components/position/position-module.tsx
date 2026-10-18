@@ -21,11 +21,13 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   BriefcaseBusiness, FileText, GraduationCap, Plus, Search, Pencil, Users, Trash2,
-  ChevronDown, ChevronUp, Layers, TrendingUp,
+  ChevronDown, ChevronUp, Layers, TrendingUp, Wrench, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
 import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
+// P3.2-BM (D-BM24) — label level 1–5 dwibahasa (dipakai syarat keahlian posisi).
+import { SKILL_LEVELS, SKILL_LEVEL_LABEL, SKILL_LEVEL_LABEL_EN } from "../employee/types";
 import { PositionLevelView } from "./level-view";
 // P3-BM — katalog keahlian (D-BM24) + register jalur karier (D-BM27)
 import { SkillsCatalogView } from "./skills-view";
@@ -53,6 +55,8 @@ interface Position {
   jobId: string | null;
   gradeId: string | null;
   reportsToId: string | null;
+  // P3.2-BM (D-BM24) — syarat keahlian posisi (ter-parse + nama dari API).
+  requiredSkills: { skillId: string; name: string; level: number }[];
 }
 interface UnitOpt { id: string; name: string; level: number }
 interface JobOpt { id: string; code: string; title: string; category: string | null; active: boolean; positionCount: number; description: string | null }
@@ -277,6 +281,23 @@ function PositionList() {
                   [t("Melapor ke", "Reports to"), selected.reportsTo?.title ?? "—"],
                   [t("Status"), selected.active ? t("Aktif") : t("Non-aktif", "Inactive")],
                 ]} />
+                {/* P3.2-BM (D-BM24) — chip syarat keahlian posisi */}
+                <div>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Syarat Keahlian", "Skill Requirements")}</p>
+                  {selected.requiredSkills.length === 0 ? (
+                    <p className="text-xs text-slate-400">{t("Belum ada syarat keahlian.", "No skill requirements yet.")}</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selected.requiredSkills.map((r) => (
+                        <Badge key={r.skillId} variant="outline" className="gap-1 text-[10px] font-bold">
+                          <Wrench className="h-3 w-3 text-slate-400" /> {r.name} · {t("min. Lv {n}", "min. Lv {n}", { n: r.level })}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* P3.2-BM (D-BM24) — kartu analisis gap keahlian (read-only) */}
+                <SkillGapCard positionId={selected.id} />
                 {selected.employees.length > 0 && (
                   <div>
                     <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Pemegang Posisi", "Position Holder")}</p>
@@ -361,11 +382,85 @@ function MiniStat({ label, value, icon: Icon }: { label: string; value: number; 
   );
 }
 
+// P3.2-BM (D-BM24) — kartu analisis gap keahlian posisi (READ-ONLY):
+// ringkasan berapa pemegang posisi memenuhi seluruh / ≥ setengah syarat +
+// daftar teratas met/total per pemegang. Data dari GET /skills?gapFor=.
+interface SkillGapResp {
+  position: { id: string; code: string; title: string };
+  requirements: { skillId: string; name: string; level: number }[];
+  employees: {
+    employeeId: string; fullName: string; employeeNo: string;
+    met: number; total: number;
+    details: { skillId: string; name: string; required: number; actual: number | null; ok: boolean }[];
+  }[];
+  summary: { employees: number; allMet: number; halfOrMore: number };
+}
+function SkillGapCard({ positionId }: { positionId: string }) {
+  const { t } = useI18n();
+  const { data, loading } = useApi<SkillGapResp>(`/api/rekankerja/skills?gapFor=${encodeURIComponent(positionId)}`, [positionId]);
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Analisis Gap Keahlian", "Skill Gap Analysis")}</p>
+        <div className="mt-2 h-4 w-40 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+      </div>
+    );
+  }
+  if (!data) return null;
+
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Analisis Gap Keahlian", "Skill Gap Analysis")}</p>
+      {data.requirements.length === 0 ? (
+        <p className="mt-2 text-xs text-slate-400">
+          {t("Belum ada syarat keahlian — tentukan di dialog ubah posisi untuk mengaktifkan analisis.", "No skill requirements yet — set them in the edit position dialog to enable the analysis.")}
+        </p>
+      ) : data.employees.length === 0 ? (
+        <p className="mt-2 text-xs text-slate-400">
+          {t("Belum ada pemegang posisi aktif untuk dianalisis.", "No active position holders to analyze yet.")}
+        </p>
+      ) : (
+        <>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <span>{t("Memenuhi semua: {a}/{b}", "Meet all: {a}/{b}", { a: data.summary.allMet, b: data.summary.employees })}</span>
+            <span>{t("Memenuhi ≥ setengah: {a}/{b}", "Meet ≥ half: {a}/{b}", { a: data.summary.halfOrMore, b: data.summary.employees })}</span>
+          </div>
+          <ul className="mt-3 space-y-1.5">
+            {[...data.employees]
+              .sort((a, b) => b.met - a.met || a.fullName.localeCompare(b.fullName))
+              .slice(0, 5)
+              .map((e) => (
+                <li key={e.employeeId} className="flex items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700 dark:text-slate-200">{e.fullName}</span>
+                  <Progress value={e.total ? (e.met / e.total) * 100 : 100} className="h-1.5 w-20 [&>div]:ov-bar" />
+                  <span className={cn(
+                    "w-10 shrink-0 text-right text-[10px] font-extrabold",
+                    e.met === e.total ? "text-emerald-600 dark:text-emerald-400" : e.met * 2 >= e.total ? "text-amber-600 dark:text-amber-400" : "text-rose-500 dark:text-rose-400",
+                  )}>{e.met}/{e.total}</span>
+                </li>
+              ))}
+          </ul>
+          {data.employees.length > 5 && (
+            <p className="mt-2 text-[10px] text-slate-400">
+              {t("+{n} pemegang lain…", "+{n} more holders…", { n: data.employees.length - 5 })}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function PositionDialog({ open, setOpen, position, units, jobs, grades, positions, onSaved }: {
   open: boolean; setOpen: (v: boolean) => void; position: Position | null; units: UnitOpt[]; jobs: JobOpt[]; grades: GradeOpt[];
   positions: Position[]; onSaved: () => void;
 }) {
   const jobsApi = useApi<{ jobs: JobOpt[] }>("/api/rekankerja/jobs");
+  // P3.2-BM (D-BM24) — opsi keahlian aktif utk picker syarat posisi (mode ?options).
+  const skillsApi = useApi<{ skills: { id: string; code: string; name: string; category: string | null }[] }>(
+    open ? "/api/rekankerja/skills?options=1" : null, [open],
+  );
   const { t } = useI18n();
   const [code, setCode] = useState("");
   const [title, setTitle] = useState("");
@@ -375,6 +470,8 @@ function PositionDialog({ open, setOpen, position, units, jobs, grades, position
   const [headcount, setHeadcount] = useState("1");
   const [reportsToId, setReportsToId] = useState("");
   const [busy, setBusy] = useState(false);
+  // P3.2-BM (D-BM24) — baris syarat keahlian: skill + level minimum 1–5 (maks 15).
+  const [reqSkills, setReqSkills] = useState<{ skillId: string; level: number }[]>([]);
 
   // sinkronkan form saat dialog dibuka (mode baru / mode ubah)
   // Task 88 (P0): PREFILL asosiasi saat ini saat mode ubah — dulu selalu ""
@@ -389,6 +486,8 @@ function PositionDialog({ open, setOpen, position, units, jobs, grades, position
     setGradeId(position?.gradeId ?? "");
     setHeadcount(String(position?.headcount ?? 1));
     setReportsToId(position?.reportsToId ?? "");
+    // P3.2-BM (D-BM24) — prefill syarat keahlian saat mode ubah (id + level).
+    setReqSkills((position?.requiredSkills ?? []).map((r) => ({ skillId: r.skillId, level: r.level })));
   }, [open, position]);
 
   const submit = async () => {
@@ -400,6 +499,7 @@ function PositionDialog({ open, setOpen, position, units, jobs, grades, position
           id: position.id, title: title.trim(),
           jobId: jobId || null, orgUnitId: orgUnitId || null, gradeId: gradeId || null,
           headcount: Number(headcount) || 1, reportsToId: reportsToId || null, active: position.active,
+          requiredSkills: reqSkills,
         });
         toast.success(t("Posisi {title} diperbarui", "Position {title} updated", { title }));
       } else {
@@ -407,6 +507,7 @@ function PositionDialog({ open, setOpen, position, units, jobs, grades, position
           code: code.trim().toUpperCase(), title: title.trim(),
           jobId: jobId || null, orgUnitId: orgUnitId || null, gradeId: gradeId || null,
           headcount: Number(headcount) || 1, reportsToId: reportsToId || null,
+          requiredSkills: reqSkills,
         });
         toast.success(t("Posisi {title} berhasil dibuat", "Position {title} created successfully", { title }));
       }
@@ -473,6 +574,61 @@ function PositionDialog({ open, setOpen, position, units, jobs, grades, position
                 {positions.filter((p) => p.active && p.id !== position?.id).map((p) => <SelectItem key={p.id} value={p.id}>{p.title} ({p.code})</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+          {/* P3.2-BM (D-BM24) — Syarat Keahlian: multi-baris skill + level minimum */}
+          <div className="sm:col-span-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">{t("Syarat Keahlian", "Skill Requirements")}</Label>
+              <Button
+                type="button" variant="outline" size="sm" className="h-8 gap-1 px-2.5 text-[11px] font-bold"
+                onClick={() => setReqSkills((rows) => [...rows, { skillId: "", level: 3 }])}
+                disabled={reqSkills.length >= 15 || (skillsApi.data?.skills ?? []).length === 0}
+              >
+                <Plus className="h-3 w-3" /> {t("Tambah Syarat", "Add Requirement")}
+              </Button>
+            </div>
+            <p className="mt-1 text-[10px] text-slate-400">
+              {t("Keahlian minimum dari katalog (maks 15) — dipakai analisis gap kandidat internal.", "Minimum skills from the catalog (max 15) — used for internal candidate gap analysis.")}
+            </p>
+            <div className="mt-2 space-y-2">
+              {reqSkills.length === 0 && (
+                <p className="rounded-xl border border-dashed border-slate-200 p-3 text-xs text-slate-400 dark:border-slate-700">
+                  {t("Belum ada syarat keahlian — posisi ini terbuka untuk semua profil.", "No skill requirements yet — this position is open to all profiles.")}
+                </p>
+              )}
+              {reqSkills.map((row, idx) => {
+                const usedSkillIds = new Set(reqSkills.filter((_, i) => i !== idx).map((r) => r.skillId));
+                return (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Select value={row.skillId || "none"} onValueChange={(v) => setReqSkills((rows) => rows.map((r, i) => i === idx ? { ...r, skillId: v === "none" ? "" : v } : r))}>
+                      <SelectTrigger className="min-w-0 flex-1" aria-label={t("Keahlian", "Skill")}><SelectValue placeholder={t("Pilih keahlian…", "Pick a skill…")} /></SelectTrigger>
+                      <SelectContent className="max-h-56">
+                        {(skillsApi.data?.skills ?? []).map((s) => (
+                          <SelectItem key={s.id} value={s.id} disabled={usedSkillIds.has(s.id)} className="py-2">
+                            {s.name}{s.category ? ` — ${s.category}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={String(row.level)} onValueChange={(v) => setReqSkills((rows) => rows.map((r, i) => i === idx ? { ...r, level: Number(v) } : r))}>
+                      <SelectTrigger className="w-28 shrink-0" aria-label={t("Level minimum", "Minimum level")}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SKILL_LEVELS.map((l) => (
+                          <SelectItem key={l} value={String(l)} className="py-2">{t(SKILL_LEVEL_LABEL[l]!, SKILL_LEVEL_LABEL_EN[l]!)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 hover:text-rose-600"
+                      onClick={() => setReqSkills((rows) => rows.filter((_, i) => i !== idx))}
+                      aria-label={t("Hapus syarat", "Remove requirement")}
+                    >
+                      <X className="h-4 w-4 text-slate-400" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
         <DialogFooter>

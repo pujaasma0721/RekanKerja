@@ -7918,3 +7918,100 @@ Stage Summary:
 - Fondasi schema P3 lengkap & ter-migrasi idempoten di 3 tenant; backfill D-BM23 jalan (16 job MII ter-naut ke 4 family); katalog skill starter ter-seed.
 - Learning/LMS TETAP TIDAK disentuh (D-BM28) — skill-defaults.ts eksplisit hanya katalog organisasi, bukan kursus/sesi.
 - Siap dispatch 5 slice paralel: A=P3.1 job architecture UI · B=P3.2 skills foundation · C=P3.3 Tim Saya · D=P3.4 analytics pivot+scheduled delivery · E=P3.5 career pathing (E menunggu A/B selesai secara logis — model sudah tersedia semua).
+
+---
+Task ID: P3.1-A
+Agent: slice-A (job architecture) — terverifikasi & direkonstruksi orchestrator (agent mati pra-append worklog)
+Task: P3.1 Job architecture (D-BM23) — JobFamily tree 2-level + job profile + laporan struktur
+
+Work Log:
+- human-resource/components/position/job-view.tsx: tab baru "Family Jabatan" (tree 2-level root+child dgn indent, kolom kode/nama/jumlah job/sortOrder, dialog create/edit: kode auto JF-<slug> dari nama, parent select root-only — kedalaman maks 2 divalidasi, delete guard job/family-child → 400 dwibahasa) + kolom Family + filter per family di tabel job + dialog job diperluas field job profile (family select, mission textarea, duties/qualifications list-editor dinamis add/remove, minEducation select, workingConditions) + tampilan detail + tombol ekspor XLSX laporan struktur jabatan (exceljs — kolom family ber-indent, kode, judul, aktif, posisi, terisi, mission; ActivityLog).
+- api/jobs.ts + job-families.ts BARU (route /api/rekankerja/job-families): GET tree + job counts, POST/PATCH/DELETE guard menu hr:jobs + ActivityLog tiap mutasi; validasi panjang (mission/workingConditions ≤2000, item list ≤500 × ≤20).
+- scripts/e2e-p31-jobarch.ts + tsconfig.bm31.json (agent-made).
+- VERIFIKASI ORCHESTRATOR: e2e re-run 73/73 PASS (create root/child + guard child-of-child + job profile roundtrip + update + delete-guard + backfill MII utuh + XLSX ekspor + cleanup + ActivityLog dipertahankan).
+
+Stage Summary:
+- Job architecture admin tuntas: family tree CRUD + job profile lengkap + laporan XLSX + backfill terverifikasi (16 job MII ter-naut 4 family dari migrasi P3-0).
+
+---
+Task ID: P3.2-B
+Agent: slice-B (skills foundation) — terverifikasi & direkonstruksi orchestrator (agent mati pra-append worklog)
+Task: P3.2 Skills foundation (D-BM24) — katalog + penilaian karyawan + syarat posisi + gap analysis + bridge pelamar
+
+Work Log:
+- position/skills-view.tsx (REPLACE stub): tabel katalog (kode unik, kategori, toggle aktif, usage count, sortOrder), pencarian + filter kategori, dialog CRUD, delete-guard dipakai → 400 dwibahasa, ActivityLog; op hr:skills:assess utk penilaian karyawan.
+- employee-detail.tsx + detail-dialogs.tsx: tab "Keahlian" (level 1–5 label ID "Pemula…Ahli", bukti, tanggal asesmen) + dialog tambah/ubah/hapus.
+- position-module.tsx PositionDialog: seksi "Syarat Keahlian" multi-baris (skill + level min) → Position.requiredSkillsJson; positions.ts validasi (skillId aktif, level 1–5, ≤15, tanpa duplikat); chips di sheet detail posisi + kartu ringkas "Analisis Gap Keahlian".
+- skills-service.ts BARU + api/skills.ts + route /api/rekankerja/skills: CRUD katalog + assess-employee upsert + gapFor=<positionId> (per pemegang: met/total + detail required vs actual + ringkasan).
+- appointment-service.ts: bridge ApplicantSkill → EmployeeSkill saat continueToOnboarding (label match case-insensitive trim, level default 3, evidence "Diimpor dari rekrutmen", TANPA fabrikasi katalog, best-effort di luar transaksi — kegagalan tak membatalkan onboarding).
+- scripts/e2e-p32-skills.ts + tsconfig.bm32.json (agent-made).
+- VERIFIKASI ORCHESTRATOR: e2e re-run 71/71 PASS (CRUD + guard + validasi + gap numerik + bridge + cleanup; baseline katalog 17 terjaga).
+
+Stage Summary:
+- Skills foundation tuntas: katalog organisasi + EmployeeSkill 1–5 + syarat per posisi + gap analysis + jembatan pelamar→karyawan; batas D-BM28 dijaga (katalog ≠ training — tidak ada kursus/sesi).
+
+---
+Task ID: P3.3-C
+Agent: slice-C (Tim Saya) — terverifikasi & direkonstruksi orchestrator (agent mati pra-append worklog)
+Task: P3.3 Manager workspace "Tim Saya" (D-BM25) — ESS agregat read-only + approve reuse
+
+Work Log:
+- ess/api/me.ts: +isManager (count assignment aktif validTo null managerId=me + bawahan Active) — filter nav essNavOf (Phase 0b).
+- ess/api/my-team.ts BARU + route /api/rekankerja/ess/my-team (requireEss; non-atasan 403 dwibahasa): headcount, members[] (nama/posisi/unit/tenure/contractEnd/status + present7d strip dari AttendanceDaily + chip cuti), pendingApprovals[] (reuse service approval existing), upcoming[] (anniversary + end-date ≤60 hari), todayStats (present/late/absent/onLeave).
+- ess-my-team.tsx (REPLACE stub): KPI row + kartu "Menunggu Persetujuan" dgn tombol Approve/Reject (dialog konfirmasi + toast + refresh — delegasi ke endpoint approval ESS existing, bukan reimplementasi) + tabel anggota desktop/kartu mobile + expandable detail 7-hari + seksi tanggal penting; GET tunggal agregat server-side.
+- scripts/e2e-p33-myteam.ts + tsconfig.bm33.json (agent-made).
+- VERIFIKASI ORCHESTRATOR: e2e re-run 43/43 PASS (isManager true/false, headcount, approve via workspace → status Approved + counter turun, cleanup, ActivityLog 4 baris).
+
+Stage Summary:
+- Manager workspace tuntas: satu GET agregat + approve reuse; nav hanya utk atasan (isManager).
+
+---
+Task ID: P3.4-D
+Agent: slice-D (analytics pivot + scheduled delivery) — IMPLEMENTASI agent; E2E DITULIS ORCHESTRATOR (agent kena max-turns 200 pra-e2e, pola P1 "D mati menyisakan GL export + e2e")
+Task: P3.4 Analytics pivot + scheduled delivery (D-BM26)
+
+Work Log:
+- report-builder.ts: validateAggregation (katalog whitelist server-side; sum/avg hanya numerik; groupBy/pivot-field bukan field uang terenkripsi; pivot ≤30 nilai kolom → 400; pivot eksklusif groupBy; alias tersanitasi u_*) + runAggregatedReport (takeCap default exportRows + flag truncated + scanned; uang: dekripsi HANYA money-view → agregat null + maskedAggregates bila tak berwenang — TAK difabrikasi) + mode grouped/summary/pivot (matriks rowKeys×colKeys).
+- api custom-reports: run route +groupBy/aggregates/pivot; route BARU /custom-reports/schedule (schedule-save upsert by reportId guard op hr:custom-reports:schedule; validasi Daily/Weekly/Monthly + dayOfWeek 0–6 + dayOfMonth 1–28 + hour 0–23 WIB + 1–20 penerima; ActivityLog) + schedule-delete.
+- UI: report-aggregation.tsx (form agregasi) + report-pivot-table.tsx (tabel pivot, kolom pertama sticky, banner terpotong) + report-schedule-dialog.tsx (jadwal per laporan).
+- scheduler-service.ts: jobCustomReportSchedules (due-ness WIB; claimReminder report-schedule:<id>:<dateKey> idempoten harian; resolve PEMILIK laporan → money-view pemilik; buildReportFile XLSX + notifyEmailEventWithAttachments dgn attachment + template self-seed; lastRunAt/lastStatus; counter reportSchedulesSent).
+- E2E scripts/e2e-p34-analytics.ts DITULIS ORCHESTRATOR setelah agent mati: SMTP→smtp-catcher:2525 (pola e2e-b7, restore eksak pasca-uji), groupBy employees count vs prisma manual, Σ net payroll_lines money-view vs decryptMoney manual (identik 1.066.270.482) + masked null tanpa money-view, pivot unit×gender 48 sel vs manual, takeCap 10 → truncated, schedule Daily-0 + job langsung → EmailLog Sent + lastStatus OK + idempoten run-2 + 4 guard 400.
+- VERIFIKASI ORCHESTRATOR: e2e 40/40 PASS pasca 2 fix asersi (HTTP 201 diterima; event "report.scheduled" — email TERKIRIM NYATA ke smtp-catcher + attachment XLSX terkonfirmasi).
+
+Stage Summary:
+- Analytics pivot + scheduled delivery tuntas; invarian uang (mask tanpa money-view) teruji eksplisit; e2e 40/40.
+
+---
+Task ID: P3.5-E
+Agent: slice-E (career pathing) — terverifikasi orchestrator; e2e dipatch idempotensi (residu dev agent)
+Task: P3.5 Career pathing (D-BM27) — register jalur + ESS Jalur Karier Saya + devNotes terstruktur
+
+Work Log:
+- career-paths-view.tsx (REPLACE stub): register CareerPath dikelompokkan per posisi asal (kartu posisi → panah → target), dialog create/edit (from/to posisi beda, guard duplikat 409 + jalur balik langsung 400 dwibahasa, requirements editor skill+level ≤15 unik, note ≤500), ActivityLog; api/career-paths.ts + route + options + stats.
+- ess-my-career.tsx (REPLACE stub) + api/my-career.ts + route (requireEss): posisi sekarang + jalur dari posisi tsb + gap per syarat (hijau terpenuhi / amber parsial Lv x/y / abu belum dinilai) + ringkasan "n/m terpenuhi" + daftar level keahlian saya + empty state.
+- succession-service.ts + performance-talent.tsx + api/talent.ts: devNotes upgrade TERSTRUKTUR — format JSON {"v":1,"items":[{action,done}]} di kolom yang SAMA (tanpa schema baru); legacy teks biasa tetap render apa adanya; editor HR (≤10 aksi ≤200 kar) + toggle done via API + ActivityLog; toggle pada teks legacy → 400 (konversi dulu).
+- scripts/e2e-p35-career.ts + tsconfig.bm35.json (agent-made).
+- VERIFIKASI + FIX ORCHESTRATOR: e2e awal 74/76 — 2 fail karena residu fixture dev agent (CareerPath A→C + SuccessionPosition P-ACC "Fixture browser p35" + EmployeeSkill pemegang) + 1 bug pre-clean skrip (filter kode posisi tak pernah cocok "E2E35"): PATCH idempotensi — pre-clean CareerPath TOTAL di setup (fitur baru P3.5 = semua baris residu uji), EmployeeSkill residu by evidence dihapus pra-baseline, SuccessionPosition stale by positionId, existingPairs dari himpunan kosong. Pasca-patch: 76/76 PASS (baseline bersih 0/0/0/0 → after 0/0/0/0).
+
+Stage Summary:
+- Career pathing tuntas E2E; batas D-BM27 dijaga (development actions = teks terstruktur, BUKAN modul training — tidak ada tabel kursus/sesi/e-learning).
+
+---
+Task ID: P3-ORCH
+Agent: main (Z.ai Code) — orchestrator
+Task: Eksekusi Fase P3 lengkap (P3.1–P3.5, D-BM23..D-BM27) — "lanjutkan" pasca P1+P2 tuntas di remote
+
+Work Log:
+- VERIFIKASI PRA: P1 (0bad4ce, 302+ asersi) & P2 (5af5125, 288 asersi) tuntas terverifikasi di origin/main → fase berikut = P3 per DEVELOPMENT-PLAN-BENCHMARK §4.
+- PHASE 0 (commit d69d240): schema 4 model (JobFamily tree-2-level, SkillCatalog, EmployeeSkill unique[employeeId,skillId] level 1–5, CareerPath unique[from,to]) + Job +familyId/mission/dutiesJson/qualificationsJson/minEducation/workingConditions + Position +requiredSkillsJson + Employee.skills; tenant-ddl.sql paritas; scripts/migrate-p3-benchmark.ts idempoten + BACKFILL non-destruktif Job.category→JobFamily (MII: 4 family + 16 job teraut; category dipertahankan) + seed 17 SkillCatalog starter (skill-defaults.ts satu sumber dgn provisioning seedTenantReference); RESET_STEPS terdaftar.
+- PHASE 0b (commit 06fcb03): wiring anti-konflik — nav HR skills+career-paths, nav ESS my-team+my-career (filter isManager di essNavOf pola okrEnabled), routing position-module, MENU_OPS (hr:skills assess + hr:custom-reports schedule + hr:career-paths), EssView+isManager type, 4 STUB komponen, BASE_EN 4 label nav.
+- PHASE 0c (commit d8ccb4f): model ReportSchedule (D-BM26 — unique reportId, Daily/Weekly/Monthly, hour WIB, lastRunAt/lastStatus) + DDL + migrasi 3 tenant.
+- DISPATCH 5 agent paralel: SEMUA panggilan Task gagal di API (3× "context deadline exceeded" + 1× "max turns 200" + 1× deadline) TAPI TEREKSEKUSI background (pola P1/P2 — pelajaran worklog diikuti: cek artefak dulu, TIDAK re-dispatch). Hasil: A/B/C/E komplet + e2e; D implementasi lengkap TAPI mati pra-e2e; TIDAK ADA yang menulis worklog — semua entri slice direkonstruksi orchestrator dari artefak + diverifikasi.
+- VERIFIKASI ORCHESTRATOR: tsc FULL 0 error (langsung hijau — kualitas agent tinggi) · lint 0 error/6 warning baseline · audit-bilingual TOTAL_GAP=149 · e2e 5/5 suite: p31 73/73 + p32 71/71 + p33 43/43 + p34 40/40 (DITULIS ORCHESTRATOR — uang mask invarian + EmailLog attachment nyata) + p35 76/76 (pasca 3 patch idempotensi residu dev) = 303/303 asersi PASS · dev.log bersih selama e2e.
+- INFRA SAGA (jujur & lengkap): browser-verification TERBLOK berantai — (1) cross-origin dev-resource block Next 16 (allowedDevOrigins hanya *.space-z.ai) → FIX: +127.0.0.1+localhost; (2) rm -rf .next cold-compile → Turbopack DEADLOCK (stall deterministik ~408 file, 0.5% CPU — page & instrumentation compile saja; API route tetap 969ms); (3) mode --webpack utk diagnosa → module-not-found agent-base/web-push chain di instrumentation + next-server D-STATE d_alloc_parallel (kernel dentry storm pada root overlay kata-passthrough) — proses 2.4GB RSS UNKILLABLE memegang port 3000 permanen sesi ini; (4) mitigasi gagal: symlink dilarang sandbox, distDir luar projectPath ditolak Turbopack, /dev/shm hanya 64MB; (5) postcss.js workers yatim dari server mati dibersihkan berulang; (6) FIX PERMANEN utk sandbox ini: serverExternalPackages +agent-base +https-proxy-agent (menyehatkan compile instrumentation), allowedDevOrigins 127.0.0.1/localhost (browser langsung), watchdog dikembalikan ke bun run dev turbopack (menunggu port 3000 terlepas). File sementara dibersihkan (tmp-p31/p34/p35*).
+- BUKTI BROWSER PARSIAL: agent E meninggalkan 3 screenshot valid pra-insiden (audit/e2e-p3/career-paths-en.png + -id.png + dialog-en.png — register jalur karier render EN+ID) — sisanya (Tim Saya ESS, katalog keahlian, family tab, pivot UI) ter-E2E penuh namun TIDAK ter-verifikasi browser sesi ini.
+
+Stage Summary:
+- SELURUH FASE P3 SELESAI TERIMPLEMENTASI & TERUJI (D-BM23 job architecture + D-BM24 skills foundation + D-BM25 Tim Saya + D-BM26 analytics pivot+scheduled delivery + D-BM27 career pathing): 303/303 asersi e2e + tsc 0 + lint 0/6 + bilingual 149; ActivityLog semua mutasi; uang vault-gated (mask tanpa money-view TERUJI eksplisit); dwibahasa penuh; mobile dijaga komponen; batas D-BM28 mutlak (tidak ada entitas training).
+- Keputusan infra tercatat utk sesi berikutnya: JANGAN rm -rf .next di sandbox ini (cold-compile Turbopack = dentry-storm deadlock; warm-cache = satu-satunya jalur stabil — preseden P2-ORCH "cache persisten" dikonfirmasi ulang); D-state zombie port 3000 butuh restart environment bila tak terlepas sendiri.
+- Sisa P3 kecil yang jujur belum ter-browser-verify (infra blocked): dicatat terbuka di worklog; seluruhnya tercakup e2e hijau.

@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import {
-  nextReportCode, ReportSpecError, serializeSaved, validateSpec,
+  nextReportCode, ReportSpecError, serializeSaved, serializeSchedule, validateSpec,
   type NormalizedFilter,
 } from "@/rekankerja/shared/services/report-builder";
 
@@ -35,8 +35,12 @@ export async function GET(req: NextRequest) {
     const rows = await db.customReport.findMany({
       orderBy: { updatedAt: "desc" },
       take: 200,
+      // P3.4-BM (D-BM26) — sertakan jadwal (relasi 1-1 opsional).
+      include: { schedule: true },
     });
-    return NextResponse.json({ reports: rows.map(serializeSaved) });
+    return NextResponse.json({
+      reports: rows.map((r) => ({ ...serializeSaved(r), schedule: r.schedule ? serializeSchedule(r.schedule) : null })),
+    });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

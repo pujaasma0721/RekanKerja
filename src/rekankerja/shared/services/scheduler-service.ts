@@ -51,8 +51,12 @@ import { db as platformDb } from "@/lib/db";
 import { getTenantClient, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { DEFAULT_TEMPLATES_PLACEHOLDER } from "@/rekankerja/shared/services/email-defaults";
-import { notifyEmailEvent, sendSystemEmail, type EmailRecipient } from "@/rekankerja/shared/services/email-service";
+import { notifyEmailEvent, notifyEmailEventWithAttachments, sendSystemEmail, type EmailRecipient } from "@/rekankerja/shared/services/email-service";
 import { notifyEvent, pushNotification } from "@/rekankerja/shared/services/notification-service";
+// P3.4-BM (D-BM26) — kiriman laporan kustom terjadwal: eksekusi via report
+// builder yang sama dgn UI + gerbang uang money-view pemilik laporan.
+import { buildReportFile, serializeSaved } from "@/rekankerja/shared/services/report-builder";
+import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { retryFailedWebhookDeliveries } from "@/rekankerja/shared/services/webhook-service";
 import { jobSelectionReminders } from "@/rekankerja/recruitment/services/selection-service";
 import { jobOfferExpiry } from "@/rekankerja/recruitment/services/offer-service";
@@ -1903,6 +1907,204 @@ async function jobRecruitmentRetention(db: TenantDb): Promise<{ scanned: number;
   }
 }
 
+// ---------- P3.4-BM (D-BM26): jadwal kirim laporan kustom ----------
+
+/** Event template email kiriman laporan terjadwal. */
+const REPORT_SCHEDULE_EVENT = "report.scheduled";
+
+/** WIB (Asia/Jakarta, UTC+7 tanpa DST) sekarang: tanggal kunci + jam + hari.
+ *  Kunci tanggal memakai tanggal WIB supaya "Daily jam 7" diklaim tepat pada
+ *  hari WIB yang sama (bukan hari UTC yang bergeser 7 jam). */
+function wibNow(): { dateKey: string; hour: number; dow: number; dom: number } {
+  const wib = new Date(Date.now() + 7 * 3_600_000);
+  return {
+    dateKey: wib.toISOString().slice(0, 10),
+    hour: wib.getUTCHours(),
+    dow: wib.getUTCDay(),
+    dom: wib.getUTCDate(),
+  };
+}
+
+/** Self-heal template kiriman laporan (idempoten — tidak menimpa suntingan
+ *  admin; mirror ensureSchedulerTemplates, definisi lokal karena default
+ *  template umum tidak memuat event spesifik fase ini). */
+async function ensureReportScheduleTemplate(db: TenantDb): Promise<void> {
+  try {
+    const existing = await db.emailTemplate.findUnique({ where: { event: REPORT_SCHEDULE_EVENT }, select: { event: true } });
+    if (existing) return;
+    await db.emailTemplate.create({
+      data: {
+        event: REPORT_SCHEDULE_EVENT,
+        label: "Laporan — Kiriman Terjadwal (lampiran XLSX)",
+        notifyEmployee: false, notifyApprover: false, notifyHrd: false,
+        subject: "Laporan Terjadwal {{nama}} — {{docNo}}",
+        body:
+          "Halo,\n\nTerlampir laporan terjadwal \"{{nama}}\" ({{docNo}}) per {{tanggal}} — {{jumlah}} baris data dalam format Excel (XLSX).\n\nEmail otomatis sistem RekanKerja HRIS — tidak perlu dibalas.",
+      },
+    });
+  } catch {
+    // tabel EmailTemplate belum termigrasi → dispatch memakai fallback generik
+  }
+}
+
+/**
+ * P3.4-BM (D-BM26) — job report-schedule-delivery: kirim laporan kustom
+ * terjadwal via email XLSX (pola digest rekrutmen + payslip attachment).
+ *
+ *  · DUE-NESS dalam WIB: Daily = tiap hari; Weekly = dayOfWeek cocok;
+ *    Monthly = dayOfMonth cocok; semuanya menunggu jam >= schedule.hour.
+ *  · IDEMPOTEN: klaim claimReminder `report-schedule:<id>:<yyyy-mm-dd WIB>`
+ *    (atomik lintas proses — PM2 cluster / dev server + skrip uji paralel);
+ *    galat build melepas klaim agar siklus berikutnya mencoba ulang (pola
+ *    perf-retention-scan), galat SMTP TIDAK diulang hari yang sama (pola
+ *    policy-renewal — jejak ada di EmailLog Failed).
+ *  · KONTEKS UANG: laporan dieksekusi SEBAGAI PEMBUATNYA (CustomReport.
+ *    createdById → AppUser → platform user via email → membership role) —
+ *    money-view owner yang menentukan dekripsi nominal di XLSX. Pemilik
+ *    dihapus/nonaktif/tak ter-resolve → Skipped (tidak difabrikasi).
+ *  · Defensif: tabel ReportSchedule belum termigrasi → return kosong senyap.
+ */
+export async function jobCustomReportSchedules(
+  db: TenantDb,
+): Promise<{ due: number; sent: number; skipped: number }> {
+  const out = { due: 0, sent: 0, skipped: 0 };
+  const wib = wibNow();
+
+  let schedules: {
+    id: string; reportId: string; frequency: string; dayOfWeek: number | null;
+    dayOfMonth: number | null; hour: number; recipients: string;
+    report: {
+      id: string; code: string; name: string; description: string | null; entity: string;
+      fieldsJson: string; filtersJson: string | null; createdById: string | null;
+      createdAt: Date; updatedAt: Date;
+    } | null;
+  }[];
+  try {
+    schedules = await db.reportSchedule.findMany({
+      where: { active: true },
+      include: { report: true },
+      take: 100,
+    });
+  } catch {
+    return out; // tabel belum termigrasi di tenant ini → senyap
+  }
+
+  for (const s of schedules) {
+    const dayMatches =
+      s.frequency === "Weekly" ? s.dayOfWeek === wib.dow
+      : s.frequency === "Monthly" ? s.dayOfMonth === wib.dom
+      : true; // Daily
+    if (!dayMatches || wib.hour < s.hour) continue;
+    out.due++;
+
+    const claimKey = `report-schedule:${s.id}:${wib.dateKey}`;
+    const claimed = await claimReminder(
+      db,
+      claimKey,
+      `Kiriman terjadwal laporan ${s.report?.code ?? s.reportId} (${s.frequency}, jam ${s.hour} WIB, ${wib.dateKey})`,
+    );
+    if (!claimed) continue; // sudah terkirim hari ini (proses lain / siklus sebelumnya)
+
+    const mark = async (status: string): Promise<void> => {
+      await db.reportSchedule
+        .update({ where: { id: s.id }, data: { lastRunAt: new Date(), lastStatus: status.slice(0, 200) } })
+        .catch(() => { /* never-throw */ });
+    };
+
+    try {
+      const report = s.report;
+      if (!report) {
+        out.skipped++;
+        await mark("Skipped: definisi laporan tidak ditemukan");
+        continue;
+      }
+
+      // ---- resolve pemilik → konteks money-view PEMILIK (bukan proses) ----
+      const owner = report.createdById
+        ? await db.appUser.findUnique({ where: { id: report.createdById }, select: { email: true, active: true, fullName: true } })
+        : null;
+      if (!owner || !owner.active || !owner.email) {
+        out.skipped++;
+        await mark("Skipped: pembuat laporan sudah dihapus / tidak aktif");
+        continue;
+      }
+      const schema = (db as unknown as Record<string, unknown>)["__rekankerjaTenantSchema"];
+      const platformUser = typeof schema === "string"
+        ? await platformDb.user.findFirst({
+            where: { email: owner.email },
+            select: { id: true, name: true },
+          })
+        : null;
+      if (!platformUser) {
+        out.skipped++;
+        await mark("Skipped: pengguna platform pembuat laporan tidak ter-resolve");
+        continue;
+      }
+      const membership = await platformDb.userTenant.findFirst({
+        where: { userId: platformUser.id, tenant: { schemaName: schema as string } },
+        select: { role: true },
+      });
+      const mv = await getMoneyView(db, { userId: platformUser.id, membershipRole: membership?.role ?? null });
+
+      // ---- eksekusi laporan via builder yang sama dgn UI + ekspor XLSX ----
+      const spec = serializeSaved(report);
+      const file = await buildReportFile(
+        db,
+        { entity: spec.entity, fields: spec.fields, filters: spec.filters, format: "xlsx", name: spec.name },
+        mv,
+      );
+      const emails = s.recipients.split(/[,;]+/).map((x) => x.trim()).filter((x) => x.includes("@"));
+      if (emails.length === 0) {
+        out.skipped++;
+        await mark("Skipped: tidak ada penerima email valid");
+        continue;
+      }
+
+      await ensureReportScheduleTemplate(db);
+      // AWAIT (pelajaran P1.5 — e2e tidak boleh race dgn fire-and-forget).
+      const tSend = new Date();
+      await notifyEmailEventWithAttachments(db, {
+        event: REPORT_SCHEDULE_EVENT,
+        to: emails.map((e) => ({ email: e })),
+        data: {
+          nama: report.name,
+          docNo: report.code,
+          tanggal: wib.dateKey,
+          jumlah: String(file.rowCount),
+        },
+        attachments: [{ filename: file.filename, content: file.body as Buffer, contentType: file.contentType }],
+      });
+      const sentRows = await db.emailLog.count({
+        where: { event: REPORT_SCHEDULE_EVENT, toEmail: { in: emails }, status: "Sent", createdAt: { gte: tSend } },
+      });
+      if (sentRows >= 1) {
+        out.sent++;
+        await mark("OK");
+      } else {
+        // dispatch menulis Skipped (config nonaktif) atau Failed (SMTP) per penerima
+        out.skipped++;
+        const anyLog = await db.emailLog.count({
+          where: { event: REPORT_SCHEDULE_EVENT, toEmail: { in: emails }, createdAt: { gte: tSend } },
+        });
+        await mark(anyLog >= 1 ? "Skipped: email tidak terkirim (lihat EmailLog)" : "Error: tanpa jejak EmailLog");
+      }
+    } catch (e) {
+      // lepas klaim harian supaya siklus berikutnya mencoba ulang (pola
+      // perf-retention-scan) — galat tercatat di lastStatus utk diagnosis.
+      const msg = e instanceof Error ? e.message : String(e);
+      try {
+        await db.activityLog.deleteMany({
+          where: { action: "Reminder", entity: "Scheduler", entityId: claimKey },
+        });
+      } catch { /* best-effort */ }
+      out.skipped++;
+      await mark(`Error: ${msg}`);
+      console.warn(`[scheduler] report-schedule ${s.report?.code ?? s.reportId} gagal: ${msg}`);
+    }
+  }
+  return out;
+}
+
 // ---------- orkestrasi per tenant ----------
 
 export interface SchedulerJobCounts {
@@ -1967,6 +2169,9 @@ export interface SchedulerJobCounts {
   policyRenewalReminded: number;
   /** P2.5-BM (D-BM20) — email renewal terkirim (EmailLog). */
   policyRenewalEmailed: number;
+  /** P3.4-BM (D-BM26) — laporan kustom terjadwal yang email XLSX-nya terkirim
+   *   oleh job report-schedule-delivery (dedupe klaim harian per jadwal). */
+  reportSchedulesSent: number;
   /** F7-REC — penerima notifikasi in-app dari sla-escalation. */
   slaEscalationNotified: number;
   /** F7-REC — email ringkasan notifikasi harian terkirim (digest, dedupe/hari). */
@@ -2068,6 +2273,7 @@ export async function runAllJobs(
     policyMembersClosed: 0,
     policyRenewalReminded: 0,
     policyRenewalEmailed: 0,
+    reportSchedulesSent: 0,
     slaEscalationNotified: 0,
     digestEmails: 0,
     metricsSnapshotRows: 0,
@@ -2146,6 +2352,12 @@ export async function runAllJobs(
     const r = await jobPolicyRenewalReminders(db);
     jobs.policyRenewalReminded = r.reminded;
     jobs.policyRenewalEmailed = r.emailed;
+  });
+  // P3.4-BM (D-BM26) — kiriman laporan kustom terjadwal: jadwal aktif yang
+  // jatuh tempo (WIB) dieksekusi sebagai pemiliknya → email XLSX + lastStatus.
+  await guarded("report-schedule-delivery", async () => {
+    const r = await jobCustomReportSchedules(db);
+    jobs.reportSchedulesSent = r.sent;
   });
   await guarded("payroll-d3", async () => {
     const r = await jobPayrollReminders(db);
@@ -2408,6 +2620,7 @@ export async function runAllJobs(
     (jobs.attendanceOtAging > 0 ? `, ${jobs.attendanceOtAging} lembur aging diingatkan` : "") +
     (jobs.attendanceTransferReminders > 0 ? `, ${jobs.attendanceTransferReminders} pengingat transfer TA terkirim` : "") +
     (jobs.travelSettlementReminded > 0 ? `, ${jobs.travelSettlementReminded} pengingat settlement travel terkirim (D-BM14)` : "") +
+    (jobs.reportSchedulesSent > 0 ? `, ${jobs.reportSchedulesSent} laporan terjadwal terkirim email XLSX (D-BM26)` : "") +
     (jobs.applicantOutdatedRows > 0 ? `, ${jobs.applicantOutdatedRows} pelamar talent pool otomatis Outdated (keep-on-file habis)` : "") +
     (jobs.selectionReminded > 0 ? `, ${jobs.selectionReminded} tahap seleksi diingatkan (SLA)` : "") +
     (jobs.offerExpiredRows > 0 ? `, ${jobs.offerExpiredRows} offer otomatis kedaluwarsa` : "") +

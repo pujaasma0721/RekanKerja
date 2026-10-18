@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import {
   SlidersHorizontal, Play, Pencil, Trash2, Plus, Search, Check, ChevronUp,
   ChevronDown, X, FileSpreadsheet, FileText, Save, Loader2, Filter,
-  Table2, Info, FileDown, Copy,
+  Table2, Info, FileDown, Copy, CalendarClock,
 } from "lucide-react";
 import { useApi, apiSend, fmtDate, fmtDateTime } from "@/rekankerja/shared/lib/api";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
@@ -31,6 +31,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+// P3.4-BM (D-BM26) — agregasi + pivot + jadwal kirim.
+import {
+  aggregationEmpty, aggregationPayload, emptyAggregation, ReportAggregation,
+  type AggregationState, type CatalogFieldLite,
+} from "./report-aggregation";
+import { ReportPivotTable, type PivotResult } from "./report-pivot-table";
+import { ReportScheduleDialog, type ScheduleInfo } from "./report-schedule-dialog";
 
 const CATALOG_URL = "/api/rekankerja/custom-reports/catalog";
 const SAVED_URL = "/api/rekankerja/custom-reports";
@@ -50,17 +57,24 @@ interface CatalogData {
   entities: CatalogEntity[];
   ops: Record<string, { label: string; labelEn: string }>;
   opsByType: Record<FieldType, string[]>;
-  limits: { maxFields: number; maxFilters: number; runPageSize: number; exportRows: number };
+  aggFns: Record<string, { label: string; labelEn: string }>;
+  limits: { maxFields: number; maxFilters: number; runPageSize: number; exportRows: number; maxAggregates: number; maxPivotCols: number };
 }
 interface SavedReport {
   id: string; code: string; name: string; description: string | null; entity: string;
   fields: string[]; filters: { field: string; op: string; value: string }[];
   createdAt: string; updatedAt: string;
+  schedule?: ScheduleInfo | null;
 }
-interface RunColumn { key: string; label: string; labelEn: string; type: FieldType }
+interface RunColumn { key: string; label: string; labelEn: string; type: FieldType; masked?: boolean }
 interface RunResult {
   entity: string; columns: RunColumn[]; rows: Record<string, unknown>[];
   total: number; page: number; pageSize: number; truncated: boolean;
+  mode?: "plain" | "grouped" | "summary" | "pivot";
+  scanned?: number;
+  takeCap?: number;
+  maskedAggregates?: boolean;
+  pivot?: PivotResult;
 }
 interface FilterRow { uid: number; field: string; op: string; value: string }
 
@@ -72,8 +86,11 @@ const TYPE_LABEL: Record<FieldType, { id: string; en: string }> = {
 };
 
 /** Sel nilai — diformat sesuai tipe kolom (tanggal ISO mentah → UI). */
-function CellValue({ v, type }: { v: unknown; type: FieldType }) {
+function CellValue({ v, type, masked }: { v: unknown; type: FieldType; masked?: boolean }) {
   const { t, locale } = useI18n();
+  if (masked) {
+    return <span className="tracking-widest text-slate-400" title={t("Nominal disembunyikan — butuh hak lihat uang", "Amount hidden — money-view permission required")}>•••</span>;
+  }
   if (v === null || v === undefined || v === "") {
     return <span className="text-slate-300 dark:text-slate-600">—</span>;
   }
@@ -102,6 +119,20 @@ function CellValue({ v, type }: { v: unknown; type: FieldType }) {
   return <span className="max-w-[260px] truncate" title={String(v)}>{String(v)}</span>;
 }
 
+/** Catatan agregat uang ter-mask (tanpa money-view) — D-BM26 invariant. */
+function MaskedAggregatesNote() {
+  const { t } = useI18n();
+  return (
+    <p className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300" role="status">
+      <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      {t(
+        "Agregat nilai uang disembunyikan (•••) — Anda tidak memegang hak lihat nominal; angka tidak ditampilkan.",
+        "Money aggregates are masked (•••) — you do not hold the money-view permission; numbers are not shown.",
+      )}
+    </p>
+  );
+}
+
 // ================= KOMPONEN UTAMA =================
 export function CustomReportsView() {
   const { t } = useI18n();
@@ -114,6 +145,9 @@ export function CustomReportsView() {
   const [fieldQuery, setFieldQuery] = useState("");
   const [filterRows, setFilterRows] = useState<FilterRow[]>([]);
   const uidRef = useRef(1);
+  // P3.4-BM (D-BM26) — agregasi/pivot + target dialog jadwal.
+  const [aggState, setAggState] = useState<AggregationState>(emptyAggregation);
+  const [scheduleTarget, setScheduleTarget] = useState<SavedReport | null>(null);
 
   const [result, setResult] = useState<RunResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -135,6 +169,7 @@ export function CustomReportsView() {
   const canCreate = perms.can("hr", "custom-reports", "create");
   const canUpdate = perms.can("hr", "custom-reports", "update");
   const canDelete = perms.can("hr", "custom-reports", "delete");
+  const canSchedule = perms.canOp("hr", "custom-reports", "schedule");
 
   const entities = catalog.data?.entities ?? [];
   const entity = entities.find((e) => e.key === entityKey) ?? null;
@@ -189,6 +224,7 @@ export function CustomReportsView() {
     setFilterRows([]);
     setResult(null);
     setFieldQuery("");
+    setAggState(emptyAggregation());
   };
 
   const toggleField = (key: string) => {
@@ -233,7 +269,14 @@ export function CustomReportsView() {
   };
 
   /** Validasi ringan sisi klien — server memvalidasi ulang (400). */
-  const buildSpec = (): { entity: string; fields: string[]; filters: { field: string; op: string; value: string }[] } | null => {
+  const buildSpec = (): {
+    entity: string;
+    fields: string[];
+    filters: { field: string; op: string; value: string }[];
+    groupBy?: string;
+    aggregates?: { field: string; fn: string; alias?: string }[];
+    pivot?: { rowField: string; colField: string; valueFn: string; valueField?: string };
+  } | null => {
     if (!entityKey) {
       toast.error(t("Pilih sumber data laporan terlebih dahulu", "Pick a report data source first"));
       return null;
@@ -252,14 +295,49 @@ export function CustomReportsView() {
         return null;
       }
     }
+    // validasi ringan agregasi (server mengulang validasi katalog + tipe)
+    if (aggState.pivotOn) {
+      if (!aggState.pivRow || !aggState.pivCol) {
+        toast.error(t("Pivot: pilih field baris & kolom terlebih dahulu", "Pivot: pick the row & column fields first"));
+        return null;
+      }
+      if (aggState.pivRow === aggState.pivCol) {
+        toast.error(t("Pivot: field baris dan kolom harus berbeda", "Pivot: row and column fields must differ"));
+        return null;
+      }
+      if (aggState.pivFn === "sum" && !aggState.pivField) {
+        toast.error(t("Pivot: pilih field angka untuk fungsi sum", "Pivot: pick the numeric field for the sum function"));
+        return null;
+      }
+    } else {
+      for (const r of aggState.rows) {
+        if (!r.field || !r.fn) {
+          toast.error(t("Baris agregat belum lengkap — pilih field & fungsi", "Incomplete aggregate row — pick field & function"));
+          return null;
+        }
+        const def = fieldDefOf(r.field);
+        if ((r.fn === "sum" || r.fn === "avg") && def && def.type !== "number") {
+          toast.error(t("Agregat {fn} hanya utk field angka", "Aggregate {fn} applies to numeric fields only", { fn: r.fn }));
+          return null;
+        }
+      }
+    }
     return {
       entity: entityKey,
       fields: selected,
       filters: filterRows.map(({ field, op, value }) => ({ field, op, value })),
+      ...aggregationPayload(aggState),
     };
   };
 
-  const runSpec = async (spec: { entity: string; fields: string[]; filters: { field: string; op: string; value: string }[] }) => {
+  const runSpec = async (spec: {
+    entity: string;
+    fields: string[];
+    filters: { field: string; op: string; value: string }[];
+    groupBy?: string;
+    aggregates?: { field: string; fn: string; alias?: string }[];
+    pivot?: { rowField: string; colField: string; valueFn: string; valueField?: string };
+  }) => {
     if (!canRun) {
       toast.error(t("Anda tidak memiliki hak menjalankan laporan kustom", "You lack permission to run custom reports"));
       return;
@@ -268,10 +346,11 @@ export function CustomReportsView() {
     try {
       const res = await apiSend<RunResult>(RUN_URL, "POST", spec);
       setResult(res);
-      if (res.rows.length === 0) {
+      const n = res.mode === "pivot" ? (res.scanned ?? res.total) : res.total;
+      if (res.rows.length === 0 && res.mode !== "pivot") {
         toast.info(t("Laporan dijalankan — 0 baris cocok. Longgarkan filter?", "Report ran — 0 matching rows. Relax filters?"));
       } else {
-        toast.success(t("{n} baris ditemukan", "{n} rows found", { n: res.total }));
+        toast.success(t("{n} baris ditemukan", "{n} rows found", { n }));
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "unknown");
@@ -373,6 +452,7 @@ export function CustomReportsView() {
     setSelected(r.fields);
     setFilterRows(r.filters.map((f) => ({ uid: uidRef.current++, field: f.field, op: f.op, value: f.value })));
     setResult(null);
+    setAggState(emptyAggregation()); // spesifikasi tersimpan tak memuat agregasi (D-BM26 — runtime)
     setEditing({ id: r.id, code: r.code, name: r.name });
     scrollBuilder();
     toast.info(t("Definisi {code} dimuat ke builder", "{code} definition loaded into the builder", { code: r.code }));
@@ -388,6 +468,7 @@ export function CustomReportsView() {
     setEntityKey(r.entity);
     setSelected(r.fields);
     setFilterRows(r.filters.map((f) => ({ uid: uidRef.current++, field: f.field, op: f.op, value: f.value })));
+    setAggState(emptyAggregation());
     setEditing({ id: r.id, code: r.code, name: r.name });
     scrollBuilder();
     await runSpec({ entity: r.entity, fields: r.fields, filters: r.filters });
@@ -417,7 +498,17 @@ export function CustomReportsView() {
     setResult(null);
     setEditing(null);
     setFieldQuery("");
+    setAggState(emptyAggregation());
     scrollBuilder();
+  };
+
+  /** Patch laporan tersimpan di state lokal (jadwal dsb.) tanpa refetch. */
+  const patchSaved = (id: string, patch: Partial<SavedReport>) => {
+    const cur = saved.data;
+    if (!cur) return;
+    saved.setData({
+      reports: cur.reports.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    });
   };
 
   const reports = saved.data?.reports ?? [];
@@ -425,6 +516,24 @@ export function CustomReportsView() {
     const e = entities.find((x) => x.key === key);
     return e ? t(e.label, e.labelEn) : key;
   };
+
+  /** Label ringkas chip jadwal ("Harian 07:00" dsb. — WIB). */
+  const scheduleLabelOf = (s: ScheduleInfo): string => {
+    const hh = String(s.hour).padStart(2, "0");
+    const freq =
+      s.frequency === "Weekly"
+        ? t("Mingguan", "Weekly")
+        : s.frequency === "Monthly"
+          ? t("Bulanan", "Monthly")
+          : t("Harian", "Daily");
+    return `${freq} ${hh}:00`;
+  };
+
+  /** Opsi field utk bagian agregasi (label + tipe dari katalog). */
+  const aggFields: CatalogFieldLite[] = useMemo(
+    () => (entity?.fields ?? []).map((f) => ({ key: f.key, label: f.label, labelEn: f.labelEn, type: f.type })),
+    [entity],
+  );
 
   // ================= RENDER =================
   return (
@@ -488,6 +597,27 @@ export function CustomReportsView() {
                           n: r.fields.length, m: r.filters.length, d: fmtDate(r.updatedAt),
                         })}
                       </p>
+                      {r.schedule && (
+                        <p className="mt-1.5 flex flex-wrap items-center gap-1">
+                          <Badge variant="outline" className={cn(
+                            "gap-1 text-[9px] font-bold",
+                            r.schedule.active
+                              ? "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25"
+                              : "bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-500/10 dark:text-slate-500 dark:border-slate-500/25",
+                          )}>
+                            <CalendarClock className="h-3 w-3" aria-hidden />
+                            {scheduleLabelOf(r.schedule)}
+                          </Badge>
+                          {r.schedule.lastStatus && (
+                            <span className={cn(
+                              "text-[9px] font-semibold",
+                              r.schedule.lastStatus === "OK" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400",
+                            )}>
+                              {t("kirim {s}", "delivery {s}", { s: r.schedule.lastStatus })}
+                            </span>
+                          )}
+                        </p>
+                      )}
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         {canRun && (
                           <Button size="sm" onClick={() => void runSaved(r)} disabled={busyId === r.id} className="h-8 gap-1 px-2.5 text-[11px]">
@@ -498,6 +628,16 @@ export function CustomReportsView() {
                         {canUpdate && (
                           <Button size="sm" variant="outline" onClick={() => loadForEdit(r)} className="h-8 gap-1 px-2.5 text-[11px]">
                             <Pencil className="h-3.5 w-3.5" aria-hidden /> {t("Ubah", "Edit")}
+                          </Button>
+                        )}
+                        {canSchedule && (
+                          <Button
+                            size="sm" variant="outline"
+                            onClick={() => setScheduleTarget(r)}
+                            aria-label={t("Atur jadwal kirim {code}", "Set delivery schedule for {code}", { code: r.code })}
+                            className="h-8 gap-1 px-2.5 text-[11px]"
+                          >
+                            <CalendarClock className="h-3.5 w-3.5" aria-hidden /> {t("Jadwal", "Schedule")}
                           </Button>
                         )}
                         {canDelete && (
@@ -766,6 +906,17 @@ export function CustomReportsView() {
                 </div>
               </Collapsible>
 
+              {/* ---- 3b. agregasi & pivot (P3.4-BM / D-BM26) ---- */}
+              {entity && (
+                <ReportAggregation
+                  fields={aggFields}
+                  state={aggState}
+                  onChange={setAggState}
+                  maxAggregates={limits?.maxAggregates ?? 8}
+                  aggFns={catalog.data?.aggFns ?? {}}
+                />
+              )}
+
               {/* ---- 4. aksi ---- */}
               <div className="flex flex-wrap items-center gap-2">
                 {canRun && (
@@ -810,7 +961,12 @@ export function CustomReportsView() {
                 {t("Hasil", "Result")}
                 {result && (
                   <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                    {entityLabelOf(result.entity)} · {t("{n} baris", "{n} rows", { n: result.total })}
+                    {entityLabelOf(result.entity)} ·{" "}
+                    {result.mode === "pivot"
+                      ? t("{n} baris data (pivot)", "{n} data rows (pivot)", { n: result.scanned ?? result.total })
+                      : result.mode === "grouped"
+                        ? t("{n} kelompok", "{n} groups", { n: result.total })
+                        : t("{n} baris", "{n} rows", { n: result.total })}
                   </span>
                 )}
               </CardTitle>
@@ -830,6 +986,25 @@ export function CustomReportsView() {
                   title={t("Belum ada hasil", "No result yet")}
                   description={t("Susun entity, field & filter lalu klik Jalankan.", "Pick entity, fields & filters then click Run.")}
                 />
+              ) : result.mode === "pivot" && result.pivot ? (
+                <div className="space-y-2">
+                  {result.truncated && (
+                    <p className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" role="status">
+                      <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      {t("Hasil terpotong di {n} baris — persempit filter", "Truncated at {n} rows — narrow the filters", { n: result.takeCap ?? 5000 })}
+                    </p>
+                  )}
+                  {result.maskedAggregates && <MaskedAggregatesNote />}
+                  {result.pivot.rowKeys.length === 0 ? (
+                    <EmptyState
+                      icon={Table2}
+                      title={t("0 baris cocok", "0 matching rows")}
+                      description={t("Tidak ada data yang memenuhi filter — longgarkan kriteria.", "No data matches the filters — relax the criteria.")}
+                    />
+                  ) : (
+                    <ReportPivotTable pivot={result.pivot} />
+                  )}
+                </div>
               ) : result.rows.length === 0 ? (
                 <EmptyState
                   icon={Table2}
@@ -838,7 +1013,12 @@ export function CustomReportsView() {
                 />
               ) : (
                 <div className="space-y-2">
-                  {result.truncated && (
+                  {result.truncated && result.mode != null && result.mode !== "plain" ? (
+                    <p className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" role="status">
+                      <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      {t("Hasil terpotong di {n} baris — persempit filter", "Truncated at {n} rows — narrow the filters", { n: result.takeCap ?? 5000 })}
+                    </p>
+                  ) : result.truncated ? (
                     <p className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" role="status">
                       <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       {t(
@@ -847,7 +1027,8 @@ export function CustomReportsView() {
                         { n: result.pageSize, total: result.total },
                       )}
                     </p>
-                  )}
+                  ) : null}
+                  {result.maskedAggregates && <MaskedAggregatesNote />}
                   <div className="max-h-96 overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 pr-1 [scrollbar-width:thin] dark:border-slate-800">
                     <Table>
                       <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
@@ -860,6 +1041,7 @@ export function CustomReportsView() {
                               className={cn("whitespace-nowrap text-[11px]", c.type === "number" && "text-right")}
                             >
                               {t(c.label, c.labelEn)}
+                              {c.masked && <span className="ml-1 text-[9px] font-bold text-slate-400">•••</span>}
                             </TableHead>
                           ))}
                         </TableRow>
@@ -873,7 +1055,7 @@ export function CustomReportsView() {
                                 key={c.key}
                                 className={cn("max-w-[280px]", c.type === "number" && "text-right tabular-nums")}
                               >
-                                <CellValue v={row[c.key]} type={c.type} />
+                                <CellValue v={row[c.key]} type={c.type} masked={c.masked} />
                               </TableCell>
                             ))}
                           </TableRow>
@@ -926,6 +1108,14 @@ export function CustomReportsView() {
                 {entityLabelOf(entity.key)} · {selected.length} {t("field", "fields")} · {filterRows.length} {t("filter", "filters")}
               </p>
             )}
+            {!aggregationEmpty(aggState) && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                {t(
+                  "Agregasi/pivot aktif di builder TIDAK ikut tersimpan — hanya entity, field & filter (agregasi berlaku saat menjalankan). Jadwal kirim mengirim baris data penuh.",
+                  "The active aggregation/pivot is NOT persisted — only entity, fields & filters are saved (aggregation applies at run time). Scheduled delivery sends the full data rows.",
+                )}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaveOpen(false)} disabled={saving}>
@@ -967,6 +1157,24 @@ export function CustomReportsView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ============ dialog jadwal kirim (P3.4-BM / D-BM26) ============ */}
+      {scheduleTarget && (
+        <ReportScheduleDialog
+          open
+          onOpenChange={(o) => !o && setScheduleTarget(null)}
+          report={{ id: scheduleTarget.id, code: scheduleTarget.code, name: scheduleTarget.name }}
+          schedule={scheduleTarget.schedule ?? null}
+          onSaved={(schedule) => {
+            patchSaved(scheduleTarget.id, { schedule });
+            setScheduleTarget({ ...scheduleTarget, schedule });
+          }}
+          onDeleted={() => {
+            patchSaved(scheduleTarget.id, { schedule: null });
+            setScheduleTarget({ ...scheduleTarget, schedule: null });
+          }}
+        />
+      )}
     </div>
   );
 }

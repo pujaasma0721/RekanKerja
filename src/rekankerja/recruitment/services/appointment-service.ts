@@ -652,6 +652,17 @@ export async function continueToOnboarding(
     console.error("[probation] auto-create evaluasi percobaan dari onboarding gagal:", e instanceof Error ? e.message : e);
   }
 
+  // P3.2-BM (D-BM24) — jembatan keahlian pelamar → EmployeeSkill: label match
+  // ApplicantSkill (master Skill rekrutmen) → SkillCatalog (case-insensitive),
+  // level default 3. Best-effort DI LUAR TRANSAKSI (pola D9 di atas): kegagalan
+  // impor TIDAK boleh membatalkan karyawan+onboarding yang sudah commit.
+  try {
+    const { importApplicantSkillsToEmployee } = await import("@/rekankerja/human-resource/services/skill-service");
+    await importApplicantSkillsToEmployee(db, applicant.id, employee.id);
+  } catch (e) {
+    console.error("[skills] impor keahlian pelamar gagal:", e instanceof Error ? e.message : e);
+  }
+
   // email checklist per bagian (butuh req utk link publik — best effort,
   // pasca-commit supaya link menunjuk data yang pasti tersimpan)
   let emailsSent = 0;

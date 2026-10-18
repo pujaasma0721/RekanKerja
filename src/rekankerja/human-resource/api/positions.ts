@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+// P3.2-BM (D-BM24) — syarat keahlian posisi (requiredSkillsJson) + validasi.
+import {
+  parseSkillRequirements,
+  validatePositionRequirements,
+  SkillServiceError,
+} from "@/rekankerja/human-resource/services/skill-service";
+
+const errJson = (e: unknown) =>
+  NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+
+function skillError(e: unknown): NextResponse | null {
+  if (e instanceof SkillServiceError) {
+    return NextResponse.json({ error: e.message }, { status: e.status });
+  }
+  return null;
+}
 
 // GET /api/rekankerja/positions?q=&orgUnitId=&gradeId=&active=
 export async function GET(req: NextRequest) {
@@ -39,6 +55,36 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { code: "asc" },
     });
+    // P3.2-BM (D-BM24) — resolve nama keahlian utk syarat posisi (satu query
+    // katalog, map id→name; json cacat di-skip per baris).
+    const reqJsonList = positions
+      .map((p) => p.requiredSkillsJson)
+      .filter((j): j is string => j != null && j.trim() !== "");
+    const reqSkillIds = new Set<string>();
+    for (const j of reqJsonList) {
+      try {
+        for (const r of parseSkillRequirements(j)) reqSkillIds.add(r.skillId);
+      } catch {
+        // json legacy cacat → tampil sebagai kosong di baris itu
+      }
+    }
+    const skillNameOf = new Map(
+      reqSkillIds.size
+        ? (await db.skillCatalog.findMany({
+            where: { id: { in: [...reqSkillIds] } },
+            select: { id: true, name: true },
+          })).map((s) => [s.id, s.name] as const)
+        : [],
+    );
+    const requiredSkillsOf = (json: string | null) => {
+      try {
+        return parseSkillRequirements(json).map((r) => ({
+          skillId: r.skillId, name: skillNameOf.get(r.skillId) ?? "—", level: r.level,
+        }));
+      } catch {
+        return [];
+      }
+    };
     return NextResponse.json({
       positions: positions.map((p) => ({
         id: p.id, code: p.code, title: p.title, level: p.level,
@@ -47,6 +93,8 @@ export async function GET(req: NextRequest) {
         directReportCount: p._count.directReports,
         employees: p.assignments.map((a) => a.employee),
         unitId: p.orgUnitId,
+        // P3.2-BM (D-BM24) — syarat keahlian posisi (ter-parse + nama).
+        requiredSkills: requiredSkillsOf(p.requiredSkillsJson),
         // Task 88 (P0): ID relasi mentah — dipakai dialog Ubah Posisi untuk
         // PREFILL asosiasi saat ini; tanpa ini edit diam-diam mengirim null
         // dan menghapus job/unit/grade/atasan posisi.
@@ -55,7 +103,7 @@ export async function GET(req: NextRequest) {
       total: positions.length,
     });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+    return errJson(e);
   }
 }
 
@@ -75,17 +123,31 @@ export async function POST(req: NextRequest) {
       if (!job) return NextResponse.json({ error: "Job tidak ditemukan" }, { status: 400 });
     }
     const grade = b.gradeId ? await db.grade.findUnique({ where: { id: b.gradeId } }) : null;
+    // P3.2-BM (D-BM24) — syarat keahlian posisi: [{skillId, level 1–5}],
+    // maks 15, tanpa duplikat, skill wajib ada & aktif (validasi service).
+    let requiredSkillsJson: string | null = null;
+    if (b.requiredSkills !== undefined) {
+      try {
+        const reqs = await validatePositionRequirements(db, b.requiredSkills);
+        requiredSkillsJson = JSON.stringify(reqs);
+      } catch (e) {
+        const se = skillError(e);
+        if (se) return se;
+        throw e;
+      }
+    }
     const position = await db.position.create({
       data: {
         code: b.code, title: b.title, jobId: b.jobId ?? null, orgUnitId: b.orgUnitId ?? null,
         gradeId: b.gradeId ?? null, level: grade?.code ?? b.level ?? null,
         headcount: Number(b.headcount ?? 1), reportsToId: b.reportsToId ?? null,
+        requiredSkillsJson,
       },
     });
     await db.activityLog.create({ data: { action: "Created", entity: "Position", entityId: position.id, detail: `Posisi ${position.title} (${position.code}) dibuat` } });
     return NextResponse.json({ position }, { status: 201 });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+    return errJson(e);
   }
 }
 
@@ -98,18 +160,31 @@ export async function PATCH(req: NextRequest) {
 
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
+    // P3.2-BM (D-BM24) — syarat keahlian opsional saat ubah: dikirim = divalidasi
+    // + ditimpa; TIDAK dikirim = tidak disentuh (prefill dialog mengirim nilai).
+    let requiredSkillsJson: string | undefined;
+    if (b.requiredSkills !== undefined) {
+      try {
+        requiredSkillsJson = JSON.stringify(await validatePositionRequirements(db, b.requiredSkills));
+      } catch (e) {
+        const se = skillError(e);
+        if (se) return se;
+        throw e;
+      }
+    }
     const position = await db.position.update({
       where: { id: b.id },
       data: {
         title: b.title, jobId: b.jobId, orgUnitId: b.orgUnitId, gradeId: b.gradeId,
         headcount: b.headcount != null ? Number(b.headcount) : undefined,
         reportsToId: b.reportsToId, active: b.active,
+        ...(requiredSkillsJson !== undefined ? { requiredSkillsJson } : {}),
       },
     });
     await db.activityLog.create({ data: { action: "Updated", entity: "Position", entityId: position.id, detail: `Posisi ${position.title} diperbarui` } });
     return NextResponse.json({ position });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+    return errJson(e);
   }
 }
 
@@ -130,6 +205,6 @@ export async function DELETE(req: NextRequest) {
     await db.activityLog.create({ data: { action: "Deleted", entity: "Position", entityId: id, detail: `Posisi ${position.title} dihapus` } });
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+    return errJson(e);
   }
 }

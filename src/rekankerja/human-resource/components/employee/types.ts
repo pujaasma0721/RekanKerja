@@ -185,6 +185,35 @@ export interface EmployeeDetailResp {
   employee: EmployeeDetail;
 }
 
+// ============ skills (/api/rekankerja/skills?employeeId=) — P3.2-BM (D-BM24) ============
+// Keahlian karyawan di-load terpisah dari /employee-detail (API skills
+// memakai skema akses data yang sama — pola requireScoped).
+export interface EmployeeSkillRow {
+  id: string;
+  skillId: string;
+  level: number; // 1–5
+  evidence: string | null;
+  assessedAt: string;
+  skill: { code: string; name: string; category: string | null };
+}
+
+// label level dwibahasa (R4: pasangan map + sibling _EN — sumber ID, kamus EN)
+export const SKILL_LEVELS = [1, 2, 3, 4, 5] as const;
+export const SKILL_LEVEL_LABEL: Record<number, string> = {
+  1: "1 — Pemula",
+  2: "2 — Dasar",
+  3: "3 — Menengah",
+  4: "4 — Mahir",
+  5: "5 — Ahli",
+};
+export const SKILL_LEVEL_LABEL_EN: Record<number, string> = {
+  1: "1 — Beginner",
+  2: "2 — Basic",
+  3: "3 — Intermediate",
+  4: "4 — Proficient",
+  5: "5 — Expert",
+};
+
 // ============ options (/api/rekankerja/employee-options) ============
 export interface OptionUnit {
   id: string;
