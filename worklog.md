@@ -7882,3 +7882,19 @@ Stage Summary:
 - SELURUH FASE P2 SELESAI (D-BM16..D-BM21): P2.1 LKS BPJS resmi (config KODE KANTOR/KELAS + keluarga + gap) · P2.2 web push terenkripsi opt-in · P2.3 panel interview + slot self-schedule + .ics · P2.4 offer versioning + putusan mandiri race-safe · P2.5 benefits admin grup (polis+enrollment+premi+terminasi otomatis+renewal H-30) · P2.6 eskalasi approval per-struktur default OFF. D-BM22 = keputusan no-op (export-only sudah P1.4; API live DEFER §1).
 - Standar dijaga: dwibahasa (gap 149 tetap), ActivityLog semua mutasi, enc at-rest (vapid private/endpoint/premi/gaji versi/NIK), vault gating uang, DialogContent sm:max-w-*, mobile, tanpa eslint-disable baru, batas scope D-BM20 dijaga eksplisit, Training/LMS tetap TIDAK disentuh.
 - 288 asersi e2e + 6 gate browser + 3 bug diperbaiki. Lanjutan natural: Fase P3 (job architecture → skills → manager workspace → analytics → career pathing) bila user meminta.
+
+---
+Task ID: P3-PREP
+Agent: main (Z.ai Code)
+Task: "lanjutkan" — pemulihan lingkungan pasca-reset sandbox + verifikasi status P1/P2 sebelum Fase P3
+
+Work Log:
+- Verifikasi: push lokal ditolak → remote origin/main TERNYATA memuat seluruh pekerjaan sesi-sebelumnya yang dikira hilang (fa251d4 docs benchmark · 8b23a51+e0f12ca+0bad4ce P1 lengkap · 46f545f+7bab3ff+5af5125 P2 lengkap). Workspace lokal = snapshot stale c4b1f30 → git reset --hard origin/main (commit rekonstruksi lokal dibuang, push-nya memang tertolak sehingga remote bersih).
+- PEMULIHAN ENVIRONMENT (pola preseden REC-OV di worklog): .env ter-reset (hanya DATABASE_URL sqlite) → ditulis ulang (PLATFORM_DB_URL + TENANT_DB_BASE_URL postgresql://onevity:... + SESSION_SECRET baru + REKANKERJA_ALLOW_DEMO_SEED=1) · src/generated/ hilang → bun run db:generate (platform+tenant) · DB onevity kosong (hanya pg_toast) → bun run db:push (platform) + bun scripts/restore-demo.ts (3 tenant ACTIVE, MII 44 karyawan) + migrate-password-security.ts manual (1 error 3F000 awal dijalankan ulang sukses).
+- DEV SERVER: watchdog awal mati diam-diam pasca tool-command (pola sesi P2) → riset proses: semua proses 1 cgroup k8s 4GB; uji empiris 3 pola daemonisasi → setsid PPID=1 BERTENGAH (pola-1) vs nohup biasa DIBUNUH; restart watch-dev.sh dgn pola tersebut → watchdog PID 2986 PPID=1 stabil, port 3000 listening, dev.log: auto-seed jalan pasca db:push, scheduler aktif. Heap tetap 1400MB + turbopackMemoryLimit 1.5GB (mitigasi permanen P2-ORCH di package.json/next.config.ts dipertahankan).
+- GATES BASELINE TREE 5af5125: login 200 · tsc FULL tsconfig.json 0 error · lint 0 error/6 warning baseline · audit-bilingual TOTAL_GAP=149 · tabel P1/P2 terverifikasi ada di 3 schema (EmergencyContact, EmployeeProfileChangeRequest, AttendanceRegularizationRequest, PushSubscription, InsurancePolicy, PolicyMember, CandidateOfferVersion, InterviewSlot).
+
+Stage Summary:
+- P1 (0bad4ce, 302+ asersi E2E) dan P2 (5af5125, 288 asersi E2E) TERVERIFIKASI SELESAI di remote — instruksi berantai user terpenuhi: "kerjakan semua P1" ✅ → "jika P1 sudah selesai semua lanjut ke P2" ✅.
+- "Lanjutkan" = eksekusi FASE P3 (Paritas Enterprise Tier-1): P3.1 Job architecture (D-BM23) → P3.2 Skills foundation (D-BM24) → P3.3 Manager workspace Tim Saya (D-BM25) → P3.4 Analytics pivot + scheduled delivery (D-BM26) → P3.5 Career pathing (D-BM27). Learning/LMS tetap EXCLUDE permanen (D-BM28).
+- Strategi eksekusi meniru pola P1/P2 yang terbukti: Phase 0 fondasi oleh orchestrator (schema semua model P3 + DDL 3 tenant + migrasi idempoten + paritas tenant-ddl.sql) → slice paralel → verifikasi + gates + browser + commit+push per lengkapan.
