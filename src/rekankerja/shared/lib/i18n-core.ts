@@ -921,6 +921,16 @@ export const BASE_EN: Record<string, string> = {
   "Kelola Laporan": "Report Management",
   "Lapor": "Report",
   "Kanal pelaporan anonim & penanganan (TPKS)": "Anonymous reporting & handling channel (SVA)",
+  // P3-SLICE-A (P3.1 job architecture) — entri i18n slice A ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P3-SLICE-A end.
+  // P3-SLICE-B (P3.2 skills foundation) — entri i18n slice B ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P3-SLICE-B end.
+  // P3-SLICE-C (P3.3 Tim Saya) — entri i18n slice C ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P3-SLICE-C end.
+  // P3-SLICE-D (P3.4 analytics pivot) — entri i18n slice D ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P3-SLICE-D end.
+  // P3-SLICE-E (P3.5 career pathing) — entri i18n slice E ditambah tepat di bawah baris ini (jangan hapus marker).
+  // P3-SLICE-E end.
 
   // — Task BL-2 (audit bilingual): vocabulary header dokumen laporan (layar TH
   //    + XLSX header/sheet-name/sel status). Sumber: audit AST 6 modul report

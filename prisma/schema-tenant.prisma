@@ -136,19 +136,97 @@ model OrgUnit {
 
 // ============ POSITION DEFINITION ============
 
+// P3.1-BM (D-BM23) — job architecture: family jabatan tree 2-level.
+// Non-effective-dated (trade-off tercatat di DEVELOPMENT-PLAN-BENCHMARK §2 D-BM23).
+model JobFamily {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  parentId  String? // tree 2-level (null = akar)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent   JobFamily?  @relation("JobFamilyTree", fields: [parentId], references: [id])
+  children JobFamily[] @relation("JobFamilyTree")
+  jobs     Job[]
+}
+
 model Job {
   id          String   @id @default(cuid())
   code        String   @unique
   title       String
-  category    String?
+  category    String? // LEGACY — dipertahankan (non-destruktif); UI memakai family
   description String?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
+  // P3.1-BM (D-BM23) — job profile (paritas tier-1: job architecture)
+  familyId            String? // family jabatan (backfill dari category oleh migrasi)
+  mission             String? // tujuan jabatan
+  dutiesJson          String? // JSON array string: tugas & tanggung jawab
+  qualificationsJson  String? // JSON array string: kualifikasi
+  minEducation        String? // SMA|D3|S1|S2|S3 (Lookup "EducationLevel")
+  workingConditions   String? // kondisi kerja
+
+  family   JobFamily? @relation(fields: [familyId], references: [id])
   positions Position[]
 
   // F1-REC — PR rekrutmen (dimensi diminta)
   prs PersonnelRequisition[] @relation("PrJob")
+}
+
+// P3.2-BM (D-BM24) — skills foundation: katalog keahlian lintas-modul.
+// Terpisah dari recruitment Skill (master kriteria pelamar) — dijembatani
+// via label match saat staging → employee (keputusan D-BM24).
+model SkillCatalog {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  category  String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employeeSkills EmployeeSkill[]
+}
+
+// P3.2-BM (D-BM24) — keahlian karyawan (level 1–5 + bukti + tanggal asesmen)
+model EmployeeSkill {
+  id         String   @id @default(cuid())
+  employeeId String
+  skillId    String
+  level      Int // 1–5
+  evidence   String?
+  assessedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skill    SkillCatalog @relation(fields: [skillId], references: [id])
+
+  @@unique([employeeId, skillId])
+  @@index([employeeId])
+}
+
+// P3.5-BM (D-BM27) — jalur karier posisi → posisi berikutnya. Development
+// actions = TEKS TERSTRUKTUR di succession (konsisten D-BL14 — BUKAN modul
+// training; D-BM28 exclude permanen tetap berlaku).
+model CareerPath {
+  id                String   @id @default(cuid())
+  fromPositionId   String
+  toPositionId      String
+  requiredSkillsJson String? // JSON: [{skillId, level}] — syarat SkillCatalog
+  note              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  fromPosition Position @relation("CareerPathFrom", fields: [fromPositionId], references: [id])
+  toPosition   Position @relation("CareerPathTo", fields: [toPositionId], references: [id])
+
+  @@unique([fromPositionId, toPositionId])
+  @@index([fromPositionId])
 }
 
 model Grade {
@@ -208,6 +286,11 @@ model Position {
   successionPosition SuccessionPosition? @relation("SuccessionPosition")
   // B5-BL — benchmark gaji pasar berkunci posisi ini (D-BL16/D-BL17)
   salaryBenchmarks SalaryBenchmark[] @relation("SalaryBenchmarkPosition")
+  // P3.2-BM (D-BM24) — syarat keahlian spesifik posisi (JSON [{skillId, level}])
+  requiredSkillsJson String?
+  // P3.5-BM (D-BM27) — jalur karier dari/ke posisi ini
+  careerPathsFrom CareerPath[] @relation("CareerPathFrom")
+  careerPathsTo   CareerPath[] @relation("CareerPathTo")
 }
 
 // ============ EMPLOYEE INFORMATION ============
@@ -278,6 +361,8 @@ model Employee {
   family               EmployeeFamily[]
   education            EmployeeEducation[]
   experiences          EmployeeExperience[]
+  // P3.2-BM (D-BM24) — keahlian karyawan (level 1–5)
+  skills               EmployeeSkill[]
   disciplinary         DisciplinaryRecord[]
   actions              PersonnelAction[]
   activities           ActivityLog[]

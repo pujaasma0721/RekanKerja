@@ -5626,3 +5626,84 @@ ALTER TABLE "CandidateOfferVersion" DROP CONSTRAINT IF EXISTS "CandidateOfferVer
 ALTER TABLE "CandidateOfferVersion" ADD CONSTRAINT "CandidateOfferVersion_offerId_fkey" FOREIGN KEY ("offerId") REFERENCES "CandidateOffer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "PushSubscription" DROP CONSTRAINT IF EXISTS "PushSubscription_appUserId_fkey";
 ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- ============================================================
+-- P3-BENCHMARK (D-BM23/24/27) — job architecture + skills + career path
+-- (blok idempoten — CREATE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS "JobFamily" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "parentId" TEXT,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "JobFamily_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "SkillCatalog" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "category" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "SkillCatalog_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "EmployeeSkill" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "skillId" TEXT NOT NULL,
+    "level" INTEGER NOT NULL,
+    "evidence" TEXT,
+    "assessedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "EmployeeSkill_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "CareerPath" (
+    "id" TEXT NOT NULL,
+    "fromPositionId" TEXT NOT NULL,
+    "toPositionId" TEXT NOT NULL,
+    "requiredSkillsJson" TEXT,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "CareerPath_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "familyId" TEXT;
+ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "mission" TEXT;
+ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "dutiesJson" TEXT;
+ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "qualificationsJson" TEXT;
+ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "minEducation" TEXT;
+ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "workingConditions" TEXT;
+ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "requiredSkillsJson" TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "JobFamily_code_key" ON "JobFamily"("code");
+CREATE INDEX IF NOT EXISTS "JobFamily_parentId_idx" ON "JobFamily"("parentId");
+CREATE INDEX IF NOT EXISTS "Job_familyId_idx" ON "Job"("familyId");
+CREATE UNIQUE INDEX IF NOT EXISTS "SkillCatalog_code_key" ON "SkillCatalog"("code");
+CREATE UNIQUE INDEX IF NOT EXISTS "EmployeeSkill_employeeId_skillId_key" ON "EmployeeSkill"("employeeId", "skillId");
+CREATE INDEX IF NOT EXISTS "EmployeeSkill_employeeId_idx" ON "EmployeeSkill"("employeeId");
+CREATE UNIQUE INDEX IF NOT EXISTS "CareerPath_fromPositionId_toPositionId_key" ON "CareerPath"("fromPositionId", "toPositionId");
+CREATE INDEX IF NOT EXISTS "CareerPath_fromPositionId_idx" ON "CareerPath"("fromPositionId");
+
+ALTER TABLE "JobFamily" DROP CONSTRAINT IF EXISTS "JobFamily_parentId_fkey";
+ALTER TABLE "JobFamily" ADD CONSTRAINT "JobFamily_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "JobFamily"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Job" DROP CONSTRAINT IF EXISTS "Job_familyId_fkey";
+ALTER TABLE "Job" ADD CONSTRAINT "Job_familyId_fkey" FOREIGN KEY ("familyId") REFERENCES "JobFamily"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "EmployeeSkill" DROP CONSTRAINT IF EXISTS "EmployeeSkill_employeeId_fkey";
+ALTER TABLE "EmployeeSkill" ADD CONSTRAINT "EmployeeSkill_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "EmployeeSkill" DROP CONSTRAINT IF EXISTS "EmployeeSkill_skillId_fkey";
+ALTER TABLE "EmployeeSkill" ADD CONSTRAINT "EmployeeSkill_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "SkillCatalog"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CareerPath" DROP CONSTRAINT IF EXISTS "CareerPath_fromPositionId_fkey";
+ALTER TABLE "CareerPath" ADD CONSTRAINT "CareerPath_fromPositionId_fkey" FOREIGN KEY ("fromPositionId") REFERENCES "Position"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "CareerPath" DROP CONSTRAINT IF EXISTS "CareerPath_toPositionId_fkey";
+ALTER TABLE "CareerPath" ADD CONSTRAINT "CareerPath_toPositionId_fkey" FOREIGN KEY ("toPositionId") REFERENCES "Position"("id") ON DELETE CASCADE ON UPDATE CASCADE;

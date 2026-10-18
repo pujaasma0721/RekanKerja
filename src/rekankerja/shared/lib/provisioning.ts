@@ -224,6 +224,8 @@ const TPL_DEFS: { code: string; name: string; description: string; components: s
 import { LETTER_TEMPLATE_DEFAULTS } from "@/rekankerja/shared/lib/letter-defaults";
 // F-02 BPA-AUDIT-53 — tabel TER resmi Lampiran PMK 168/2023 (sumber tunggal).
 import { TER_OFFICIAL } from "@/rekankerja/payroll/services/ter-official";
+// P3.2-BM (D-BM24) — katalog keahlian starter
+import { DEFAULT_SKILL_CATALOG } from "@/rekankerja/shared/lib/skill-defaults";
 
 export async function seedTenantReference(db: TenantDb): Promise<void> {
   // lookup master
@@ -231,6 +233,17 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
     await db.lookup.createMany({
       data: labels.map((label, i) => ({ category, code: label.toUpperCase().replace(/[^A-Z0-9]/g, ""), label, sortOrder: i })),
     });
+  }
+
+  // P3.2-BM (D-BM24) — katalog keahlian starter (idempoten per kode;
+  // satu sumber dgn migrate-p3-benchmark: skill-defaults.ts)
+  for (const s of DEFAULT_SKILL_CATALOG) {
+    const before = await db.skillCatalog.findUnique({ where: { code: s.code }, select: { id: true } });
+    if (!before) {
+      await db.skillCatalog.create({
+        data: { code: s.code, name: s.name, category: s.category },
+      });
+    }
   }
 
   // template surat default (Task Admin-6) — idempoten per key

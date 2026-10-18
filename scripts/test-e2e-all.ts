@@ -113,6 +113,9 @@ const RESET_STEPS: string[] = [
   "scripts/migrate-recruitment-audit-fix.ts",
   // SB-RC-BL — tabel PrSelectionStage (tahapan seleksi kustom per PR)
   "scripts/migrate-recruitment-sb-stages.ts",
+  // P3-BENCHMARK — JobFamily/SkillCatalog/EmployeeSkill/CareerPath + kolom job
+  // profile + backfill category→family + seed skill starter (D-BM23/24/27)
+  "scripts/migrate-p3-benchmark.ts",
 ];
 
 const SUITE_TIMEOUT_MS = 6 * 60_000; // per-suite 6 menit (suite berat: import+exceljs+pdf)

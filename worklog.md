@@ -7898,3 +7898,23 @@ Stage Summary:
 - P1 (0bad4ce, 302+ asersi E2E) dan P2 (5af5125, 288 asersi E2E) TERVERIFIKASI SELESAI di remote — instruksi berantai user terpenuhi: "kerjakan semua P1" ✅ → "jika P1 sudah selesai semua lanjut ke P2" ✅.
 - "Lanjutkan" = eksekusi FASE P3 (Paritas Enterprise Tier-1): P3.1 Job architecture (D-BM23) → P3.2 Skills foundation (D-BM24) → P3.3 Manager workspace Tim Saya (D-BM25) → P3.4 Analytics pivot + scheduled delivery (D-BM26) → P3.5 Career pathing (D-BM27). Learning/LMS tetap EXCLUDE permanen (D-BM28).
 - Strategi eksekusi meniru pola P1/P2 yang terbukti: Phase 0 fondasi oleh orchestrator (schema semua model P3 + DDL 3 tenant + migrasi idempoten + paritas tenant-ddl.sql) → slice paralel → verifikasi + gates + browser + commit+push per lengkapan.
+
+---
+Task ID: P3-0
+Agent: main (Z.ai Code)
+Task: Fase P3 Phase 0 — fondasi bersama P3.1-P3.5 (DEVELOPMENT-PLAN-BENCHMARK §4 P3, D-BM23/24/27)
+
+Work Log:
+- prisma/schema-tenant.prisma: 4 model baru — JobFamily (tree 2-level parentId self-relation, D-BM23) · SkillCatalog + EmployeeSkill (level 1-5 + evidence + assessedAt, unique [employeeId,skillId], D-BM24) · CareerPath (fromPosition→toPosition + requiredSkillsJson, unique pair, D-BM27); Job +familyId/mission/dutiesJson/qualificationsJson/minEducation/workingConditions (job profile); Position +requiredSkillsJson; Employee +skills relation; kolom category Job DIPERTAHANKAN non-destruktif.
+- prisma/tenant-ddl.sql: blok P3-BENCHMARK idempoten (4 CREATE TABLE + 7 ADD COLUMN + 8 index/unique + 6 FK drop-then-add) — paritas.
+- scripts/migrate-p3-benchmark.ts BARU (pola p1/p2): DDL idempoten + BACKFILL non-destruktif Job.category→JobFamily (kode JF-<slug>, hanya bila familyId null; tanpa category → null, tidak difabrikasi) + seed 17 SkillCatalog starter. TERDAFTAR di RESET_STEPS test-e2e-all.ts.
+- src/rekankerja/shared/lib/skill-defaults.ts BARU — DEFAULT_SKILL_CATALOG 17 entri 5 kategori (Teknis/Soft Skill/Manajerial/Regulasi & Kepatuhan/Bahasa); dipakai BERSAMA provisioning.ts (seedTenantReference tenant baru) + migrasi (tenant existing) — satu sumber.
+- i18n-core.ts: marker P3-SLICE-A..E (anti konflik edit paralel — pola P2 7bab3ff).
+- ess-types.ts: EssView += "my-team" (D-BM25) + "my-career" (D-BM27) — render shell bersyarat, aman tanpa komponen.
+- EKSEKUSI: bun run db:generate OK (validasi schema) · migrasi 3 tenant OK: MII 4 family baru + 16 job ter-naut + 17 skill; cahaya/sentra 0 family (job minim) + 17 skill.
+- GATES: tsc FULL tsconfig.json 0 error · lint 0 error/6 warning baseline · audit-bilingual TOTAL_GAP=149 (marker = komentar, tak berdampak).
+
+Stage Summary:
+- Fondasi schema P3 lengkap & ter-migrasi idempoten di 3 tenant; backfill D-BM23 jalan (16 job MII ter-naut ke 4 family); katalog skill starter ter-seed.
+- Learning/LMS TETAP TIDAK disentuh (D-BM28) — skill-defaults.ts eksplisit hanya katalog organisasi, bukan kursus/sesi.
+- Siap dispatch 5 slice paralel: A=P3.1 job architecture UI · B=P3.2 skills foundation · C=P3.3 Tim Saya · D=P3.4 analytics pivot+scheduled delivery · E=P3.5 career pathing (E menunggu A/B selesai secara logis — model sudah tersedia semua).

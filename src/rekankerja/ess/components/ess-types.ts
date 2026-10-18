@@ -20,6 +20,11 @@ export type EssView =
   | "announcements"
   | "swap"
   | "assets"
+  // P3.3-BM (D-BM25) — Tim Saya: workspace atasan (headcount/kehadiran/cuti/
+  // approval menunggu; read-only + tombol approve reuse action inbox)
+  | "my-team"
+  // P3.5-BM (D-BM27) — Jalur Karier Saya (career pathing dari JobFamily/CareerPath)
+  | "my-career"
   // Task 52-f — kanal laporan TPKS (anonim) utk semua pekerja
   | "whistleblow"
   // Task 100 F1 (G19) — marketplace open shift utk karyawan
