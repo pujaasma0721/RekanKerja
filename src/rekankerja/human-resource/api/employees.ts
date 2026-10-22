@@ -337,19 +337,91 @@ export async function GET(req: NextRequest) {
       ? [{ [sortByParam]: sortDirParam }, { employeeNo: "asc" }]
       : [{ status: "asc" }, { employeeNo: "asc" }];
 
-    const [employeesRaw, total, statusAgg, empStatusAgg] = await Promise.all([
-      db.employee.findMany({
-        where: scoped,
-        include: CURRENT_ASSIGNMENT_INCLUDE,
-        orderBy,
-        // kolom penempatan: ambil semua baris terfilter (sort in-memory di bawah);
-        // kolom langsung: paginate di DB seperti biasa
-        ...(usePlacementSort ? {} : { take: limit, skip: offset }),
-      }),
+    // 28-c: tcList dinaikkan ke sini — kunci sort fase-1 butuh dekripsi gaji
+    // (konteks tc dipakai ulang oleh masking M-9 di bawah).
+    const tcList = tenantCryptoForDb(db);
+
+    // Fase halaman + agregat chip berjalan PARALEL (aggregate tidak menunggu
+    // fetch halaman selesai).
+    const aggP = Promise.all([
       db.employee.count({ where: scoped }),
       db.employee.groupBy({ by: ["status"], where: scoped, _count: true }),
       db.employeeAssignment.groupBy({ by: ["employmentStatus"], where: { validTo: null, employee: scoped }, _count: true }),
     ]);
+
+    // Halaman full-include utk kolom langsung (sort+paginasi di DB).
+    const directPage = () => db.employee.findMany({
+      where: scoped,
+      include: CURRENT_ASSIGNMENT_INCLUDE,
+      orderBy,
+      take: limit,
+      skip: offset,
+    });
+    type EmpPageRow = Awaited<ReturnType<typeof directPage>>[number];
+
+    let pageRaw: EmpPageRow[];
+    if (usePlacementSort) {
+      // ---- F2 fase-1: proyeksi RAMPING seluruh hasil terfilter (id + kunci
+      // sort saja). Kunci dihitung SEKALI per baris (decorate-sort-undecorate)
+      // — dekripsi gaji 5.000×, bukan ~122.000× di dalam komparator lama.
+      const lean = await db.employee.findMany({
+        where: scoped,
+        select: {
+          id: true,
+          employeeNo: true,
+          assignments: {
+            where: { validTo: null },
+            orderBy: { validFrom: "desc" },
+            take: 1,
+            select: {
+              employmentStatus: true,
+              baseSalary: true,
+              position: { select: { title: true } },
+              orgUnit: { select: { name: true } },
+              grade: { select: { code: true } },
+            },
+          },
+        },
+        orderBy: [{ employeeNo: "asc" }],
+      });
+      const cmpDir = sortDirParam === "desc" ? -1 : 1;
+      const collator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
+      const isNum = sortByParam === "baseSalary";
+      const keyed = lean.map((e) => {
+        const a = e.assignments[0];
+        let key: string | number;
+        switch (sortByParam) {
+          case "position": key = a?.position?.title ?? ""; break;
+          case "unit": key = a?.orgUnit?.name ?? ""; break;
+          case "grade": key = a?.grade?.code ?? ""; break;
+          case "employmentStatus": key = a?.employmentStatus ?? ""; break;
+          default: key = decryptBaseSalary(tcList, a?.baseSalary ?? null); break; // baseSalary
+        }
+        return { id: e.id, employeeNo: e.employeeNo, key };
+      });
+      // Task 74 — null/kosong selalu di bawah; tiebreak employeeNo (collator id).
+      keyed.sort((x, y) => {
+        const xEmpty = isNum ? x.key === 0 : x.key === "";
+        const yEmpty = isNum ? y.key === 0 : y.key === "";
+        if (xEmpty && yEmpty) return collator.compare(x.employeeNo, y.employeeNo);
+        if (xEmpty) return 1;
+        if (yEmpty) return -1;
+        const c = isNum ? (x.key as number) - (y.key as number) : collator.compare(x.key as string, y.key as string);
+        return c * cmpDir || collator.compare(x.employeeNo, y.employeeNo);
+      });
+      const pageIds = keyed.slice(offset, offset + limit).map((k) => k.id);
+      // ---- F2 fase-2: fetch full include HANYA utk baris halaman (≤ limit).
+      const rows = pageIds.length ? await db.employee.findMany({
+        where: { AND: [scoped, { id: { in: pageIds } }] },
+        include: CURRENT_ASSIGNMENT_INCLUDE,
+      }) : [];
+      const byId = new Map(rows.map((r) => [r.id, r] as const));
+      // pertahankan urutan fase-1 (findMany id-in tidak menjamin urutan).
+      pageRaw = pageIds.map((pid) => byId.get(pid)).filter((r): r is EmpPageRow => r !== undefined);
+    } else {
+      pageRaw = await directPage();
+    }
+    const [total, statusAgg, empStatusAgg] = await aggP;
 
     // 26-b — jumlah karyawan aktif dengan kontrak berakhir dalam band (chip filter)
     const contractBandCount = async (days: number) => {
@@ -369,39 +441,9 @@ export async function GET(req: NextRequest) {
     // 45-b: gerbang vault uang (requireScoped → resolve via sesi) — gaji pokok
     // → null saat masked (pola M-9: field tetap ada, nilai null).
     const moneyViewG = await moneyViewForReq(req, db);
-    const tcList = tenantCryptoForDb(db);
 
-    // Task 74 — slice halaman untuk sort kolom penempatan (setelah flatten/decrypt
-    // agar gaji terenkripsi & judul posisi bisa dibandingkan; nulls selalu terakhir).
-    let pageRaw = employeesRaw;
-    if (usePlacementSort) {
-      const cmpDir = sortDirParam === "desc" ? -1 : 1;
-      const collator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
-      const keyOf = (e: (typeof employeesRaw)[number]): string | number => {
-        const a = e.assignments[0];
-        switch (sortByParam) {
-          case "position": return a?.position?.title ?? "";
-          case "unit": return a?.orgUnit?.name ?? "";
-          case "grade": return a?.grade?.code ?? "";
-          case "employmentStatus": return a?.employmentStatus ?? "";
-          case "baseSalary": return decryptBaseSalary(tcList, a?.baseSalary ?? null);
-          default: return "";
-        }
-      };
-      const isNum = sortByParam === "baseSalary";
-      const sorted = [...employeesRaw].sort((x, y) => {
-        const kx = keyOf(x);
-        const ky = keyOf(y);
-        const xEmpty = isNum ? kx === 0 : kx === "";
-        const yEmpty = isNum ? ky === 0 : ky === "";
-        if (xEmpty && yEmpty) return collator.compare(x.employeeNo, y.employeeNo);
-        if (xEmpty) return 1; // null/0-gaji selalu di bawah
-        if (yEmpty) return -1;
-        const c = isNum ? (kx as number) - (ky as number) : collator.compare(kx as string, ky as string);
-        return c * cmpDir || collator.compare(x.employeeNo, y.employeeNo);
-      });
-      pageRaw = sorted.slice(offset, offset + limit);
-    }
+    // F2: kunci sort penempatan dihitung di blok usePlacementSort di atas
+    // (fase-1 ramping + fase-2 halaman penuh) — pageRaw sudah final di sini.
 
     const employees = pageRaw.map((e) => {
       const flat = flattenEmployee(e, tcList);

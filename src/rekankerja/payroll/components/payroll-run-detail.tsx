@@ -1,6 +1,6 @@
 "use client";
 // RekanKerja Payroll — Detail Run: hasil per karyawan + payslip interaktif + aksi run
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDate, fmtDateTime } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle, RefreshCw, FileSignature, Clock4 } from "lucide-react";
+import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle, RefreshCw, FileSignature, Clock4, ChevronLeft, ChevronRight } from "lucide-react";
 import { EsignSignDialog } from "@/rekankerja/shared/components/esign/sign-dialog";
 import { RunDetail, RunLine, RunLog, UmkLineWarning, TAX_STATUS_LABEL, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN, WAGE_TYPE_LABEL } from "@/rekankerja/payroll/components/payroll-types";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
@@ -52,6 +52,15 @@ export function PayrollRunDetailPage() {
   const perms = useMenuPerms();
   const { t } = useI18n();
   const [q, setQ] = useState("");
+  // F1 — paginasi server-side lines + pencarian q server-side (debounce 300ms
+  // agar tiap ketikan tidak memicu request; jangkauan SELURUH run 5.000 line).
+  const [qServer, setQServer] = useState("");
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    const iv = setTimeout(() => { setQServer(q); setPage(1); }, 300);
+    return () => clearTimeout(iv);
+  }, [q]);
+  useEffect(() => { setPage(1); }, [params.id]);
   // Task adv-search — kondisi advance search (filter tambahan di atas query).
   const [adv, setAdv] = useState<AdvSearch | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,7 +81,9 @@ export function PayrollRunDetailPage() {
   const [rejectNote, setRejectNote] = useState("");
   const [confirmBusy, setConfirmBusy] = useState(false);
 
-  const { data, loading, error, refresh } = useApi<RunDetail>(params.id ? `/api/rekankerja/payroll-run?id=${params.id}` : null);
+  const { data, loading, error, refresh } = useApi<RunDetail>(params.id
+    ? `/api/rekankerja/payroll-run?id=${encodeURIComponent(params.id)}&page=${page}&pageSize=100${qServer ? `&q=${encodeURIComponent(qServer)}` : ""}`
+    : null);
 
   const act = async (action: "calculate" | "confirm" | "markPaid") => {
     if (!data) return;
@@ -171,7 +182,11 @@ export function PayrollRunDetailPage() {
   }
 
   const run = data.run;
+  // F1 — meta paginasi + jumlah line run PENUH (label total & dialog kirim slip).
+  const pagination = data.pagination;
+  const runTotalLines = run._count?.lines ?? pagination?.totalLines ?? run.lines.length;
   // Task adv-search — filter tambahan di atas pencarian employeeNo/employeeName.
+  // (q difilter server-side; filter lokal tetap utk umpan balik instan antar-debounce.)
   const lines = filterRowsByAdv(run.lines.filter((l) =>
     !q || l.employeeNo.toLowerCase().includes(q.toLowerCase()) || l.employeeName.toLowerCase().includes(q.toLowerCase())
   ), adv, ADV_FIELDS);
@@ -207,16 +222,17 @@ export function PayrollRunDetailPage() {
     } catch (e) { toast.error((e as Error).message); } finally { setRecalcBusy(false); }
   };
   // Task 63 — log kejadian run + hitungan per level utk badge tab Log.
-  const runLogs: RunLog[] = data.logs ?? [];
+  // (F1: API kini mengirim logs top-level juga — fix bug lama tab Log kosong
+  // karena frontend membaca data.logs yang tidak pernah diisi.)
+  const runLogs: RunLog[] = data.logs ?? run.logs ?? [];
   const logErrors = runLogs.filter((l) => l.level === "error").length;
   const logWarnings = runLogs.filter((l) => l.level === "warning").length;
   const logInfos = runLogs.filter((l) => l.level === "info").length;
   const earnings = data.componentTotals.filter((c) => c.type === "Earning");
   const deductions = data.componentTotals.filter((c) => c.type === "Deduction");
-  // 26-b P0 — warning UMP/UMK (PP 36/2021): snapshot per line di bawah upah minimum
-  const umkWarnings: UmkLineWarning[] = run.lines
-    .filter((l) => l.umkWarning && l.umkJson)
-    .map((l) => JSON.parse(l.umkJson!) as UmkLineWarning);
+  // 26-b P0 — warning UMP/UMK (PP 36/2021): run PENUH dari server (F1 — dulu
+  // derivasi run.lines, terpotong paginasi).
+  const umkWarnings: UmkLineWarning[] = data.umkWarnings ?? [];
 
   return (
     <div>
@@ -469,7 +485,7 @@ export function PayrollRunDetailPage() {
       <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-            <p className="text-[13px] font-bold">{t("Hasil per Karyawan", "Results per Employee")} {run.status !== "Draft" && `(${run.lines.length})`}</p>
+            <p className="text-[13px] font-bold">{t("Hasil per Karyawan", "Results per Employee")} {run.status !== "Draft" && `(${pagination?.totalLines ?? run.lines.length})`}</p>
             <div className="flex flex-wrap items-center gap-2">
               {/* Task 64j — aksi recalc karyawan terpilih (hanya run Confirmed) */}
               {canRecalc && selectedIds.size > 0 && (
@@ -557,7 +573,7 @@ export function PayrollRunDetailPage() {
                 </TableBody>
                 <TableBody>
                   <TableRow className="border-t-2 border-slate-200 bg-slate-50/80 font-bold dark:border-slate-700 dark:bg-slate-900/50">
-                    <TableCell colSpan={canRecalc ? 4 : 3} className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("Total ({n} karyawan)", "Total ({n} employees)", { n: run.lines.length })}</TableCell>
+                    <TableCell colSpan={canRecalc ? 4 : 3} className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("Total ({n} karyawan)", "Total ({n} employees)", { n: runTotalLines })}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold">{fmtIDR(run.totalBruto)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(run.totalDeduction)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-brand-deep dark:text-brand/85">{fmtIDR(run.totalTax)}</TableCell>
@@ -566,6 +582,29 @@ export function PayrollRunDetailPage() {
                   </TableRow>
                 </TableBody>
               </Table>
+            </div>
+          )}
+          {/* F1 — navigasi halaman lines (server-side, 100 baris/halaman) */}
+          {(pagination?.totalPages ?? 1) > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2.5 dark:border-slate-800">
+              <p className="text-[11px] text-slate-400">
+                {t("Halaman {p} dari {tp} · {n} baris", "Page {p} of {tp} · {n} rows", {
+                  p: String(pagination?.page ?? 1),
+                  tp: String(pagination?.totalPages ?? 1),
+                  n: String(pagination?.totalLines ?? 0),
+                })}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px] font-bold" disabled={(pagination?.page ?? 1) <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                  <ChevronLeft className="h-3.5 w-3.5" /> {t("Sebelumnya", "Previous")}
+                </Button>
+                <span className="min-w-14 text-center font-mono text-[11px] font-bold text-slate-500">
+                  {pagination?.page ?? 1} / {pagination?.totalPages ?? 1}
+                </span>
+                <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px] font-bold" disabled={(pagination?.page ?? 1) >= (pagination?.totalPages ?? 1)} onClick={() => setPage((p) => p + 1)}>
+                  {t("Berikutnya", "Next")} <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
@@ -616,7 +655,7 @@ export function PayrollRunDetailPage() {
               {t(
                 "Slip PDF akan dikirim ke {n} karyawan run {no}.",
                 "PDF payslips will be emailed to {n} employees of run {no}.",
-                { n: String(run.lines.length), no: run.runNo }
+                { n: String(runTotalLines), no: run.runNo }
               )}
             </DialogDescription>
           </DialogHeader>

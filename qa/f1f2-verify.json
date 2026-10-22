@@ -1,0 +1,208 @@
+{
+  "meta": {
+    "date": "2026-10-22T14:28:29.323Z",
+    "tenant": "bench101 (5.000 karyawan, 5.000 line payroll run2)",
+    "fix": "F1 paginasi payroll detail + F2 sort dua-fase (QA-PAGELOAD-BIGTENANT)",
+    "sebelum": {
+      "payroll-run-detail": {
+        "warmP50": "5.400ms",
+        "resp": "9.116KB (9,1MB)",
+        "cold": "11.341ms"
+      },
+      "directory-sort-salary": {
+        "warmP50": "6.100ms",
+        "p95": "9.000ms"
+      }
+    }
+  },
+  "hasil": {
+    "f1_warm": {
+      "cold": "155ms",
+      "n": 6,
+      "status": [
+        200
+      ],
+      "p50": "150ms",
+      "p95": "165ms",
+      "max": "165ms",
+      "bytes": [
+        185193,
+        185193,
+        185193,
+        185193,
+        185193,
+        185193
+      ],
+      "bytesMax": 185193
+    },
+    "f1_q": {
+      "n": 3,
+      "status": [
+        200
+      ],
+      "p50": "159ms",
+      "p95": "296ms",
+      "max": "296ms",
+      "bytes": [
+        187979,
+        187979,
+        187979
+      ],
+      "bytesMax": 187979
+    },
+    "f2": {
+      "cold": "623ms",
+      "n": 6,
+      "status": [
+        200
+      ],
+      "p50": "587ms",
+      "p95": "647ms",
+      "max": "647ms",
+      "bytes": [
+        54703,
+        54703,
+        54703,
+        54703,
+        54703,
+        54703
+      ],
+      "bytesMax": 54703
+    },
+    "f2_position": {
+      "n": 4,
+      "status": [
+        200
+      ],
+      "p50": "233ms",
+      "p95": "236ms",
+      "max": "236ms",
+      "bytes": [
+        54621,
+        54621,
+        54621,
+        54621
+      ],
+      "bytesMax": 54621
+    },
+    "baseline": {
+      "n": 3,
+      "status": [
+        200
+      ],
+      "p50": "56ms",
+      "p95": "65ms",
+      "max": "65ms",
+      "bytes": [
+        54539,
+        54539,
+        54539
+      ],
+      "bytesMax": 54539
+    }
+  },
+  "checks": [
+    {
+      "name": "F1 status 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "F1 paginasi aktif",
+      "ok": true,
+      "detail": "totalLines=5000 totalPages=50 pageSize=100"
+    },
+    {
+      "name": "F1 lines terpotong per halaman",
+      "ok": true,
+      "detail": "lines.length=100 (dulu 5000/9,1MB)"
+    },
+    {
+      "name": "F1 respons ramping",
+      "ok": true,
+      "detail": "max 181 KB (dulu 9.116KB→9MB)"
+    },
+    {
+      "name": "F1 agregat komponen tetap ada",
+      "ok": true,
+      "detail": "8 komponen (seluruh run, via cache fingerprint)"
+    },
+    {
+      "name": "F1 label total run penuh",
+      "ok": true,
+      "detail": "run._count.lines=5000"
+    },
+    {
+      "name": "F1 logs top-level (fix tab Log)",
+      "ok": true,
+      "detail": "logs=0"
+    },
+    {
+      "name": "F1 umkWarnings server-side",
+      "ok": true,
+      "detail": "umkWarnings=0"
+    },
+    {
+      "name": "F1 halaman urut employeeNo",
+      "ok": true,
+      "detail": "orderBy employeeNo asc"
+    },
+    {
+      "name": "F1 halaman disjoint",
+      "ok": true,
+      "detail": "p1∩p2=0, p50.size=100"
+    },
+    {
+      "name": "F1 halaman terakhir valid",
+      "ok": true,
+      "detail": "page=50"
+    },
+    {
+      "name": "F1 q=Santoso = hitungan DB",
+      "ok": true,
+      "detail": "API totalLines=259 vs DB=259"
+    },
+    {
+      "name": "F2 status 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "F2 total 5000",
+      "ok": true,
+      "detail": "total=5000, rows=50"
+    },
+    {
+      "name": "F2 desc non-naik (nilai DB dekrip)",
+      "ok": true,
+      "detail": "top5=29.985.299, 29.985.244, 29.981.413, 29.978.842, 29.977.918"
+    },
+    {
+      "name": "F2 top-50 == dekripsi DB langsung (urutan persis)",
+      "ok": true,
+      "detail": "API[0..2]=BCH101-3089,BCH101-1676,BCH101-4109 · DB[0..2]=BCH101-3089,BCH101-1676,BCH101-4109"
+    },
+    {
+      "name": "F2 asc non-turun (nilai DB dekrip)",
+      "ok": true,
+      "detail": "bottom5=5.000.991, 5.003.694, 5.005.969, 5.007.764, 5.015.821"
+    },
+    {
+      "name": "F2 desc-top1 ≥ asc-top1",
+      "ok": true,
+      "detail": "29985299 ≥ 5317073"
+    },
+    {
+      "name": "F2 halaman dalam (offset 4950) tetap urut",
+      "ok": true,
+      "detail": "deep top1=5317073"
+    },
+    {
+      "name": "F2 sortBy=position urut",
+      "ok": true,
+      "detail": "contoh: Posisi 1 | Posisi 1 | Posisi 1"
+    }
+  ],
+  "lulus": 20,
+  "total": 20
+}

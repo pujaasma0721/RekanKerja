@@ -75,12 +75,17 @@ export interface UmkLineWarning {
 }
 
 export interface RunDetail {
-  run: RunRow & { lines: RunLine[] };
+  run: RunRow & { lines: RunLine[]; logs?: RunLog[] };
   componentTotals: { code: string; name: string; type: string; wageType: string; total: number }[];
   /** Task 63 — log kejadian run (parameter kurang/anomali/info proses). */
   logs?: RunLog[];
   /** P1.4-BM (D-BM8) — chain persetujuan finalisasi (hanya saat PendingConfirm). */
   approvalChain?: ApprovalChainView;
+  /** F1 (QA-PAGELOAD-BIGTENANT) — run.lines kini dipaginasi server-side. */
+  pagination?: { page: number; pageSize: number; totalLines: number; totalPages: number };
+  /** F1 — warning UMP/UMK run penuh, dihitung server-side (dulu derivasi
+   *  frontend dari run.lines — terpotong paginasi). */
+  umkWarnings?: UmkLineWarning[];
 }
 
 export interface ApprovalChainView {
