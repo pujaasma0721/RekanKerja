@@ -8131,3 +8131,17 @@ Stage Summary:
 - KECEPATAN: halaman interaktif 8-65ms p50; directory 76ms; rekap presensi bulanan (103k baris) 13ms; konkurensi 8 pengguna 0 error. Dua endpoint berat teridentifikasi sbg utas panas dgn rekomendasi konkret (paginasi + kolom sort).
 - SISTEM: CPU 132%/200% (aman), PG koneksi 6-17/300 (fix terbukti), dinding = MEMORI node web (9MB respons + full-scan + dev overhead 2,5GB di mesin 4GB) — root cause "Response from the Engine was empty" + OOM.
 - Artefak: scripts/qa/{06-bigtenant-seed,07-pageload-bigtenant}.ts, qa/pageload-bigtenant-{results,part2,FINAL}.json, audit/qa-pageload-bigtenant/.
+
+---
+Task ID: QA-SCALING-VERIFY-FINAL
+Agent: main (Z.ai Code)
+Task: "apakah sudah di perbaiki? kalau belum perbaiki sekarang" — verifikasi akhir bahwa seluruh fix scaling sudah diterapkan, ter-push, dan hidup di runtime.
+
+Work Log:
+- Audit state: tenant-db.ts (evict/LRU/proxy-liveness V2EVICT) ADA; mini-services/postgres max_connections=300 ADA; .env TENANT_DB_CONNECTION_LIMIT=2 ADA; git log: commit fix 8dcce5e + benchmark 4b17eb0 sudah ter-push (origin sejajar).
+- Verifikasi PG live: SHOW max_connections = 300 (bukan 100 lama); koneksi aktif db onevity hanya 5-7 dari 300.
+- Smoke test live via endpoint nyata (login user42@bench101.test tenant 5.000 karyawan): login 200/67ms; employees p1 200/73ms; search Santoso 200/56ms; dashboard 200/655ms; attendance/overview 200/971ms; ess/dashboard 200/988ms; payroll-runs 200/351ms. Nol error; koneksi PG pasca-beban 7/300.
+
+Stage Summary:
+- KONFIRMASI: seluruh perbaikan SUDAH diterapkan + ter-push + terbukti hidup. Bukti sebelum→sesudah: pool 89/300→200/200 sukses; write rush 90/100→100/100 & 200/200; koneksi puncak aplikasi nyata 17/300 (dulu dinding ±30).
+- Kapasitas pasca-fix: tenant terdaftar tak terbatas (idle→0 koneksi via evict TTL 10 mnt); tenant AKTIF serentak ±140/node; employee per-tenant teruji 5.000 dgn latensi interaktif 8-76ms.
