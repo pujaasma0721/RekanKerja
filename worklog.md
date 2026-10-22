@@ -8015,3 +8015,21 @@ Stage Summary:
 - SELURUH FASE P3 SELESAI TERIMPLEMENTASI & TERUJI (D-BM23 job architecture + D-BM24 skills foundation + D-BM25 Tim Saya + D-BM26 analytics pivot+scheduled delivery + D-BM27 career pathing): 303/303 asersi e2e + tsc 0 + lint 0/6 + bilingual 149; ActivityLog semua mutasi; uang vault-gated (mask tanpa money-view TERUJI eksplisit); dwibahasa penuh; mobile dijaga komponen; batas D-BM28 mutlak (tidak ada entitas training).
 - Keputusan infra tercatat utk sesi berikutnya: JANGAN rm -rf .next di sandbox ini (cold-compile Turbopack = dentry-storm deadlock; warm-cache = satu-satunya jalur stabil — preseden P2-ORCH "cache persisten" dikonfirmasi ulang); D-state zombie port 3000 butuh restart environment bila tak terlepas sendiri.
 - Sisa P3 kecil yang jujur belum ter-browser-verify (infra blocked): dicatat terbuka di worklog; seluruhnya tercakup e2e hijau.
+
+---
+Task ID: P3.1-FIX
+Agent: Z.ai Code (orkestrator utama)
+Task: "p3.1 itu hasilnya saya bisa lihat dimana?" → "saya tidak menemukan tab Family Jabatan pada menu position list" → "kalau bingung, reset semua sandbox seperti awal, lalu pull source dari github" — pemulihan penuh sandbox + perbaikan bug wiring P3.1.
+
+Work Log:
+- Kronologi: sandbox ter-reset berulang (snapshot lama c4b1f30, .env sqlite-only, prisma client & web-push hilang, port 3000 mati) sambil sesi tool intermittently 403 — kode P1–P3 (8155612) disinkron ulang via fetch origin.
+- PEMULIHAN ENVIRONMENT: embedded postgres mini-services ternyata SELAMAT sejak 21 Okt (PPID=1) → .env ditulis ulang (AKAR BUG PERTAMA: TENANT_DB_BASE_URL tanpa path /onevity membuat Prisma connect ke DB salah → P2021; fix: semua var pakai URL lengkap + TAMBAH TENANT_DB_URL utk env() schema-tenant) → bun install → db:generate → db:push → restore-demo.ts SUKSES (3 tenant ACTIVE: MII 44 karyawan, Cahaya, Sentra) → migrate-p3-benchmark.ts (MII: 4 JobFamily + 16 job ter-naut + 17 SkillCatalog).
+- AKAR MATI-NYA PROSES DETACHED DITEMUKAN: `setsid` biasa GAGAL diam-diam saat dipanggil sebagai group-leader job (`&`) → watch-dev & recover.sh ikut mati saat sesi shell di-recycle; bukti pembanding: agent-browser daemon & postgres (PPID=1) selamat. FIX: `setsid -f` (force fork) → watch-dev.sh PPID=1 stabil lintas tool call, port 3000 UP.
+- BUG PRODUK SEBENARNYA (root cause laporan user): position-module.tsx `view==="jobs"` masih render `JobLibrary` (legacy, TANPA tab) — job-view.tsx (P3.1-BM: tab Katalog Job + Family Jabatan + job profile + ekspor XLSX) DIEKSPOR sbg JobView TAPI TIDAK PERNAH di-import siapa pun. Fix: import JobView + ganti pemakaian + hapus JobLibrary & JobDialog mati 137 baris (645–780).
+- VERIFIKASI BROWSER (agent-browser, login hrd@mii.co.id): menu Job Catalog → tablist dwibahasa muncul → tab "Family Jabatan" [selected] → "4 family · 16 job teraut" + tree JF-EXECUTIVE 2 / JF-MANAGERIAL 6 / JF-STAFF 7 / JF-SUPERVISORY 1 + dialog Ubah Family (kode auto JF-<slug> + parent select) + bahasa ID penuh + mobile 375 scrollWidth=375 (0 overflow) + console 0 error. 4 screenshot: audit/e2e-p31-wiring/01..04.
+- GATES: eslint file 0 · tsc p9 0 error · commit 65b0e71 ter-push ke origin/main.
+
+Stage Summary:
+- P3.1 kini TERLIHAT di aplikasi: modul Human Resource Base → menu Job Catalog (Katalog Jabatan) → tab Family Jabatan — dwibahasa + data MII lengkap.
+- Dua lapis masalah sekaligus selesai: (1) environment sandbox dipulihkan permanen (pola setsid -f utk watchdog), (2) bug wiring UI P3.1 diperbaiki & ter-push.
+- Sisa P3.2–P3.5 UI (Skill Catalog, Career Paths, Tim Saya, dll) sudah berada di nav — verifikasi menyusul; tidak ada perubahan selain wiring ini.
