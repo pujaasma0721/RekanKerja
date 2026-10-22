@@ -8086,3 +8086,27 @@ Stage Summary:
 - DINDING SEBENARNYA = KONEKSI: max_connections=100 vs pola 1 pool/tenant (limit 3) yang di-cache selamanya → hanya ±28–30 tenant AKTIF serentak yang terlayani; sisanya error "too many clients" (sudah terdokumentasi di komentar tenant-db.ts M-19, kini TERBUKTI empiris).
 - Mitigasi (urut biaya): naikkan max_connections (mis. 500) + TENANT_DB_CONNECTION_LIMIT=2, atau PgBouncer transaction-pooling di depan, atau sharding tenant lintas node/instance PG, plus evict idle client (LRU) di cache.
 - Artefak: mini-services/bench-100t/ (harness + results/*.json + pgdata 2GB). Hasil: provision.json, seed.json, read.json, pool.json, write.json, write-e3.json, prisma-mem.json, report.json.
+
+---
+Task ID: QA-SCALING-FIX
+Agent: main (Z.ai Code)
+Task: Implementasikan + buktikan perbaikan agar aplikasi stabil pada jumlah tenant/employee berapapun (lanjutan QA-SCALING-100T yang menemukan dinding koneksi).
+
+Work Log:
+- Uji viabilitas Proxy pada PrismaClient 6 (count/findMany/$transaction/groupBy/brand symbol) → AMAN (mini-services/bench-100t/tmp/proxytest.ts).
+- FIX CORE — src/rekankerja/shared/lib/tenant-db.ts: cache client di-rework → entry {client, proxy, lastUsed}; Proxy men-touch lastUsed pada SETIAP akses properti (liveness per-akses, bukan per-request — request panjang seperti kalkulasi payroll tidak ter-evict); sweeper idle-eviction (TENANT_CLIENT_IDLE_MS, default 10 mnt, 0=off, min 5 dtk); LRU soft-cap TENANT_CLIENT_MAX_ACTIVE (default 90, evict hanya entry idle ≥30 dtk, semua sibuk → cap dilewati); global key baru rekankerjaTenantClientsV2EVICT (pola version-bump); disconnectTenantClient memakai evictTenantEntry.
+- FIX KONFIG — mini-services/postgres/index.ts: max_connections 100→300 (env PG_MAX_CONNECTIONS, default 300) + logika restart-if-lower idempoten saat boot.
+- FIX ENV — .env: TENANT_DB_CONNECTION_LIMIT=2 (100 tenant × 2 = 200 + ±10 platform < 300).
+- Lint: 0 error (6 warning pre-existing di file lain). Live PG restart @300 OK; registry tenant selamat.
+- Pembuktian ulang (bench PG juga @300): pool test → 200/200 sukses 0 gagal (sebelum 89/300, 211 gagal); write rush → 100/100, 200/200, 40/40 (sebelum 90/100, 90/300); peak koneksi 211 dari 300.
+- Bukti eviction dgn modul ASLI (tmp/evict-proof.ts, TTL 20 dtk): 40 client → 47 koneksi; idle 45 dtk → 2 koneksi; client sibuk bertahan (identitas proxy sama); client idle dibuat ulang; reuse pasca-evict OK (count 250).
+- Bukti "employee berapapun": tenant tunggal 5.000 karyawan (597 ribu baris, seed 30 dtk) — query interaktif p50 0,4–2,6ms (size-independent), rekap presensi 30 hari (150k baris) 45,8ms, agregasi payroll 5000 line 7ms; rush 200 clock-in serentak via pool 2 koneksi → 200/200 sukses, 951 tx/s, p95 198ms.
+- Verifikasi aplikasi (agent-browser): login hrd@mii.co.id OK, Employee Directory 44 karyawan OK, dekripsi field terenkripsi jalan (brand symbol via Proxy). Dev server sempat di-OOM-kill oleh kernel (RSS 1,9GB + bench PG 2GB dataset di sandbox 4GB — limit sandbox, bukan bug); restart → sehat.
+- Catatan arsitektur penting untuk skala berikutnya: PgBouncer tx-mode TIDAK AMAN untuk pola ?schema= Prisma (search_path bocor lintas tenant di koneksi server yang dipakai ulang) — wajib refactor SET LOCAL search_path + AsyncLocalStorage untuk brand field-crypto dulu; lalu sharding tenant via registry.
+
+Stage Summary:
+- Dinding koneksi TERSINGKIRKAN dgn bukti: 89/300→200/200 pool; 90/100→100/100 rush; 0 gagal semua skenario.
+- Jumlah tenant TERDAFTAR kini praktis tak terbatas (idle = 0 koneksi setelah TTL); tenant AKTIF serentan kapasitas ±140/node (300 conn, limit 2).
+- Jumlah employee per tenant: teruji 5.000 dgn latensi identik (kecuali agregasi historis yang linear — 45ms/150k baris).
+- Artefak hasil: results/pool.json (baru), write.json (baru), read-big.json, write-big.json, big.json, report.json (DB 2,1GB, 20.806 tabel, 51.813 index, RSS PG 216MB).
+- Next step produksi (belum dikerjakan): withTenantTx SET LOCAL + AsyncLocalStorage brand → PgBouncer → sharding; materialized recap utk laporan presensi perusahaan sangat besar.

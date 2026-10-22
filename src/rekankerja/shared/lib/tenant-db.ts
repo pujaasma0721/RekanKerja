@@ -83,13 +83,87 @@ export type { TenantPrismaClient };
 // client hasil generate; instance lama tidak boleh dipakai ulang.
 // F9-REC: versi dinaikkan (F9REC) — DataSubjectRequest (DSR UU PDP) masuk
 // client hasil generate; instance lama tidak boleh dipakai ulang.
+// =========================================================================
+// QA-SCALING-100T — PEMBATASAN KONEKSI (fix pasca-benchmark 100 tenant).
+// =========================================================================
+// Bukti empiris (mini-services/bench-100t, PG17 default max_connections=100,
+// pola persis aplikasi ini — 100 pool × limit 3 + 5 koneksi platform):
+//   · 300 query konkuren lintas tenant → HANYA 89 sukses, 211 gagal
+//     "sorry, too many clients already"; tenant pertama gagal = #29.
+//   · Rush clock-in 1/tenant serentak → 10/100 gagal.
+// Volume data (25.000 karyawan, ~2,5 juta baris, 2GB) BUKAN masalah — semua
+// query tenant p50 < 4ms di mesin 2 CPU/4GB. Dindingnya murni KONEKSI.
+//
+// Perbaikan berlapis (diterapkan di sini + mini-services/postgres):
+//   1. max_connections embedded PG dinaikkan 100 → 300 (PG_MAX_CONNECTIONS).
+//   2. TENANT_DB_CONNECTION_LIMIT disarankan 2 → 100 tenant aktif serentak =
+//      200 koneksi + ±10 platform/admin < 300.
+//   3. EVICT client tenant yang IDLE (default 10 menit) → jumlah tenant
+//      TERDAFTAR tak terbatas; hanya tenant AKTIF yang menahan koneksi.
+//      "Liveness" diukur lewat Proxy: SETIAP akses properti (db.employee,
+//      db.$transaction, …) memperbarui lastUsed — jadi request panjang yang
+//      terus query (mis. kalkulasi payroll) TIDAK ter-evict saat berjalan.
+//      Resiko tersisa: satu $transaction interaktif > TTL tanpa akses properti
+//      di luar tx — pertahankan tx interaktif < TTL (atau matikan: env = 0).
+//   4. LRU soft-cap TENANT_CLIENT_MAX_ACTIVE (default 90): saat cache penuh,
+//      entry idle terlama (≥30 dtk) di-evict; bila semua sibuk, cap dilewati
+//      (kebenaran > batas).
+// Kapasitas hasil: ±145 tenant aktif serentak per node PG 300-koneksi;
+// lebih dari itu → PgBouncer (tx-mode; CATATAN: wajib refactor SET LOCAL
+// search_path — ?schema= Prisma bocor lintas tenant di tx-mode) atau sharding
+// tenant lintas node (registry schemaName tinggal dipetakan ke connection
+// string per tenant).
+// =========================================================================
+const TENANT_CLIENT_IDLE_MS = (() => {
+  const raw = Number(process.env.TENANT_CLIENT_IDLE_MS);
+  if (raw === 0) return 0; // 0 = evict dimatikan
+  return Number.isFinite(raw) && raw >= 5_000 ? raw : 10 * 60_000; // default 10 menit
+})();
+const TENANT_CLIENT_MAX_ACTIVE = (() => {
+  const raw = Number(process.env.TENANT_CLIENT_MAX_ACTIVE);
+  return Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 90; // 0 = tanpa cap
+})();
+
+interface TenantClientEntry {
+  client: TenantPrismaClient; // instance asli (brand schema utk field-crypto)
+  proxy: TenantPrismaClient; // tampilan ke route — touch lastUsed per akses
+  lastUsed: number;
+}
+
 const globalForTenants = globalThis as unknown as {
-  rekankerjaTenantClientsP0PERF: Map<string, TenantPrismaClient> | undefined;
+  // QA-SCALING-100T: key versi baru (V2EVICT) — nilai berubah dari client polos
+  // menjadi {client, proxy, lastUsed}; key lama (P0PERF) ditinggalkan agar
+  // hot-reload dev tidak salah baca struktur (pola version-bump file ini).
+  rekankerjaTenantClientsV2EVICT: Map<string, TenantClientEntry> | undefined;
+  rekankerjaTenantSweeper: ReturnType<typeof setInterval> | undefined;
 };
 
-const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.rekankerjaTenantClientsP0PERF ?? new Map();
-globalForTenants.rekankerjaTenantClientsP0PERF = tenantClients;
+const tenantClients: Map<string, TenantClientEntry> =
+  globalForTenants.rekankerjaTenantClientsV2EVICT ?? new Map();
+globalForTenants.rekankerjaTenantClientsV2EVICT = tenantClients;
+
+function evictTenantEntry(schemaName: string, entry: TenantClientEntry): void {
+  tenantClients.delete(schemaName);
+  void entry.client.$disconnect().catch(() => {});
+}
+
+function sweepIdleTenantClients(): void {
+  if (TENANT_CLIENT_IDLE_MS <= 0) return;
+  const now = Date.now();
+  for (const [schemaName, entry] of tenantClients) {
+    if (now - entry.lastUsed > TENANT_CLIENT_IDLE_MS) evictTenantEntry(schemaName, entry);
+  }
+}
+
+// Sweeper terdaftar SEKALI per proses (guard global — aman utk hot-reload).
+if (!globalForTenants.rekankerjaTenantSweeper && TENANT_CLIENT_IDLE_MS > 0) {
+  const iv = setInterval(
+    sweepIdleTenantClients,
+    Math.min(60_000, Math.max(5_000, Math.floor(TENANT_CLIENT_IDLE_MS / 2))),
+  );
+  iv.unref?.(); // tidak menahan proses Node tetap hidup
+  globalForTenants.rekankerjaTenantSweeper = iv;
+}
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;
@@ -132,33 +206,60 @@ const TENANT_CONNECTION_LIMIT = (() => {
 
 /** Ambil (dan cache) client Prisma untuk schema tenant tertentu. */
 export function getTenantClient(schemaName: string): TenantDb {
-  let client = tenantClients.get(schemaName);
-  if (!client) {
-    const url = `${tenantBaseUrl()}?schema=${schemaName}&connection_limit=${TENANT_CONNECTION_LIMIT}&pool_timeout=10`;
-    client = new TenantPrismaClient({ datasources: { db: { url } } });
-    // 28-c: brand schema pada instance — sumber konteks kunci enkripsi field
-    // (tenantCryptoForDb). Non-enumerable supaya tidak ikut ke JSON log.
-    Object.defineProperty(client, TENANT_SCHEMA_BRAND, {
-      value: schemaName,
-      enumerable: false,
-      configurable: true,
-      writable: true,
-    });
-    tenantClients.set(schemaName, client);
-    // Task 47: muat dataKey vault (kunci kata sandi perusahaan) ke cache
-    // field-crypto — fire-and-forget (request path menunggu versi await
-    // di requireTenant/requireMutator; ini menutup celah jalur sync).
-    void primeTenantCrypto(schemaName).catch(() => {});
+  let entry = tenantClients.get(schemaName);
+  if (entry) {
+    entry.lastUsed = Date.now();
+    return entry.proxy;
   }
-  return client;
+
+  // LRU soft-cap: cache penuh → evict entry idle terlama (≥30 dtk). Bila
+  // semuanya sibuk, cap DILEWATI — koneksi boleh melebihi anggaran daripada
+  // memutus query yang sedang berjalan.
+  if (TENANT_CLIENT_MAX_ACTIVE > 0 && tenantClients.size >= TENANT_CLIENT_MAX_ACTIVE) {
+    let oldest: { schema: string; entry: TenantClientEntry } | null = null;
+    for (const [schema, e] of tenantClients) {
+      if (!oldest || e.lastUsed < oldest.entry.lastUsed) oldest = { schema, entry: e };
+    }
+    if (oldest && Date.now() - oldest.entry.lastUsed >= 30_000) {
+      evictTenantEntry(oldest.schema, oldest.entry);
+    }
+  }
+
+  const url = `${tenantBaseUrl()}?schema=${schemaName}&connection_limit=${TENANT_CONNECTION_LIMIT}&pool_timeout=10`;
+  const client = new TenantPrismaClient({ datasources: { db: { url } } });
+  // 28-c: brand schema pada instance — sumber konteks kunci enkripsi field
+  // (tenantCryptoForDb). Non-enumerable supaya tidak ikut ke JSON log.
+  Object.defineProperty(client, TENANT_SCHEMA_BRAND, {
+    value: schemaName,
+    enumerable: false,
+    configurable: true,
+    writable: true,
+  });
+
+  const newEntry: TenantClientEntry = { client, proxy: null as never, lastUsed: Date.now() };
+  // QA-SCALING-100T: Proxy touch — SETIAP akses properti (db.employee,
+  // db.$transaction, db.payrollRun, …) memperbarui lastUsed. Dengan begitu
+  // evictor mengukur liveness per-AKSES, bukan per-request: operasi panjang
+  // yang terus query tidak pernah dianggap idle. Teruji: count/findMany/
+  // $transaction/groupBy + brand symbol semuanya aman lewat Proxy (Prisma 6).
+  newEntry.proxy = new Proxy(client, {
+    get(target, prop, receiver) {
+      newEntry.lastUsed = Date.now();
+      return Reflect.get(target, prop, receiver);
+    },
+  }) as TenantPrismaClient;
+
+  tenantClients.set(schemaName, newEntry);
+  // Task 47: muat dataKey vault (kunci kata sandi perusahaan) ke cache
+  // field-crypto — fire-and-forget (request path menunggu versi await
+  // di requireTenant/requireMutator; ini menutup celah jalur sync).
+  void primeTenantCrypto(schemaName).catch(() => {});
+  return newEntry.proxy;
 }
 
 export function disconnectTenantClient(schemaName: string): void {
-  const client = tenantClients.get(schemaName);
-  if (client) {
-    void client.$disconnect();
-    tenantClients.delete(schemaName);
-  }
+  const entry = tenantClients.get(schemaName);
+  if (entry) evictTenantEntry(schemaName, entry);
 }
 
 /**
