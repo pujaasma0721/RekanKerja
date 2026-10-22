@@ -4283,12 +4283,11 @@ Work Log:
 
 Stage Summary:
 - Payroll reports ter-integrasi bersih dengan 3 fitur remote (Leave/Attendance/non-employee); 8 error tsc remote dibereskan; worklog union tanpa kehilangan entri.
-<<<<<<< Updated upstream
+
 ## 2026-10-07 21:00 — pull github + deploy 9171444 (thread T108)
 - git pull origin main: 2 commit baru dari thread lain (849c02c feat payroll — 12 laporan distribusi siap cetak + Form DJP 1721-A1, 9171444 fix sync — integrasi app-shell non-employee & reports berdampingan, regen prisma client NonEmployeePayment, 8 fix tsc T113) — fast-forward, tanpa konflik (~3.7k baris).
 - Deploy .15: ✅ 2026-10-07 20:56:33 — prod = 9171444 (rollback rekankerja-rollback-20261007-205147).
 - Verifikasi: PM2 onevity online, health :3001 = 200, home = 200, guard API tanpa sesi = 401 di payroll-reports/documents + attendance/reports/documents + leave/reports/documents, prod HEAD = 9171444.
-=======
 
 ---
 Task ID: T-PAYROLL-1721A1-IREPORT
@@ -4311,7 +4310,6 @@ Stage Summary:
 - R2.2 kini dirender ENGINE iReport/JasperReports asli dari template JRXML DJP klien (layout 100% template, hanya data yang disesuaikan) — PDF folio resmi per karyawan; tidak ada lagi rekonstruksi HTML.
 - Artifak: vendor/jasper/{lib 8 JAR, templates/SPT1721A1.jrxml, images/pajak.png (logo diekstrak PDF resmi DJP), JasperRunner.java}; src/rekankerja/payroll/services/spt1721a1-jrxml.ts; route spt1721a1; components spt-a1-pdf.tsx; npwp15() helper di payroll-spt.ts (fix e-SPT CSV sekalian); scripts/{parse-jrxml,test-jasper-1721a1}.ts; bukti-potong-a1.tsx dihapus.
 - Catatan deploy: server produksi wajib punya Java 11+ di PATH (tanpa itu route 503 dgn pesan jelas); vendor/jasper ter-commit; cache .jasper di-gitignore (auto-regen).
->>>>>>> Stashed changes
 
 ---
 Task ID: T-PAYROLL-REPORTS-OVERLAP-FIX
@@ -8066,3 +8064,25 @@ Stage Summary:
 - 66/66 test + dual browser + load PASS; 2 bug produksi diperbaiki (F-05, F-06 HIGH); 4 temuan terdokumentasi (F-01 XFF, F-02 Secure prod-check, F-03 billing roadmap, F-07 pacing).
 - Artefak: qa/QA-TEST-PLAN.md (matriks+hasil+temuan), scripts/qa/{helpers,01..05}, qa/k6-tenant-load.js, qa/load-results.json, audit/qa-dual-tenant-*.png.
 - Verdict: SIAP PRODUKSI dgn 2 temuan opsional/roadmap (F-01, F-03) + checklist deploy (F-02, F-07 staging K6).
+
+---
+Task ID: QA-SCALING-100T
+Agent: main (Z.ai Code)
+Task: Jawab pertanyaan user: "apakah dengan 100 tenant dan lebih dari 20.000 employee dibagi ke 100 tenant, aplikasi ini masih stable dan lancar?" — uji empiris, bukan spekulasi.
+
+Work Log:
+- Profile arsitektur: schema-per-tenant PostgreSQL 17 (embedded, mini-services/postgres:5432), platform registry (public) + schema domain per tenant (prisma/schema-tenant.prisma, 210 tabel). Pool koneksi: 1 PrismaClient per schema di-cache selamanya (src/rekankerja/shared/lib/tenant-db.ts), TENANT_CONNECTION_LIMIT default 3, max_connections PG default 100.
+- Bangun harness benchmark independen: mini-services/bench-100t (bun + pg + embedded-postgres 5433, DB benchdb, konfigurasi default identik live).
+- Provision 100 schema tenant (pola persis provisioning.ts: SET search_path + tenant-ddl.sql satu sesi): 39,3 dtk total, p50 359ms/tenant → 21.000 tabel + 51.300 index.
+- Seed data: 100 tenant × 250 karyawan = 25.000 karyawan (+assignment+AppUser+3 notif/karyawan), presensi 30 hari (7.500 daily + ~14.600 clock-log per tenant), payroll 3 periode × 250 line × 8 item → total ~2,5 juta baris, DB ~2GB.
+- Benchmark read (7 query representatif × 100 tenant): sekuensial p50 0,29–3,43ms; konkurensi-16 p50 3,5–9,6ms p95 ≤35ms; dashboard 3-query paralel p95 5ms.
+- Pool exhaustion test (pola persis app: 100 pool × max 3 + 5 koneksi platform, pg_sleep(10) × 3/pool): 300 query → 89 sukses / 211 GAGAL "sorry, too many clients already"; tenant pertama gagal = #29, terakhir sehat = #28; pemulihan OK setelah beban turun.
+- Write rush: (E1) 100 tx serentak 1/tenant → 90 sukses 10 gagal, p50 392ms (cold connect+SCRAM); (E2) 300 tx serentak → 90 sukses 210 gagal; (E3) hot-tenant terisolasi 40 tx serentak → 40/40 sukses p95 46ms (write path sehat, dindingnya koneksi global).
+- Memori: 100 PrismaClient (tanpa koneksi) ≈ 98MB RSS (~1MB/client); postgres bench RSS 362MB utk 100 schema.
+- Pemulihan sandbox (reboot): .env ditambah PLATFORM_DB_URL + TENANT_DB_BASE_URL (onevity@5432/onevity), db:push platform, restart dev → demo-seed 3 tenant OK, scheduler 3/3 OK. Agent Browser: login hrd@mii.co.id OK, Employee Directory 44 karyawan render + data DB, tanpa error.
+
+Stage Summary:
+- DATA VOLUME BUKAN MASALAH: 25.000 karyawan / 2,5 juta baris / 2GB → semua query tenant p50 < 4ms bahkan di mesin 2 CPU/4GB.
+- DINDING SEBENARNYA = KONEKSI: max_connections=100 vs pola 1 pool/tenant (limit 3) yang di-cache selamanya → hanya ±28–30 tenant AKTIF serentak yang terlayani; sisanya error "too many clients" (sudah terdokumentasi di komentar tenant-db.ts M-19, kini TERBUKTI empiris).
+- Mitigasi (urut biaya): naikkan max_connections (mis. 500) + TENANT_DB_CONNECTION_LIMIT=2, atau PgBouncer transaction-pooling di depan, atau sharding tenant lintas node/instance PG, plus evict idle client (LRU) di cache.
+- Artefak: mini-services/bench-100t/ (harness + results/*.json + pgdata 2GB). Hasil: provision.json, seed.json, read.json, pool.json, write.json, write-e3.json, prisma-mem.json, report.json.
