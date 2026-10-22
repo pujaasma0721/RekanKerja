@@ -13,7 +13,7 @@
 // =====================================================================
 import { NextRequest } from "next/server";
 import { getTenantClient, UNAUTHORIZED_MSG, VIEWER_FORBIDDEN_MSG, type TenantDb } from "../lib/tenant-db";
-import { readVerifiedSession } from "../lib/auth";
+import { readVerifiedSession, effectiveTidOfSession } from "../lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES, ESS_ONLY_APP_ROLES } from "./access-scope";
 import { normalizeMenusJson, ACTION_LABEL, actionAllowed, opsOf, type MenuAction, type MenusMap } from "../lib/menu-perms";
@@ -109,8 +109,12 @@ export async function resolveMenuPerms(
   const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return null;
 
+  // QA F-06: subdomain host memaksa konteks tenant (Task 78) — seragam dgn requireTenant.
+  const tid = await effectiveTidOfSession(req, payload);
+  if (!tid) return null;
+
   const membership = await platformDb.userTenant.findFirst({
-    where: { userId: payload.uid, tenantId: payload.tid },
+    where: { userId: payload.uid, tenantId: tid },
     select: {
       role: true,
       user: { select: { id: true, name: true, email: true } },

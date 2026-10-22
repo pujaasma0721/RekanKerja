@@ -16,7 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import { requireEss } from "@/rekankerja/ess/api/ess-auth";
-import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
+import { readVerifiedSession, effectiveTidOfSession } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
@@ -116,10 +116,14 @@ export async function POST(req: NextRequest) {
       try {
         const payload = await readVerifiedSession(req);
         if (payload?.uid && payload.tid) {
-          const membership = await platformDb.userTenant.findFirst({
-            where: { userId: payload.uid, tenantId: payload.tid },
-            select: { user: { select: { email: true } } },
-          });
+          // QA F-06: identitas pelapor diambil dari tenant EFEKTIF (host-aware).
+          const tid = await effectiveTidOfSession(req, payload);
+          const membership = tid
+            ? await platformDb.userTenant.findFirst({
+                where: { userId: payload.uid, tenantId: tid },
+                select: { user: { select: { email: true } } },
+              })
+            : null;
           const email = membership?.user.email ?? null;
           if (email) {
             const me = await db.appUser.findFirst({ where: { email }, select: { employeeId: true } });

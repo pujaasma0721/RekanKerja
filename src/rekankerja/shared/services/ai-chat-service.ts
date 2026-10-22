@@ -18,7 +18,7 @@
 // Konteks disuntikkan ke system prompt: daftar menu + snapshot data diri
 // + dokumen basis pengetahuan aktif (RAG skor kata-kunci sederhana).
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
-import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
+import { readVerifiedSession, effectiveTidOfSession } from "@/rekankerja/shared/lib/auth";
 import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 import { db as platformDb } from "@/lib/db";
 import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES } from "@/rekankerja/shared/services/access-scope";
@@ -48,8 +48,12 @@ export async function resolveAiActor(req: Request): Promise<AiActor | null> {
   const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return null;
 
+  // QA F-06: subdomain host memaksa konteks tenant (Task 78) — seragam dgn requireTenant.
+  const tid = await effectiveTidOfSession(req, payload);
+  if (!tid) return null;
+
   const membership = await platformDb.userTenant.findFirst({
-    where: { userId: payload.uid, tenantId: payload.tid },
+    where: { userId: payload.uid, tenantId: tid },
     select: { role: true, user: { select: { name: true, email: true } }, tenant: { select: { schemaName: true, status: true } } },
   });
   if (!membership || membership.tenant.status !== "ACTIVE") return null;

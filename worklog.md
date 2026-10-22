@@ -8046,3 +8046,23 @@ Work Log:
 Stage Summary:
 - TIDAK ADA pekerjaan development yang pending: P1 (0bad4ce) + P2 (5af5125) + P3 (8155612) + P3.1-FIX semuanya tuntas, teruji E2E 303/303, dan ter-push.
 - Environment stabil (watchdog setsid -f PPID=1). Perintah berikutnya dari user = pekerjaan baru.
+---
+Task ID: QA-FULL
+Agent: Z.ai Code (Lead QA Automation + AppSec)
+Task: Eksekusi prompt QA 5 pilar lengkap (isolasi, auth/appsec, performa, gating/limits, white-label/subdomain) — production readiness.
+
+Work Log:
+- STEP 1 PROFILING (dari kode, tanpa asumsi): schema-per-tenant PostgreSQL + registry platform (Tenant/User/UserTenant OWNER|ADMIN|HR|VIEWER) · auth custom scrypt + cookie HMAC httpOnly SameSite=Lax + revokasi sessionVersion + MFA TOTP · subdomain forcing Task 78 (REKANKERJA_BASE_DOMAINS) · TANPA billing provider (Tenant.plan informatif) · TANPA ISR/SSG (4 force-dynamic, 0 unstable_cache) · public API x-api-key (60 req/mnt/kunci, revoke dicek per-request).
+- ENV: +REKANKERJA_BASE_DOMAINS/MAIN_HOSTS=rekankerja.id (domain uji — Host gateway sandbox tidak cocok, nol dampak UX); Next 16 reload env tanpa restart.
+- STEP 2: qa/QA-TEST-PLAN.md — arsitektur terverifikasi + matriks 40 kasus uji (TI-01..12, AA-01..15, PF-01..06, GL-01..09, WL-01..05) + vektor edge-case Next.js multi-tenancy.
+- STEP 3a (bun test — 66 asersi hijau, stabil 2 run): 01-isolation 16/16 (disjoint schema, IDOR q= lintas schema 0 baris, select-tenant asing 403, host forcing 401/200/data-cahaya, notifikasi disjoint, XLSX per tenant, multi-workspace switch tanpa bleed) · 02-appsec 40/40 (token forged/tampered/expired/sv-mismatch 401, logout revokasi, MFA-token≠session, VIEWER 403 mutasi [setup user VIEWER via SQL + teardown], brute force 31x→429+Retry-After via XFF spoof, 10 path-vector tanpa bypass, SQLi q= terserap Prisma, mass-assignment tak ubah konteks, cookie HttpOnly+SameSite+Path, 401 generik) · 03-cache 2/2 (alternation URL sama 5 putaran + host alternation mii↔cahaya) · 04-limits 8/8 (API key generate→pakai→scope 403→revoke SEKETIKA 401→rate limit 429 @burst 60/mnt→anti-double-submit leave bentrok + tanggal dinamis re-runnable).
+- BUG NYATA DITEMUKAN & DIPERBAIKI: (1) F-05 Low: PATCH companies id tak dikenal → 500 P2025 → FIXED 404 dwibahasa; (2) F-06 HIGH: requireScoped + 10 guard lain baca payload.tid cookie TANPA effectiveTenantIdOf → data tenant-cookie tampil di subdomain tenant lain (PF-02 menangkap: 45 karyawan MII di host Cahaya) → FIXED sistemik: helper effectiveTidOfSession() di auth.ts + patch 11 file (access-scope, menu-access, ess-auth, notifications, user-menu-access, ai-chat-service, money-view-req, money-vault, whistleblow report, TA settings regenDeviceKey, attachments tenantSlugOfSession, employees codePrefix) → tsc 0 error, seluruh suite tetap hijau, PF-02 hijau.
+- STEP 3b dual browser context (agent-browser --session qa-a/qa-b): login MII vs Cahaya paralel — workspace masing-masing · document.cookie hanya rklang (sesi httpOnly tak terlihat JS) · localStorage hanya rekankerja:lang · 2 screenshot audit/qa-dual-tenant-{a,b}-*.png.
+- STEP 4 edge-case: cache poisoning (bukti perilaku + audit statik 0 ISR), middleware bypass (10 vektor path), webhook idempotency (padanan: scheduler key + anti-double-submit + retry/backoff HMAC teraudit), subdomain forcing, XFF trust.
+- STEP 5 load: scripts/qa/05-load.ts (Bun, 3 tenant, think-time 150-450ms) — 3.184 req · 0 error · p95 dashboard 844ms/employees 847ms/me 519ms · pg_stat_activity puncak 20/100 (M-19 terkonfirmasi) · 38,3 req/s @40 VU · qa/load-results.json. TEMUAN F-07: badai tanpa pacing (~2.600 req/s) meruntuhkan dev server (OOM 1.4GB → watchdog pulih otomatis) → pacing wajib + K6 utk staging (qa/k6-tenant-load.js — threshold p95<800ms err<1% + counter kebocoran lintas tenant).
+- GATES: tsc 0 error · eslint 0 error/6 warning baseline · seluruh suite hijau 2x berturut.
+
+Stage Summary:
+- 66/66 test + dual browser + load PASS; 2 bug produksi diperbaiki (F-05, F-06 HIGH); 4 temuan terdokumentasi (F-01 XFF, F-02 Secure prod-check, F-03 billing roadmap, F-07 pacing).
+- Artefak: qa/QA-TEST-PLAN.md (matriks+hasil+temuan), scripts/qa/{helpers,01..05}, qa/k6-tenant-load.js, qa/load-results.json, audit/qa-dual-tenant-*.png.
+- Verdict: SIAP PRODUKSI dgn 2 temuan opsional/roadmap (F-01, F-03) + checklist deploy (F-02, F-07 staging K6).

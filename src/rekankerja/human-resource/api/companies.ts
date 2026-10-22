@@ -115,7 +115,22 @@ export async function PATCH(req: NextRequest) {
     if (b.currency !== undefined) data.currency = String(b.currency);
     if (b.active !== undefined) data.active = b.active === true;
 
-    const updated = await db.company.update({ where: { id }, data });
+    // QA F-05 (P2025 "Record not found") → 404 dwibahasa, bukan 500.
+    const updated = await db.company.update({ where: { id }, data }).catch((err: unknown) => {
+      if (typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "P2025") {
+        return null;
+      }
+      throw err;
+    });
+    if (!updated) {
+      return NextResponse.json(
+        {
+          error:
+            "Company not found / Perusahaan tidak ditemukan — data mungkin sudah dihapus. Muat ulang daftar perusahaan.",
+        },
+        { status: 404 },
+      );
+    }
     return NextResponse.json({ company: updated });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

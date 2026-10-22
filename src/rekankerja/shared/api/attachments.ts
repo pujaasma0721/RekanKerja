@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { UNAUTHORIZED_MSG, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { requireMenuAction, resolveMenuPerms } from "@/rekankerja/shared/services/menu-access";
 import type { MenusMap } from "@/rekankerja/shared/lib/menu-perms";
-import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
+import { readVerifiedSession, effectiveTidOfSession } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import {
   saveAttachment, listAttachmentsByEntity, sweepDraftAttachments, DRAFT_ENTITY_PREFIX,
@@ -133,8 +133,12 @@ export async function attachmentReadAllowed(
 export async function tenantSlugOfSession(req: Request): Promise<string | null> {
   const payload = await readVerifiedSession(req);
   if (!payload?.tid) return null;
+  // QA F-06: folder uploads/{slug} wajib ikut tenant EFEKTIF (host-aware) —
+  // lampiran tidak boleh tersimpan di folder tenant lain saat akses via subdomain.
+  const tid = await effectiveTidOfSession(req, payload);
+  if (!tid) return null;
   const tenant = await platformDb.tenant.findUnique({
-    where: { id: payload.tid },
+    where: { id: tid },
     select: { slug: true },
   });
   return tenant?.slug ?? null;

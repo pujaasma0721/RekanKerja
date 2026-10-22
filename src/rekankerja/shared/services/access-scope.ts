@@ -16,7 +16,7 @@
 // =====================================================================
 import type { Prisma } from "@/generated/tenant";
 import { getTenantClient, type TenantDb, type TenantActor } from "@/rekankerja/shared/lib/tenant-db";
-import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
+import { readVerifiedSession, effectiveTidOfSession } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 
 // ============ konstanta domain ============
@@ -321,8 +321,13 @@ export async function requireScoped(req: Request): Promise<ScopedResult> {
   const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return { ok: false, status: 401, error: "Sesi tidak valid atau berakhir — silakan masuk kembali." };
 
+  // QA F-06: subdomain host MEMAKSA konteks tenant (Task 78) — cookie tid
+  // workspace lain diabaikan; subdomain tak dikenal → 401 tanpa fallback.
+  const tid = await effectiveTidOfSession(req, payload);
+  if (!tid) return { ok: false, status: 401, error: "Sesi tidak valid atau berakhir — silakan masuk kembali." };
+
   const membership = await platformDb.userTenant.findFirst({
-    where: { userId: payload.uid, tenantId: payload.tid },
+    where: { userId: payload.uid, tenantId: tid },
     select: {
       role: true,
       user: { select: { email: true } },

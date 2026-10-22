@@ -4,7 +4,7 @@
 // AppUser yang cocok dgn email sesi login (aktif). User platform tanpa
 // AppUser tenant → feed kosong (200) supaya bell UI tetap elegan, bukan error.
 import { NextResponse } from "next/server";
-import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
+import { readVerifiedSession, effectiveTidOfSession } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { getTenantClient, UNAUTHORIZED_MSG, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 
@@ -18,8 +18,12 @@ export async function requireAppUser(req: Request): Promise<AppUserResolution> {
   const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return { ok: false, status: 401, error: UNAUTHORIZED_MSG };
 
+  // QA F-06: subdomain host memaksa konteks tenant (Task 78) — seragam dgn requireTenant.
+  const tid = await effectiveTidOfSession(req, payload);
+  if (!tid) return { ok: false, status: 401, error: UNAUTHORIZED_MSG };
+
   const membership = await platformDb.userTenant.findFirst({
-    where: { userId: payload.uid, tenantId: payload.tid },
+    where: { userId: payload.uid, tenantId: tid },
     select: {
       user: { select: { email: true } },
       tenant: { select: { schemaName: true, status: true } },

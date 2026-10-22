@@ -5,7 +5,7 @@
 //   2. membership + status tenant ACTIVE → client Prisma schema tenant;
 //   3. AppUser tenant dicocokkan via email sesi → WAJIB punya employeeId
 //      (akun tanpa tautan karyawan tidak bisa masuk ESS → 403).
-import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
+import { readVerifiedSession, effectiveTidOfSession } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { getTenantClient, UNAUTHORIZED_MSG, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 
@@ -46,8 +46,12 @@ export async function requireEss(req: Request): Promise<EssAuthResult> {
   const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return { ok: false, status: 401, error: UNAUTHORIZED_MSG };
 
+  // QA F-06: subdomain host memaksa konteks tenant (Task 78) — seragam dgn requireTenant.
+  const tid = await effectiveTidOfSession(req, payload);
+  if (!tid) return { ok: false, status: 401, error: UNAUTHORIZED_MSG };
+
   const membership = await platformDb.userTenant.findFirst({
-    where: { userId: payload.uid, tenantId: payload.tid },
+    where: { userId: payload.uid, tenantId: tid },
     select: {
       role: true,
       user: { select: { id: true, email: true } },

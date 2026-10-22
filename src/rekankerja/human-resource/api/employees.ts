@@ -4,7 +4,7 @@ import { type Employee, Prisma } from "@/generated/tenant";
 import * as ExcelJS from "exceljs";
 import { requireMenuAction, resolveMenuPerms } from "@/rekankerja/shared/services/menu-access";
 import { requireScoped, scopeWhere, resolveAccessScope } from "@/rekankerja/shared/services/access-scope";
-import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
+import { readVerifiedSession, effectiveTidOfSession } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { tenantCryptoForDb, type FieldCrypto } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
@@ -56,10 +56,14 @@ async function employeeNoPrefix(req: NextRequest, companyCode: string | null | u
   try {
     const session = await readVerifiedSession(req);
     if (session?.tid) {
-      const tenant = await platformDb.tenant.findUnique({
-        where: { id: session.tid },
-        select: { slug: true },
-      });
+      // QA F-06: prefix nomor karyawan mengikuti tenant EFEKTIF (host-aware).
+      const tid = await effectiveTidOfSession(req, session);
+      const tenant = tid
+        ? await platformDb.tenant.findUnique({
+            where: { id: tid },
+            select: { slug: true },
+          })
+        : null;
       const fromSlug = codePrefix(tenant?.slug).slice(0, 3);
       if (fromSlug) return fromSlug;
     }

@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2026-10-22T04:36:01.848Z",
+  "totalRequests": 3184,
+  "throughputRps": 38.3,
+  "errorRatePct": 0,
+  "dashboardP95Ms": 844,
+  "perEndpoint": [
+    {
+      "endpoint": "companies",
+      "n": 444,
+      "p50": 101,
+      "p95": 288,
+      "p99": 756,
+      "max": 808
+    },
+    {
+      "endpoint": "me",
+      "n": 672,
+      "p50": 142,
+      "p95": 519,
+      "p99": 820,
+      "max": 930
+    },
+    {
+      "endpoint": "dashboard",
+      "n": 973,
+      "p50": 226,
+      "p95": 844,
+      "p99": 1018,
+      "max": 1274
+    },
+    {
+      "endpoint": "employees",
+      "n": 609,
+      "p50": 214,
+      "p95": 847,
+      "p99": 1025,
+      "max": 1222
+    },
+    {
+      "endpoint": "notifications",
+      "n": 486,
+      "p50": 106,
+      "p95": 539,
+      "p99": 742,
+      "max": 767
+    }
+  ],
+  "statusDistribution": {
+    "200": 3184
+  },
+  "dbPeak": {
+    "total": 20,
+    "active": 1
+  }
+}

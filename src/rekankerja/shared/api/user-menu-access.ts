@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { getTenantClient, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
-import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
+import { readVerifiedSession, effectiveTidOfSession } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES, ESS_ONLY_APP_ROLES } from "@/rekankerja/shared/services/access-scope";
 import { publicMenuPerms, warnNoMenuConfig } from "@/rekankerja/shared/services/menu-access";
@@ -41,8 +41,12 @@ async function resolveMe(req: Request): Promise<MeResolution | null> {
   const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return null;
 
+  // QA F-06: subdomain host memaksa konteks tenant (Task 78) — seragam dgn requireTenant.
+  const tid = await effectiveTidOfSession(req, payload);
+  if (!tid) return null;
+
   const membership = await platformDb.userTenant.findFirst({
-    where: { userId: payload.uid, tenantId: payload.tid },
+    where: { userId: payload.uid, tenantId: tid },
     select: { role: true, user: { select: { email: true } }, tenant: { select: { schemaName: true, status: true } } },
   });
   if (!membership || membership.tenant.status !== "ACTIVE") return null;

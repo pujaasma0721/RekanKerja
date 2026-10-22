@@ -216,6 +216,21 @@ export async function effectiveTenantIdOf(
 }
 
 /**
+ * QA F-06 (audit multi-tenant) — tenant EFEKTIF dari sesi untuk guard/gate
+ * selain requireTenant/requireMutator: subdomain host MEMAKSA konteks tenant
+ * (cookie tid workspace lain diabaikan), subdomain tak dikenal → null (401),
+ * host utama → tid cookie. Wajib dipakai setiap guard yang membaca payload.tid
+ * supaya kontrak Task 78 berlaku seragam di seluruh API.
+ */
+export async function effectiveTidOfSession(
+  req: { headers: { get(name: string): string | null } },
+  payload: { uid: string; tid: string | null },
+): Promise<string | null> {
+  const { tenantId } = await effectiveTenantIdOf(payload.uid, payload.tid, req);
+  return tenantId;
+}
+
+/**
  * Batas idle sesi global (menit) dari env — default 30. `0` = nonaktif
  * (kembali ke kebijakan per-tenant saja). Nilai negatif / bukan angka →
  * default 30. Dibaca per-request (bukan cache modul) agar `pm2 restart

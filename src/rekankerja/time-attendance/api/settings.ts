@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
-import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
+import { readVerifiedSession, effectiveTidOfSession } from "@/rekankerja/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { getRule } from "@/rekankerja/time-attendance/services/attendance-service";
 
@@ -60,8 +60,11 @@ export async function PATCH(req: NextRequest) {
     if (b.op === "regenDeviceKey") {
       const payload = await readVerifiedSession(req);
       if (!payload?.tid) return NextResponse.json({ error: "Sesi tidak valid" }, { status: 401 });
+      // QA F-06: slug utk kunci perangkat diambil dari tenant EFEKTIF (host-aware).
+      const tid = await effectiveTidOfSession(req, payload);
+      if (!tid) return NextResponse.json({ error: "Sesi tidak valid" }, { status: 401 });
       const tenant = await platformDb.tenant.findUnique({
-        where: { id: payload.tid },
+        where: { id: tid },
         select: { slug: true },
       });
       const slug = (tenant?.slug ?? "tenant").replace(/[^a-z0-9-]/gi, "").toLowerCase() || "tenant";
