@@ -32,9 +32,11 @@ import { PositionLevelView } from "./level-view";
 // P3-BM — katalog keahlian (D-BM24) + register jalur karier (D-BM27)
 import { SkillsCatalogView } from "./skills-view";
 import { CareerPathsView } from "./career-paths-view";
+// P3.1-BM (D-BM23) — katalog job + family jabatan (tab) + profil jabatan.
+import { JobView } from "./job-view";
 
 export function PositionModule({ view }: { view: string }) {
-  if (view === "jobs") return <JobLibrary />;
+  if (view === "jobs") return <JobView />;
   if (view === "skills") return <SkillsCatalogView />;
   if (view === "career-paths") return <CareerPathsView />;
   if (view === "grades") return <GradeList />;
@@ -640,142 +642,6 @@ function PositionDialog({ open, setOpen, position, units, jobs, grades, position
   );
 }
 
-// ================= JOB LIBRARY =================
-function JobLibrary() {
-  const { data, loading, refresh } = useApi<{ jobs: JobOpt[] }>("/api/rekankerja/jobs");
-  const { t } = useI18n();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<JobOpt | null>(null);
-
-  const categoryIcon: Record<string, React.ElementType> = {
-    Executive: TrendingUp, Managerial: Users, Supervisory: Layers, Staff: FileText,
-  };
-  const catTone: Record<string, string> = {
-    Executive: "from-brand to-brand", Managerial: "from-brand to-brand",
-    Supervisory: "from-amber-400 to-orange-500", Staff: "from-slate-400 to-slate-600",
-  };
-
-  return (
-    <div>
-      <PageHeader
-        eyebrow={t("Posisi & Jabatan")}
-        title={t("Katalog Jabatan")}
-        description={t("{n} job master di kategori Executive, Managerial, Supervisory, dan Staff", "{n} master jobs in the Executive, Managerial, Supervisory, and Staff categories", { n: data?.jobs.length ?? 0 })}
-        actions={
-          <Button onClick={() => setCreateOpen(true)} className="gap-2 font-bold">
-            <Plus className="h-4 w-4" /> {t("Job Baru", "New Job")}
-          </Button>
-        }
-      />
-      {loading && !data ? (
-        <LoadingRows rows={6} />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {(data?.jobs ?? []).map((j) => {
-            const Icon = categoryIcon[j.category ?? "Staff"] ?? FileText;
-            return (
-              <Card key={j.id} className="group rounded-2xl border-slate-200/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md", catTone[j.category ?? "Staff"] ?? catTone.Staff)}>
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => setEditing(j)} className="rounded-lg p-1.5 text-slate-400 opacity-0 transition group-hover:opacity-100 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label={t("Ubah job", "Edit job")}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-[15px] font-bold text-slate-900 dark:text-slate-100">{j.title}</p>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <Badge variant="outline" className="font-mono text-[10px]">{j.code}</Badge>
-                    <Badge variant="secondary" className="text-[10px]">{j.category ?? "Staff"}</Badge>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-dashed border-slate-100 pt-3 dark:border-slate-800">
-                    <span className="text-[11px] text-slate-400">{t("Dipakai oleh", "Used by")}</span>
-                    <span className="text-[11px] font-bold ov-text-accent">{t("{n} posisi", "{n} positions", { n: j.positionCount })}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-      <JobDialog open={createOpen} setOpen={(v) => { setCreateOpen(v); if (!v) refresh(); }} job={null} />
-      <JobDialog open={!!editing} setOpen={(v) => { if (!v) { setEditing(null); refresh(); } }} job={editing} />
-    </div>
-  );
-}
-
-function JobDialog({ open, setOpen, job }: { open: boolean; setOpen: (v: boolean) => void; job: JobOpt | null }) {
-  const { t } = useI18n();
-  const [code, setCode] = useState(job?.code ?? "");
-  const [title, setTitle] = useState(job?.title ?? "");
-  const [category, setCategory] = useState(job?.category ?? "Staff");
-  const [description, setDescription] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [key, setKey] = useState("");
-
-  // sync when job changes — Task 88: prefill description dari data (dulu
-  // selalu "" sehingga PATCH menimpa deskripsi job menjadi kosong).
-  const jobKey = job?.id ?? "new";
-  if (key !== jobKey) {
-    setKey(jobKey);
-    setCode(job?.code ?? ""); setTitle(job?.title ?? ""); setCategory(job?.category ?? "Staff"); setDescription(job?.description ?? "");
-  }
-
-  const submit = async () => {
-    if (!code.trim() || !title.trim()) { toast.error(t("Kode dan judul wajib diisi", "Code and title are required")); return; }
-    setBusy(true);
-    try {
-      if (job) {
-        await apiSend("/api/rekankerja/jobs", "PATCH", { id: job.id, title, category, description });
-        toast.success(t("Job diperbarui", "Job updated"));
-      } else {
-        await apiSend("/api/rekankerja/jobs", "POST", { code: code.trim().toUpperCase(), title, category, description });
-        toast.success(t("Job dibuat", "Job created"));
-      }
-      setOpen(false);
-    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle className="text-base">{job ? t("Ubah Job", "Edit Job") : t("Job Baru", "New Job")}</DialogTitle></DialogHeader>
-        <div className="space-y-3.5">
-          {!job && (
-            <div>
-              <Label className="text-xs">{t("Kode *", "Code *")}</Label>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="J-QAS2" className="mt-1 font-mono uppercase" />
-            </div>
-          )}
-          <div>
-            <Label className="text-xs">{t("Judul *", "Title *")}</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
-          </div>
-          <div>
-            <Label className="text-xs">{t("Kategori", "Category")}</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {["Executive", "Managerial", "Supervisory", "Staff"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">{t("Deskripsi", "Description")}</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("Tanggung jawab utama…", "Main responsibilities…")} className="mt-1" />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>{t("Batal")}</Button>
-          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ================= GRADES =================
 function GradeList() {
