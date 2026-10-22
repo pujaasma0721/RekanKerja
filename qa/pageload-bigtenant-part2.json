@@ -1,0 +1,570 @@
+{
+  "meta": {
+    "date": "2026-10-22T10:36:16.282Z",
+    "machine": {
+      "cpus": 2,
+      "ramMB": 4042
+    },
+    "tenant": "bench101 (tenant_bench_101, 5.000 karyawan, ±597k baris, 212MB)",
+    "note": "dev server Next.js 16 (Turbopack) di-restart tepat sebelum run — cold = kompilasi+spin-up; warm = perilaku steady"
+  },
+  "cold": {},
+  "warm": {
+    "auth/me (shell tiap page)": {
+      "n": 20,
+      "p50": 56.4,
+      "p95": 78.6,
+      "p99": 1715,
+      "max": 1715,
+      "avg": 133.9,
+      "bytesAvg": 0,
+      "errors": 0
+    },
+    "directory-p1 (50/baris)": {
+      "n": 20,
+      "p50": 76.1,
+      "p95": 137.1,
+      "p99": 8060.9,
+      "max": 8060.9,
+      "avg": 480.2,
+      "bytesAvg": 53,
+      "errors": 0
+    },
+    "directory-search q=Sant": {
+      "n": 20,
+      "p50": 65.1,
+      "p95": 3696.9,
+      "p99": 7131.9,
+      "max": 7131.9,
+      "avg": 613.4,
+      "bytesAvg": 27,
+      "errors": 0
+    },
+    "directory-deep offset=4950": {
+      "n": 20,
+      "p50": 65.2,
+      "p95": 156.2,
+      "p99": 226.5,
+      "max": 226.5,
+      "avg": 84.4,
+      "bytesAvg": 53,
+      "errors": 0
+    },
+    "attendance-overview KPI bulan": {
+      "n": 20,
+      "p50": 13.3,
+      "p95": 39.6,
+      "p99": 1180.7,
+      "max": 1180.7,
+      "avg": 75.3,
+      "bytesAvg": 0,
+      "errors": 20,
+      "firstErr": "HTTP 500: {\"error\":\"\\nInvalid `prisma.overtimeOrder.count()` invocation:\\n\\n\\nResponse from the Engine was empty\"}"
+    },
+    "payroll-runs list": {
+      "n": 20,
+      "p50": 9.6,
+      "p95": 12.8,
+      "p99": 199.5,
+      "max": 199.5,
+      "avg": 19.4,
+      "bytesAvg": 0,
+      "errors": 20,
+      "firstErr": "HTTP 500: {\"error\":\"\\nInvalid `prisma.payrollRun.findMany()` invocation:\\n\\n\\nEngine is not yet connected.\\nBacktrace []\"}"
+    },
+    "ess-attendance rekap pribadi": {
+      "n": 20,
+      "p50": 8.4,
+      "p95": 18.8,
+      "p99": 72.4,
+      "max": 72.4,
+      "avg": 12.3,
+      "bytesAvg": 0,
+      "errors": 20,
+      "firstErr": "HTTP 403: {\"error\":\"Akun tidak terhubung data karyawan\"}"
+    },
+    "ess-notifications": {
+      "n": 20,
+      "p50": 8.2,
+      "p95": 22,
+      "p99": 145,
+      "max": 145,
+      "avg": 16.9,
+      "bytesAvg": 0,
+      "errors": 20,
+      "firstErr": "HTTP 403: {\"error\":\"Akun tidak terhubung data karyawan\"}"
+    },
+    "ess-payslips": {
+      "n": 20,
+      "p50": 8.1,
+      "p95": 9,
+      "p99": 52.3,
+      "max": 52.3,
+      "avg": 10.3,
+      "bytesAvg": 0,
+      "errors": 20,
+      "firstErr": "HTTP 403: {\"error\":\"Akun tidak terhubung data karyawan\"}"
+    },
+    "dashboard-hr agregat": {
+      "n": 20,
+      "p50": 25,
+      "p95": 40.3,
+      "p99": 59,
+      "max": 59,
+      "avg": 28.1,
+      "bytesAvg": 0,
+      "errors": 20,
+      "firstErr": "HTTP 500: {\"error\":\"\\nInvalid `prisma.employee.count()` invocation:\\n\\n\\nEngine is not yet connected.\\nBacktrace []\"}"
+    },
+    "employee-options dropdown shell": {
+      "n": 20,
+      "p50": 500.8,
+      "p95": 594.6,
+      "p99": 724.8,
+      "max": 724.8,
+      "avg": 355.8,
+      "bytesAvg": 782,
+      "errors": 7,
+      "firstErr": "HTTP 500: {\"error\":\"\\nInvalid `prisma.orgUnit.findMany()` invocation:\\n\\n\\nEngine is not yet connected.\\nBacktrace []\"}"
+    }
+  },
+  "paced": {
+    "vus": 8,
+    "durationSec": 31,
+    "thinkTimeMs": "150-450",
+    "totalRequests": 204,
+    "rps": 6.6,
+    "errors": 0,
+    "latencyMs": {
+      "n": 204,
+      "p50": 756.8,
+      "p95": 2288.7,
+      "p99": 2778.7,
+      "max": 3339.1,
+      "avg": 910.4
+    },
+    "perEndpoint": {
+      "auth/me (shell tiap page)": {
+        "n": 25,
+        "p50": 517.8,
+        "p95": 1482,
+        "p99": 1532.3,
+        "max": 1532.3,
+        "avg": 610.7,
+        "errors": 0
+      },
+      "directory-search q=Sant": {
+        "n": 38,
+        "p50": 750.2,
+        "p95": 2291.5,
+        "p99": 2630.3,
+        "max": 2630.3,
+        "avg": 840.6,
+        "errors": 0
+      },
+      "directory-p1 (50/baris)": {
+        "n": 30,
+        "p50": 923.9,
+        "p95": 1907.7,
+        "p99": 2342.9,
+        "max": 2342.9,
+        "avg": 931.7,
+        "errors": 0
+      },
+      "dashboard-hr agregat": {
+        "n": 23,
+        "p50": 1345.6,
+        "p95": 2672.6,
+        "p99": 2704.2,
+        "max": 2704.2,
+        "avg": 1530.9,
+        "errors": 0
+      },
+      "payroll-runs list": {
+        "n": 25,
+        "p50": 447.4,
+        "p95": 925.2,
+        "p99": 1410.5,
+        "max": 1410.5,
+        "avg": 478.6,
+        "errors": 0
+      },
+      "ess-notifications": {
+        "n": 21,
+        "p50": 360.9,
+        "p95": 961.2,
+        "p99": 1537.8,
+        "max": 1537.8,
+        "avg": 477.7,
+        "errors": 0
+      },
+      "ess-attendance rekap pribadi": {
+        "n": 19,
+        "p50": 529.7,
+        "p95": 1419.3,
+        "p99": 1419.3,
+        "max": 1419.3,
+        "avg": 602.5,
+        "errors": 0
+      },
+      "attendance-overview KPI bulan": {
+        "n": 15,
+        "p50": 2019.9,
+        "p95": 3339.1,
+        "p99": 3339.1,
+        "max": 3339.1,
+        "avg": 2188.3,
+        "errors": 0
+      },
+      "employee-options dropdown shell": {
+        "n": 8,
+        "p50": 959.5,
+        "p95": 1707.3,
+        "p99": 1707.3,
+        "max": 1707.3,
+        "avg": 1134.8,
+        "errors": 0
+      }
+    },
+    "sampleErrors": []
+  },
+  "burst": {
+    "vus": 12,
+    "durationSec": 15,
+    "totalRequests": 267651,
+    "rps": 17843.3,
+    "errors": 267581,
+    "latencyMs": {
+      "n": 267651,
+      "p50": 0.1,
+      "p95": 0.2,
+      "p99": 1.1,
+      "max": 3767.5,
+      "avg": 0.7
+    },
+    "perEndpoint": {
+      "ess-notifications": {
+        "n": 24009,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1.1,
+        "max": 1088.4,
+        "avg": 0.4,
+        "errors": 24003
+      },
+      "ess-attendance rekap pribadi": {
+        "n": 24202,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1.1,
+        "max": 1862.1,
+        "avg": 0.4,
+        "errors": 24196
+      },
+      "payroll-runs list": {
+        "n": 24193,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1.1,
+        "max": 2118.7,
+        "avg": 0.5,
+        "errors": 24186
+      },
+      "auth/me (shell tiap page)": {
+        "n": 24699,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1,
+        "max": 2316.7,
+        "avg": 0.6,
+        "errors": 24687
+      },
+      "employee-options dropdown shell": {
+        "n": 24588,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1,
+        "max": 2479.5,
+        "avg": 0.9,
+        "errors": 24580
+      },
+      "dashboard-hr agregat": {
+        "n": 24238,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1.1,
+        "max": 3384.1,
+        "avg": 1.3,
+        "errors": 24228
+      },
+      "directory-deep offset=4950": {
+        "n": 24603,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1.1,
+        "max": 3323.7,
+        "avg": 0.8,
+        "errors": 24599
+      },
+      "attendance-overview KPI bulan": {
+        "n": 24137,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1,
+        "max": 2512.2,
+        "avg": 0.6,
+        "errors": 24135
+      },
+      "ess-payslips": {
+        "n": 24378,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1.1,
+        "max": 1663.5,
+        "avg": 0.4,
+        "errors": 24373
+      },
+      "directory-p1 (50/baris)": {
+        "n": 24301,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1,
+        "max": 3767.5,
+        "avg": 0.8,
+        "errors": 24296
+      },
+      "directory-search q=Sant": {
+        "n": 24303,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 1,
+        "max": 3171.6,
+        "avg": 0.8,
+        "errors": 24298
+      }
+    }
+  },
+  "system": {
+    "pgConnections": {
+      "start": 17,
+      "end": 6
+    },
+    "samples": [
+      {
+        "t": 0.3,
+        "nextRssMB": 2845,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.83,
+        "memAvailMB": 436
+      },
+      {
+        "t": 2.3,
+        "nextRssMB": 2919,
+        "nextCpuPct": 119,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.08,
+        "memAvailMB": 344
+      },
+      {
+        "t": 4.3,
+        "nextRssMB": 2925,
+        "nextCpuPct": 118,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.08,
+        "memAvailMB": 332
+      },
+      {
+        "t": 6.4,
+        "nextRssMB": 2889,
+        "nextCpuPct": 114,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.16,
+        "memAvailMB": 363
+      },
+      {
+        "t": 8.4,
+        "nextRssMB": 2964,
+        "nextCpuPct": 121,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.16,
+        "memAvailMB": 255
+      },
+      {
+        "t": 10.4,
+        "nextRssMB": 2969,
+        "nextCpuPct": 119,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.16,
+        "memAvailMB": 251
+      },
+      {
+        "t": 12.4,
+        "nextRssMB": 3034,
+        "nextCpuPct": 115,
+        "pgRssMB": 20,
+        "pgCpuPct": 1,
+        "load1": 2.06,
+        "memAvailMB": 184
+      },
+      {
+        "t": 14.5,
+        "nextRssMB": 2910,
+        "nextCpuPct": 123,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.06,
+        "memAvailMB": 274
+      },
+      {
+        "t": 16.6,
+        "nextRssMB": 3042,
+        "nextCpuPct": 132,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.14,
+        "memAvailMB": 136
+      },
+      {
+        "t": 18.6,
+        "nextRssMB": 3020,
+        "nextCpuPct": 121,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.14,
+        "memAvailMB": 159
+      },
+      {
+        "t": 20.6,
+        "nextRssMB": 3042,
+        "nextCpuPct": 131,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.14,
+        "memAvailMB": 134
+      },
+      {
+        "t": 22.6,
+        "nextRssMB": 2987,
+        "nextCpuPct": 127,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.21,
+        "memAvailMB": 188
+      },
+      {
+        "t": 24.6,
+        "nextRssMB": 3040,
+        "nextCpuPct": 119,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.21,
+        "memAvailMB": 136
+      },
+      {
+        "t": 26.6,
+        "nextRssMB": 2983,
+        "nextCpuPct": 127,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.27,
+        "memAvailMB": 192
+      },
+      {
+        "t": 28.6,
+        "nextRssMB": 3043,
+        "nextCpuPct": 123,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.27,
+        "memAvailMB": 131
+      },
+      {
+        "t": 30.6,
+        "nextRssMB": 2990,
+        "nextCpuPct": 104,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.27,
+        "memAvailMB": 181
+      },
+      {
+        "t": 32.7,
+        "nextRssMB": 3035,
+        "nextCpuPct": 109,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.57,
+        "memAvailMB": 132
+      },
+      {
+        "t": 34.7,
+        "nextRssMB": 2964,
+        "nextCpuPct": 126,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.57,
+        "memAvailMB": 203
+      },
+      {
+        "t": 36.7,
+        "nextRssMB": 2974,
+        "nextCpuPct": 126,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.45,
+        "memAvailMB": 196
+      },
+      {
+        "t": 38.8,
+        "nextRssMB": 2984,
+        "nextCpuPct": 124,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.45,
+        "memAvailMB": 184
+      },
+      {
+        "t": 40.8,
+        "nextRssMB": 2991,
+        "nextCpuPct": 113,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.45,
+        "memAvailMB": 175
+      },
+      {
+        "t": 42.8,
+        "nextRssMB": 0,
+        "nextCpuPct": -5836,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.73,
+        "memAvailMB": 3305
+      },
+      {
+        "t": 44.8,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.73,
+        "memAvailMB": 3267
+      }
+    ],
+    "peak": {
+      "nextRssMB": 3043,
+      "nextCpuPct1Core": 132,
+      "pgRssMB": 20,
+      "pgCpuPct1Core": 1,
+      "load1": 2.73,
+      "memAvailMinMB": 131
+    }
+  }
+}

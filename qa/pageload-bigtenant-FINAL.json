@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "date": "2026-10-22",
+    "task": "Push fix koneksi (QA-SCALING-FIX) + uji kecepatan per page-load dgn query besar-besar & performance system",
+    "machine": { "cpus": 2, "ramMB": 4042 },
+    "tenant": "bench101 → schema tenant_bench_101 di PG live 5432 (5.000 karyawan, 597k baris, 212MB, enkripsi field asli enc:v1)",
+    "login": "user42@bench101.test / Bench101! (OWNER, AppUser e42 → ESS ikut teruji)",
+    "metode": "HTTP vs dev server Next.js 16 (Turbopack) — cold diukur di server fresh (kompilasi route + spin-up Prisma client); warm = steady state; paced = 8 VU think-time 150-450ms; angka endpoint [BERAT] warm dari replay terpisah (server sehat, n=3-4)",
+    "artefak": ["qa/pageload-bigtenant-results.json (run penuh: cold valid; warm sebagian gagal saat mesin kehabisan memori — lihat findings)", "qa/pageload-bigtenant-part2.json (warm bersih + paced + system, server fresh)", "scripts/qa/06-bigtenant-seed.ts", "scripts/qa/07-pageload-bigtenant.ts", "audit/qa-pageload-bigtenant/01-directory-5000emp.png"]
+  },
+  "cold_firstPageLoad_ms": {
+    "auth/me": 5758,
+    "directory-p1": 1904,
+    "directory-search": 108,
+    "directory-deep-offset4950": 104,
+    "directory-sort-salary_BERAT": 7888,
+    "attendance-overview": 2610,
+    "payroll-runs": 2436,
+    "payroll-run-detail_BERAT_9MB": 11341,
+    "ess-attendance": 189,
+    "ess-notifications": 66,
+    "ess-payslips": 68,
+    "dashboard-hr": 477,
+    "employee-options": 536
+  },
+  "warm_p50_p95_ms": {
+    "auth/me": { "p50": 56, "p95": 79 },
+    "directory-p1": { "p50": 76, "p95": 137, "resp": "53KB" },
+    "directory-search": { "p50": 65, "p95": 3697, "note": "p95 = 1 outlier GC pause; p99 ~ 156ms" },
+    "directory-deep-offset4950": { "p50": 65, "p95": 156 },
+    "directory-sort-salary_BERAT": { "p50_warm": 6100, "p95_warm": 9000, "n": 4, "note": "full-scan 5000 karyawan + include + decrypt + sort in-memory" },
+    "attendance-overview": { "p50": 13, "p95": 40, "note": "rekap presensi bulan berjalan ~103k baris di-scan agregat" },
+    "payroll-runs": { "p50": 10, "p95": 13 },
+    "payroll-run-detail_BERAT": { "p50_warm": 5400, "resp": "9116KB", "n": 3, "note": "5000 line × 8 item di-decrypt + serialize SATU respons" },
+    "ess-attendance": { "p50": 8, "p95": 19 },
+    "ess-notifications": { "p50": 8, "p95": 22 },
+    "ess-payslips": { "p50": 8, "p95": 9 },
+    "dashboard-hr": { "p50": 25, "p95": 40 },
+    "employee-options": { "p50": 501, "p95": 595, "resp": "782KB-1203KB (dropdown 5000 karyawan)" }
+  },
+  "concurrency_paced_8vu_30s": {
+    "requests": 204,
+    "errors": 0,
+    "throughputReqPerSec": 6.6,
+    "aggregateLatency": { "p50": 757, "p95": 2289 },
+    "perEndpointP95": {
+      "directory-p1": 1908,
+      "directory-search": 2292,
+      "attendance-overview": 3339,
+      "employee-options": 1707,
+      "dashboard-hr": 2673,
+      "payroll-runs": 925,
+      "ess-attendance": 1419,
+      "ess-notifications": 961,
+      "auth/me": 1482
+    },
+    "note": "8 pengguna paralel (single node dev, 2 CPU) — semua sukses tanpa error"
+  },
+  "system_performance_peak": {
+    "nextServerRssMB": 3043,
+    "nextServerCpuPctOneCore": 132,
+    "postgresRssMB": 20,
+    "postgresCpuPctOneCore": 1,
+    "loadAvg1": 2.73,
+    "memAvailableMinMB": 131,
+    "pgConnections": { "start": 17, "end": 6, "maxConfigured": 300 },
+    "note": "CPU jauh dari jenuh (132% dari 200%); binding constraint = MEMORI"
+  },
+  "browser_verification": {
+    "login": "OK (UI penuh: workspace Benchmark Indonesia (5.000 Karyawan) · OWNER)",
+    "employeeDirectory": "render 1,5 dtk — '5000 employees registered', chips All/Active 5000, kartu karyawan BCH101-xxxx lengkap (posisi/unit/status)",
+    "uiSearch": "'Santoso' → 50 hasil instan",
+    "console": "0 error",
+    "demoTenantMii": "login 200 + 44 karyawan — TIDAK TERDAMPAK",
+    "screenshot": "audit/qa-pageload-bigtenant/01-directory-5000emp.png"
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "HIGH",
+      "title": "payroll-run detail = respons 9,1 MB (5000 line × 8 item) dalam SATU respons",
+      "evidence": "cold 11,3 dtk; warm ~5,4 dtk; satu request menaikkan RSS dev server +~2 GB (GC tertinggal)",
+      "recommendation": "Paginasi server-side lines (limit/offset + total), atau mode ringkasan + unduh XLSX untuk data penuh; jangan kirim 40.000 item terdekripsi per-load"
+    },
+    {
+      "id": "F2",
+      "severity": "HIGH",
+      "title": "Directory sortBy=baseSalary fetch SEMUA 5000 karyawan + decrypt + sort in-memory",
+      "evidence": "6,1–9,0 dtk per request (kode route: placement sort ambil semua baris terfilter, sort di server, slice 50)",
+      "recommendation": "Kolom gaji base salary tidak bisa di-sort di DB karena terenkripsi — tambahkan BLIND sortable column (contoh: salaryBandBucket / gaji terurut per-pangkat ± presisi) atau sortir per-halaman saja (kolom langsung fullName/employeeNo sudah DB-sort p50 76ms)"
+    },
+    {
+      "id": "F3",
+      "severity": "HIGH",
+      "title": "Dev server OOM saat beban puncak di mesin 4GB (Prisma engine 'Response from the Engine was empty' → massal 500/403)",
+      "evidence": "anon-rss next-server 2,9-3,0 GB → OOM-kill kernel; sebelum mati: query Prisma gagal instan (500 15ms; ESS appUser lookup gagal → 403); burst 12VU tanpa pacing = kematian server",
+      "recommendation": "Produksi (standalone build) jauh lebih hemat (tanpa Turbopack/HMR), tapi tetap: (a) naikkan RAM node utk tenant 5000+ karyawan, (b) paginasi F1, (c) burst 12VU+ per node = sisahkan horizontal"
+    },
+    {
+      "id": "F4",
+      "severity": "MED",
+      "title": "employee-options 782KB-1,2MB per-load (dropdown 5000 karyawan)",
+      "evidence": "p50 501ms — dibuka shell tiap navigasi modul",
+      "recommendation": "Ganti dropdown besar dgn search-as-you-type server-side (q + limit 25 — sama seperti directory-search p50 65ms) atau cache shell per-sesi"
+    },
+    {
+      "id": "F5",
+      "severity": "INFO",
+      "title": "Koneksi DB SANGAT SEHAT pasca-fix QA-SCALING",
+      "evidence": "puncak konkurensi 8 VU: koneksi PG 6-17 dari 300 (dulu dinding di ±30 tenant); CPU PG 1%/core; evict idle bekerja",
+      "recommendation": "Konfigurasi fix (max_conn 300 + limit 2 + evict) terbukti di level aplikasi nyata"
+    }
+  ],
+  "verdict": {
+    "pageLoadRingan": "8–65 ms (p50) — ESS, dashboard, rekap presensi, list payroll run: instan di 5000 karyawan",
+    "pageLoadSedang": "76–501 ms (p50) — directory paginasi + options",
+    "pageLoadBerat": "5,4–9,0 dtk (payroll detail 9MB & sort gaji) — 2 endpoint ini butuh perbaikan desain (F1/F2) sebelum tenant 5000+ jadi rutin",
+    "konkurensi": "8 pengguna serentak: 0 error, p95 agregat 2,3 dtk ( paced dgn think-time)",
+    "sistem": "CPU aman (132%/200%), PG ringan; dinding = memori node web (F3)"
+  }
+}

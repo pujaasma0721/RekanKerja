@@ -1,0 +1,908 @@
+{
+  "meta": {
+    "date": "2026-10-22T10:29:44.362Z",
+    "machine": {
+      "cpus": 2,
+      "ramMB": 4042
+    },
+    "tenant": "bench101 (tenant_bench_101, 5.000 karyawan, ±597k baris, 212MB)",
+    "note": "dev server Next.js 16 (Turbopack) di-restart tepat sebelum run — cold = kompilasi+spin-up; warm = perilaku steady"
+  },
+  "cold": {
+    "auth/me (shell tiap page)": {
+      "ms": 5758.4,
+      "bytes": 472,
+      "status": 200
+    },
+    "directory-p1 (50/baris)": {
+      "ms": 1903.6,
+      "bytes": 54539,
+      "status": 200
+    },
+    "directory-search q=Sant": {
+      "ms": 107.6,
+      "bytes": 27397,
+      "status": 200
+    },
+    "directory-deep offset=4950": {
+      "ms": 103.7,
+      "bytes": 54756,
+      "status": 200
+    },
+    "directory-sort-salary [BERAT]": {
+      "ms": 7887.5,
+      "bytes": 54703,
+      "status": 200
+    },
+    "attendance-overview KPI bulan": {
+      "ms": 2609.7,
+      "bytes": 660,
+      "status": 200
+    },
+    "payroll-runs list": {
+      "ms": 2436.3,
+      "bytes": 2731,
+      "status": 200
+    },
+    "payroll-run-detail run2 [BERAT 9MB]": {
+      "ms": 11341.1,
+      "bytes": 9334905,
+      "status": 200
+    },
+    "ess-attendance rekap pribadi": {
+      "ms": 188.5,
+      "bytes": 4151,
+      "status": 200
+    },
+    "ess-notifications": {
+      "ms": 66.2,
+      "bytes": 415,
+      "status": 200
+    },
+    "ess-payslips": {
+      "ms": 68.1,
+      "bytes": 377,
+      "status": 200
+    },
+    "dashboard-hr agregat": {
+      "ms": 476.5,
+      "bytes": 3893,
+      "status": 200
+    },
+    "employee-options dropdown shell": {
+      "ms": 535.9,
+      "bytes": 1231656,
+      "status": 200
+    }
+  },
+  "warm": {
+    "auth/me (shell tiap page)": {
+      "n": 20,
+      "p50": 15.1,
+      "p95": 70.6,
+      "p99": 71.3,
+      "max": 71.3,
+      "avg": 25.5,
+      "bytesAvg": 0,
+      "errors": 0
+    },
+    "directory-p1 (50/baris)": {
+      "n": 20,
+      "p50": 64.9,
+      "p95": 113.2,
+      "p99": 191.6,
+      "max": 191.6,
+      "avg": 76.3,
+      "bytesAvg": 53,
+      "errors": 0
+    },
+    "directory-search q=Sant": {
+      "n": 20,
+      "p50": 36.4,
+      "p95": 67.4,
+      "p99": 70.3,
+      "max": 70.3,
+      "avg": 40.9,
+      "bytesAvg": 7,
+      "errors": 15
+    },
+    "directory-deep offset=4950": {
+      "n": 20,
+      "p50": 20.5,
+      "p95": 30.1,
+      "p99": 34,
+      "max": 34,
+      "avg": 22.1,
+      "bytesAvg": 0,
+      "errors": 20
+    },
+    "directory-sort-salary [BERAT]": {
+      "n": 3,
+      "p50": 22.4,
+      "p95": 31.5,
+      "p99": 31.5,
+      "max": 31.5,
+      "avg": 25.3,
+      "bytesAvg": 0,
+      "errors": 3
+    },
+    "attendance-overview KPI bulan": {
+      "n": 20,
+      "p50": 12.8,
+      "p95": 24.8,
+      "p99": 32.2,
+      "max": 32.2,
+      "avg": 14.5,
+      "bytesAvg": 0,
+      "errors": 20
+    },
+    "payroll-runs list": {
+      "n": 20,
+      "p50": 11.1,
+      "p95": 12.3,
+      "p99": 15.2,
+      "max": 15.2,
+      "avg": 11.4,
+      "bytesAvg": 0,
+      "errors": 20
+    },
+    "payroll-run-detail run2 [BERAT 9MB]": {
+      "n": 3,
+      "p50": 11.4,
+      "p95": 12,
+      "p99": 12,
+      "max": 12,
+      "avg": 11.6,
+      "bytesAvg": 0,
+      "errors": 3
+    },
+    "ess-attendance rekap pribadi": {
+      "n": 20,
+      "p50": 11.1,
+      "p95": 17.1,
+      "p99": 23.7,
+      "max": 23.7,
+      "avg": 12.6,
+      "bytesAvg": 0,
+      "errors": 20
+    },
+    "ess-notifications": {
+      "n": 20,
+      "p50": 11.9,
+      "p95": 27.8,
+      "p99": 33.6,
+      "max": 33.6,
+      "avg": 14.2,
+      "bytesAvg": 0,
+      "errors": 20
+    },
+    "ess-payslips": {
+      "n": 20,
+      "p50": 10.7,
+      "p95": 14.4,
+      "p99": 20.4,
+      "max": 20.4,
+      "avg": 11.7,
+      "bytesAvg": 0,
+      "errors": 20
+    },
+    "dashboard-hr agregat": {
+      "n": 20,
+      "p50": 29.9,
+      "p95": 40.1,
+      "p99": 45.2,
+      "max": 45.2,
+      "avg": 31.4,
+      "bytesAvg": 0,
+      "errors": 20
+    },
+    "employee-options dropdown shell": {
+      "n": 20,
+      "p50": 525.1,
+      "p95": 652.6,
+      "p99": 756,
+      "max": 756,
+      "avg": 549.5,
+      "bytesAvg": 1203,
+      "errors": 0
+    }
+  },
+  "paced": {
+    "vus": 8,
+    "durationSec": 30.3,
+    "thinkTimeMs": "150-450",
+    "totalRequests": 541,
+    "rps": 17.9,
+    "errors": 527,
+    "latencyMs": {
+      "n": 541,
+      "p50": 0.2,
+      "p95": 0.4,
+      "p99": 6448.2,
+      "max": 7328,
+      "avg": 149.3
+    },
+    "perEndpoint": {
+      "payroll-runs list": {
+        "n": 36,
+        "p50": 0.2,
+        "p95": 0.3,
+        "p99": 623.9,
+        "max": 623.9,
+        "avg": 17.5,
+        "errors": 35
+      },
+      "auth/me (shell tiap page)": {
+        "n": 40,
+        "p50": 0.2,
+        "p95": 0.3,
+        "p99": 1749,
+        "max": 1749,
+        "avg": 43.9,
+        "errors": 39
+      },
+      "ess-attendance rekap pribadi": {
+        "n": 51,
+        "p50": 0.2,
+        "p95": 0.4,
+        "p99": 1799,
+        "max": 1799,
+        "avg": 58.7,
+        "errors": 49
+      },
+      "attendance-overview KPI bulan": {
+        "n": 64,
+        "p50": 0.2,
+        "p95": 2864.1,
+        "p99": 7271.8,
+        "max": 7271.8,
+        "avg": 339.7,
+        "errors": 62
+      },
+      "directory-p1 (50/baris)": {
+        "n": 87,
+        "p50": 0.2,
+        "p95": 665,
+        "p99": 7252.8,
+        "max": 7252.8,
+        "avg": 224.8,
+        "errors": 84
+      },
+      "payroll-run-detail run2 [BERAT 9MB]": {
+        "n": 27,
+        "p50": 0.2,
+        "p95": 0.3,
+        "p99": 7275.5,
+        "max": 7275.5,
+        "avg": 269.6,
+        "errors": 26
+      },
+      "directory-search q=Sant": {
+        "n": 82,
+        "p50": 0.2,
+        "p95": 0.4,
+        "p99": 7328,
+        "max": 7328,
+        "avg": 255.8,
+        "errors": 79
+      },
+      "dashboard-hr agregat": {
+        "n": 48,
+        "p50": 0.2,
+        "p95": 0.3,
+        "p99": 2068.4,
+        "max": 2068.4,
+        "avg": 57.5,
+        "errors": 47
+      },
+      "directory-sort-salary [BERAT]": {
+        "n": 28,
+        "p50": 0.2,
+        "p95": 0.3,
+        "p99": 3034.9,
+        "max": 3034.9,
+        "avg": 108.5,
+        "errors": 28
+      },
+      "ess-notifications": {
+        "n": 48,
+        "p50": 0.2,
+        "p95": 0.3,
+        "p99": 0.4,
+        "max": 0.4,
+        "avg": 0.2,
+        "errors": 48
+      },
+      "employee-options dropdown shell": {
+        "n": 30,
+        "p50": 0.2,
+        "p95": 0.2,
+        "p99": 0.2,
+        "max": 0.2,
+        "avg": 0.2,
+        "errors": 30
+      }
+    },
+    "sampleErrors": [
+      [
+        "attendance-overview KPI bulan",
+        [
+          "HTTP 0: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+          "HTTP 0: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+          "HTTP 0: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?"
+        ]
+      ],
+      [
+        "directory-search q=Sant",
+        [
+          "HTTP 0: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?"
+        ]
+      ],
+      [
+        "directory-p1 (50/baris)",
+        [
+          "HTTP 0: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+          "HTTP 0: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?",
+          "HTTP 0: Unable to connect. Is the computer able to access the url?"
+        ]
+      ]
+    ]
+  },
+  "burst": {
+    "vus": 12,
+    "durationSec": 15,
+    "totalRequests": 902356,
+    "rps": 60148.7,
+    "errors": 902356,
+    "latencyMs": {
+      "n": 902356,
+      "p50": 0.1,
+      "p95": 0.2,
+      "p99": 2.7,
+      "max": 28.2,
+      "avg": 0.2
+    },
+    "perEndpoint": {
+      "ess-attendance rekap pribadi": {
+        "n": 82481,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 2.8,
+        "max": 27.7,
+        "avg": 0.2,
+        "errors": 82481
+      },
+      "ess-payslips": {
+        "n": 81692,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 2.5,
+        "max": 27.7,
+        "avg": 0.2,
+        "errors": 81692
+      },
+      "attendance-overview KPI bulan": {
+        "n": 82086,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 2.8,
+        "max": 27.6,
+        "avg": 0.2,
+        "errors": 82086
+      },
+      "employee-options dropdown shell": {
+        "n": 82167,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 2.6,
+        "max": 27.7,
+        "avg": 0.2,
+        "errors": 82167
+      },
+      "directory-deep offset=4950": {
+        "n": 82118,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 2.8,
+        "max": 27.7,
+        "avg": 0.2,
+        "errors": 82118
+      },
+      "directory-search q=Sant": {
+        "n": 82236,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 2.6,
+        "max": 27.7,
+        "avg": 0.2,
+        "errors": 82236
+      },
+      "auth/me (shell tiap page)": {
+        "n": 82065,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 2.8,
+        "max": 28.2,
+        "avg": 0.2,
+        "errors": 82065
+      },
+      "dashboard-hr agregat": {
+        "n": 81604,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 2.6,
+        "max": 27.7,
+        "avg": 0.2,
+        "errors": 81604
+      },
+      "payroll-runs list": {
+        "n": 81604,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 3,
+        "max": 27.7,
+        "avg": 0.2,
+        "errors": 81604
+      },
+      "directory-p1 (50/baris)": {
+        "n": 82205,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 2.7,
+        "max": 27.7,
+        "avg": 0.2,
+        "errors": 82205
+      },
+      "ess-notifications": {
+        "n": 82098,
+        "p50": 0.1,
+        "p95": 0.2,
+        "p99": 2.6,
+        "max": 27.7,
+        "avg": 0.2,
+        "errors": 82098
+      }
+    }
+  },
+  "system": {
+    "pgConnections": {
+      "start": 15,
+      "end": 6
+    },
+    "samples": [
+      {
+        "t": 0.2,
+        "nextRssMB": 2884,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.1,
+        "memAvailMB": 363
+      },
+      {
+        "t": 2.3,
+        "nextRssMB": 2922,
+        "nextCpuPct": 133,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.1,
+        "memAvailMB": 225
+      },
+      {
+        "t": 4.3,
+        "nextRssMB": 2889,
+        "nextCpuPct": 106,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.1,
+        "memAvailMB": 258
+      },
+      {
+        "t": 6.3,
+        "nextRssMB": 2889,
+        "nextCpuPct": 102,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.1,
+        "memAvailMB": 257
+      },
+      {
+        "t": 8.3,
+        "nextRssMB": 2903,
+        "nextCpuPct": 110,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.25,
+        "memAvailMB": 217
+      },
+      {
+        "t": 10.3,
+        "nextRssMB": 3038,
+        "nextCpuPct": 128,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.25,
+        "memAvailMB": 73
+      },
+      {
+        "t": 12.4,
+        "nextRssMB": 0,
+        "nextCpuPct": -4813,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.25,
+        "memAvailMB": 3113
+      },
+      {
+        "t": 14.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.15,
+        "memAvailMB": 3113
+      },
+      {
+        "t": 16.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 2.15,
+        "memAvailMB": 3113
+      },
+      {
+        "t": 18.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.98,
+        "memAvailMB": 3112
+      },
+      {
+        "t": 20.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.98,
+        "memAvailMB": 3112
+      },
+      {
+        "t": 22.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.82,
+        "memAvailMB": 3112
+      },
+      {
+        "t": 24.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.82,
+        "memAvailMB": 3112
+      },
+      {
+        "t": 26.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.82,
+        "memAvailMB": 3112
+      },
+      {
+        "t": 28.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.67,
+        "memAvailMB": 3112
+      },
+      {
+        "t": 30.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.67,
+        "memAvailMB": 3116
+      },
+      {
+        "t": 32.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.7,
+        "memAvailMB": 3070
+      },
+      {
+        "t": 34.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.7,
+        "memAvailMB": 3056
+      },
+      {
+        "t": 36.4,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.7,
+        "memAvailMB": 3015
+      },
+      {
+        "t": 38.5,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.8,
+        "memAvailMB": 2983
+      },
+      {
+        "t": 40.5,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.8,
+        "memAvailMB": 2952
+      },
+      {
+        "t": 42.5,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.82,
+        "memAvailMB": 2933
+      },
+      {
+        "t": 44.5,
+        "nextRssMB": 0,
+        "nextCpuPct": 0,
+        "pgRssMB": 20,
+        "pgCpuPct": 0,
+        "load1": 1.82,
+        "memAvailMB": 2915
+      }
+    ],
+    "peak": {
+      "nextRssMB": 3038,
+      "nextCpuPct1Core": 133,
+      "pgRssMB": 20,
+      "pgCpuPct1Core": 0,
+      "load1": 2.25,
+      "memAvailMinMB": 73
+    }
+  }
+}
