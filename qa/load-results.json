@@ -1,56 +1,56 @@
 {
-  "generatedAt": "2026-10-22T04:36:01.848Z",
-  "totalRequests": 3184,
-  "throughputRps": 38.3,
+  "generatedAt": "2026-10-23T03:13:43.343Z",
+  "totalRequests": 3321,
+  "throughputRps": 39.5,
   "errorRatePct": 0,
-  "dashboardP95Ms": 844,
+  "dashboardP95Ms": 725,
   "perEndpoint": [
     {
+      "endpoint": "notifications",
+      "n": 475,
+      "p50": 76,
+      "p95": 290,
+      "p99": 753,
+      "max": 920
+    },
+    {
       "endpoint": "companies",
-      "n": 444,
-      "p50": 101,
-      "p95": 288,
-      "p99": 756,
-      "max": 808
+      "n": 504,
+      "p50": 71,
+      "p95": 386,
+      "p99": 733,
+      "max": 1021
     },
     {
       "endpoint": "me",
-      "n": 672,
-      "p50": 142,
-      "p95": 519,
-      "p99": 820,
-      "max": 930
+      "n": 662,
+      "p50": 153,
+      "p95": 600,
+      "p99": 846,
+      "max": 1123
     },
     {
       "endpoint": "dashboard",
-      "n": 973,
-      "p50": 226,
-      "p95": 844,
-      "p99": 1018,
-      "max": 1274
+      "n": 1001,
+      "p50": 194,
+      "p95": 725,
+      "p99": 939,
+      "max": 1145
     },
     {
       "endpoint": "employees",
-      "n": 609,
-      "p50": 214,
-      "p95": 847,
-      "p99": 1025,
-      "max": 1222
-    },
-    {
-      "endpoint": "notifications",
-      "n": 486,
-      "p50": 106,
-      "p95": 539,
-      "p99": 742,
-      "max": 767
+      "n": 679,
+      "p50": 220,
+      "p95": 701,
+      "p99": 980,
+      "max": 1129
     }
   ],
   "statusDistribution": {
-    "200": 3184
+    "200": 3321
   },
   "dbPeak": {
-    "total": 20,
+    "total": 19,
     "active": 1
   }
 }

@@ -47,6 +47,28 @@ export async function main(schemas?: string[]): Promise<void> {
         `UPDATE "PayrollRegulation" SET "jkpEmployeeRate" = 0, "jkpCompanyRate" = 0.0014, "jkpSalaryCap" = 5000000`,
       );
 
+      // (2.5) GAP-PARITY PERMANEN: schema hasil provisioning DDL tanpa seed
+      // referensi (mis. tenant benchmark) tidak punya SATU baris pun
+      // PayrollRegulation — cek parity "jkpEmployeeRate = 0" tidak pernah
+      // terpenuhi → parity runner menjalankan SELURUH migrasi di SETIAP boot
+      // (mahal: boot +30-60 dtk & memori bengkak utk tenant besar). INSERT
+      // baris kanonik bila tabel kosong (identik baris seed tenant demo).
+      const cnt = await c.query(`SELECT COUNT(*)::int AS n FROM "PayrollRegulation"`);
+      if ((cnt.rows[0]?.n ?? 0) === 0) {
+        await c.query(
+          `INSERT INTO "PayrollRegulation"
+             ("id","code","name","validFrom","biayaJabatanRate","biayaJabatanCapMonthly",
+              "jhtEmployeeRate","jhtCompanyRate","jpEmployeeRate","jpCompanyRate","jpSalaryCap",
+              "jkkRate","jkmRate","jpkCompanyRate","jpkEmployeeRate","jpkSalaryCap",
+              "jkpEmployeeRate","jkpCompanyRate","jkpSalaryCap","nonNpwpSurcharge","useTer","active")
+           VALUES ('reg-' || md5(random()::text), 'REG-2026-HPP', 'Regulasi UU HPP & BPJS 2026', '2026-01-01',
+                   0.05, 500000, 0.02, 0.037, 0.01, 0.02, 10547400,
+                   0.0024, 0.003, 0.04, 0.01, 12000000,
+                   0, 0.0014, 5000000, 0.2, false, true)`,
+        );
+        console.log(`[${schema}] jkp-fix: PayrollRegulation kosong → baris kanonik REG-2026-HPP di-INSERT (menutup gap parity permanen)`);
+      }
+
       // (3) F-01 — nonaktifkan komponen JKP_C/JKP_E instalasi lama.
       const comp = await c.query(
         `UPDATE "WageComponent" SET "active" = false WHERE "code" IN ('JKP_C','JKP_E') AND "active" = true`,

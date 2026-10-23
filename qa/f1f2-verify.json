@@ -1,6 +1,6 @@
 {
   "meta": {
-    "date": "2026-10-22T14:28:29.323Z",
+    "date": "2026-10-23T02:48:12.481Z",
     "tenant": "bench101 (5.000 karyawan, 5.000 line payroll run2)",
     "fix": "F1 paginasi payroll detail + F2 sort dua-fase (QA-PAGELOAD-BIGTENANT)",
     "sebelum": {
@@ -17,14 +17,14 @@
   },
   "hasil": {
     "f1_warm": {
-      "cold": "155ms",
+      "cold": "4043ms",
       "n": 6,
       "status": [
         200
       ],
-      "p50": "150ms",
-      "p95": "165ms",
-      "max": "165ms",
+      "p50": "188ms",
+      "p95": "543ms",
+      "max": "543ms",
       "bytes": [
         185193,
         185193,
@@ -40,9 +40,9 @@
       "status": [
         200
       ],
-      "p50": "159ms",
-      "p95": "296ms",
-      "max": "296ms",
+      "p50": "168ms",
+      "p95": "174ms",
+      "max": "174ms",
       "bytes": [
         187979,
         187979,
@@ -51,14 +51,14 @@
       "bytesMax": 187979
     },
     "f2": {
-      "cold": "623ms",
+      "cold": "707ms",
       "n": 6,
       "status": [
         200
       ],
-      "p50": "587ms",
-      "p95": "647ms",
-      "max": "647ms",
+      "p50": "604ms",
+      "p95": "819ms",
+      "max": "819ms",
       "bytes": [
         54703,
         54703,
@@ -74,9 +74,9 @@
       "status": [
         200
       ],
-      "p50": "233ms",
-      "p95": "236ms",
-      "max": "236ms",
+      "p50": "261ms",
+      "p95": "273ms",
+      "max": "273ms",
       "bytes": [
         54621,
         54621,
@@ -90,9 +90,9 @@
       "status": [
         200
       ],
-      "p50": "56ms",
-      "p95": "65ms",
-      "max": "65ms",
+      "p50": "59ms",
+      "p95": "62ms",
+      "max": "62ms",
       "bytes": [
         54539,
         54539,

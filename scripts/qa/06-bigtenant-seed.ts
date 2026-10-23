@@ -139,6 +139,12 @@ async function main() {
     await insertMany(c, "Position", ["id", "code", "title"],
       Array.from({ length: 10 }, (_, k) => [`ps${k + 1}`, `PS${k + 1}`, `Posisi ${k + 1}`])); rows.push(10);
     await insertMany(c, "ProcessType", ["id", "code", "name"], [["ptSAL", "SAL", "Gaji Bulanan"], ["ptTHR", "THR", "Tunjangan Hari Raya"]]); rows.push(2);
+    // PayrollRegulation kanonik — TANPA baris ini parity gap permanen terdeteksi
+    // ("tenant dengan jkpEmployeeRate ≠ 0") dan parity runner menjalankan seluruh
+    // migrasi di SETIAP boot. Nilai = state kanonik migrate-jkp (0% pekerja).
+    await insertMany(c, "PayrollRegulation",
+      ["id", "code", "name", "validFrom", "biayaJabatanRate", "biayaJabatanCapMonthly", "jhtEmployeeRate", "jhtCompanyRate", "jpEmployeeRate", "jpCompanyRate", "jpSalaryCap", "jkkRate", "jkmRate", "jpkCompanyRate", "jpkEmployeeRate", "jpkSalaryCap", "jkpEmployeeRate", "jkpCompanyRate", "jkpSalaryCap", "nonNpwpSurcharge", "useTer", "active"],
+      [["bench101-reg", "REG-2026-HPP", "Regulasi UU HPP & BPJS 2026", new Date("2026-01-01"), 0.05, 500000, 0.02, 0.037, 0.01, 0.02, 10547400, 0.0024, 0.003, 0.04, 0.01, 12000000, 0, 0.0014, 5000000, 0.2, false, true]]); rows.push(1);
 
     // karyawan + assignment + app user — ENKRIPSI ASLI (v1 legacy, konsisten app)
     const emp: unknown[][] = [];
