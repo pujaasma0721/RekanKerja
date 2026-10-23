@@ -1,0 +1,68 @@
+4 sesi tenant siap (mii/cahaya/sentra/bench101-5000emp)
+
+── Tahap warmup: 5 VU, 8s (think-time 150-450ms)
+  pg koneksi puncak: 19/300
+
+── Tahap S8: 8 VU, 15s (think-time 150-450ms)
+  pg koneksi puncak: 19/300
+S8 VU=8: 234 req | 13.3 req/s | p50 89.6635810000007ms p95 816.8597409999984ms | err 0 | down 1.7MB = 0.81 Mbps
+
+── Tahap S16: 16 VU, 15s (think-time 150-450ms)
+  pg koneksi puncak: 19/300
+S16 VU=16: 310 req | 17 req/s | p50 434.349463999999ms p95 1212.4070740000025ms | err 0 | down 2.4MB = 1.1 Mbps
+
+── Tahap S24: 24 VU, 15s (think-time 150-450ms)
+  pg koneksi puncak: 19/300
+S24 VU=24: 311 req | 16.8 req/s | p50 802.0931239999991ms p95 2168.279536999995ms | err 0 | down 3.6MB = 1.63 Mbps
+
+── Tahap S32: 32 VU, 15s (think-time 150-450ms)
+  pg koneksi puncak: 19/300
+S32 VU=32: 341 req | 17.8 req/s | p50 1073.1987440000084ms p95 2784.797965000005ms | err 0 | down 2.5MB = 1.09 Mbps
+
+== RINGKASAN ==
+[
+ {
+  "stage": "S8",
+  "vu": 8,
+  "reqs": 234,
+  "rps": 13.3,
+  "p50": 89.6635810000007,
+  "p95": 816.8597409999984,
+  "err": 0,
+  "mbpsDown": 0.81,
+  "peakConn": 19
+ },
+ {
+  "stage": "S16",
+  "vu": 16,
+  "reqs": 310,
+  "rps": 17,
+  "p50": 434.349463999999,
+  "p95": 1212.4070740000025,
+  "err": 0,
+  "mbpsDown": 1.1,
+  "peakConn": 19
+ },
+ {
+  "stage": "S24",
+  "vu": 24,
+  "reqs": 311,
+  "rps": 16.8,
+  "p50": 802.0931239999991,
+  "p95": 2168.279536999995,
+  "err": 0,
+  "mbpsDown": 1.63,
+  "peakConn": 19
+ },
+ {
+  "stage": "S32",
+  "vu": 32,
+  "reqs": 341,
+  "rps": 17.8,
+  "p50": 1073.1987440000084,
+  "p95": 2784.797965000005,
+  "err": 0,
+  "mbpsDown": 1.09,
+  "peakConn": 19
+ }
+]

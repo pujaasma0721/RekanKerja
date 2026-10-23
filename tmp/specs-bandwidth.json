@@ -1,0 +1,103 @@
+{
+  "generatedAt": "2026-10-23T04:32:36.603Z",
+  "rows": [
+    {
+      "who": "bench5000",
+      "ep": "/api/auth/me",
+      "b": 472,
+      "ms": 17,
+      "status": 200
+    },
+    {
+      "who": "bench5000",
+      "ep": "/api/rekankerja/dashboard",
+      "b": 3260,
+      "ms": 433,
+      "status": 200
+    },
+    {
+      "who": "bench5000",
+      "ep": "/api/rekankerja/employees?page=1&pageSize=100",
+      "b": 54539,
+      "ms": 54,
+      "status": 200
+    },
+    {
+      "who": "bench5000",
+      "ep": "/api/rekankerja/employees?q=Santoso",
+      "b": 54631,
+      "ms": 58,
+      "status": 200
+    },
+    {
+      "who": "bench5000",
+      "ep": "/api/rekankerja/employees?sortBy=baseSalary&sortDir=asc",
+      "b": 54718,
+      "ms": 503,
+      "status": 200
+    },
+    {
+      "who": "bench5000",
+      "ep": "/api/rekankerja/employee-options",
+      "b": 1231656,
+      "ms": 411,
+      "status": 200
+    },
+    {
+      "who": "bench5000",
+      "ep": "/api/rekankerja/payroll-runs",
+      "b": 2731,
+      "ms": 21,
+      "status": 200
+    },
+    {
+      "who": "bench5000",
+      "ep": "/api/rekankerja/payroll-run?id=run2",
+      "b": 185193,
+      "ms": 155,
+      "status": 200
+    },
+    {
+      "who": "bench5000",
+      "ep": "/api/rekankerja/attendance/overview",
+      "b": 658,
+      "ms": 922,
+      "status": 200
+    },
+    {
+      "who": "bench5000",
+      "ep": "/api/rekankerja/notifications",
+      "b": 508,
+      "ms": 31,
+      "status": 200
+    },
+    {
+      "who": "mii",
+      "ep": "/api/rekankerja/dashboard",
+      "b": 6860,
+      "ms": 173,
+      "status": 200
+    },
+    {
+      "who": "mii",
+      "ep": "/api/rekankerja/employees?page=1",
+      "b": 69869,
+      "ms": 52,
+      "status": 200
+    },
+    {
+      "who": "html",
+      "ep": "/login",
+      "b": 18162,
+      "ms": 42,
+      "status": 404
+    },
+    {
+      "who": "html",
+      "ep": "/",
+      "b": 39775,
+      "ms": 36,
+      "status": 200
+    }
+  ]
+}
