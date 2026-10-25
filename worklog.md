@@ -8203,3 +8203,36 @@ Work Log:
 Stage Summary:
 - SPEK REKOMENDASI FINAL (berbasis pengukuran, bukan hayalan): (A) single server 8 vCPU · 16GB RAM · 250GB NVMe SSD · uplink 100-200 Mbps dedicated — nyaman utk 100 tenant/20.000+ karyawan dgn margin puncak; (B) split produksi: app 4c/8GB + DB 4c/8GB (PG shared_buffers 2GB) — isolasi payroll batch dari query interaktif. Minimum absolut 4c/8GB/100GB NVMe/100Mbps (p95 memburuk saat peak). Angka dev = worst case (produksi build lebih hemat 30-50%). Batas arsitektur saat ini: 140 tenant AKTIF serentak/node (300 conn ÷ 2/tenant) — 100 tenant tercakup; di atas itu perlu PgBouncer/sharding (sudah terdokumentasi di tenant-db.ts).
 - Semua angka bisa dilacak ke pengukuran: load test 0 error 8-32VU, 7,33MB/client R²=0,9988, 22KB/emp/bulan dari pg_total_relation_size, gzip 78-95% dari zlib nyata.
+
+---
+Task ID: QA-SPECS-SERVER (re-konstruksi pasca-restore kedua)
+Agent: main (Z.ai Code)
+Task: Sizing server produksi berbasis pengukuran EMPIRIS (2 CPU/4GB sandbox) utk skenario 100 tenant + >20.000 karyawan — CPU/RAM/HDD/bandwidth.
+
+Work Log:
+- DISK: bench101 (5.000 karyawan; presensi 30 hari 150k + clock 282k + payroll 3 periode 120k item) = 152MB/222 tabel; tenant kosong 8MB; MII 15MB; pertumbuhan steady-state ±22KB/karyawan/bulan. DB total 208MB.
+- MEMORI: 7,33 MB per tenant-client Node-side (regresi 30 titik R²=0,9988); 17,5 MB RSS per koneksi backend PG (unik ±5MB).
+- LOAD TEST (4 tenant termasuk bench101, mix ringan+F1/F2 berat): 8→32 VU, 0 error semua tahap; 17 req/s plateau @2-core; koneksi PG puncak 19/300; next-server CPU rata2 91%/1-core (mode DEV), RAM +630MB @32VU; PG 546→741MB.
+- BANDWIDTH: bobot respons 0,5KB (me) → 1,17MB (employee-options, F4); gzip terukur hemat 78-95%; download 0,03-0,1 Mbps per user aktif; burst payslip 100 unduhan serentak = 30-60 Mbps.
+
+Stage Summary:
+- SPEK FINAL: (A) single server 8 vCPU · 16GB RAM · 250GB NVMe · 100-200 Mbps dedicated simetris (Jakarta) — nyaman utk skenario; (B) split: app 4c/8GB + DB 4c/8GB (shared_buffers 2GB). Minimum absolut 4c/8GB/100GB/100Mbps. Batas arsitektur saat ini: ±140 tenant aktif serentak/node.
+- Diskusi lanjutan dgn user: internet rumah 300/600 + IP statik + Dual Xeon 40c/80t + 64GB ECC + UPS → LAYAK & ekonomis (listrik ±Rp200-350rb/bln vs VPS Rp1,5-2,5jt) dengan syarat: (1) upload line jam 20-22 WIB ≥30Mbps, (2) port 443 inbound OK, (3) UPS ≥15 mnt runtime, (4) build produksi bukan dev, (5) RAID-1 SSD, (6) Cloudflare di depan, (7) backup offsite harian, (8) NUT + monitoring. Rekomendasi postgresql.conf 64GB: shared_buffers 16GB, effective_cache_size 40GB, work_mem 32MB, maintenance_work_mem 2GB, max_parallel_workers 16.
+
+---
+Task ID: QA-PII-AUDIT
+Agent: main (Z.ai Code)
+Task: "cek mekanisme encryp dan decryp data2 seperti ktp dan npwp di employee directory" — audit menyeluruh enkripsi/dekripsi NIK & NPWP dari kode sampai bytes DB + respons API.
+
+Work Log:
+- INSIDEN (restore snapshot KE-2): .env terpotong 1 baris + DB PostgreSQL kosong (initdb baru) + dev server mati + entri worklog QA-SPECS-SERVER & tmp/specs-* hilang dari disk. Pemulihan penuh sesuai prosedur terdokumentasi: .env ditulis ulang (password PG = onevity_dev via mini-service default; TENANT_DB_CONNECTION_LIMIT=2; SCHEDULER=true) → verifikasi max_connections=300 → db:generate + db:push (public: User/UserTenant/Tenant) → restore-demo.ts (3 tenant) → 6 migrasi idempoten → 06-bigtenant-seed (596.952 baris / 16,5 dtk / 212MB) → dev server via dev-watchdog.sh baru (curl-health + restart loop; pola setsid -f).
+- KODE (src/rekankerja/shared/lib/field-crypto.ts, 569 baris): AES-256-GCM, IV acak 12-byte per tulis, auth tag; format self-describing enc:v1|v2:<t|n>:<iv b64>:<tag b64>:<ct b64>. Dua skema kunci: v1 bootstrap = HMAC-SHA256(master, "field-crypto:"+schema) dgn master = sha256(ONEVITY_ENCRYPTION_KEY) ATAU fallback deterministik; v2 vault = dataKey 32-byte PBKDF2(kata sandi brankas, 210k iter) tersimpan hex di MoneyVault.dataKey per schema tenant. Guard double-encryption (idempoten), self-healing unwrap 5 lapis, blindIndex HMAC utk equality-search tanpa membongkar enkripsi, NaN-money guard.
+- MASKING (employees.ts M-9/42-e): PiiScope full|limited|self. maskEmployeePii: NIK→maskNik (2 digit awal + bullet + 2 akhir), NPWP→maskNpwp (bullet semua kecuali 4 digit akhir), 12 field PII lain (alamat, telp, bank, gaji, BPJS) → null. Dipakai list + employee-detail; export XLSX: includePii/includeWage = scope.all saja; pencarian q= HANYA nama/no/email/posisi (bukan NIK — tidak ada oracle pencarian).
+- BUKTI EMPIRIS (tmp/audit-pii*.ts): (A) 5.000/5.000 NIK bench101 tersimpan enc:v1:t:… — 0 plaintext 16-digit bocor; (B) IV acak — ciphertext baris berbeda utk struktur sama; (C) ISOLASI: kunci tenant MII GAGAL dekripsi ciphertext bench101 (GCM auth tag menolak) — kunci benar sukses (NIK 16 digit); (D) scope limited: nationalId "31•••••••••06", taxId "••••••••2345", baseSalary/bankAccount/phone null — via OWNER sekalipun; (E) scope full (superadmin + tanpa company aktif sementara, lalu direvert): nationalId 3176363464506 TERDEKRIPSI PENUH, taxId 091485262345, baseSalary 54900000; (F) employee-options tanpa field PII sama sekali.
+- TEMUAN DESAIN (dibuktikan penyebabnya): resolveAccessScope baris 209-213 — dimensi switcher multi-company ME-RESET scope.all jadi false bila tenant punya ≥1 Company aktif → SEMUA pengguna (termasuk platform OWNER/superadmin) menerima piiScope=limited di tenant multi-company. Konsekuensi: OWNER workspace tidak pernah melihat NIK penuh via API list/detail selama Company aktif (jalur penuh hanya saat tenant tanpa Company aktif — mis. pra-setup company dimension). Ini trade-off sadar desain switcher (scope masih menyisir company aktif) tapi interaksinya dgn M-9 belum pernah dinyatakan eksplisit — dicatat sebagai catatan produk, bukan bug keamanan (lebih ketat, bukan longgar).
+- TEMUAN KUNCI (v1 bootstrap): seluruh data demo/bench saat ini enc:v1 (MoneyVault kosong di 4 tenant) — kunci derivabel dari source code + TENANT_DB_BASE_URL. UNTUK PRODUKSI WAJIB: set kata sandi Brankas Uang (→ enc:v2, PBKDF2 210k, re-key otomatis) ATAU minimal set ONEVITY_ENCRYPTION_KEY. Tanpa itu, enkripsi at-rest hanya menahan penyerbang tanpa akses source (DB dump saja), bukan penyerbang dgn source.
+
+Stage Summary:
+- MEKANISME TERBUKTI BENAR E2E: penyimpanan AES-256-GCM (5.000/5.000 terenkripsi, 0 bocor), isolasi kunci antar-tenant teruji gagal-silang, dekripsi hanya di lapisan serializer server, masking M-9 konsisten di list/detail/options/export, pencarian tidak membocorkan NIK, gaji di gerbang vault terpisah.
+- Dua catatan produksi: (1) set Brankas Uang utk naik ke kunci v2 (kunci sekarang v1 bootstrap); (2) keputusan produk utk interaksi company-switcher × M-9 (OWNER selalu limited di tenant multi-company).
+- Artefak: tmp/audit-pii{,2,3,4,5}.ts + dev-watchdog.sh. Git: commit pasca-audit.
