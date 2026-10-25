@@ -16,16 +16,22 @@
 #   REKANKERJA_BUILD_ROOT induk folder build (default /home/puja)
 #   REKANKERJA_BRANCH     branch             (default main)
 #   PM2_APP            nama proses pm2    (default rekankerja)
-#   HEALTH_URL         URL healthcheck    (default https://onevity.sayone.my.id/)
+#   HEALTH_URL         URL healthcheck    (default https://rekankerja.sayone.my.id/)
 #
 # Log: /home/puja/rekankerja-deploy.log
 # ============================================================================
 set -euo pipefail
 
+# target live yang benar: PM2 "rekankerja" + folder /home/puja/rekankerja
+# (standalone server --port 3001; nama live diperbarui per 2026-10-15).
+# PM2 "onevity" sudah TIDAK ADA (entry dihapus); folder /home/puja/onevity
+# adalah sisa deploy lama — jangan dipakai sbg target deploy.
 APP_DIR="${REKANKERJA_APP_DIR:-/home/puja/rekankerja}"
 BUILD_ROOT="${REKANKERJA_BUILD_ROOT:-/home/puja}"
 PM2_APP="${PM2_APP:-rekankerja}"
-HEALTH_URL="${HEALTH_URL:-https://onevity.sayone.my.id/}"
+HEALTH_URL="${HEALTH_URL:-https://rekankerja.sayone.my.id/}"
+# catatan: onevity.sayone.my.id sudah dipakai aplikasi lain (Blynk/QS) di .10 —
+# jangan dipakai sbg healthcheck; app ini live di rekankerja.sayone.my.id (nginx .6 → .15:3001).
 BRANCH="${REKANKERJA_BRANCH:-main}"
 CONF_FILE="${REKANKERJA_DEPLOY_CONF:-$BUILD_ROOT/.rekankerja-deploy.conf}"
 KEEP_ROLLBACKS=3
