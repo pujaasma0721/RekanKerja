@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # ============================================================================
-# RekanKerja — Deploy otomatis ke production .15
+# RekanKerja — Deploy otomatis ke production .23 (server baru, per 2026-10-26)
 # ============================================================================
+# Server live: 192.168.1.23 (user rekankerja; user-space: node ~/dl + pg ~/pg).
+# Seluruh service: PM2 rekankerja (app :3001) + PM2 db-onevity (postgres 5432).
+# Nginx TLS di .6 → 192.168.1.23:3001.
+#
 # Alur: preflight → clone fresh → npm ci → db:generate → build → cutover PM2
 #       → healthcheck → (gagal? rollback otomatis) → bereskan rollback lama.
 #
-# Pemakaian (dari .15, user puja):
+# Pemakaian (dari .23, user rekankerja):
 #   ~/deploy.sh                          # deploy branch main
 #   REKANKERJA_BRANCH=dev ~/deploy.sh       # deploy branch lain
 #
@@ -18,20 +22,20 @@
 #   PM2_APP            nama proses pm2    (default rekankerja)
 #   HEALTH_URL         URL healthcheck    (default https://rekankerja.sayone.my.id/)
 #
-# Log: /home/puja/rekankerja-deploy.log
+# Log: /home/rekankerja/rekankerja-deploy.log
 # ============================================================================
 set -euo pipefail
 
-# target live yang benar: PM2 "rekankerja" + folder /home/puja/rekankerja
-# (standalone server --port 3001; nama live diperbarui per 2026-10-15).
-# PM2 "onevity" sudah TIDAK ADA (entry dihapus); folder /home/puja/onevity
-# adalah sisa deploy lama — jangan dipakai sbg target deploy.
-APP_DIR="${REKANKERJA_APP_DIR:-/home/puja/rekankerja}"
-BUILD_ROOT="${REKANKERJA_BUILD_ROOT:-/home/puja}"
+# target live yang benar: server .23, PM2 "rekankerja" + folder
+# /home/rekankerja/rekankerja (standalone server --port 3001).
+# DILUAR: .15 (server lama, DB+app kini hanya simpanan rollback; jangan deploy
+# ke sana lagi) dan PM2 "onevity" (entry sudah dihapus).
+APP_DIR="${REKANKERJA_APP_DIR:-/home/rekankerja/rekankerja}"
+BUILD_ROOT="${REKANKERJA_BUILD_ROOT:-/home/rekankerja}"
 PM2_APP="${PM2_APP:-rekankerja}"
 HEALTH_URL="${HEALTH_URL:-https://rekankerja.sayone.my.id/}"
-# catatan: onevity.sayone.my.id sudah dipakai aplikasi lain (Blynk/QS) di .10 —
-# jangan dipakai sbg healthcheck; app ini live di rekankerja.sayone.my.id (nginx .6 → .15:3001).
+# catatan: healthcheck memakai public URL (nginx .6 → .23:3001). Bila nginx
+# belum di-cutover dari .15, set HEALTH_URL=http://127.0.0.1:3001/ .
 BRANCH="${REKANKERJA_BRANCH:-main}"
 CONF_FILE="${REKANKERJA_DEPLOY_CONF:-$BUILD_ROOT/.rekankerja-deploy.conf}"
 KEEP_ROLLBACKS=3
@@ -65,7 +69,7 @@ repo_url_of() {
 
 # ---------- 0. preflight ----------
 log "== RekanKerja deploy — preflight =="
-[[ "$(id -u)" -eq 0 ]] && die "Jalankan sebagai user puja (bukan root)."
+[[ "$(id -u)" -eq 0 ]] && die "Jalankan sebagai user rekankerja (bukan root)."
 command -v git  >/dev/null || die "git tidak ditemukan"
 command -v npm  >/dev/null || die "npm tidak ditemukan"
 command -v pm2  >/dev/null || die "pm2 tidak ditemukan"
@@ -128,6 +132,9 @@ fi
 # sumber (diwarisi dari pm2 start awal + --update-env). Tanpa ini var baru
 # yang hanya ditambah di .env.local tidak pernah terbaca aplikasi.
 set -a; . "$APP_DIR/.env.local"; set +a
+# pastikan var runtime inti tak hilang oleh --update-env (env proses pm2
+# diganti memakai env shell pemanggil — salin default produksi di sini).
+export NODE_ENV=production PORT=3001
 pm2 restart "$PM2_APP" --update-env >/dev/null || rollback_now
 
 # ---------- 6. healthcheck ----------
