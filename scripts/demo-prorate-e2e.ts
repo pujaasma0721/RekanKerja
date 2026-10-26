@@ -7,7 +7,7 @@
  *  5. Run Sep: segmen prorate + nilai LAMA. Run Okt: nilai BARU penuh.
  * Usage: tsx scripts/demo-prorate-e2e.ts [BASE]
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const jar = new Map<string, string>();
 function storeCookies(res: Response): void {
   const list: string[] = (res.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie?.() ?? [];

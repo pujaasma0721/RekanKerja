@@ -170,7 +170,7 @@ globalForScheduler.__rekankerjaSchedulerState = schedulerState;
 // berjalan dalam satu transaksi tunggal. Koneksi selalu ditutup di finally.
 
 const SCHEDULER_DB_URL = () =>
-  process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+  process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
 
 /** Hash FNV-1a 32-bit → string desimal (key advisory lock deterministik). */
 function fnv1a32(s: string): string {

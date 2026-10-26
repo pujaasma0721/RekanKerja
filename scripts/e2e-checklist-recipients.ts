@@ -5,7 +5,7 @@
  * 3. GET untuk verifikasi
  * 4. PATCH /api/rekankerja/onboarding/[id] {action:"resendEmail"} → kirim ulang
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const EMAIL = process.argv[3] ?? "puja.asmara@sayone.com";
 const PASSWORD = process.argv[4] ?? "Asmaree.007";
 const TARGET = process.argv[5] ?? "pujaas007@gmail.com";

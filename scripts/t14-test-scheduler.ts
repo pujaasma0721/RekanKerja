@@ -77,7 +77,7 @@ async function modeInterval(): Promise<void> {
 async function main(): Promise<void> {
   const db = getTenantClient(MII_SCHEMA);
   const pg = new Client({
-    connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity",
+    connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja",
   });
   await pg.connect();
   const q = async (sql: string, params: unknown[] = []) => (await pg.query(sql, params as never[])).rows;

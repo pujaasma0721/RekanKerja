@@ -5,7 +5,7 @@
  * → verifikasi via log Postfix di server (dilakukan terpisah via SSH).
  * Usage: npx tsx scripts/e2e-leave-notify.ts <base-url>
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const EMAIL = "sayone.ess.test@sayone.com";
 const PASSWORD = "Asmaree.007";
 

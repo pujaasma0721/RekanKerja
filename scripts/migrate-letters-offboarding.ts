@@ -40,7 +40,7 @@ function ddlStatements(): string[] {
 /** CREATE TABLE/INDEX/FK untuk tabel baru; ADD COLUMN untuk tabel existing. */
 export async function applyLettersDdl(schemaName: string): Promise<{ tables: number; columns: number }> {
   const statements = ddlStatements();
-  const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+  const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
   await c.connect();
   try {
     await c.query(`SET search_path TO "${schemaName}"`);

@@ -31,9 +31,9 @@ import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const PLATFORM_URL =
-  process.env.PLATFORM_DB_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+  process.env.PLATFORM_DB_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
 const BASE_URL =
-  process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+  process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
 
 const FALLBACK_SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

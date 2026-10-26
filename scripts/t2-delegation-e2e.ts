@@ -12,7 +12,7 @@
 import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
 import { Client } from "pg";
 
-const PLATFORM_URL = process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+const PLATFORM_URL = process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
 const MII_SCHEMA = "tenant_pt_mitra_industri_internasional";
 const DELEGATE_EMAIL = "agus@mii.co.id";
 const DELEGATE_PASSWORD = "onevity123";

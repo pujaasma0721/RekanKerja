@@ -17,7 +17,7 @@ function check(name: string, ok: boolean, detail: string) {
   else { fail++; console.log(`  ✗ ${name} — ${detail}`); }
 }
 
-const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
 await c.connect();
 await c.query(`SET search_path TO "${SCHEMA}"`);
 const tc = tenantCrypto(SCHEMA);

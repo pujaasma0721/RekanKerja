@@ -2,7 +2,7 @@
 // =========================================================================
 // Menjalankan SELURUH migrasi idempoten pasca-7987fe8 secara IN-PROCESS
 // (dynamic import — TANPA spawn bun) untuk SEMUA tenant di registry.
-// Latar: deployment produksi onevity.sayone.my.id berjalan di bawah NODE
+// Latar: deployment produksi (domain utama) berjalan di bawah NODE
 // (spawn "bun" gagal ENOENT) + DB lama — endpoint seed lama tidak bisa
 // mengeksekusi apa pun. Runner ini menggantikan mekanisme itu:
 //   1. src/instrumentation.ts — saat BOOT bila terdeteksi gap parity
@@ -29,7 +29,7 @@ const RECRUITMENT_ALTER_COLUMNS_TUPLES = RECRUITMENT_ALTER_COLUMNS.map(
 ).join(", ");
 
 const TENANT_URL = () =>
-  process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+  process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
 
 export type ParityStepResult = {
   key: string;

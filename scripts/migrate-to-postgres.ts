@@ -85,7 +85,7 @@ async function main() {
   // reset-safe (idempotent): drop dulu agar re-run bersih
   {
     const { Client } = await import("pg");
-    const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+    const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
     await c.connect();
     await c.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
     await c.end();

@@ -1,6 +1,6 @@
 // mini-services/postgres — Embedded PostgreSQL 17 untuk RekanKerja (multi-tenant schema-per-tenant)
-// Idempotent: initdb (sekali) → start (jika mati) → pastikan database `onevity` ada.
-// (Nama db/user `onevity` = identifier infrastruktur internal — dipertahankan agar cluster
+// Idempotent: initdb (sekali) → start (jika mati) → pastikan database `rekankerja` ada.
+// (Nama db/user `rekankerja` = identifier infrastruktur internal — dipertahankan agar cluster
 // PG existing + .env + prosedur pemulihan sandbox tetap valid; bukan brand tampilan.)
 // Port: 5432 (khusus internal, tidak diekspos gateway).
 import { Client } from "pg";
@@ -12,8 +12,8 @@ import path from "node:path";
 const BIN = path.join(process.cwd(), "node_modules", "@embedded-postgres", "linux-x64", "native", "bin");
 const DATA = path.join(process.cwd(), "data");
 const PGLOG = path.join(process.cwd(), "pg.log");
-const USER = "onevity";
-const PASSWORD = process.env.PG_PASSWORD ?? "onevity_dev";
+const USER = "rekankerja";
+const PASSWORD = process.env.PG_PASSWORD ?? "rekankerja_dev";
 const PORT = 5432;
 // QA-SCALING-100T: batas koneksi dinaikkan 100 → 300. Pola 1 PrismaClient per
 // tenant (limit 2 koneksi) + evict idle (tenant-db.ts): 100 tenant aktif serentak
@@ -78,6 +78,6 @@ if (!(await isUp())) {
   }
 }
 
-await ensureDatabase("onevity");
-console.log(`[pg] OK — postgres@127.0.0.1:${PORT} db=onevity user=${USER} (data: ${path.relative(process.cwd(), DATA)})`);
+await ensureDatabase("rekankerja");
+console.log(`[pg] OK — postgres@127.0.0.1:${PORT} db=rekankerja user=${USER} (data: ${path.relative(process.cwd(), DATA)})`);
 process.exit(0);

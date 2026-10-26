@@ -1,6 +1,6 @@
 import { Client } from "pg";
 import { loginAs } from "../scripts/qa/helpers";
-const c = new Client({ connectionString: "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+const c = new Client({ connectionString: "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
 await c.connect();
 // vault state pasca user set password
 for (const s of ["tenant_pt_mitra_industri_internasional", "tenant_bench_101"]) {

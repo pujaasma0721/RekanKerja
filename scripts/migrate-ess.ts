@@ -18,7 +18,7 @@ const SCHEMAS = [
 ];
 
 const BASE_URL =
-  process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+  process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
 
 /** DDL ESS (idempoten — IF NOT EXISTS di semua statement). */
 async function applyEssDdl(schemaName: string): Promise<string[]> {

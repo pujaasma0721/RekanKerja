@@ -12,7 +12,7 @@ import { Client } from "pg";
 import { tenantSchemas } from "../src/rekankerja/shared/lib/parity-runner";
 
 const TENANT_URL = () =>
-  process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+  process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
 
 const COLUMNS: [column: string, ddl: string][] = [
   [`otWorkweekDays`, `ALTER TABLE "AttendanceRule" ADD COLUMN "otWorkweekDays" INTEGER NOT NULL DEFAULT 5`],

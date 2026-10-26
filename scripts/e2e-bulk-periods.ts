@@ -10,7 +10,7 @@
  *   7. Cleanup: hapus 12 period 2027 (hanya yang tanpa run — memang baru dibuat).
  * Usage: npx tsx scripts/e2e-bulk-periods.ts <base-url>
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const YEAR = 2027;
 
 const jar = new Map<string, string>();

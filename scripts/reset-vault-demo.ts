@@ -41,7 +41,7 @@ async function main(schemaArg?: string): Promise<void> {
   const schema = schemaArg ?? DEFAULT_SCHEMA;
   const c = new Client({
     connectionString:
-      process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity",
+      process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja",
   });
   await c.connect();
   try {

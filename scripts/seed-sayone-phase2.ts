@@ -6,7 +6,7 @@
  *
  * Usage: node scripts/seed-sayone-phase2.ts [baseUrl] [targetTotalKaryawan]
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const TARGET_EMP = Number(process.argv[3] ?? 500);
 
 const EMAIL = "puja.asmara@sayone.com";

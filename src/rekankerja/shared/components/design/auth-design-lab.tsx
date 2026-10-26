@@ -1464,8 +1464,7 @@ function BrowserFrame({ children }: { children: ReactNode }) {
         <span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-amber-300/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-brand/55" />
-        <div className="ml-3 flex-1 truncate rounded-md bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-slate-500">
-          onevity.sayone.my.id · pratinjau desain halaman masuk
+        <div className="ml-3 flex-1 truncate rounded-md bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-slate-500">           pratinjau desain halaman masuk
         </div>
         <span className="w-12" />
       </div>

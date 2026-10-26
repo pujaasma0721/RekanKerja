@@ -4,7 +4,7 @@
  * Idempoten: aman dijalankan ulang.
  * Usage: npx tsx scripts/e2e-smtp-connect.ts <base-url>
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const EMAIL = "puja.asmara@sayone.com";
 const PASSWORD = "Asmaree.007";
 const TEST_TO = "pujaas007@gmail.com";

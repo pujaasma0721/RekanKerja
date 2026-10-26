@@ -8,7 +8,7 @@
 //   · Host sayone.rekankerja.id  → slug "sayone" (subdomain tenant).
 //   · Host rekankerja.id         → null (host utama — perilaku lama: pilih workspace).
 //   · Host apa pun yang TIDAK berakhiran base domain (mis. IP, localhost,
-//     onevity.sayone.my.id saat env belum diset) → null → perilaku lama.
+//     host aplikasi lain saat env belum diset) → null → perilaku lama.
 //    (Fallback ini membuat rollout aman: tanpa env, aplikasi berperilaku
 //     persis seperti sebelumnya; dengan env, hanya subdomain yang berubah.)
 
@@ -22,7 +22,7 @@ export function baseDomains(): string[] {
 
 /**
  * Host UTAMA aplikasi (env REKANKERJA_MAIN_HOSTS, dipisah koma) — mis.
- * "onevity.sayone.my.id". Host ini DIKECUALIKAN dari pencocokan subdomain
+ * (daftar host utama dari env). Host ini DIKECUALIKAN dari pencocokan subdomain
  * walau bentuknya seperti subdomain dari base domain (slug "rekankerja" tidak
  * boleh diamankan oleh tenant mana pun — itu alamat utama platform).
  */

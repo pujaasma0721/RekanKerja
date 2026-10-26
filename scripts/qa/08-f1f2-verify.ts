@@ -113,7 +113,7 @@ const check = (name: string, ok: boolean, detail: string) => {
   check("F1 halaman terakhir valid", (p50.json?.pagination?.page ?? 0) === 50, `page=${p50.json?.pagination?.page}`);
 
   // q=Santoso — cocokkan dgn DB langsung
-  const db = new Client({ connectionString: readEnvVar("TENANT_DB_BASE_URL") ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+  const db = new Client({ connectionString: readEnvVar("TENANT_DB_BASE_URL") ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
   await db.connect();
   const dbSantoso = await db.query(
     `SELECT count(*)::int n FROM ${SCHEMA}."PayrollRunLine" WHERE "runId"=$1 AND ("employeeName" ILIKE '%Santoso%' OR "employeeNo" ILIKE '%Santoso%')`,

@@ -51,7 +51,7 @@ export async function dropTenantSchema(schemaName: string): Promise<void> {
   // Validasi ketat: hanya identifier schema buatan sendiri (hasil
   // schemaNameForSlug) yang boleh masuk query — anti SQL injection.
   if (!/^tenant_[a-z0-9_]+$/.test(schemaName)) return;
-  const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+  const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
   try {
     await c.connect();
     await c.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
@@ -96,7 +96,7 @@ export async function missingCriticalTables(c: { query: (sql: string, params?: u
  */
 export async function provisionTenantSchema(schemaName: string): Promise<void> {
   const ddl = readFileSync(DDL_PATH, "utf8");
-  const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+  const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
   await c.connect();
   try {
     const existing = await c.query("SELECT 1 FROM information_schema.schemata WHERE schema_name = $1", [schemaName]);

@@ -4,9 +4,9 @@
  * memakai sesi cookie owner puja.asmara@sayone.com.
  *
  * Usage: node scripts/seed-sayone-via-ui.ts [baseUrl] [jumlahKaryawan]
- *   default: https://onevity.sayone.my.id 500
+ *   default: https://rekankerja.sayone.my.id 500
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const N_EMP = Number(process.argv[3] ?? 500);
 
 const EMAIL = "puja.asmara@sayone.com";

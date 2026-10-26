@@ -52,7 +52,7 @@ export async function main(schemas?: string[]): Promise<void> {
   let totalFixed = 0;
   let totalScanned = 0;
   for (const schema of list) {
-    const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+    const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
     await c.connect();
     try {
       await c.query(`SET search_path TO "${schema}"`);

@@ -3,7 +3,7 @@
  * workspace tenant host, isolasi lintas-tenant, proteksi select-tenant.
  * Pemakaian: npx tsx scripts/e2e-subdomain-tenant.ts <base-url> <email> <password>
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const EMAIL = process.argv[3] ?? "";
 const PASSWORD = process.argv[4] ?? "";
 

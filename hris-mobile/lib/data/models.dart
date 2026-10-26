@@ -5,7 +5,7 @@ import '../core/format.dart';
 /// ============ Model data seluruh modul ESS RekanKerja ============
 /// Field lama dipertahankan agar seed demo tetap kompatibel;
 /// field opsional (nullable / default) = data dari backend live
-/// (https://onevity.sayone.my.id) — lihat lib/data/rekankerja_api.dart.
+/// (https://rekankerja.sayone.my.id) — lihat lib/data/rekankerja_api.dart.
 
 class FamilyMember {
   final String name;

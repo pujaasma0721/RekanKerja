@@ -28,7 +28,7 @@ export async function main(schemas?: string[]): Promise<void> {
   for (const schema of list) {
     const c = new Client({
       connectionString:
-        process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity",
+        process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja",
     });
     await c.connect();
     try {

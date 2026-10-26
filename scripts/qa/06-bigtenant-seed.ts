@@ -29,7 +29,7 @@ const PERIODS = 3;
 const ITEMS_PER_LINE = 8;
 const DDL_PATH = path.resolve(process.cwd(), "prisma/tenant-ddl.sql");
 const BASE_URL =
-  readEnvVar("TENANT_DB_BASE_URL") ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+  readEnvVar("TENANT_DB_BASE_URL") ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
 
 // Identitas platform tenant benchmark (login: user42 = AppUser e42 di ESS)
 const PLATFORM = {

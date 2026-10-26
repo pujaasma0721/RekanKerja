@@ -3,7 +3,7 @@
 # RekanKerja — Deploy otomatis ke production .23 (server baru, per 2026-10-26)
 # ============================================================================
 # Server live: 192.168.1.23 (user rekankerja; user-space: node ~/dl + pg ~/pg).
-# Seluruh service: PM2 rekankerja (app :3001) + PM2 db-onevity (postgres 5432).
+# Seluruh service: PM2 rekankerja (app :3001) + PM2 db-rekankerja (postgres 5432).
 # Nginx TLS di .6 → 192.168.1.23:3001.
 #
 # Alur: preflight → clone fresh → npm ci → db:generate → build → cutover PM2
@@ -29,7 +29,7 @@ set -euo pipefail
 # target live yang benar: server .23, PM2 "rekankerja" + folder
 # /home/rekankerja/rekankerja (standalone server --port 3001).
 # DILUAR: .15 (server lama, DB+app kini hanya simpanan rollback; jangan deploy
-# ke sana lagi) dan PM2 "onevity" (entry sudah dihapus).
+# ke sana lagi) dan PM2 "rekankerja" (entry sudah dihapus).
 APP_DIR="${REKANKERJA_APP_DIR:-/home/rekankerja/rekankerja}"
 BUILD_ROOT="${REKANKERJA_BUILD_ROOT:-/home/rekankerja}"
 PM2_APP="${PM2_APP:-rekankerja}"

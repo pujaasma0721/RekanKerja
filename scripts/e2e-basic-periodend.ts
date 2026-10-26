@@ -6,7 +6,7 @@
  * PayrollLine → bandingkan dgn gaji versi period end.
  * Usage: npx tsx scripts/e2e-basic-periodend.ts <base-url>
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const EMAIL = "puja.asmara@sayone.com";
 const PASSWORD = "Asmaree.007";
 const VAULT_PASSWORD = "asmaree.007";

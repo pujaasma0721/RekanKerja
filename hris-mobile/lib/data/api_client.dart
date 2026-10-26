@@ -15,7 +15,7 @@ class ApiClient {
   /// dialog pengaturan server (long-press logo di halaman login).
   static const String prodBaseUrl = String.fromEnvironment(
     'REKANKERJA_API',
-    defaultValue: 'https://onevity.sayone.my.id',
+    defaultValue: 'https://rekankerja.sayone.my.id',
   );
 
   String baseUrl;

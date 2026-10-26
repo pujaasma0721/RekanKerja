@@ -168,7 +168,7 @@ function hashPassword(password: string): string {
 }
 
 async function main() {
-  const client = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+  const client = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
   await client.connect();
 
   for (const schema of SCHEMAS) {

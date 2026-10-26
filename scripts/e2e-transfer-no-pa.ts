@@ -9,7 +9,7 @@
  *   4. Rollback: gaji & penempatan kembali seperti semula + recalc final.
  * Usage: npx tsx scripts/e2e-transfer-no-pa.ts <base-url> [YYYY-MM-DD]
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const EMAIL = "puja.asmara@sayone.com";
 const PASSWORD = "Asmaree.007";
 const VAULT_PASSWORD = "asmaree.007";

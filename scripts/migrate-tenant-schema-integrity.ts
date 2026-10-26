@@ -20,7 +20,7 @@ import { tenantSchemas } from "../src/rekankerja/shared/lib/parity-runner";
 import { CRITICAL_TENANT_TABLES } from "../src/rekankerja/shared/lib/provisioning";
 
 const TENANT_URL = () =>
-  process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+  process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
 
 const DDL_PATH = path.join(process.cwd(), "prisma", "tenant-ddl.sql");
 

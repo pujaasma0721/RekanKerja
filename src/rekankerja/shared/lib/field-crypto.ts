@@ -20,8 +20,7 @@
 //   · Format v2: enc:v2:<t|n>:<iv>:<tag>:<ct> = AES-256-GCM(dataKey).
 //   · Format v1: LEGACY — AES-256-GCM(HMAC(legacyMaster, schema)). Ditulis
 //     HANYA pra-setup vault ("kunci bootstrap"); tetap terbaca selamanya
-//     (dispatch per prefix) agar migrasi setup/change berjalan mulus.
-//   · legacyMaster: ONEVITY_ENCRYPTION_KEY bila di-set (opsional — hanya
+//     (dispatch per prefix) agar migrasi setup/change berjalan mulus.//     · legacyMaster: REKANKERJA_ENCRYPTION_KEY bila di-set (opsional — hanya
 //     memperkuat kunci bootstrap pra-vault), else fallback DETERMINISTIK
 //     sha256("onevity-dev-fallback:" + TENANT_DB_BASE_URL). Sejak Task 47
 //     production TIDAK lagi fail-fast (audit 42 M-10 digantikan model kata
@@ -70,12 +69,14 @@ export function isEncrypted(s: string | null | undefined): boolean {
 
 let warnedFallback = false;
 
-/** Master bootstrap v1: ONEVITY_ENCRYPTION_KEY opsional, else fallback
+/** Master bootstrap v1: REKANKERJA_ENCRYPTION_KEY (alias lama ONEVITY_ENCRYPTION_KEY) opsional, else fallback
  *  deterministik. Sejak Task 47 TIDAK ada lagi fail-fast production —
  *  kunci v1 hanya dipakai data pra-setup vault; setelah admin mengatur
  *  kata sandi brankas, seluruh data di-re-key ke v2 (dataKey password). */
 function legacyMasterKey(): Buffer {
-  const env = process.env.ONEVITY_ENCRYPTION_KEY;
+  // Nama env var baru REKANKERJA_ENCRYPTION_KEY; ONEVITY_ENCRYPTION_KEY tetap
+  // dibaca sebagai alias kompatibilitas instalasi lama.
+  const env = process.env.REKANKERJA_ENCRYPTION_KEY ?? process.env.ONEVITY_ENCRYPTION_KEY;
   if (env && env.trim().length > 0) {
     // Opsional — memperkuat kunci bootstrap pra-vault (kompatibilitas
     // instalasi lama yang sudah men-set env ini).

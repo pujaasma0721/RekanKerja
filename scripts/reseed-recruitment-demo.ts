@@ -61,7 +61,7 @@ const MII = "tenant_pt_mitra_industri_internasional";
 
 async function reseed() {
   console.log("== Reseed demo rekrutmen MII ==");
-  const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+  const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
   await c.connect();
   const list = TABLES.map((t) => `${MII}."${t}"`).join(", ");
   await c.query(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);

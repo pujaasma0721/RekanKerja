@@ -213,7 +213,7 @@ export const DEFAULT_TEMPLATES: { event: string; label: string; notifyEmployee: 
 /** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
 export async function main(schemas?: string[]): Promise<void> {
   const list = schemas ?? SCHEMAS;
-  const client = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+  const client = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
   await client.connect();
 
   for (const schema of list) {

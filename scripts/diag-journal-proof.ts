@@ -6,11 +6,11 @@ import { createHash, createHmac, createDecipheriv } from "node:crypto";
 const MII = "tenant_pt_mitra_industri_internasional";
 const JN = process.argv[2] ?? "JV-2026-0011";
 const c = new Client({
-  connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity",
+  connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja",
 });
 await c.connect();
 
-const master = createHash("sha256").update("onevity-dev-fallback:postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity").digest();
+const master = createHash("sha256").update("onevity-dev-fallback:postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja").digest();
 const key = createHmac("sha256", master).update(`field-crypto:${MII}`).digest();
 const dec = (v: string | null): number | null => {
   if (!v) return null;

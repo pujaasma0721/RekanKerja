@@ -6,7 +6,7 @@
  *   payroll journals, personnel actions, offboarding.
  * Pemakaian: npx tsx scripts/e2e-server-sort-audit.ts <base-url>
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const jar = new Map<string, string>();
 
 function storeCookies(res: Response): void {

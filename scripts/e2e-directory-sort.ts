@@ -9,7 +9,7 @@
  *   6. sortDir tak valid → dianggap asc.
  * Usage: npx tsx scripts/e2e-directory-sort.ts <base-url>
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const PAGE = 25;
 
 const jar = new Map<string, string>();

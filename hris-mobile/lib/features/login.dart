@@ -8,7 +8,7 @@ import '../data/models.dart';
 /// Splash + Login — pintu masuk aplikasi.
 /// Nuansa fintech: gradasi emerald, monogram besar, form mengambang.
 ///
-/// Menghadapi backend RekanKerja asli (https://onevity.sayone.my.id):
+/// Menghadapi backend RekanKerja asli (https://rekankerja.sayone.my.id):
 ///  1. email + kata sandi  →  POST /api/auth/login
 ///  2. (opsional) kode MFA 6 digit — bila akun mengaktifkan TOTP
 ///  3. (opsional) pilih workspace — bila akun multi-perusahaan
@@ -238,7 +238,7 @@ class _LoginView extends StatelessWidget {
             TextField(
               controller: controller,
               decoration: const InputDecoration(
-                hintText: 'https://onevity.sayone.my.id',
+                hintText: 'https://rekankerja.sayone.my.id',
                 labelText: 'Base URL API',
               ),
             ),

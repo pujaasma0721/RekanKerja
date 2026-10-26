@@ -82,7 +82,7 @@ export async function main(schemas?: string[]): Promise<void> {
   const list = schemas ?? SCHEMAS;
   let totalFixed = 0;
   for (const schema of list) {
-    const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+    const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja" });
     await c.connect();
     try {
       // Query SELECT/UPDATE tidak memenuhi syarat skema — arahkan search_path

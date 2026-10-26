@@ -10,7 +10,7 @@ import { Client } from "pg";
 import { tenantSchemas } from "../src/rekankerja/shared/lib/parity-runner";
 
 const TENANT_URL = () =>
-  process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+  process.env.TENANT_DB_BASE_URL ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
 
 export async function main(schemas?: string[]): Promise<void> {
   const list = schemas?.length ? schemas : await tenantSchemas();

@@ -230,7 +230,7 @@ async function main() {
   })();
 
   // koneksi PG di awal/akhir (satu koneksi admin singkat)
-  const pgUrl = readEnvVar("TENANT_DB_BASE_URL") ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+  const pgUrl = readEnvVar("TENANT_DB_BASE_URL") ?? "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja";
   async function pgConns(): Promise<number> {
     try {
       const c = new Client({ connectionString: pgUrl });

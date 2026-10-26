@@ -90,7 +90,7 @@ async function api(
 async function main(): Promise<void> {
   const db = getTenantClient(MII_SCHEMA);
   const pg = new Client({
-    connectionString: "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity",
+    connectionString: "postgresql://rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja",
   });
   await pg.connect();
 

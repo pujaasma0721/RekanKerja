@@ -17,7 +17,7 @@ enum AppMode { demo, live }
 ///  - `demo`  : seluruh data dari seed lokal (mock_data.dart) — aksi
 ///              bermutasi state lokal, aplikasi tetap interaktif tanpa server.
 ///  - `live`  : terhubung ke backend RekanKerja (default
-///              https://onevity.sayone.my.id) — data & aksi via REST ESS
+///              https://rekankerja.sayone.my.id) — data & aksi via REST ESS
 ///              (`/api/rekankerja/ess/*`), sesi cookie `rekankerja_session`.
 ///
 /// Kontrak UI tidak berubah: setiap mutasi mengembalikan `Future<String?>`

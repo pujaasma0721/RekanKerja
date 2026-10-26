@@ -7,7 +7,7 @@
  * 5. POST task centang sebagai koordinator (simulasi IT menandai Done)
  * 6. GET /api/public/checklist?token — ambil token dari EmailLog (link)
  */
-const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
+const BASE = process.argv[2] ?? "https://rekankerja.sayone.my.id";
 const EMAIL = process.argv[3] ?? "puja.asmara@sayone.com";
 const PASSWORD = process.argv[4] ?? "Asmaree.007";
 
