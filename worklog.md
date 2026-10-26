@@ -8535,3 +8535,21 @@ Stage Summary:
 - DELIVERABLE: download/RekanKerja-Presentasi-Teknis.pptx — 14 slide: cover gelap + screenshot login asli, agenda, stack (Next.js 16/TS 5/Prisma/PG 17/Tailwind 4), arsitektur multi-tenant (222 tabel/schema, provisioning 0,4 dtk), isolasi data terbukti (IDOR 0, dual-browser) + screenshot dashboard, enkripsi AES-256-GCM + UU PDP, keamanan teruji 40/40, pooling before/after 89/300→200/200, performa 8/25/76/13 ms + perbaikan 36×/50×/10×, uji beban 0 error, keunggulan (dwibahasa/AI/eSign/PWA/kios/API key), sizing produksi, roadmap PgBouncer→sharding, closing gelap.
 - Kali ini SELURUH folder download/ (kedua deck + sumber HTML + screenshot) di-commit agar tahan snapshot restore.
 - Artefak QA: tmp/teckdeck-final/ (PDF render + 14 PNG), tmp/vlm-fin-*.json.
+
+---
+Task ID: QA-ORG-EDIT
+Agent: main (Z.ai Code)
+Task: User: "bagaimana edit organisasi" — fitur edit unit organisasi belum pernah ada di UI.
+
+Work Log:
+- DIAGNOSA: halaman Unit Organisasi (hr:tree) hanya punya tombol "Unit Baru" (POST) dan "Hapus" (DELETE); PATCH /api/rekankerja/org-units sudah ada di backend tapi TIDAK PERNAH dipakai UI — tidak ada tombol/dialog edit sama sekali.
+- API org-units.ts PATCH diperluas: edit kode (validasi duplikat, auto-uppercase), pindah induk (tolak jadi induk diri sendiri; cek siklus via walk-up ancestor dari calon induk; hitung level baru = parent.level+1 atau 1 untuk root; geser level seluruh subtree dengan BFS increment delta), nama (tolak kosong), budget HC, active — dengan guard requireMenuAction hr:tree/update yang sama.
+- UI org-module.tsx: state selected diubah jadi selectedId + derive dari data (panel detail selalu data ter-fresh pasca refresh); tombol "Edit Unit" di panel detail sebelah Hapus; EditUnitDialog (kode/nama/induk/budget, prefill via useEffect saat open, helper teks "memindahkan unit otomatis menggeser level sub-unit"); dropdown induk mengecualikan diri sendiri + seluruh keturunan (BFS dari flat units) — pertahanan anti-siklus di UI selain validasi API.
+- INFRA SANDBOX: dev server OOM-crash berulang (next-server ~1,9GB + 2 sesi chrome, total RAM 3,9GB). Temuan penting: proses background yang dijalankan via Bash tool MATI saat command selesai WALAUPUN setsid+nohup (watchdog ikut mati) — satu-satunya yang selamat adalah proses double-fork. SOLUSI: `( setsid nohup ... & )` (subshell exit → reparent ke init) + watchdog scripts/watch-dev.sh dijalankan dengan pola ini; browser dibatasi 1 sesi.
+- QA E2E (audit/qa-org-edit/01-05.png, sesi agent-browser orgedit, UI bahasa Indonesia): pilih IT → Edit Unit → budget 8→10 → simpan → UI BUDGET HC 10 + okupasi 4/10 (40%) + DB headcountBudget=10; pilih Tax → rename "Tax & Compliance" + pindah induk Finance & Accounting → CEO Office → heading/induk/level ter-update, pohon UI nesting benar, DB level=2 parent=MII-CEO; ActivityLog 3 entri Updated (dengan suffix "— struktur induk diubah"); dropdown induk tidak menampilkan Tax sendiri; data demo dikembalikan via API PATCH (tax:200 it:200) — terverifikasi DB (IT hc=8 level=3 parent MII-MGT; Tax hc=4 level=4 parent MII-FIN).
+- Non-regresi: lint 0 error (6 warning pre-existing), tsc bersih, console browser bersih, dev.log tanpa error.
+
+Stage Summary:
+- Fitur edit unit organisasi live: HR → Perusahaan & Organisasi → Unit Organisasi → klik unit → "Edit Unit" → ubah kode/nama/induk/budget → Simpan Perubahan. Pindah induk aman (anti-siklus UI+API, level subtree ter-recalculate, ActivityLog tercatat).
+- Komit fe6f826; artefak QA di audit/qa-org-edit/.
+- Pelajaran infra: gunakan pola double-fork `( setsid nohup X & )` untuk proses long-lived di sandbox; watchdog dev.sh kini berjalan dengan pola itu.
