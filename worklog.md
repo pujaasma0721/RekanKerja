@@ -8336,3 +8336,22 @@ Stage Summary:
 - Scanner jadi tool regresi yang bisa dipakai CI (exit code 0 = lolos).
 - Catatan data-master: nama tipe cuti/kategori aset/judul surat adalah DATA milik
   tenant (dibuat admin) — tetap bahasa tenant, bukan label UI chrome.
+---
+Task ID: QA-COMPANY-EDIT
+Agent: main (Z.ai Code)
+Task: User report: "tidak bisa edit company" — halaman Organisasi › Perusahaan tidak bisa mengedit profil perusahaan.
+
+Work Log:
+- DIAGNOSA: commit a90147e (fitur multi-company switcher) mengubah kontrak /api/rekankerja/companies TANPA memperbarui UI — (1) GET dari {company + stats} menjadi {companies, activeId, multi} → halaman profil company aktif render kosong (nama blank, stats 0); (2) PATCH kini wajib `id` di body → CompanyProfile (org-module.tsx) mengirim form tanpa id → 400 "id company wajib" → edit selalu gagal. Temuan tambahan: company-view.tsx = dead code (tidak pernah diimpor) dengan kontrak lama + type CompanyData/CompanyRes di org/types.ts hanya dipakai file dead itu.
+- FIX API (companies.ts): GET kini mengembalikan SUPerset {companies, activeId, multi, company} — company = profil lengkap company AKTIF (dari header x-rekankerja-company, fallback company pertama) + stats scope-company: activeEmployees (status Active), positions (aktif via orgUnit.companyId), orgUnitCount; kontrak switcher tidak berubah (field tambahan aditif). PATCH: restore audit trail activityLog (Updated/Company) yang hilang saat refactor.
+- FIX UI (org-module.tsx CompanyProfile): PATCH kirim id company aktif + currency di-uppercase; validasi nama wajib & currency kode 3 huruf; form edit tambah field Mata Uang (PATCH sudah support, card menampilkan badge currency); EmptyState bila company null (dulu render kosong diam-diam); DialogDescription ditambahkan (hilangkan warning a11i Radix saat dialog dibuka).
+- CLEANUP: hapus src/rekankerja/human-resource/components/org/company-view.tsx (dead code) + interface CompanyData/CompanyRes di org/types.ts (konsumen tunggal = file dead; CompanyProfile pakai interface lokal by-design).
+- VERIFIKASI BROWSER (agent-browser, login hrd@mii.co.id OWNER): halaman Company render data penuh (nama MII, NPWP, alamat, telepon, website, currency IDR, stats 43 karyawan/18 unit/20 posisi — dulu kosong); klik Edit Profile → dialog 9 field terisi; ubah telepon → Simpan → toast "Company profile updated" + nilai ter-update di halaman; telepon dikembalikan ke nilai seed (edit kedua juga sukses); console 0 error, page errors 0.
+- VERIFIKASI DB (pg langsung): ActivityLog MII ada 2 entri "Updated / Profil perusahaan MII diperbarui" (2x edit browser) ✓; data Company MII utuh (phone 021-4600808, currency IDR). dev.log: PATCH /api/rekankerja/companies 200 + GET 200.
+- GATES: bun run lint 0 error (6 warning pre-existing) · bunx tsc --noEmit 0 error · dev.log bersih. Screenshot audit/qa-company-edit/01-company-edit-ok.png.
+
+Stage Summary:
+- BUG FIXED: edit profil perusahaan berfungsi lagi end-to-end (PATCH by-id multi-company + GET superset memulihkan kontrak profil). Halaman tidak lagi kosong; stats di-scope per company aktif, bukan tenant.
+- Kontrak API kini: GET {companies, activeId, multi, company(aktif+stats)} — backward compatible utk switcher; PATCH {id, ...fields} + activityLog audit trail.
+- Dead code company-view.tsx (255 baris) dihapus — mencegah bug kontrak-stale terulang.
+- Artefak: tmp/verify-company-log.ts, audit/qa-company-edit/01-company-edit-ok.png.

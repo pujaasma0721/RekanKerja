@@ -30,26 +30,8 @@ export interface OrgTreeRes {
   tree: OrgUnitNode[];
 }
 
-export interface CompanyData {
-  id: string;
-  code: string;
-  name: string;
-  shortName: string | null;
-  taxId: string | null;
-  address: string | null;
-  city: string | null;
-  phone: string | null;
-  email: string | null;
-  website: string | null;
-  currency: string;
-  active: boolean;
-  createdAt: string;
-}
-
-export interface CompanyRes {
-  company: CompanyData;
-  stats: { activeEmployees: number; orgUnits: number; activePositions: number };
-}
+// (CompanyData/CompanyRes dihapus — hanya dipakai company-view.tsx dead-code;
+// CompanyProfile di org-module.tsx memakai interface lokal by-design.)
 
 export interface EmployeeBrief {
   id: string;

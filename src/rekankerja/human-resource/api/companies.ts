@@ -28,7 +28,10 @@ export async function activeCompanyOf(req: NextRequest, db: TenantDb) {
   return db.company.findFirst({ orderBy: { createdAt: "asc" } });
 }
 
-// GET — daftar semua Company tenant (untuk selector) + company aktif.
+// GET — daftar semua Company tenant (untuk selector) + company aktif +
+// profil lengkap company aktif (kontrak halaman Organisasi › Perusahaan).
+// QA-COMPANY-EDIT: field `company` (profil + stats) wajib tetap ada — dihapus
+// saat refactor multi-company, membuat halaman profil kosong & PATCH gagal.
 export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
@@ -43,10 +46,22 @@ export async function GET(req: NextRequest) {
     });
     const activeCompany = await activeCompanyOf(req, db);
     const activeId = activeCompany?.id ?? companies[0]?.id ?? null;
+
+    // Profil lengkap company AKTIF + stats (scope company, bukan tenant).
+    let company = null;
+    if (activeCompany) {
+      const [activeEmployees, positions, orgUnitCount] = await Promise.all([
+        db.employee.count({ where: { companyId: activeCompany.id, status: "Active" } }),
+        db.position.count({ where: { active: true, orgUnit: { companyId: activeCompany.id } } }),
+        db.orgUnit.count({ where: { companyId: activeCompany.id } }),
+      ]);
+      company = { ...activeCompany, activeEmployees, positions, orgUnitCount };
+    }
     return NextResponse.json({
       companies,
       activeId,
       multi: companies.length > 1,
+      company,
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
@@ -131,6 +146,10 @@ export async function PATCH(req: NextRequest) {
         { status: 404 },
       );
     }
+    // Audit trail (paritas implementasi pra-multi-company).
+    await db.activityLog.create({
+      data: { action: "Updated", entity: "Company", entityId: id, detail: `Profil perusahaan ${updated.code} diperbarui` },
+    });
     return NextResponse.json({ company: updated });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

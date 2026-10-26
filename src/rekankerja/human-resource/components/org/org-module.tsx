@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -347,13 +347,16 @@ function NewUnitDialog({ open, setOpen, units, onCreated }: { open: boolean; set
 }
 
 // ================= COMPANY =================
+// QA-COMPANY-EDIT: kontrak API pasca multi-company — GET mengembalikan
+// { companies, activeId, multi, company } (company = profil AKTIF + stats),
+// PATCH wajib mengirim `id` company aktif.
 interface CompanyData {
   company: {
     id: string; code: string; name: string; shortName: string | null; taxId: string | null;
     address: string | null; city: string | null; phone: string | null; email: string | null;
     website: string | null; currency: string;
     activeEmployees: number; positions: number; orgUnitCount: number;
-  };
+  } | null;
 }
 
 function CompanyProfile() {
@@ -366,21 +369,45 @@ function CompanyProfile() {
   if (loading && !data) {
     return <div><PageHeader eyebrow={t("PERUSAHAAN & ORGANISASI", "COMPANY & ORGANIZATION")} title={t("Perusahaan")} /><LoadingRows rows={5} /></div>;
   }
-  const c = data?.company;
+  const c = data?.company ?? null;
+
+  if (!c) {
+    return (
+      <div>
+        <PageHeader eyebrow={t("PERUSAHAAN & ORGANISASI", "COMPANY & ORGANIZATION")} title={t("Perusahaan")} />
+        <EmptyState
+          title={t("Data perusahaan tidak tersedia", "Company data unavailable")}
+          description={t("Belum ada perusahaan aktif yang terdaftar pada sistem. Buat perusahaan terlebih dahulu sebelum mengedit profil.", "No active company is registered in the system yet. Create a company before editing its profile.")}
+          icon={<Building2 className="h-6 w-6" />}
+        />
+      </div>
+    );
+  }
 
   const openEdit = () => {
     setForm({
-      name: c?.name ?? "", shortName: c?.shortName ?? "", taxId: c?.taxId ?? "",
-      address: c?.address ?? "", city: c?.city ?? "", phone: c?.phone ?? "",
-      email: c?.email ?? "", website: c?.website ?? "",
+      name: c.name ?? "", shortName: c.shortName ?? "", taxId: c.taxId ?? "",
+      address: c.address ?? "", city: c.city ?? "", phone: c.phone ?? "",
+      email: c.email ?? "", website: c.website ?? "", currency: c.currency ?? "IDR",
     });
     setEditOpen(true);
   };
 
   const save = async () => {
+    if (!form.name.trim()) {
+      toast.error(t("Nama perusahaan wajib diisi", "Company name is required"));
+      return;
+    }
+    if (!/^[A-Za-z]{3}$/.test(form.currency.trim())) {
+      toast.error(t("Mata uang wajib kode 3 huruf (mis. IDR)", "Currency must be a 3-letter code (e.g. IDR)"));
+      return;
+    }
     setBusy(true);
     try {
-      await apiSend("/api/rekankerja/companies", "PATCH", form);
+      // QA-COMPANY-EDIT: PATCH by-id (multi-company) — tanpa `id` API menolak 400.
+      await apiSend("/api/rekankerja/companies", "PATCH", {
+        id: c.id, ...form, currency: form.currency.trim().toUpperCase(),
+      });
       toast.success(t("Profil perusahaan diperbarui", "Company profile updated"));
       setEditOpen(false); refresh();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -436,17 +463,25 @@ function CompanyProfile() {
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-2xl">
-          <DialogHeader><DialogTitle className="text-base">{t("Edit Profil Perusahaan", "Edit Company Profile")}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-base">{t("Edit Profil Perusahaan", "Edit Company Profile")}</DialogTitle>
+            <DialogDescription>{t("Perbarui data identitas dan kontak company aktif.", "Update the active company's identity and contact details.")}</DialogDescription>
+          </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             {([
               ["name", t("Nama Perusahaan", "Company Name")], ["shortName", t("Nama Singkat", "Short Name")],
               ["taxId", t("NPWP", "NPWP")], ["phone", t("Telepon", "Phone")],
               ["email", t("Email", "Email")], ["website", t("Website", "Website")],
-              ["city", t("Kota", "City")], ["address", t("Alamat Lengkap", "Full Address")],
+              ["city", t("Kota", "City")], ["currency", t("Mata Uang", "Currency")],
+              ["address", t("Alamat Lengkap", "Full Address")],
             ] as const).map(([key, label]) => (
               <div key={key} className={key === "address" ? "sm:col-span-2" : ""}>
                 <Label className="text-xs">{label}</Label>
-                <Input value={form[key] ?? ""} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className="mt-1" />
+                <Input
+                  value={form[key] ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                  className={cn("mt-1", key === "currency" && "font-mono uppercase")}
+                />
               </div>
             ))}
           </div>
