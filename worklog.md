@@ -8277,3 +8277,62 @@ Stage Summary:
 - 7 file diperbaiki (leave-templates, travel-claim-approval, travel-overview, travel-budget, travel-claims, travel-requests, offer-dialogs): 14 gap audit slice ini ditutup — 6 via tabel triple R2, 7 via t() identitas netral (TOTAL/Budget/Total/Template/Travel & Entertainment Settlement) mengikuti pola label sekitar yang sudah t(), 1 restrukturisasi fallback + 1 fix a11y iframe title yang benar-benar menampilkan ID saat mode EN.
 - Sisa temuan slice ini yang masih ter-flag = by-design terverifikasi (judul laporan EN-only ×3, enum status DB whistleblow/pr-list, placeholder kode teknis, menu keys, token CSV, note historis payroll) — kandidat penanganan koordinator di audit-bilingual.ts (exclusion/R-rules), bukan perubahan UI. Bilingual user-visible slice LEAVE+TRAVEL+TIME-ATT+RECRUIT+WHISTLEBLOW kini tuntas: 0 gap nyata.
 - lint 0 error / tsc 0 error / dev.log bersih / verifikasi browser EN+ID PASS. Tanpa commit (menunggu koordinator).
+
+---
+Task ID: BL2 (koordinator — a/b/c/d/e)
+Agent: main (Z.ai Code) + full-stack-developer subagents BL2-a/BL2-b
+Task: "cek bilingual di semua bagian, masih banyak default indonesia" — audit ulang
+menyeluruh seluruh permukaan UI + perbaikan + verifier scanner.
+
+Work Log:
+- AUDIT AWAL: scripts/audit-bilingual.ts (AST) → 149 gap di 71 file. Klasifikasi
+  manual per temuan (grep konteks + baca render): ~55 real gap UI, ~94
+  false-positive/by-design (prompt AI, token CSV mesin, menu-key requireMenuAction,
+  enum DB dengan map EN di render, kata identik EN: Draft/Travel/shift/no).
+- BL2-a (subagent, terputus jaringan di akhir tapi karya tersimpan): fix area
+  shared/HR/payroll/ESS — payslip-pdf.ts LANG SUPPORT PENUH (param lang default
+  "id", kamus label L(id,en): identitas Nama Karyawan→Employee Name, judul SLIP
+  GAJI→PAYSLIP, KOMPONEN/JAMLAH, TAKE HOME PAY, e-sign, fmtRupiah/fmtDate
+  locale-aware, filename Slip-Gaji→Payslip); route /payslip/[lineId] baca ?lang=
+  (pola rekrutmen reports.ts); company-switcher Perusahaan→t; email-config-view
+  Terkirim/Gagal/Dilewati→t + placeholder e.g. user@company.com; whatsapp-view
+  sama; ess-my-plan (c)(e)(f) label; employee-module Disiplin/Surat/Nama Lengkap;
+  org-module Nama Perusahaan/Singkat; offboarding Selesai/Dibatalkan; report-views
+  g12 "Tidak ada data"; wizard/detail/security placeholder email; doc-kit NPWP
+  Perusahaan; payroll-journals/report-view/catalog/approval render bilingual.
+- BL2-b (subagent, sukses): leave-templates 6 deskripsi kebijakan → tabel triple
+  [key, ID, EN] (restrukturisasi dari array+map paralel); travel TOTAL×2,
+  Budget×2, Template, Total=; offer-dialogs iframe title a11y bilingual;
+  verifikasi 10+ temuan [B] satu per satu (whistleblow STATUS_META sudah ada,
+  judul TA/leave laporan by-design, machine-import token, dsb).
+- BL2-c (koordinator): scanner audit-bilingual.ts dipresisikan — +5 file
+  exclusion (ai-search/cv/score prompt, machine-import, parity-runner); ID_WORD_RE
+  hapus travel/shift/draft/draf/no (netral/identik EN → sumber false positive);
+  RULES BARU: menu-key ^module:action$, enum ALL_CAPS_UNDERSCORE, array wildcard
+  '*', NEUTRAL_ARRAY_ITEMS (Sel/normal/desc/asc), pickStr → ADV_BUILDERS skip,
+  jsx-text exact "Kerja" (brand RekanKerja split span), fitur komentar
+  "bilingual-safe" (line-based + leading statement) dipasang di 8 lokasi enum/
+  data-historis yang map EN-nya terverifikasi di render (whistleblow STATUSES,
+  DOC_TYPES, ASSET_CATEGORIES ×2, catalog audience ×2, attendance note DB,
+  leave lr33 judul).
+- BONUS fix ditemukan saat browser verify: app-shell WorkspaceMenu label
+  "Workspace" hardcoded → t("Workspace","Workspace") (EN-hardcode yang lolos
+  scanner karena arah terbalik).
+- VERIFIKASI: audit 977 file TOTAL_GAP=0 (149→0); lint 0 error/6 warning
+  baseline; tsc --noEmit 0 error; payslip live check (bench101 user42 OWNER):
+  ?lang=en → "Employee Name"+filename Payslip-…, ?lang=id → "SLIP GAJI"+
+  "KOMPONEN"+filename Slip-Gaji-… — SEMUA PASS; browser mode EN (login
+  hrd@mii.co.id): Leave Types dialog 6 label EN terverifikasi, Email Config
+  placeholder "e.g. user@company.com" + tab Send History kartu "Sent, Failed,
+  Skipped", workspace dropdown — console 0 error; screenshot audit/bl2/01–05.
+- COMMIT afe7e83 ter-push ke origin/main.
+
+Stage Summary:
+- STATUS BILINGUAL: audit AST 0 gap (turun dari 149). Seluruh permukaan UI
+  user-visible kini wajib t() 2-argumen; gap tersisa semuanya enum/data/by-design
+  yang TERVERIFIKASI punya map EN di titik render dan ditandai komentar
+  bilingual-safe (self-documenting, mudah diaudit ulang).
+- Payslip PDF kini dwibahasa end-to-end (label+angka locale+filename) via ?lang=.
+- Scanner jadi tool regresi yang bisa dipakai CI (exit code 0 = lolos).
+- Catatan data-master: nama tipe cuti/kategori aset/judul surat adalah DATA milik
+  tenant (dibuat admin) — tetap bahasa tenant, bukan label UI chrome.
