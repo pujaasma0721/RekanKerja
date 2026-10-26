@@ -268,11 +268,17 @@ export async function GET(req: NextRequest) {
     const scopeCond = hasListMenu
       ? scopeWhere(s.scope)
       : { id: selfEmployeeId! };
-    // M-9 / desain 42-e: klasifikasi cakupan PII pemanggil — full (scope ALL) |
-    // limited (menu LIHAT + cakupan CUSTOM: rule parametrik / atasan langsung) |
-    // self (non-menu → profil sendiri, full). Masking diterapkan di bawah
-    // SETELAH flattenEmployee+decrypt (komposisi lapisan API).
-    const piiScope: PiiScope = !hasListMenu ? "self" : s.scope.all ? "full" : "limited";
+    // M-9 / desain 42-e: klasifikasi cakupan PII pemanggil — full (scope ALL
+    // ATAU fullAccess — super admin/rule penuh; QA-PII-FULLACCESS: dimensi
+    // company switcher me-reset `all` TAPI tidak menurunkan level PII)
+    // | limited (menu LIHAT + cakupan CUSTOM) | self (non-menu → profil
+    // sendiri, full). Masking diterapkan di bawah SETELAH flattenEmployee+
+    // decrypt (komposisi lapisan API).
+    const piiScope: PiiScope = !hasListMenu
+      ? "self"
+      : s.scope.all || s.scope.fullAccess
+        ? "full"
+        : "limited";
     const sp = req.nextUrl.searchParams;
     const q = sp.get("q")?.trim() ?? "";
     const status = sp.get("status") ?? undefined;
@@ -1470,11 +1476,15 @@ export async function employeesExportGet(req: NextRequest): Promise<NextResponse
     const flat = employees.map((e) => flattenEmployee(e, tenantCryptoForDb(db)));
     // 45-b: gerbang vault uang — kolom upah hilang saat masked (pola includeWage
     // limited M-9; aktor requireMenuAction userId+role).
-    const includeWage = scope.all && (await moneyViewForReq(req, db)).canSee; // upah hanya untuk scope penuh
+    // QA-PII-FULLACCESS: scope.all ATAU scope.fullAccess — super admin yang
+    // switch company (all di-reset switcher) tetap berhak upah/PII penuh
+    // untuk baris dalam cakupan company aktifnya.
+    const fullScope = scope.all || scope.fullAccess;
+    const includeWage = fullScope && (await moneyViewForReq(req, db)).canSee; // upah hanya untuk scope penuh
     // M-9 / 42-e: kolom PII hanya utk scope penuh — pemanggil limited (menu
     // LIHAT + cakupan CUSTOM) mendapat XLSX identitas operasional (no karyawan
     // + nama cukup sebagai identitas baris) tanpa PII & tanpa upah.
-    const includePii = scope.all;
+    const includePii = fullScope;
 
     const columns: (ExportColumn & { key: string })[] = [
       { header: "No Karyawan", key: "employeeNo", width: 15 },

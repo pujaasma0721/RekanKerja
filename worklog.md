@@ -8236,3 +8236,22 @@ Stage Summary:
 - MEKANISME TERBUKTI BENAR E2E: penyimpanan AES-256-GCM (5.000/5.000 terenkripsi, 0 bocor), isolasi kunci antar-tenant teruji gagal-silang, dekripsi hanya di lapisan serializer server, masking M-9 konsisten di list/detail/options/export, pencarian tidak membocorkan NIK, gaji di gerbang vault terpisah.
 - Dua catatan produksi: (1) set Brankas Uang utk naik ke kunci v2 (kunci sekarang v1 bootstrap); (2) keputusan produk utk interaksi company-switcher × M-9 (OWNER selalu limited di tenant multi-company).
 - Artefak: tmp/audit-pii{,2,3,4,5}.ts + dev-watchdog.sh. Git: commit pasca-audit.
+
+---
+Task ID: QA-PII-FULLACCESS-FIX
+Agent: main (Z.ai Code)
+Task: User report: "sudah set password brankas uang — nilai uang payroll jadi terlihat, TAPI NIK/NPWP di employee directory tetap tidak terlihat" (screenshot: detail Agus Salim, NIK 31••••••••50, NPWP •••••••0123, field PII lain "_"). Fix akar masalah interaksi company-switcher × M-9 yang terdokumentasi di QA-PII-AUDIT.
+
+Work Log:
+- Analisis screenshot (VLM): halaman detail karyawan tab Personal — NIK/NPWP ter-mask + bank/marital/birth/BPJS null → pola piiScope=limited persis temuan audit.
+- ROOT CAUSE (access-scope.ts baris 209-213 lama): dimensi company switcher me-reset scope.all=false utk SEMUA super admin di tenant multi-company → employees.ts/employee-detail.ts menghitung piiScope dari scope.all → OWNER workspace pun selalu "limited". Vault (money-view) adalah gerbang TERPISAH — oleh karena itu user melihat uang payroll visible pasca set brankas, tapi NIK/NPWP tetap mask.
+- FIX (3 file): access-scope.ts — field BARU DataAccessScope.fullAccess (true utk super admin platform OWNER/ADMIN + role AppUser Admin + rule akses penuh tanpa kriteria) yang TIDAK di-reset dimensi company switcher (switcher membatasi BARIS company aktif, bukan level FIELD); employees.ts — piiScope = self | (all || fullAccess) ? full : limited + export includePii/includeWage pakai fullScope = all || fullAccess; employee-detail.ts — piiScopePre & piiScope pakai (all || fullAccess).
+- VERIFIKASI EMPIRIS (tmp/verify-piifix.ts + tmp/verify-limited.ts): (1) hrd@MII OWNER → piiScope=full, NIK 3176363464506 penuh, NPWP 091485262345, baseSalary 54900000, bank 848850308; (2) employee-detail → personal.nationalId/taxId/bankAccount penuh; (3) bench101 user42 OWNER (5000 karyawan) → NIK 16-digit penuh + baseSalary; (4) LIMITED PATH tetap AMAN: demote UserTenant→MEMBER + AppUser→HR + UserMenuAccess CUSTOM hr:directory view → piiScope=limited, NIK 31•••••••••06 mask, PII null — lalu semua direvert (OWNER/OWNER, baris menu dihapus).
+- VERIFIKASI BROWSER (agent-browser): login hrd@MII → Employee Directory (45 karyawan render) → klik Agus Salim → Open Full Profile → tab Personal: NIK (ID CARD) = 3174314158950 PENUH, NPWP = 092894290123 PENUH, MARITAL STATUS terisi (dulu "_") — screenshot audit/qa-piifix/01-detail-agus-nik-full.png; console 0 error.
+- Lint 0 error (6 warning pre-existing); tsc --noEmit bersih; tmp/specs-mem.ts require-import diperbaiki (2 error lint lama).
+
+Stage Summary:
+- BUG INTERAKSI DIPERBAIKI: super admin (OWNER/ADMIN workspace, role Admin, rule akses penuh) kini melihat NIK/NPWP/upah PENUH di direktori/detail/export meski sedang switch company — dimensi switcher tetap membatasi baris ke company aktif (semantik asli dipertahankan).
+- REGRESI TIDAK ADA: jalur limited terbukti tetap mask (uji demote + menu CUSTOM); self-scope tetap full utk profil sendiri.
+- Catatan: vault user yang dia set sebelumnya ikut terhapus oleh restore snapshot (MoneyVault kosong kini — mode legacy semua lihat uang); PII tidak terpengaruh vault (kind t vs n memang jalur terpisah).
+- Artefak: tmp/verify-piifix.ts, tmp/verify-limited.ts, audit/qa-piifix/01-detail-agus-nik-full.png. Commit + push.

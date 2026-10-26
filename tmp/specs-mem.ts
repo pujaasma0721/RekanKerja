@@ -2,6 +2,8 @@
 // Membuat 30 schema sementara berisi tabel "Employee" kosong, lalu 30 PrismaClient
 // (pola identik produksi: ?schema=X&connection_limit=2&pool_timeout=10).
 import { Client } from "pg";
+import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { PrismaClient } from "../src/generated/tenant";
 
 const base = process.env.TENANT_DB_BASE_URL || process.env.TENANT_DB_URL!.replace(/\/[^/]+$/, "/onevity");
@@ -9,11 +11,11 @@ const N = 30;
 const schemas = Array.from({ length: N }, (_, i) => `specs_mem_${String(i + 1).padStart(2, "0")}`);
 
 function rss(): number {
-  return Number(require("node:fs").readFileSync("/proc/self/status", "utf8").match(/VmRSS:\s+(\d+)/)![1]);
+  return Number(readFileSync("/proc/self/status", "utf8").match(/VmRSS:\s+(\d+)/)![1]);
 }
 async function pgBackends(admin: Client): Promise<{ n: number; rssMB: number }> {
   const r = await admin.query(`SELECT count(*)::int n FROM pg_stat_activity WHERE datname='onevity'`);
-  const procs = require("node:child_process").execSync(
+  const procs = execSync(
     `ps -o rss= -C postgres --no-headers`, { encoding: "utf8" }
   ).trim().split("\n").map(Number).filter(Boolean);
   return { n: r.rows[0].n, rssMB: procs.reduce((a: number, b: number) => a + b, 0) / 1024 };

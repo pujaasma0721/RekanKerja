@@ -73,8 +73,20 @@ export interface ScopeFilter {
 }
 
 export interface DataAccessScope {
-  /** true = akses penuh semua data karyawan (super admin / rule kosong). */
+  /** true = akses penuh semua data karyawan (super admin / rule kosong).
+   *  CATATAN: dimensi company switcher (multi-company) ME-RESET flag ini
+   *  menjadi false — super admin yang switch company hanya melihat baris
+   *  company aktif. Lihat `fullAccess` untuk keputusan level-FIELD. */
   all: boolean;
+  /** true = aktor berstatus akses tidak-terbatas (super admin platform
+   *  OWNER/ADMIN, role AppUser Admin, ATAU rule akses penuh tanpa kriteria).
+   *  BERBEDA dgn `all`: flag ini TIDAK di-reset oleh dimensi company switcher
+   *  karena switcher hanya membatasi BARIS (karyawan company mana yang
+   *  terlihat), bukan level FIELD. Dipakai keputusan PII (M-9 — NIK/NPWP
+   *  terdekripsi vs ter-mask di direktori/detail/export) dan gerbang upah
+   *  export: super admin yang sedang switch company tetap melihat PII penuh
+   *  dari baris dalam cakupan company aktifnya. */
+  fullAccess: boolean;
   /** sumber akses (deskriptif — untuk simulasi & audit tampilan). */
   sources: string[];
   selfEmployeeId: string | null;
@@ -82,7 +94,7 @@ export interface DataAccessScope {
   filters: ScopeFilter[];
 }
 
-const EMPTY_SCOPE: DataAccessScope = { all: false, sources: [], selfEmployeeId: null, subordinateIds: [], filters: [] };
+const EMPTY_SCOPE: DataAccessScope = { all: false, fullAccess: false, sources: [], selfEmployeeId: null, subordinateIds: [], filters: [] };
 
 /** Rule mentah dari DB (di-select dengan kriteria). */
 interface RuleRow {
@@ -115,6 +127,12 @@ export async function resolveAccessScope(
   const sources: string[] = [];
   const filters: ScopeFilter[] = [];
   let all = false;
+  // QA-PII-FULLACCESS: flag identitas akses-penuh — TIDAK di-reset dimensi
+  // company switcher (baris 209-213). `all` di-reset supaya super admin yang
+  // switch company hanya melihat baris company aktif; TAPI status kepenyeliaan
+  // field-levelnya (M-9 PII: NIK/NPWP/upah export) tidak ikut turun — bug
+  // interaksi lama: OWNER workspace di tenant multi-company selalu limited.
+  let fullAccess = false;
 
   // 1) super admin otomatis
   const isSuperAdmin =
@@ -122,6 +140,7 @@ export async function resolveAccessScope(
     SUPER_ADMIN_PLATFORM_ROLES.includes(actor.platformRole);
   if (isSuperAdmin) {
     all = true;
+    fullAccess = true;
     sources.push(
       actor.appUserRole === "Admin"
         ? "Super Admin — role pengguna Admin (akses semua, otomatis)"
@@ -171,6 +190,7 @@ export async function resolveAccessScope(
       r.gradeId || r.positionLevelId || r.employmentStatus;
     if (!hasCriteria) {
       all = true;
+      fullAccess = true; // rule akses penuh (tanpa kriteria) — M-9: PII penuh
       sources.push(`Rule ${r.code} — akses penuh (tanpa kriteria)`);
       continue;
     }
@@ -209,6 +229,9 @@ export async function resolveAccessScope(
   if (activeCompanyId) {
     if (all) {
       // super admin tetap dibatasi company aktif — dimensi switcher.
+      // CATATAN: hanya `all` (BARIS) yang di-reset; `fullAccess` (FIELD/PII)
+      // TIDAK — super admin yang switch company tetap melihat NIK/NPWP
+      // penuh dari baris company aktif (fix QA-PII-AUDIT temuan interaksi).
       filters.push({ companyId: activeCompanyId, source: `Company aktif (switcher)` });
       all = false;
     } else {
@@ -222,6 +245,7 @@ export async function resolveAccessScope(
 
   return {
     all,
+    fullAccess,
     sources,
     selfEmployeeId: actor.employeeId ?? null,
     subordinateIds,

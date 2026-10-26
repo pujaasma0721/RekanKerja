@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         select: { id: true },
       });
       if (!dup) {
-        const piiScopePre: PiiScope = s.scope.all
+        const piiScopePre: PiiScope = s.scope.all || s.scope.fullAccess
           ? "full"
           : employee.id === s.scope.selfEmployeeId ? "self" : "limited";
         await db.activityLog.create({
@@ -105,14 +105,17 @@ export async function GET(req: NextRequest) {
     }
 
     // M-9 (audit 42 / desain 42-e): cakupan PII detail — FULL utk scope ALL
-    // (super admin / rule akses penuh) dan utk profil SENDIRI (self — hak
-    // melihat data sendiri); pemanggil scoped lainnya yang LOLOS guard di atas
-    // (atasan langsung / rule parametrik — koordinator limited yang memang
-    // dapat mengakses detail bawahannya) → LIMITED: PII sensitif di-mask
-    // (pola sama dgn list /employees — maskEmployeePii + seksi personal
-    // lanjutan dikosongkan; field operasional/penempatan tetap utk kebutuhan
-    // keputusan approval: nama, no, unit, posisi, joinDate).
-    const piiScope: PiiScope = s.scope.all
+    // ATAU fullAccess (super admin / rule penuh — QA-PII-FULLACCESS: dimensi
+    // company switcher me-reset `all` tapi TIDAK menurunkan level PII; super
+    // admin yang switch company tetap melihat PII penuh baris company aktif)
+    // dan utk profil SENDIRI (self — hak melihat data sendiri); pemanggil
+    // scoped lainnya yang LOLOS guard di atas (atasan langsung / rule
+    // parametrik — koordinator limited yang memang dapat mengakses detail
+    // bawahannya) → LIMITED: PII sensitif di-mask (pola sama dgn list
+    // /employees — maskEmployeePii + seksi personal lanjutan dikosongkan;
+    // field operasional/penempatan tetap utk kebutuhan keputusan approval:
+    // nama, no, unit, posisi, joinDate).
+    const piiScope: PiiScope = s.scope.all || s.scope.fullAccess
       ? "full"
       : employee.id === s.scope.selfEmployeeId
         ? "self"
