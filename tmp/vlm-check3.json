@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "1: Dashboard HR, bersih, ada data lengkap (karyawan aktif, persetujuan, gaji rata-rata, tren perekrutan).\n2: Halaman error 'Anda sedang offline', terdapat pesan koneksi terputus dan tombol muat ulang.\n3: Halaman error 'Anda sedang offline', identik dengan gambar sebelumnya menunjukkan status offline.\n4: Recruitment Overview, bersih namun terdapat skeleton loading (kotak abu-abu) di area konten utama.\n5: Organization Chart, terdapat data kosong dengan pesan error \"No data to map yet\" dan \"Failed to fetch\".\n6: Halaman Login/Sign In, bersih, berisi form email dan password untuk masuk ke workspace.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1793019458,
+  "id": "2026102620573243226fcfddb1447a",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "2026102620573243226fcfddb1447a",
+  "usage": {
+    "completion_tokens": 174,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 10058,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 10232
+  }
+}

@@ -8355,3 +8355,101 @@ Stage Summary:
 - Kontrak API kini: GET {companies, activeId, multi, company(aktif+stats)} — backward compatible utk switcher; PATCH {id, ...fields} + activityLog audit trail.
 - Dead code company-view.tsx (255 baris) dihapus — mencegah bug kontrak-stale terulang.
 - Artefak: tmp/verify-company-log.ts, audit/qa-company-edit/01-company-edit-ok.png.
+---
+Task ID: PPT-4-c
+Agent: ppt-expert
+Task: Render slide 11-14 pitch deck (RekanKerja)
+
+Work Log:
+- slide_11.html (Keamanan & Kepatuhan): grid 3×2 enam kartu ikon emerald-soft (lock, vault, admin_panel_settings, receipt_long, phonelink_lock, draw) tanpa screenshot; footer strip accent-soft berisi kalimat UU No. 27/2022 PDP (verbatim).
+- slide_12.html (Skala & Arsitektur): band 4 angka mono IBM Plex 54px emerald (9 / 4 / 5.000 / 2) dengan hairline divider sebagai focal point, lalu kartu putih 4 kolom arsitektur (Multi-company, Multi-tenant PostgreSQL, Web/mobile/kios, Terintegrasi) + decor radial emerald halus (data-decor).
+- slide_13.html (Nilai Bisnis): 4 kartu kolom ikon amber besar di kotak amber-soft (timer, verified, policy, favorite) + footer italic "sistem yang merapikan, bukan memaksakan"; band kartu di-center vertikal.
+- slide_14.html (Langkah Berikutnya): closing gelap slide-dark #0B1220 + gradasi radial emerald; timeline horizontal 3 fase (node mono 01/02/03 emerald + garis konektor, kartu semi-transparan border slate-700, chip minggu mono), kotak CTA border emerald bg rgba(52,211,153,0.10) berisi ajakan demo data contoh 43 karyawan, baris penutup wordmark Rekan·Kerja (titik tengah #34D399) + "Terima kasih — mari kita diskusikan."
+- Semua slide: canvas 1280×720 overflow hidden, konten verbatim bahasa Indonesia dari task_brief, token font global.css (Plus Jakarta Sans / Inter / IBM Plex Mono), tanpa header/footer halaman, speaker notes <aside data-notes class="hidden"> 4 bullet singkat sebagai anak terakhir <body>.
+
+Stage Summary:
+- Slide 11-14 pitch deck RekanKerja selesai dirender sebagai HTML standalone 1280×720 (link global.css relatif, Tailwind CDN + Material Icons), konsisten dengan design block enterprise slate + emerald; slide 12 menjadikan angka mono 54px emerald sebagai focal point dan slide 14 closing gelap dengan timeline 3 fase + CTA demo ber-border emerald.
+---
+Task ID: PPT-4-a
+Agent: ppt-expert
+Task: Render slide 1-5 pitch deck (RekanKerja, Manajemen)
+
+Work Log:
+- slide_01.html — Cover gelap slide-dark (#0B1220 + gradasi radial emerald kanan):
+  wordmark "Rekan·Kerja" (titik tengah #34D399), kicker, judul display 52px dengan
+  aksen emerald, subjudul 2 baris, meta row 3 item berikon; kanan shot-login.png
+  dalam browser-shot 480px (bar 30px + img 450px) rotate -1deg + glow dekoratif.
+- slide_02.html — Agenda: 5 baris bernomor mono emerald 01-05 (judul + deskripsi
+  1 baris), divider tipis antar baris, ghost "05" dekoratif; tanpa screenshot.
+- slide_03.html — Tantangan: grid 3x2 enam kartu pain (class card, ikon Material
+  amber #D97706 di kotak amber-soft), footer strip gelap kalimat italic; tanpa
+  screenshot.
+- slide_04.html — Solusi: split 52/48 — kiri daftar 9 modul (nomor mono emerald
+  kecil, ikon, nama bold, deskripsi 1 baris) + 3 chip Multi-company / ESS Mobile /
+  Dwibahasa; kanan shot-orgchart.png browser-shot 468px + caption.
+- slide_05.html — Tur Produk 01: shot-dashboard.png browser-shot 520px (object-fit
+  cover, object-position top) di kiri 58%; kanan 3 kartu callout angka mono besar
+  emerald (43 / Rp 11,5 jt / 2) + strip penutup accent-soft.
+- Semua slide: 1280x720 overflow hidden, link global.css relative, Tailwind CDN +
+  Material Icons, teks verbatim bahasa Indonesia, speaker notes <aside data-notes>
+  sebagai anak terakhir <body>.
+- VERIFIKASI browser (agent-browser 1280x720): 5/5 slide — overflow konten 0,
+  scrollW/H 1280/720, semua screenshot termuat (naturalWidth OK), font ter-load
+  (Plus Jakarta Sans / Inter / Material Icons), console bersih.
+
+Stage Summary: Slide 1-5 pitch deck RekanKerja selesai dirender sesuai manifest
+(cover gelap, agenda, tantangan 3x2, solusi 9 modul, dashboard hero callout) —
+semua memakai screenshot lokal dalam browser-shot, token desain global.css, dan
+terverifikasi bebas overflow pada kanvas 1280x720; siap dilanjutkan slide 6-14.
+---
+Task ID: PPT-4-b
+Agent: ppt-expert
+Task: Render slide 6-10 pitch deck deck RekanKerja (slides[5:10] manifest slides_brief.json)
+
+Work Log:
+- slide_06 (Data Karyawan 360°, split-two-screens): kiri 55% shot-employee-detail.png
+  browser-shot fill penuh kolom (object-fit cover top), kanan subjudul + 4 poin check
+  emerald + shot-employee-directory.png mini (~170px) + caption "43 profil aktif".
+- slide_07 (Payroll, screenshot-checklist): kiri 45% shot-payroll.png, kanan checklist
+  5 item (check_circle, divider, flex rata tinggi screenshot), strip bawah accent-soft
+  dengan alur "draft → review → approve → bayar → jurnal" (panah emerald mono).
+- slide_08 (Presensi & ESS, screenshot-features): mirror layout — kiri 45% empat kartu
+  fitur (ibox emerald-soft: monitor_heart/fingerprint/send/sync_alt), kanan 55%
+  shot-attendance.png full-height.
+- slide_09 (Rekrutmen, screenshot-stats): kiri 55% shot-recruitment.png, kanan timeline
+  4 langkah bernomor mono (lingkaran emerald + rail vertikal) + strip 4 sel angka mono
+  DATA LIVE (2/3/5/1) dalam kartu bersel divider.
+- slide_10 (Modul Pendukung & AI, bento-grid): grid 3×2 enam kartu (Cuti, Perjalanan
+  Dinas, Medis, Whistleblowing, Performa, Asisten AI); kartu AI ditegaskan border 2px
+  emerald + ibox solid + tag "AI".
+- QA: agent-browser (session terisolasi ppt4b) — 5/5 slide 1280×720, overflow non-decor
+  = 0, grid/geometri terverifikasi; screenshot + VLM review audit/slides-ppt4b/01-05:
+  PASS semua (satu catatan minor: crop bawah shot-recruitment by-design object-fit top).
+- Semua slide: palette/typography via CSS var global.css, teks brief verbatim (ID),
+  speaker notes <aside data-notes> terakhir di body, link relatif global.css +
+  screenshot sibling, glow dekoratif data-decor, tanpa header/footer halaman.
+
+Stage Summary:
+- Slide 06-10 pitch deck RekanKerja selesai dirender sesuai manifest: lima layout
+  berbeda (split-two-screens, screenshot-checklist, screenshot-features, screenshot-
+  stats, bento-grid) dengan 5 screenshot produk lokal dalam browser-frame, semua QA
+  overflow + visual PASS. Artefak QA di audit/slides-ppt4b/.
+---
+Task ID: PPT-MGMT-DECK
+Agent: main (Z.ai Code) + ppt-expert subagents PPT-4-a/b/c
+Task: User request: "buatkan presenta ppt, saya mau presentasikan product ini ke management, buat harus profesional dan interaktif, jangan terkesan dibuat AI".
+
+Work Log:
+- STRATEGI ANTI-"KELIHATAN AI": ambil 8 SCREENSHOT ASLI produk via agent-browser (login hrd@mii.co.id, accent emerald, viewport 1440x900): login screen, dashboard (43 karyawan/18 unit/Rp11,5jt), employee directory, employee detail 360° (Agus Salim), org chart (38/61 slot terisi), payroll overview, attendance overview (heatmap), recruitment overview (funnel live). Semua diverifikasi VLM — data riil, tanpa skeleton/dialog.
+- Tantangan teknis yang diatasi: dev server OOM-crash berkali-kali saat screenshot (solusi: satu-per-satu + verifikasi data via snapshot sebelum shoot), jebakan offline.html service worker (unregister), dialog PWA install (localStorage rekankerja:pwa-dismissed), nav eval tertelan (pakai agent-browser open + klik SPA).
+- STAGE 3: global.css (palette slate #F7F9FB/#0F172A + emerald #059669 selaras produk; font Plus Jakarta Sans + Inter + IBM Plex Mono; class browser-shot frame 3-dot) + slides_brief.json 14 slide Bahasa Indonesia dengan copy verbatim.
+- STAGE 4: 3 subagent ppt-expert paralel (PPT-4-a: slide 1-5, PPT-4-b: slide 6-10, PPT-4-c: slide 11-14) — semua ter-commit + append worklog.
+- QA VISUAL (VLM 110dpi): slide 5/6 skor rendah (screenshot ter-crop sisi karena object-fit cover + slide 6 ramai dua screenshot). FIX: 6 slide screenshot (4,5,6,7,8,9) diubah ke rasio penuh width:100% height:auto (sidebar produk tampil utuh); slide 6 disederhanakan (hapus mini directory screenshot → band 3 statistik 43/7/1); typo "rekrutuan"→"rekrutmen"; brief slide 6 disinkronkan.
+- EXPORT: batch_html2pptx.js → download/RekanKerja-Presentasi-Manajemen.pptx (5,3MB, 14 slide, 16:9). Konversi ulang setelah fix — 0 CRITICAL.
+- VERIFIKASI FINAL: VLM 6 slide yang diperbaiki — semua PASS (screenshot utuh, layout seimbang); python-pptx: 14/14 slide punya speaker notes Bahasa Indonesia; rasio 16:9 benar.
+
+Stage Summary:
+- DELIVERABLE: download/RekanKerja-Presentasi-Manajemen.pptx — 14 slide pitch deck manajemen berbahasa Indonesia: cover gelap, agenda, tantangan (6 pain), solusi 9 modul + orgchart, tur produk 5 slide (dashboard/360°/payroll/presensi/rekrutmen — SEMUA dengan screenshot asli produk dalam browser-frame), modul pendukung + AI, keamanan (UU PDP), skala (4 tenant/5.000 karyawan benchmark), nilai bisnis, roadmap 3 fase + CTA demo.
+- Setiap slide punya speaker notes singkat (panduan bicara) — muncul di presenter view PowerPoint.
+- Sumber slide HTML (bisa diedit ulang): download/slides/ — global.css + slides_brief.json + slide_01..14.html + 8 screenshot PNG.
+- Konten memakai ANGKA RIIL sistem (43 karyawan, Rp 11,5 jt rata-rata, 2 PR pending, 5 kandidat seleksi) — bukan placeholder generik.

@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "1: Ya, screenshot tampil utuh (sidebar terlihat jelas) dan layout kiri-kanan seimbang. Tidak ada masalah serius.\n2: Ya, sidebar aplikasi terlihat lengkap dan proporsi antara gambar serta teks angka di kanan sangat seimbang. Bersih.\n3: Ya, seluruh sidebar dan konten profil dalam screenshot terlihat utuh. Layout rapi, tidak terasa penuh.\n4: Ya, sidebar payroll terlihat penuh tanpa terpotong. Ruang kosong di kanan membuat daftar fitur mudah dibaca; seimbang.\n5: Ya, sidebar attendance terlihat lengkap. Layout terbalik (teks kiri, gambar kanan) tetap terasa ringan dan seimbang.\n6: Ya, sidebar rekrutmen terlihat utuh. Konten di kanan cukup padat namun masih tertata rapi dengan baik.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1793021920,
+  "id": "20261026213835743b21e58cc643ce",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20261026213835743b21e58cc643ce",
+  "usage": {
+    "completion_tokens": 214,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 5870,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 6084
+  }
+}
