@@ -215,7 +215,7 @@ export function TravelClaimApprovalPage() {
                     <p className="text-xs font-black text-rose-700 dark:text-rose-400">{fmtIDR(c.payableCompany)}</p>
                   </div>
                   <div className="rounded-lg border ov-border-accent ov-soft py-1.5">
-                    <p className="text-[9px] font-bold">TOTAL</p>
+                    <p className="text-[9px] font-bold">{t("TOTAL", "TOTAL")}</p>
                     <p className="text-xs font-black">{fmtIDR(c.totalSettlement)}</p>
                   </div>
                 </div>
@@ -349,7 +349,7 @@ export function TravelClaimApprovalPage() {
                   <div className="rounded bg-white py-1 dark:bg-slate-900"><p className="text-slate-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p><p className="font-black">{fmtIDR(subMoney(decide.claim.exchangeLoss, decide.claim.otherCompanyExp))}</p></div>
                   <div className="rounded bg-white py-1 dark:bg-slate-900"><p className="text-brand">(b)</p><p className="font-black text-brand-deep">{fmtIDR(decide.claim.payableEmployee)}</p></div>
                   <div className="rounded bg-white py-1 dark:bg-slate-900"><p className="text-rose-600">(c)</p><p className="font-black text-rose-700">{fmtIDR(decide.claim.payableCompany)}</p></div>
-                  <div className="rounded border ov-border-accent ov-soft py-1"><p>TOTAL</p><p className="font-black">{fmtIDR(decide.claim.totalSettlement)}</p></div>
+                  <div className="rounded border ov-border-accent ov-soft py-1"><p>{t("TOTAL", "TOTAL")}</p><p className="font-black">{fmtIDR(decide.claim.totalSettlement)}</p></div>
                 </div>
               </div>
               <div className="space-y-1.5">

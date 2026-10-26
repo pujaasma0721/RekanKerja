@@ -1197,7 +1197,7 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
         [rule.overtimeComponentCode, includeOvertime ? r.overtimePay : 0, `Lembur ${Math.round(r.overtimeMinutes / 60)} jam`],
         [rule.lateDeductionComponentCode, includeLate ? r.lateDeduction : 0, `Telat ${r.lateCount}× (${Math.round(r.lateMinutes)} menit)`],
         [rule.absenceDeductionComponentCode, includeAbsence ? r.absenceDeduction : 0, `Absen ${r.absentDays} hari, izin tanpa upah ${Math.round((r.workoffUnpaidDays + r.leaveUnpaidDays) * 10) / 10} hari`],
-        [rule.attendanceAllowanceComponentCode, includeAllowance ? r.attendanceAllowance : 0, "Tunjangan kehadiran penuh (tanpa telat/absen)"],
+        [rule.attendanceAllowanceComponentCode, includeAllowance ? r.attendanceAllowance : 0, "Tunjangan kehadiran penuh (tanpa telat/absen)"], // bilingual-safe: note tersimpan ke PayrollRunItem.note — data historis DB, bukan label UI
       ];
       let any = false;
       // 28-c: nilai komponen rekap kehadiran disimpan TERENKRIPSI (enc:v1:n:…).

@@ -383,13 +383,13 @@ export function OnboardingWizard() {
                   <SectionLabel icon={Mail} title={t("Kontak & Alamat", "Contact & Address")} className="pt-1" />
                   <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
                     <Field label={t("Email")} error={errors.email}>
-                      <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="nama@mii.co.id" className={cn("h-9", errors.email && "border-rose-400 focus-visible:ring-rose-400")} />
+                      <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder={t("contoh: nama@perusahaan.co.id", "e.g. name@company.com")} className={cn("h-9", errors.email && "border-rose-400 focus-visible:ring-rose-400")} />
                     </Field>
                     <Field label={t("Telepon")}>
                       <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0812 3456 7890" inputMode="tel" className="h-9" />
                     </Field>
                     <Field label={t("Alamat")} className="sm:col-span-2">
-                      <Input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Jl. Rungkut Industri No. 10, Surabaya" className="h-9" />
+                      <Input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder={t("Jl. Rungkut Industri No. 10, Surabaya", "e.g. 123 Main Street, Jakarta")} className="h-9" />
                     </Field>
                     <Field label={t("Kota", "City")}>
                       <Input value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="Surabaya" className="h-9" />

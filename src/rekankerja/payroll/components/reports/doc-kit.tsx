@@ -98,6 +98,7 @@ export function DocHeader({
   reportNo?: string;
   meta: { label: string; value: ReactNode }[];
 }) {
+  const { t } = useI18n();
   return (
     <header className="border-b-2 border-slate-800 pb-4">
       <div className="flex items-start justify-between gap-6">
@@ -111,14 +112,14 @@ export function DocHeader({
           </div>
           <div className="min-w-0">
             <div className="text-base font-bold uppercase leading-tight tracking-wide">
-              {company?.name ?? "— Nama Perusahaan —"}
+              {company?.name ?? t("— Nama Perusahaan —", "— Company Name —")}
             </div>
             <div className="mt-0.5 text-[11px] text-slate-600">
-              NPWP Perusahaan: <span className="font-semibold text-slate-800">{company?.taxId ?? "—"}</span>
+              {t("NPWP Perusahaan:", "Company Tax ID (NPWP):")} <span className="font-semibold text-slate-800">{company?.taxId ?? "—"}</span>
             </div>
             <div className="text-[11px] text-slate-600">
-              {[company?.address, company?.city].filter(Boolean).join(", ") || "— Alamat / Cabang —"}
-              {company?.city ? ` · Cabang: ${company.city}` : ""}
+              {[company?.address, company?.city].filter(Boolean).join(", ") || t("— Alamat / Cabang —", "— Address / Branch —")}
+              {company?.city ? ` · ${t("Cabang", "Branch")}: ${company.city}` : ""}
             </div>
           </div>
         </div>

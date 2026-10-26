@@ -15,7 +15,7 @@ import {
   ArrowRight, ChevronLeft, Printer, FileSpreadsheet, FileDown, RefreshCw,
   Banknote, ArrowLeftRight, Calculator,
 } from "lucide-react";
-import { REPORT_GROUPS, GROUP_THEMES, reportById, type ReportDef } from "./catalog";
+import { REPORT_GROUPS, GROUP_THEMES, reportById, AUDIENCE_EN, type ReportDef } from "./catalog";
 import type { Pools } from "./params";
 import { ReportParamsForm, type ParamValues } from "./report-params-form";
 import { PayslipDoc, RegisterDoc, BankTransferDoc } from "./documents/documents-g1";
@@ -277,7 +277,7 @@ function ReportCard({ report, theme, onOpen }: { report: ReportDef; theme: { bar
       <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
         {report.audience.map((a) => (
           <span key={a} className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", theme.badge)}>
-            {a}
+            {t(a, AUDIENCE_EN[a])}
           </span>
         ))}
       </div>

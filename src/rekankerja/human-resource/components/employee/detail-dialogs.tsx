@@ -175,7 +175,7 @@ export function EditPersonalDialog({
             </Select>
           </Field>
           <Field label={t("Email")} htmlFor="ep-email">
-            <Input id="ep-email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="nama@mii.co.id" />
+            <Input id="ep-email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder={t("contoh: nama@perusahaan.co.id", "e.g. name@company.com")} />
           </Field>
           <Field label={t("Telepon")} htmlFor="ep-phone">
             <Input id="ep-phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="0812…" />

@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
 import { type AdvSearch, type AdvFieldDef, txt, dt, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
+// bilingual-safe: enum docType DB — label EN/ID via DOC_TYPE_LABEL di komponen ini (render t(map)).
 const DOC_TYPES = ["KTP", "Paspor", "SIM", "KK", "NPWP", "Ijazah", "Sertifikat", "Kontrak", "Lainnya"] as const;
 
 const DOC_TYPE_LABEL: Record<string, string> = {

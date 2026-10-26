@@ -28,6 +28,26 @@ export interface ReportDef {
   orientation: "portrait" | "landscape";
 }
 
+/** BL2-a (audit bilingual): terjemahan EN badge audiens katalog — nilai
+ *  netral/regulator (Finance, BPJS, KPP/DJP, Auditor, dst.) dipetakan ke
+ *  dirinya sendiri via fallback t(a, AUDIENCE_EN[a]). */
+export const AUDIENCE_EN: Record<string, string> = {
+  "Karyawan": "Employee",
+  "Direktur": "Director",
+  "Bank Mitra": "Partner Bank",
+  "Auditor": "Auditor",
+  "Finance": "Finance",
+  "Payroll": "Payroll",
+  "Finance Director": "Finance Director",
+  "Finance Manager": "Finance Manager",
+  "Finance & Accounting": "Finance & Accounting",
+  "HR / Payroll": "HR / Payroll",
+  "KPP / DJP": "KPP / DJP (Tax Office)",
+  "BP Tapera": "BP Tapera",
+  "BPJS Kesehatan": "BPJS Kesehatan (Health)",
+  "BPJS Ketenagakerjaan": "BPJS Ketenagakerjaan (Employment)",
+};
+
 export interface GroupDef {
   id: string;
   titleId: string;
@@ -84,7 +104,7 @@ export const REPORT_GROUPS: GroupDef[] = [
         titleId: "Slip Gaji Resmi Karyawan", titleEn: "Official Employee Payslip",
         descId: "Rincian gaji pokok, tunjangan, BPJS (porsi perusahaan & karyawan), potongan pajak, hingga Net THP.",
         descEn: "Breakdown of basic salary, allowances, BPJS company/employee parts, tax deductions, and net THP.",
-        audience: ["Karyawan", "HR / Payroll"],
+        audience: ["Karyawan", "HR / Payroll"], // bilingual-safe: ID key — EN via AUDIENCE_EN map di render (payroll-reports-view.tsx)
       },
       {
         id: "r12", no: "R1.2", icon: TableProperties, orientation: "landscape",
@@ -121,7 +141,7 @@ export const REPORT_GROUPS: GroupDef[] = [
         titleId: "Bukti Potong PPh 21 (Form 1721-A1)", titleEn: "PPh 21 Withholding Slip (Form 1721-A1)",
         descId: "Formulir DJP dirender engine iReport (JasperReports) dari template JRXML resmi — PDF siap cetak/simpan.",
         descEn: "DJP form rendered by the iReport engine (JasperReports) from the official JRXML template — print/save-ready PDF.",
-        audience: ["KPP / DJP", "Karyawan"],
+        audience: ["KPP / DJP", "Karyawan"], // bilingual-safe: ID key — EN via AUDIENCE_EN map di render (payroll-reports-view.tsx)
       },
       {
         id: "r23", no: "R2.3", icon: Globe2, orientation: "portrait",

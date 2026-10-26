@@ -104,7 +104,7 @@ export function TravelBudgetPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-base font-bold">
-                      <Wallet className="h-4 w-4 ov-text-accent" /> Budget {b.year}
+                      <Wallet className="h-4 w-4 ov-text-accent" /> {t("Budget", "Budget")} {b.year}
                     </span>
                     <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs font-bold" onClick={() => openDialog(b)}>
                       <Pencil className="h-3 w-3" /> {t("Ubah")}

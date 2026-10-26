@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 
+// bilingual-safe: enum status DB — label EN via STATUS_META (id/en) di komponen whistleblow-module.
 const STATUSES = ["Baru", "Diterima", "Investigasi", "Selesai", "Ditutup"] as const;
 
 const REPORT_SELECT = {

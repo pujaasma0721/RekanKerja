@@ -16,6 +16,7 @@ import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 // Setiap mutasi menulis ActivityLog (pola disciplinary.ts / offboarding.ts).
 
 /** Kategori & status valid (selaras seed wave-27 + skema). */
+// bilingual-safe: enum kategori validasi server — label EN di komponen (CATEGORY_EN assets-module).
 const ASSET_CATEGORIES = ["Elektronik", "Kendaraan", "Seragam", "Alat Kerja", "Furniture", "Lainnya"];
 const ASSET_STATUSES = ["Available", "Assigned", "Maintenance", "Retired", "Lost"];
 

@@ -245,7 +245,7 @@ export function TravelRequestsPage() {
                     <ServerSortHead label={t("Nomor", "No.")} active={sortKey === "doc"} dir={sortDir} onClick={() => clickSort("doc")} />
                     <ServerSortHead label={t("Karyawan")} active={sortKey === "employee"} dir={sortDir} onClick={() => clickSort("employee")} />
                     <ServerSortHead label={t("Rencana", "Plan")} active={sortKey === "plan"} dir={sortDir} onClick={() => clickSort("plan")} />
-                    <ServerSortHead label="Template" active={sortKey === "template"} dir={sortDir} onClick={() => clickSort("template")} />
+                    <ServerSortHead label={t("Template", "Template")} active={sortKey === "template"} dir={sortDir} onClick={() => clickSort("template")} />
                     <ServerSortHead label={t("Destinasi", "Destinations")} active={sortKey === "destinations"} dir={sortDir} onClick={() => clickSort("destinations")} className="hidden md:table-cell" />
                     <ServerSortHead label={t("Uang Muka", "Advance")} active={sortKey === "advance"} dir={sortDir} onClick={() => clickSort("advance")} className="text-right" />
                     <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} />

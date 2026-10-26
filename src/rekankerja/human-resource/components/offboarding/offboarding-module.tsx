@@ -168,10 +168,10 @@ function OffboardingList() {
   );
 
   const sc = data?.statusCounts ?? {};
-  const statCards: [string, string, string, number][] = [
-    ["Open", "Berjalan", "Running", sc.Open ?? 0],
-    ["Completed", "Selesai", "Completed", sc.Completed ?? 0],
-    ["Cancelled", "Dibatalkan", "Cancelled", sc.Cancelled ?? 0],
+  const statCards: [string, string, number][] = [
+    ["Open", t("Berjalan", "Running"), sc.Open ?? 0],
+    ["Completed", t("Selesai", "Completed"), sc.Completed ?? 0],
+    ["Cancelled", t("Dibatalkan", "Cancelled"), sc.Cancelled ?? 0],
   ];
   // Task adv-e — adv diterapkan ke daftar penuh SEBELUM filter status lama.
   const offRows = useMemo(() => filterRowsByAdv(data?.offboardings ?? [], adv, ADV_FIELDS), [data, adv]);
@@ -209,12 +209,12 @@ function OffboardingList() {
 
       {/* mini stats — klik utk filter status */}
       <div className="mb-4 grid grid-cols-3 gap-3">
-        {statCards.map(([st, label, labelEn, val]) => (
+        {statCards.map(([st, label, val]) => (
           <button key={st} onClick={() => setStatus(status === st ? "all" : st)} className={cn(
             "rounded-2xl border p-3.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-md",
             status === st ? "ov-border-accent ov-soft" : "border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900",
           )}>
-            <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{t(label, labelEn)}</p>
+            <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
             <p className="mt-0.5 text-xl font-extrabold text-slate-900 dark:text-slate-50">{val}</p>
           </button>
         ))}

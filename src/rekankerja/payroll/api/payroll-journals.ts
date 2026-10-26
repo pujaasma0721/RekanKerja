@@ -105,6 +105,11 @@ export async function GET(req: NextRequest) {
       }
 
       if (exportCsv === "csv") {
+        // BL2-a (audit bilingual): header/footer CSV legacy kini dwibahasa — pola
+        // H() ekspor GL di atas (?lang=, default en utk format ekspor — UI selalu
+        // mengirim lang eksplisit dari useI18n).
+        const lang: Lang = req.nextUrl.searchParams.get("lang") === "id" ? "id" : "en";
+        const H = (idText: string, enText: string) => trFor(lang, idText, enText);
         // AUD-DEPLOY (2-b MED-4) — CSV formula injection: string user yang
         // diawali = + - @ (atau tab/CR) diprefix "'" (mengapit "…" hanya
         // escape CSV, bukan proteksi formula). Angka & kolom sistem aman.
@@ -112,7 +117,7 @@ export async function GET(req: NextRequest) {
           const v = s ?? "";
           return /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
         };
-        const header = ["SEQ", "AKUN", "NAMA_AKUN", "POSISI", "NOMINAL", "MEMO", "KOMPONEN"].join(";");
+        const header = ["SEQ", H("AKUN", "Account"), H("NAMA_AKUN", "Account Name"), H("POSISI", "D/C"), H("NOMINAL", "Amount"), "MEMO", H("KOMPONEN", "Wage Code")].join(";");
         const rows = journal.lines.map((l) => [
           l.sequence, l.accountCode, `"${gi(l.accountName)}"`, l.position, Math.round(dm(l.amount)),
           `"${gi(l.memo)}"`, l.wageCode ?? "",

@@ -132,7 +132,7 @@ export function LR33View({ data, meta }: { data: LR33Data; meta: DocMeta }) {
   };
   return (
     <ReportSheet docId="lr33" landscape>
-      <DocHeader meta={meta} reportNo="R3.3" title="Unexcused Absence / Alpa Log" subtitle={t("Daftar Mangkir Karyawan — Dasar Surat Peringatan", "Employee No-Show Log — Warning Letter Basis")} audience={t("HR · Atasan Langsung · Legal", "HR · Line Managers · Legal")} docNo={mkDocNo("lr33", meta)} />
+      <DocHeader meta={meta} reportNo="R3.3" title="Unexcused Absence / Alpa Log" subtitle={t("Daftar Mangkir Karyawan — Dasar Surat Peringatan", "Employee No-Show Log — Warning Letter Basis")} audience={t("HR · Atasan Langsung · Legal", "HR · Line Managers · Legal")} docNo={mkDocNo("lr33", meta)} /> {/* bilingual-safe: judul identik ID/EN by design (titleId == titleEn di katalog laporan) */}
 
       <DocSection no="A" title={t("Ringkasan Disiplin", "Discipline Summary")} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

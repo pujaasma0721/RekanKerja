@@ -32,15 +32,9 @@ const EMPTY_FORM = {
   noticeDays: "0", maxConsecutiveDays: "0", blackouts: [] as BlackoutFormRow[],
 };
 
-// LABEL EN (peta paralel — render: t(label, POLICY_LABEL_EN[key]))
-const POLICY_LABEL_EN: Record<string, string> = {
-  paid: "Paid leave (paid absence)",
-  prorateMonthly: "Monthly prorate (earned ÷12)",
-  cashable: "Balance can be cashed out (UCT)",
-  allowAdvance: "Allow negative balance (advance)",
-  allowHalfDay: "Allow half day (AM/PM)",
-  needDocs: "Requires supporting documents",
-};
+// Task BL2-b — deskripsi fitur kebijakan cuti: pasangan bilingual [key, labelID, labelEN]
+// (tabel triple — konvensi GENDERS/MARITAL), dirender via t(label, labelEn).
+// Hanya utk display; yang tersimpan ke DB adalah boolean form (paid/cashable/dst.).
 
 /** Task adv-search — field Advance Search master jenis cuti (client-side,
  *  filter TAMBAHAN di atas query yang sudah ada; `active` boolean dikonversi
@@ -338,16 +332,16 @@ export function LeaveTypesPage() {
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
               {([
-                ["paid", "Cuti dibayar (absen berbayar)"],
-                ["prorateMonthly", "Prorate bulanan (earned ÷12)"],
-                ["cashable", "Saldo bisa diuangkan (UCT)"],
-                ["allowAdvance", "Boleh saldo minus (advance)"],
-                ["allowHalfDay", "Izinkan setengah hari (AM/PM)"],
-                ["needDocs", "Perlu dokumen pendukung"],
-              ] as const).map(([key, label]) => (
+                ["paid", "Cuti dibayar (absen berbayar)", "Paid leave (paid absence)"],
+                ["prorateMonthly", "Prorate bulanan (earned ÷12)", "Monthly prorate (earned ÷12)"],
+                ["cashable", "Saldo bisa diuangkan (UCT)", "Balance can be encashed (UCT)"],
+                ["allowAdvance", "Boleh saldo minus (advance)", "Negative balance allowed (advance)"],
+                ["allowHalfDay", "Izinkan setengah hari (AM/PM)", "Allow half-day (AM/PM)"],
+                ["needDocs", "Perlu dokumen pendukung", "Supporting document required"],
+              ] as const).map(([key, label, labelEn]) => (
                 <label key={key} className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                   <Checkbox checked={form[key]} onCheckedChange={(v) => setForm({ ...form, [key]: Boolean(v) })} />
-                  {t(label, POLICY_LABEL_EN[key])}
+                  {t(label, labelEn)}
                 </label>
               ))}
             </div>

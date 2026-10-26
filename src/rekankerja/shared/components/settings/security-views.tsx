@@ -287,7 +287,7 @@ function UserDialog({ initial, employees, roles, onClose, onDone }: { initial: A
           </div>
           <div className="space-y-2">
             <Label htmlFor="au-email">{t("Email", "Email")}</Label>
-            <Input id="au-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@mii.co.id" className="h-11" />
+            <Input id="au-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("contoh: nama@perusahaan.co.id", "e.g. name@company.com")} className="h-11" />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

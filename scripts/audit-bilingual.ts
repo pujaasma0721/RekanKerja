@@ -107,6 +107,16 @@ const RUNTIME_TRANSLATED = [
   "src/rekankerja/shared/services/ai-chat-service.ts",
   "src/rekankerja/shared/lib/provisioning.ts",
   "src/rekankerja/travel/api/ocr.ts",
+  // BL2-c: prompt AI rekrutmen (search/CV/score) — by-design Indonesia, pola
+  // sama ai-chat-service (prompt dikirim ke LLM, bukan teks UI).
+  "src/rekankerja/recruitment/services/ai-search-service.ts",
+  "src/rekankerja/recruitment/services/ai-cv-service.ts",
+  "src/rekankerja/recruitment/services/ai-score-service.ts",
+  // BL2-c: alias token kolom CSV mesin absensi (ID_KEYS/DATE_KEYS/dst) —
+  // string matching data, bukan label UI.
+  "src/rekankerja/time-attendance/api/machine-import.ts",
+  // BL2-c: log boot server (console.* — bukan permukaan UI user).
+  "src/rekankerja/shared/lib/parity-runner.ts",
 ];
 
 // Komponen doc-kit yang auto-translate children/label string-nya di runtime.
@@ -129,9 +139,49 @@ const NEUTRAL_TOKENS = new Set([
   "master", "demo", "test", "id", "en",
 ]);
 
+// BL2-c — array-item exact yang netral dua bahasa / kode teknis (terverifikasi
+// manual): "Sel" (singkatan hari kalender ID), "normal" (font weight key),
+// "desc"/"asc" (arah sort). "Draft"/"draft" & "no" tidak perlu whitelist —
+// dihapus dari ID_WORD_RE karena identik EN.
+const NEUTRAL_ARRAY_ITEMS = new Set(["Sel", "normal", "desc", "asc"]);
+
+// BL2-c — menu-access key "module:action" (requireMenuAction) — identifier
+// teknis, bukan teks UI (mis. "travel:requests", "recruitment:budget").
+const MENU_KEY_RE = /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/;
+
+// BL2-c — enum konstanta ALL-CAPS + underscore (POSISI, KARYAWAN,
+// ATASAN_LANGSUNG, LEMBUR) — nilai DB; label EN via map di titik render.
+const ALL_CAPS_ENUM_RE = /^[A-Z][A-Z_0-9]{2,}$/;
+
+/** BL2-c — komentar penanda manual `bilingual-safe` (baris yang sama /
+ *  leading statement): enum/data tersimpan/kode teknis — label EN ditangani
+ *  di titik render via map (mis. AUDIENCE_EN, STATUS_META). */
+function hasBilingualSafeComment(node: ts.Node, sf: ts.SourceFile, src: string): boolean {
+  // (a) komentar di BARIS yang sama dengan node (trailing // … atau {/* … */}).
+  const lineIdx = sf.getLineAndCharacterOfPosition(node.getStart()).line;
+  const nl = src.split("\n");
+  if ((nl[lineIdx] ?? "").includes("bilingual-safe")) return true;
+  // (b) komentar leading pada statement deklarasi terdekat (mis. const X = […]).
+  let cur: ts.Node | undefined = node.parent;
+  while (cur) {
+    if (ts.isVariableStatement(cur) || ts.isExpressionStatement(cur)) {
+      const lead = ts.getLeadingCommentRanges(src, cur.getFullStart()) ?? [];
+      return lead.some((r) => src.slice(r.pos, r.end).includes("bilingual-safe"));
+    }
+    cur = cur.parent;
+  }
+  return false;
+}
+
 // Kata kunci khas Bahasa Indonesia untuk deteksi konten.
+// BL2-c: "travel" & "shift" DIHAPUS — dua kata ini netral EN (module name
+// "Travel", "shift schedule") dan hanya menimbulkan false positive; frasa ID
+// tetap tertangkap via "perjalanan|dinas|malam|pagi".
 const ID_WORD_RE =
-  /\b(dan|atau|yang|tidak|akan|dengan|untuk|pada|dari|ke|di|ini|itu|adalah|bisa|akan|sudah|belum|sedang|hanya|semua|silakan|harus|wajib|gagal|berhasil|simpan|hapus|tambah|ubah|cari|kosong|terjadi|kesalahan|karyawan|pengajuan|persetujuan|menunggu|catatan|total|nama|tanggal|karyawan|departemen|jabatan|perusahaan|surat|dokumen|laporan|pengaturan|aktif|nonaktif|ditolak|disetujui|dibatalkan|selesai|diproses|bulan|tahun|hari|jam|menit|sandI|masuk|keluar|versi|batal|tutup|unduh|unggah|salin|konfirmasi|ya|tidak|lihat|pilih|semua|buka|baru|lama|banyak|jumlah|kode|tipe|jenis|deskripsi|informasi|riwayat|proses|terapkan|reset|filter|segarkan|muat|memuat|menyimpan|menghapus|gajI|gajikan|cuti|lembur|absensi|kehadiran|jadwal|shift|saldo|klaim|medis|travel|perjalanan|dinas|budget|jenis|rumah|sakit|asuransi|penyesuaian|massal|template|notifikasi|pengumuman|komunikasi|organisasi|kantor|lokasi|posisi|katalog|direktori|disiplin|pelanggaran|peringatan|masa|percobaan|kontrak|permanen|tetap|magang|aset|pengembalian|offboarding|whistleblow|pelanggar|anonim|identitas|bukti|lampiran|uraian|nilai|batas|sisa|permintaan|persetuju|verifikasi|kode|token|tautan|tautan|berakhir|kedaluwarsa|terbit|draf|draft|menunggu|proses|selesai|batal|terkirim|terbaru|terlama|naik|turun|asc|desc|baris|kolom|sel|isi|firma|ttd|paraf|hlm|hal|no|nomor|rekening|cabang|pemilik|pemegang|referensi|keperluan|tujuan|kategori|grup|divisi|segmen|entitas|satuan|frekuensi|per|sekali|harian|bulanan|tahunan|mingguan|jam|lembur|izin|sakit|alpa|hadir|terlambat|cepat|pulang|masuk|libur|kerja|normal|shift|malam|hari|jam|ist|wib|wita|wit)\b/i;
+  /\b(dan|atau|yang|tidak|akan|dengan|untuk|pada|dari|ke|di|ini|itu|adalah|bisa|akan|sudah|belum|sedang|hanya|semua|silakan|harus|wajib|gagal|berhasil|simpan|hapus|tambah|ubah|cari|kosong|terjadi|kesalahan|karyawan|pengajuan|persetujuan|menunggu|catatan|total|nama|tanggal|karyawan|departemen|jabatan|perusahaan|surat|dokumen|laporan|pengaturan|aktif|nonaktif|ditolak|disetujui|dibatalkan|selesai|diproses|bulan|tahun|hari|jam|menit|sandI|masuk|keluar|versi|batal|tutup|unduh|unggah|salin|konfirmasi|ya|tidak|lihat|pilih|semua|buka|baru|lama|banyak|jumlah|kode|tipe|jenis|deskripsi|informasi|riwayat|proses|terapkan|reset|filter|segarkan|muat|memuat|menyimpan|menghapus|gajI|gajikan|cuti|lembur|absensi|kehadiran|jadwal|saldo|klaim|medis|perjalanan|dinas|budget|rumah|sakit|asuransi|penyesuaian|massal|template|notifikasi|pengumuman|komunikasi|organisasi|kantor|lokasi|posisi|katalog|direktori|disiplin|pelanggaran|peringatan|masa|percobaan|kontrak|permanen|tetap|magang|aset|pengembalian|offboarding|whistleblow|pelanggar|anonim|identitas|bukti|lampiran|uraian|nilai|batas|sisa|permintaan|persetuju|verifikasi|token|tautan|berakhir|kedaluwarsa|terbit|menunggu|terkirim|terbaru|terlama|naik|turun|baris|kolom|sel|isi|firma|ttd|paraf|hlm|hal|nomor|rekening|cabang|pemilik|pemegang|referensi|keperluan|tujuan|kategori|grup|divisi|segmen|entitas|satuan|frekuensi|per|sekali|harian|bulanan|tahunan|mingguan|izin|sakit|alpa|hadir|terlambat|cepat|pulang|libur|kerja|malam|ist|wib|wita|wit)\b/i;
+// BL2-c — dihapus dari regex (false positive terverifikasi): "travel",
+// "shift" (netral EN), "draf"/"draft" & "no" (identik EN dua bahasa),
+// "normal" (font key — di-whitelist NEUTRAL_ARRAY_ITEMS bila array-item).
 
 // Atribut yang umum menampung teks user-visible.
 const TEXTUAL_ATTRS = new Set([
@@ -208,7 +258,8 @@ function insideRuntimeTrComponent(node: ts.Node): boolean {
 // membentuk AdvFieldDef dwibahasa (label+labelEn, opsi triple
 // [value, labelID, labelEN]) & filterRowsByAdv menerimanya — semua string di
 // dalam panggilan-panggilan ini adalah sumber terjemahan, bukan gap.
-const ADV_BUILDERS = new Set(["txt", "num", "dt", "sel", "filterRowsByAdv"]);
+// BL2-c: + pickStr (nama properti sumber data, bukan label).
+const ADV_BUILDERS = new Set(["txt", "num", "dt", "sel", "filterRowsByAdv", "pickStr"]);
 
 /** R1 — true bila node berada di dalam argumen panggilan builder adv-search. */
 function insideAdvCall(node: ts.Node): boolean {
@@ -343,9 +394,10 @@ for (const file of files) {
     // 1) JsxText literal berbahasa Indonesia (bukan bagian {t(...)} — JsxText
     //    memang TIDAK mungkin berada dalam ekspresi, jadi apapun berhuruf = gap;
     //    KECUALI berada di komponen doc-kit yang auto-translate saat runtime).
+    //    BL2-c: exact "Kerja" = paruh kedua brand RekanKerja (split span accent).
     if (ts.isJsxText(node)) {
       const txt = node.getText().replace(/\s+/g, " ").trim();
-      if (looksIndonesian(txt) && !insideRuntimeTrComponent(node)) {
+      if (txt !== "Kerja" && looksIndonesian(txt) && !insideRuntimeTrComponent(node)) {
         gaps.push({ file: rel, line: sf.getLineAndCharacterOfPosition(node.getStart()).line + 1, kind: "jsx-text", text: txt.slice(0, 90) });
       }
     }
@@ -354,7 +406,8 @@ for (const file of files) {
     if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name) && node.initializer && ts.isStringLiteral(node.initializer)) {
       const attr = node.name.text;
       const val = node.initializer.text;
-      if (TEXTUAL_ATTRS.has(attr) && looksIndonesian(val) && !insideTCall(node)) {
+      if (TEXTUAL_ATTRS.has(attr) && looksIndonesian(val) && !insideTCall(node)
+          && !hasBilingualSafeComment(node, sf, src)) {
         gaps.push({ file: rel, line: sf.getLineAndCharacterOfPosition(node.getStart()).line + 1, kind: `attr:${attr}`, text: val.slice(0, 90) });
       }
     }
@@ -365,7 +418,8 @@ for (const file of files) {
       const fn = callee.split(".").pop() ?? callee;
       if (CALL_WATCH.has(fn) && node.arguments.length > 0) {
         const a0 = node.arguments[0]!;
-        if (ts.isStringLiteral(a0) && looksIndonesian(a0.text) && !insideTCall(node)) {
+        if (ts.isStringLiteral(a0) && looksIndonesian(a0.text) && !insideTCall(node)
+            && !hasBilingualSafeComment(a0, sf, src)) {
           gaps.push({ file: rel, line: sf.getLineAndCharacterOfPosition(node.getStart()).line + 1, kind: `call:${fn}`, text: a0.text.slice(0, 90) });
         }
       }
@@ -376,12 +430,21 @@ for (const file of files) {
     //    BL-REC-1: kecuali string di dalam 4 konvensi pasangan bilingual
     //    (builder adv-search / tabel triple / record 2-tuple bertipe /
     //    pasangan X + X_EN) — itu sumber terjemahan, bukan gap.
+    //    BL2-c: kecuali menu-access key / enum ALL-CAPS / token netral /
+    //    array wildcard operator / komentar bilingual-safe.
     if (ts.isArrayLiteralExpression(node) && node.elements.length <= 40) {
+      const hasStar = node.elements.some((e) => ts.isStringLiteral(e) && e.text === "*");
       for (const el of node.elements) {
         if (
           ts.isStringLiteral(el) && looksIndonesian(el.text) && !insideTCall(el)
           && !insideAdvCall(el) && !insideTripleTable(el)
           && !insideTypedTupleRecord(el) && !insideEnSiblingArray(el, enVars)
+          && !hasBilingualSafeComment(el, sf, src)
+          && !hasBilingualSafeComment(node, sf, src)
+          && !NEUTRAL_ARRAY_ITEMS.has(el.text)
+          && !MENU_KEY_RE.test(el.text)
+          && !ALL_CAPS_ENUM_RE.test(el.text)
+          && !hasStar
         ) {
           gaps.push({ file: rel, line: sf.getLineAndCharacterOfPosition(el.getStart()).line + 1, kind: "array-item", text: el.text.slice(0, 90) });
         }

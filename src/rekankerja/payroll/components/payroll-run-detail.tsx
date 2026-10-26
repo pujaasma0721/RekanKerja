@@ -782,7 +782,7 @@ function SummaryCard({ icon: Icon, label, value, tone }: { icon: React.ElementTy
 }
 
 function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClose: () => void; context: { runNo: string; periodName: string; processName: string; status: string } }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   if (!line) return null;
   const earnings = line.items.filter((i) => i.type === "Earning");
   const inThp = earnings.filter((i) => i.wageType !== "Jamsostek" || i.code.endsWith("_E") === false); // tampilkan semua earning, iuran perusahaan ditandai
@@ -797,7 +797,7 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
             <Receipt className="h-4 w-4 ov-text-accent" />
             <span className="flex-1">{t("Slip Gaji — {name}", "Payslip — {name}", { name: line.employeeName })}</span>
             <Button asChild variant="outline" size="sm" className="h-7 gap-1.5 text-[11px] font-bold">
-              <a href={`/api/rekankerja/payslip/${line.id}?download=1`} download>
+              <a href={`/api/rekankerja/payslip/${line.id}?download=1&lang=${lang}`} download>
                 <Download className="h-3 w-3" /> {t("Unduh PDF", "Download PDF")}
               </a>
             </Button>

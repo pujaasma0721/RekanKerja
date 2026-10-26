@@ -13,6 +13,12 @@
 // nilai uang null → PDF merender "—" (PII tetap terbaca — vault hanya uang).
 // GENERASI run payroll tetap raw (engine payroll-service).
 //
+// BL2-a (audit bilingual): label PDF dwibahasa via opts.lang ("id" default —
+// slip & email massal by-design ID; "en" dari unduhan UI mode EN melalui
+// ?lang= di route /payslip/[lineId], pola rekrutmen reports.ts). Label DB
+// (nama komponen, processName, nama karyawan) tetap data mentah — degradasi
+// mulus sisa pola locFor (nama bulan period di-swap saat EN).
+//
 // Struktur data dipelajari dari PaySlipDialog (payroll-run-detail.tsx) &
 // payroll-spt.ts: items.type Earning|Deduction|Informational, kode _C =
 // iuran perusahaan (di luar bruto/THP), PPH21 termasuk dalam potongan.
@@ -20,6 +26,7 @@
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import type { MoneyView } from "@/rekankerja/shared/lib/money-view";
+import { locFor, type Lang } from "@/rekankerja/shared/lib/i18n-core";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "@cantoo/pdf-lib";
 
 // ---------- tipe data snapshot ----------
@@ -122,19 +129,21 @@ export async function loadPayslipSlip(db: TenantDb, lineId: string, mv: MoneyVie
 
 // ---------- util format & sanitasi teks (WinAnsi-safe) ----------
 
-/** Rupiah Indonesia: 23678526 → "Rp 23.678.526". */
-export function fmtRupiah(n: number): string {
-  return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+/** Rupiah Indonesia: 23678526 → "Rp 23.678.526" (id) / "Rp 23,678,526" (en). */
+export function fmtRupiah(n: number, lang: Lang = "id"): string {
+  return `Rp ${Math.round(n).toLocaleString(lang === "en" ? "en-US" : "id-ID")}`;
 }
 
 /** 45-b (vault): nilai uang null (masked) → "—" di PDF. */
-function fmtAmount(n: number | null): string {
-  return n == null ? "—" : fmtRupiah(n);
+function fmtAmount(lang: Lang, n: number | null): string {
+  return n == null ? "—" : fmtRupiah(n, lang);
 }
 
-/** Tanggal panjang Indonesia: "31 Agustus 2026". */
-function fmtDateId(d: Date): string {
-  const bulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+/** Tanggal panjang per bahasa: "31 Agustus 2026" / "31 August 2026". */
+function fmtDateLang(lang: Lang, d: Date): string {
+  const bulan = lang === "en"
+    ? ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    : ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
   return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
@@ -193,6 +202,9 @@ export interface PayslipPdfResult {
 /** Opsi proteksi slip (26-b P0): userPassword = NIK karyawan (fallback employeeNo). */
 export interface PayslipPdfOptions {
   password?: string | null;
+  /** BL2-a: bahasa label PDF — "en" (unduhan mode EN) | "id" (default, slip &
+   *  email massal by-design Indonesia). */
+  lang?: Lang;
   /** Task 80d: stamp e-Sign run (QR verifikasi) bila PayrollRun sudah ditandatangani. */
   esignStamp?: EsignPayslipStamp | null;
   /** Request asal (host utk URL QR) — wajib bila ingin stamp dihitung otomatis. */
@@ -221,9 +233,17 @@ export interface EsignPayslipStamp {
  */
 export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions = {}): Promise<PayslipPdfResult> {
   const password = opts.password?.trim() || null;
+  // BL2-a: bahasa label — "en" dari unduhan mode EN; selain itu ID (default
+  // by-design: slip & lampiran email massal selalu Bahasa Indonesia).
+  const lang: Lang = opts.lang === "en" ? "en" : "id";
+  /** Label dwibahasa lokal (pola tt() rekrutmen reports.ts). */
+  const L = (id: string, en: string): string => (lang === "en" ? en : id);
+  /** Label periode per bahasa — nama bulan ID→EN (locFor) + kata "Periode". */
+  const periodLabel = (s: string): string =>
+    lang === "en" ? locFor(lang, s).replace(/\bPeriode\b/g, "Period") : s;
   const doc = await PDFDocument.create();
-  doc.setTitle(`Slip Gaji ${slip.employeeName} — ${slip.periodName}`);
-  doc.setSubject(`${slip.runNo} · ${slip.periodName} · ${slip.processName}`);
+  doc.setTitle(`${L("Slip Gaji", "Payslip")} ${slip.employeeName} — ${periodLabel(slip.periodName)}`);
+  doc.setSubject(`${slip.runNo} · ${periodLabel(slip.periodName)} · ${slip.processName}`);
   doc.setProducer("RekanKerja HRIS");
 
   const regular = await doc.embedFont(StandardFonts.Helvetica);
@@ -266,8 +286,8 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   }
 
   // sisi kanan: judul + periode + run
-  txt("SLIP GAJI", A4[0] - MARGIN, y + 26, { size: 19, font: bold, color: INK, align: "right" });
-  txt(safe(slip.periodName), A4[0] - MARGIN, y + 11, { size: 10, font: bold, color: INK_SOFT, align: "right" });
+  txt(L("SLIP GAJI", "PAYSLIP"), A4[0] - MARGIN, y + 26, { size: 19, font: bold, color: INK, align: "right" });
+  txt(periodLabel(slip.periodName), A4[0] - MARGIN, y + 11, { size: 10, font: bold, color: INK_SOFT, align: "right" });
   txt(`${slip.runNo} · ${slip.processName}`, A4[0] - MARGIN, y - 1, { size: 8, color: INK_FAINT, align: "right" });
   y -= 16;
 
@@ -277,11 +297,11 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
 
   // ================= IDENTITAS KARYAWAN =================
   const idRows: [string, string][] = [
-    ["Nama Karyawan", slip.employeeName],
-    ["No. Karyawan", slip.employeeNo],
-    ["Posisi", slip.positionName ?? "-"],
-    ["Unit / Departemen", slip.orgUnitName ?? "-"],
-    ["Status Pajak (PTKP)", slip.ptkpStatus],
+    [L("Nama Karyawan", "Employee Name"), slip.employeeName],
+    [L("No. Karyawan", "Employee No."), slip.employeeNo],
+    [L("Posisi", "Position"), slip.positionName ?? "-"],
+    [L("Unit / Departemen", "Unit / Department"), slip.orgUnitName ?? "-"],
+    [L("Status Pajak (PTKP)", "Tax Status (PTKP)"), slip.ptkpStatus],
     ["NPWP", slip.npwp ?? "-"],
   ];
   const idBoxH = idRows.length * 12 + 16;
@@ -299,8 +319,8 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   y -= idBoxH + 14;
 
   // status run (Paid/Confirmed) — chip kecil kanan
-  const statusLabel = slip.runStatus === "Paid" ? "DIBAYAR" : slip.runStatus === "Confirmed" ? "DIKONFIRMASI" : slip.runStatus.toUpperCase();
-  const stTxt = slip.paidAt ? `${statusLabel} — ${fmtDateId(slip.paidAt)}` : statusLabel;
+  const statusLabel = slip.runStatus === "Paid" ? L("DIBAYAR", "PAID") : slip.runStatus === "Confirmed" ? L("DIKONFIRMASI", "CONFIRMED") : slip.runStatus.toUpperCase();
+  const stTxt = slip.paidAt ? `${statusLabel} — ${fmtDateLang(lang, slip.paidAt)}` : statusLabel;
   txt(stTxt, MARGIN, y + 2, { size: 7.5, font: bold, color: slip.runStatus === "Paid" ? GREEN : INK_SOFT });
   y -= 8;
 
@@ -315,8 +335,8 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
     y -= 5;
     // header kolom
     page.drawRectangle({ x: MARGIN, y: y - 12.5, width: CONTENT_W, height: 13, color: TABLE_HEAD });
-    txt("KOMPONEN", MARGIN + 8, y - 9, { size: 7.5, font: bold, color: WHITE });
-    txt("JUMLAH", MARGIN + CONTENT_W - 8, y - 9, { size: 7.5, font: bold, color: WHITE, align: "right" });
+    txt(L("KOMPONEN", "COMPONENT"), MARGIN + 8, y - 9, { size: 7.5, font: bold, color: WHITE });
+    txt(L("JUMLAH", "AMOUNT"), MARGIN + CONTENT_W - 8, y - 9, { size: 7.5, font: bold, color: WHITE, align: "right" });
     y -= 13;
 
     if (rows.length === 0) {
@@ -327,28 +347,28 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
       ensure(13);
       if (idx % 2 === 1) page.drawRectangle({ x: MARGIN, y: y - 12.5, width: CONTENT_W, height: 13, color: opts.alt });
       const isCo = it.code.endsWith("_C");
-      const label = it.name + (isCo ? "  (iuran perusahaan)" : "") + (it.note ? `  — ${it.note}` : "");
+      const label = it.name + (isCo ? L("  (iuran perusahaan)", "  (company contribution)") : "") + (it.note ? `  — ${it.note}` : "");
       txt(label, MARGIN + 8, y - 9, { size: 8.5, font: isCo ? oblique : regular, color: isCo ? INK_SOFT : INK });
-      txt(fmtAmount(it.amount), MARGIN + CONTENT_W - 8, y - 9, { size: 8.5, font: isCo ? regular : bold, color: isCo ? INK_SOFT : opts.amountColor, align: "right" });
+      txt(fmtAmount(lang, it.amount), MARGIN + CONTENT_W - 8, y - 9, { size: 8.5, font: isCo ? regular : bold, color: isCo ? INK_SOFT : opts.amountColor, align: "right" });
       y -= 13;
     });
 
     // subtotal
     page.drawRectangle({ x: MARGIN, y: y - 13.5, width: CONTENT_W, height: 14, color: RULE });
     txt(subtotalLabel, MARGIN + 8, y - 10, { size: 8, font: bold, color: INK });
-    txt(fmtAmount(subtotalValue), MARGIN + CONTENT_W - 8, y - 10, { size: 9, font: bold, color: opts.amountColor, align: "right" });
+    txt(fmtAmount(lang, subtotalValue), MARGIN + CONTENT_W - 8, y - 10, { size: 9, font: bold, color: opts.amountColor, align: "right" });
     y -= 24;
   };
 
-  drawTableSection("PENGHASILAN", earnings, "JUMLAH PENGHASILAN (BRUTO)", slip.bruto, { amountColor: GREEN, alt: ACCENT_SOFT });
-  drawTableSection("POTONGAN", deductions, "JUMLAH POTONGAN", slip.deduction, { amountColor: RED, alt: ROW_ALT });
+  drawTableSection(L("PENGHASILAN", "EARNINGS"), earnings, L("JUMLAH PENGHASILAN (BRUTO)", "TOTAL GROSS EARNINGS"), slip.bruto, { amountColor: GREEN, alt: ACCENT_SOFT });
+  drawTableSection(L("POTONGAN", "DEDUCTIONS"), deductions, L("JUMLAH POTONGAN", "TOTAL DEDUCTIONS"), slip.deduction, { amountColor: RED, alt: ROW_ALT });
 
   // catatan: PPh21 termasuk potongan + net-to-gross
   // 45-b: nilai null (masked) dijumlahkan sebagai 0 → catatan PPh21 dilewati.
   const taxTotal = (slip.taxRegular ?? 0) + (slip.taxIrregular ?? 0);
   const notes: string[] = [];
-  if (taxTotal > 0) notes.push(`Termasuk PPh21 sebesar ${fmtRupiah(taxTotal)} (PPh Pasal 21).`);
-  if (slip.actualNetTax != null) notes.push("PPh21 ditanggung penuh perusahaan (metode Net-to-Gross).");
+  if (taxTotal > 0) notes.push(L(`Termasuk PPh21 sebesar ${fmtRupiah(taxTotal, lang)} (PPh Pasal 21).`, `Includes PPh21 (Article 21) withholding of ${fmtRupiah(taxTotal, lang)}.`));
+  if (slip.actualNetTax != null) notes.push(L("PPh21 ditanggung penuh perusahaan (metode Net-to-Gross).", "PPh21 fully borne by the company (net-to-gross method)."));
   if (slip.notes) notes.push(safe(slip.notes));
   if (notes.length > 0) {
     ensure(notes.length * 10 + 6);
@@ -362,9 +382,9 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   // item informational (bila ada)
   if (infos.length > 0) {
     ensure(14);
-    const infoLine = infos.map((i) => `${i.name}: ${i.code.match(/[^0-9]/) ? fmtAmount(i.amount) : i.amount == null ? "—" : String(i.amount)}`).join("   |   ");
+    const infoLine = infos.map((i) => `${i.name}: ${i.code.match(/[^0-9]/) ? fmtAmount(lang, i.amount) : i.amount == null ? "—" : String(i.amount)}`).join("   |   ");
     const trimmed = infoLine.length > 110 ? `${infoLine.slice(0, 107)}...` : infoLine;
-    txt(`Informasi: ${trimmed}`, MARGIN, y, { size: 7.5, color: INK_FAINT });
+    txt(`${L("Informasi", "Information")}: ${trimmed}`, MARGIN, y, { size: 7.5, color: INK_FAINT });
     y -= 16;
   }
 
@@ -384,13 +404,13 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
     const LX = MARGIN + 92; // kolom teks di kanan QR
     page.drawRectangle({ x: LX, y: y - 80, width: 2, height: 86, color: ACCENT });
     let ly = y;
-    txt("DITANDATANGANI SECARA ELEKTRONIK", LX + 10, ly, { size: 8, font: bold, color: ACCENT });
+    txt(L("DITANDATANGANI SECARA ELEKTRONIK", "ELECTRONICALLY SIGNED"), LX + 10, ly, { size: 8, font: bold, color: ACCENT });
     ly -= 12;
-    txt(`melalui RekanKerja e-Sign — Run ${stamp.docRef}`, LX + 10, ly, { size: 8, color: INK_SOFT });
+    txt(L(`melalui RekanKerja e-Sign — Run ${stamp.docRef}`, `via RekanKerja e-Sign — Run ${stamp.docRef}`), LX + 10, ly, { size: 8, color: INK_SOFT });
     ly -= 12;
     txt(stamp.signerName + (stamp.signerRole ? ` · ${stamp.signerRole}` : ""), LX + 10, ly, { size: 9.5, font: bold });
     ly -= 11;
-    txt(`Waktu tanda tangan: ${formatWibStamp(stamp.signedAtIso)}`, LX + 10, ly, { size: 8, color: INK_SOFT });
+    txt(L(`Waktu tanda tangan: ${formatWibStamp(lang, stamp.signedAtIso)}`, `Signed at: ${formatWibStamp(lang, stamp.signedAtIso)}`), LX + 10, ly, { size: 8, color: INK_SOFT });
     ly -= 11;
     txt(`Hash: ${stamp.docHashShort}…`, LX + 10, ly, { size: 7.5, color: INK_SOFT });
     ly -= 11;
@@ -405,7 +425,7 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   page.drawRectangle({ x: MARGIN, y: bandTop - bandH, width: CONTENT_W, height: bandH, color: ACCENT });
   const bandMid = bandTop - bandH / 2;
   txt("TAKE HOME PAY", MARGIN + 12, bandMid - 4, { size: 11, font: bold, color: WHITE });
-  txt(fmtAmount(slip.net), MARGIN + CONTENT_W - 12, bandMid - 5.5, { size: 16, font: bold, color: WHITE, align: "right" });
+  txt(fmtAmount(lang, slip.net), MARGIN + CONTENT_W - 12, bandMid - 5.5, { size: 16, font: bold, color: WHITE, align: "right" });
   y -= bandH + 10;
 
   // ================= FOOTER =================
@@ -414,19 +434,28 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   const now = new Date();
   const footerY = MARGIN - 22;
   footerPage.drawRectangle({ x: MARGIN, y: footerY + 10, width: CONTENT_W, height: 0.7, color: RULE });
-  const footer1 = `Dokumen dibuat otomatis oleh RekanKerja HRIS — ${fmtDateId(now)}, ${fmtTimeId(now)} · ${slip.runNo}`;
-  const footer2 = "Slip gaji bersifat RAHASIA — hanya untuk karyawan yang bersangkutan. Pertanyaan: hubungi HRD.";
+  const footer1 = L(
+    `Dokumen dibuat otomatis oleh RekanKerja HRIS — ${fmtDateLang(lang, now)}, ${fmtTimeId(now)} · ${slip.runNo}`,
+    `Generated automatically by RekanKerja HRIS — ${fmtDateLang(lang, now)}, ${fmtTimeId(now)} · ${slip.runNo}`,
+  );
+  const footer2 = L(
+    "Slip gaji bersifat RAHASIA — hanya untuk karyawan yang bersangkutan. Pertanyaan: hubungi HRD.",
+    "This payslip is CONFIDENTIAL — intended for the named employee only. Questions: contact HR.",
+  );
   footerPage.drawText(safe(footer1), { x: MARGIN, y: footerY - 2, size: 7, font: regular, color: INK_FAINT });
   footerPage.drawText(safe(footer2), { x: MARGIN, y: footerY - 11, size: 7, font: regular, color: INK_FAINT });
   if (password) {
-    const footer3 = "Dokumen ini diproteksi kata sandi (NIK Anda) — slip tidak dapat dibuka pihak lain.";
+    const footer3 = L(
+      "Dokumen ini diproteksi kata sandi (NIK Anda) — slip tidak dapat dibuka pihak lain.",
+      "This document is password-protected (your NIK) — no one else can open this slip.",
+    );
     footerPage.drawText(safe(footer3), { x: MARGIN, y: footerY - 20, size: 7, font: bold, color: INK_FAINT });
   }
 
   const pages = doc.getPages();
   pages.forEach((p, i) => {
     if (pages.length > 1) {
-      const label = `Halaman ${i + 1} dari ${pages.length}`;
+      const label = L(`Halaman ${i + 1} dari ${pages.length}`, `Page ${i + 1} of ${pages.length}`);
       p.drawText(safe(label), { x: A4[0] - MARGIN - textW(label, 7, regular), y: MARGIN - 33, size: 7, font: regular, color: INK_FAINT });
     }
   });
@@ -453,16 +482,18 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   const bytes = await doc.save();
   return {
     bytes,
-    filename: `Slip-Gaji-${slip.employeeNo}-${slip.periodCode}.pdf`,
+    filename: `${L("Slip-Gaji", "Payslip")}-${slip.employeeNo}-${slip.periodCode}.pdf`,
     encrypted: Boolean(password),
   };
 }
 
-/** "23 Sep 2026 10:24 WIB" — deterministik (UTC+7), tanpa locale host. */
-function formatWibStamp(iso: string): string {
+/** "23 Sep 2026 10:24 WIB" / "23 Aug 2026 10:24 WIB" — deterministik (UTC+7), tanpa locale host. */
+function formatWibStamp(lang: Lang, iso: string): string {
   const d = new Date(iso);
   const p = (n: number) => String(n).padStart(2, "0");
-  const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+  const bulan = lang === "en"
+    ? ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    : ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
   const wib = new Date(d.getTime() + 7 * 60 * 60_000);
   return `${p(wib.getUTCDate())} ${bulan[wib.getUTCMonth()]} ${wib.getUTCFullYear()} ${p(wib.getUTCHours())}:${p(wib.getUTCMinutes())} WIB`;
 }

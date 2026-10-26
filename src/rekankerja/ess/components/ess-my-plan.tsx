@@ -39,8 +39,7 @@ interface MyPlanResp {
 }
 
 /** sel formula a–h (kompak — mobile-first). */
-function FormulaCell({ label, labelEn, value, strong }: { label: string; labelEn: string; value: number; strong?: boolean }) {
-  const { t } = useI18n();
+function FormulaCell({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
   return (
     <div className={cn(
       "rounded-xl border px-2.5 py-2 text-center",
@@ -48,7 +47,7 @@ function FormulaCell({ label, labelEn, value, strong }: { label: string; labelEn
         ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-500/10"
         : "border-slate-200 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-800/40",
     )}>
-      <p className={cn("text-[10px] font-semibold leading-tight", strong ? "text-emerald-700 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400")}>{t(label, labelEn)}</p>
+      <p className={cn("text-[10px] font-semibold leading-tight", strong ? "text-emerald-700 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400")}>{label}</p>
       <p className={cn("text-lg font-bold tabular-nums", strong ? "text-emerald-700 dark:text-emerald-400" : "text-slate-900 dark:text-slate-50")}>{value}</p>
     </div>
   );
@@ -134,14 +133,14 @@ export function EssMyPlanPage() {
 
                 {/* formula a–h */}
                 <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-8">
-                  <FormulaCell label="(a) Target" labelEn="(a) Target" value={r.targetA} />
-                  <FormulaCell label="(b) Adj" labelEn="(b) Adj" value={r.adjustB} />
-                  <FormulaCell label="(c) Total" labelEn="(c) Total" value={r.totalC} />
-                  <FormulaCell label="(d) Awal" labelEn="(d) Start" value={r.empD} />
-                  <FormulaCell label="(e) Masuk" labelEn="(e) In" value={r.inE} />
-                  <FormulaCell label="(f) Keluar" labelEn="(f) Out" value={r.outF} />
-                  <FormulaCell label="(g) Hasil" labelEn="(g) Result" value={r.resultedG} />
-                  <FormulaCell label="(h) Rekrut" labelEn="(h) Recruit" value={r.toRecruitH} strong />
+                  <FormulaCell label={t("(a) Target", "(a) Target")} value={r.targetA} />
+                  <FormulaCell label={t("(b) Adj", "(b) Adj")} value={r.adjustB} />
+                  <FormulaCell label={t("(c) Total", "(c) Total")} value={r.totalC} />
+                  <FormulaCell label={t("(d) Awal", "(d) Start")} value={r.empD} />
+                  <FormulaCell label={t("(e) Masuk", "(e) In")} value={r.inE} />
+                  <FormulaCell label={t("(f) Keluar", "(f) Out")} value={r.outF} />
+                  <FormulaCell label={t("(g) Hasil", "(g) Result")} value={r.resultedG} />
+                  <FormulaCell label={t("(h) Rekrut", "(h) Recruit")} value={r.toRecruitH} strong />
                 </div>
                 <p className="mt-2 flex items-center gap-1.5 font-mono text-[10px] tabular-nums text-slate-400">
                   <Sigma className="h-3 w-3" aria-hidden /> c=(a)+(b) · g=(d)+(e)−(f) · h=(c)−(g)

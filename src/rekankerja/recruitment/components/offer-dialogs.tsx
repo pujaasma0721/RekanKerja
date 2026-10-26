@@ -745,7 +745,11 @@ const LETTER_KIND_LABEL: Record<string, [string, string]> = {
 
 export function OfferLetterDialog({ letter, onClose }: { letter: LetterTarget | null; onClose: () => void }) {
   const { t } = useI18n();
-  const [label, labelEn] = LETTER_KIND_LABEL[letter?.kind ?? ""] ?? ["Surat", "Letter"];
+  // Task BL2-b — fallback pasangan bilingual bila kind tak dikenal (defensif);
+  // label/labelEn selalu dirender via t(label, labelEn).
+  const kindLabel = LETTER_KIND_LABEL[letter?.kind ?? ""];
+  const label = kindLabel?.[0] ?? "Surat";
+  const labelEn = kindLabel?.[1] ?? "Letter";
   return (
     <Dialog open={letter != null} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
@@ -764,7 +768,7 @@ export function OfferLetterDialog({ letter, onClose }: { letter: LetterTarget | 
             {/* PDF ditampilkan inline (server: Content-Disposition inline) — bukan re-render teks. */}
             <iframe
               src={`${OFFERS_API}?letterPdf=${letter.letterId}`}
-              title={label}
+              title={t(label, labelEn)}
               className="h-[56vh] w-full rounded-xl border border-slate-200 bg-white dark:border-slate-800"
             />
             <p className="text-[11px] text-slate-400">

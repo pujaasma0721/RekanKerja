@@ -183,7 +183,7 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">{t("Username SMTP", "SMTP Username")}</Label>
-              <Input value={form.smtpUser} onChange={(e) => setForm((f) => ({ ...f, smtpUser: e.target.value }))} placeholder="user@perusahaan.co.id" className="text-[13px]" />
+              <Input value={form.smtpUser} onChange={(e) => setForm((f) => ({ ...f, smtpUser: e.target.value }))} placeholder={t("contoh: user@perusahaan.co.id", "e.g. user@company.com")} className="text-[13px]" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">
@@ -193,7 +193,7 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">{t("Email Pengirim (From) *", "Sender Email (From) *")}</Label>
-              <Input value={form.fromEmail} onChange={(e) => setForm((f) => ({ ...f, fromEmail: e.target.value }))} placeholder="hris@perusahaan.co.id" className="text-[13px]" />
+              <Input value={form.fromEmail} onChange={(e) => setForm((f) => ({ ...f, fromEmail: e.target.value }))} placeholder={t("contoh: hris@perusahaan.co.id", "e.g. hris@company.com")} className="text-[13px]" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">{t("Nama Pengirim", "Sender Name")}</Label>
@@ -562,10 +562,10 @@ function LogsPanel() {
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         {([
-          ["Sent", "Terkirim", "Sent", CheckCircle2, "text-brand"],
-          ["Failed", "Gagal", "Failed", XCircle, "text-rose-500"],
-          ["Skipped", "Dilewati", "Skipped", MinusCircle, "text-slate-400"],
-        ] as const).map(([key, label, labelEn, Icon, cls]) => (
+          ["Sent", t("Terkirim", "Sent"), CheckCircle2, "text-brand"],
+          ["Failed", t("Gagal", "Failed"), XCircle, "text-rose-500"],
+          ["Skipped", t("Dilewati", "Skipped"), MinusCircle, "text-slate-400"],
+        ] as const).map(([key, label, Icon, cls]) => (
           <Card key={key} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="flex items-center gap-3 p-4">
               <div className={cn("rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900", cls)}>
@@ -573,7 +573,7 @@ function LogsPanel() {
               </div>
               <div>
                 <p className="text-xl font-extrabold tabular-nums">{stats[key] ?? 0}</p>
-                <p className="text-[11px] font-semibold text-slate-500">{t(label, labelEn)}</p>
+                <p className="text-[11px] font-semibold text-slate-500">{label}</p>
               </div>
             </CardContent>
           </Card>

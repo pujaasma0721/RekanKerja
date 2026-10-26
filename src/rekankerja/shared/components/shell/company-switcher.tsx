@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Building2, Check, ChevronDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useApi, apiSend, setActiveCompanyId, COMPANY_CHANGED_EVENT } from "@/rekankerja/shared/lib/api";
+import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
 interface CompanyRow {
   id: string;
@@ -18,6 +19,7 @@ interface CompanyRow {
 }
 
 export function CompanySwitcher() {
+  const { t } = useI18n();
   const { data, refresh } = useApi<{ companies: CompanyRow[]; activeId: string | null; multi: boolean }>(
     "/api/rekankerja/companies",
   );
@@ -62,7 +64,7 @@ export function CompanySwitcher() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuLabel className="text-xs">Perusahaan</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs">{t("Perusahaan", "Company")}</DropdownMenuLabel>
         {data.companies.map((c) => (
           <DropdownMenuItem key={c.id} onClick={() => void switchTo(c.id)}>
             <Building2 className="h-4 w-4 shrink-0 text-slate-400" />

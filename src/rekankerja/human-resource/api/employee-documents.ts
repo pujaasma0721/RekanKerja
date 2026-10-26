@@ -20,7 +20,7 @@ import { saveAttachment, deleteAttachmentByRow, MAX_ATTACHMENT_BYTES } from "@/r
 import { tenantSlugOfSession } from "@/rekankerja/shared/api/attachments";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 
-/** docType yang dikenal (label EN/ID ada di komponen UI). */
+// bilingual-safe: enum docType DB — label EN/ID via DOC_TYPE_LABEL di komponen UI.
 export const DOC_TYPES = ["KTP", "Paspor", "SIM", "KK", "NPWP", "Ijazah", "Sertifikat", "Kontrak", "Lainnya"] as const;
 
 function parseDate(v: unknown, label: string): Date | null {

@@ -21,7 +21,7 @@ const STAT_TONE: Record<string, "green" | "sky" | "amber" | "violet"> = {
 
 // ================= R1.1 Master Employee =================
 export function R11View({ data, meta }: { data: R11Data; meta: DocMeta }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const f = useDocFmt();
   return (
     <ReportSheet docId="r11" landscape>
@@ -67,7 +67,7 @@ export function R11View({ data, meta }: { data: R11Data; meta: DocMeta }) {
                 <TD>{e.position ?? <Dash />}</TD>
                 <TD align="center"><DocBadge tone={STAT_TONE[e.employmentStatus] ?? "slate"}>{e.employmentStatus}</DocBadge></TD>
                 <TD align="center">{f.dt(e.joinDate)}</TD>
-                <TD align="number">{e.tenureYears.toLocaleString("id-ID")} thn</TD>
+                <TD align="number">{e.tenureYears.toLocaleString(locale)} {t("thn", "yrs")}</TD>
               </tr>
             ))}
           </tbody>
@@ -81,6 +81,7 @@ export function R11View({ data, meta }: { data: R11Data; meta: DocMeta }) {
 
 // ================= R1.2 Demography Summary =================
 function DistBlock({ title, rows, total }: { title: string; rows: { label: string; count: number }[]; total: number }) {
+  const { t } = useI18n();
   const f = useDocFmt();
   const max = Math.max(1, ...rows.map((r) => r.count));
   return (
@@ -89,7 +90,7 @@ function DistBlock({ title, rows, total }: { title: string; rows: { label: strin
         <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700">{title}</p>
       </div>
       <div className="divide-y divide-slate-100">
-        {rows.length === 0 && <p className="px-3.5 py-3 text-[10px] text-slate-400">Tidak ada data</p>}
+        {rows.length === 0 && <p className="px-3.5 py-3 text-[10px] text-slate-400">{t("Tidak ada data", "No data")}</p>}
         {rows.map((r) => (
           <div key={r.label} className="px-3.5 py-2">
             <div className="flex items-baseline justify-between gap-2">
@@ -110,7 +111,7 @@ function DistBlock({ title, rows, total }: { title: string; rows: { label: strin
 }
 
 export function R12View({ data, meta }: { data: R12Data; meta: DocMeta }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const f = useDocFmt();
   return (
     <ReportSheet docId="r12">
@@ -119,9 +120,9 @@ export function R12View({ data, meta }: { data: R12Data; meta: DocMeta }) {
       <DocSection no="A" title={t("Ringkasan", "Summary")} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryBox className="grid-cols-1" items={[{ label: t("Total Karyawan", "Total Employees"), value: f.num(data.total), accent: true }]} />
-        <SummaryBox className="grid-cols-1" items={[{ label: t("Rata-rata Usia", "Average Age"), value: data.avgAge != null ? `${data.avgAge.toLocaleString("id-ID")} thn` : <Dash /> }]} />
-        <SummaryBox className="grid-cols-1" items={[{ label: t("Usia Termuda", "Youngest"), value: data.minAge != null ? `${data.minAge} thn` : <Dash /> }]} />
-        <SummaryBox className="grid-cols-1" items={[{ label: t("Usia Tertua", "Oldest"), value: data.maxAge != null ? `${data.maxAge} thn` : <Dash /> }]} />
+        <SummaryBox className="grid-cols-1" items={[{ label: t("Rata-rata Usia", "Average Age"), value: data.avgAge != null ? `${data.avgAge.toLocaleString(locale)} ${t("thn", "yrs")}` : <Dash /> }]} />
+        <SummaryBox className="grid-cols-1" items={[{ label: t("Usia Termuda", "Youngest"), value: data.minAge != null ? `${data.minAge} ${t("thn", "yrs")}` : <Dash /> }]} />
+        <SummaryBox className="grid-cols-1" items={[{ label: t("Usia Tertua", "Oldest"), value: data.maxAge != null ? `${data.maxAge} ${t("thn", "yrs")}` : <Dash /> }]} />
       </div>
 
       <DocSection no="B" title={t("Sebaran per Dimensi", "Distribution by Dimension")} />
@@ -229,7 +230,7 @@ export function R13View({ data, meta }: { data: R13Data; meta: DocMeta }) {
 
 // ================= R1.4 Employment Status =================
 export function R14View({ data, meta }: { data: R14Data; meta: DocMeta }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const f = useDocFmt();
   return (
     <ReportSheet docId="r14">
@@ -262,7 +263,7 @@ export function R14View({ data, meta }: { data: R14Data; meta: DocMeta }) {
                 <TD align="center">{f.dt(e.joinDate)}</TD>
                 <TD>{e.unit ?? <Dash />}</TD>
                 <TD>{e.position ?? <Dash />}</TD>
-                <TD align="number">{e.tenureYears.toLocaleString("id-ID")} thn</TD>
+                <TD align="number">{e.tenureYears.toLocaleString(locale)} {t("thn", "yrs")}</TD>
               </tr>
             ))}
           </DocTable>
@@ -417,7 +418,7 @@ export function R21View({ data, meta }: { data: R21Data; meta: DocMeta }) {
 
 // ================= R2.2 Tenure Summary =================
 export function R22View({ data, meta }: { data: R22Data; meta: DocMeta }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const f = useDocFmt();
   const max = Math.max(1, ...data.buckets.map((b) => b.count));
   return (
@@ -427,9 +428,9 @@ export function R22View({ data, meta }: { data: R22Data; meta: DocMeta }) {
       <DocSection no="A" title={t("Ringkasan", "Summary")} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryBox className="grid-cols-1" items={[{ label: t("Karyawan Aktif", "Active Employees"), value: f.num(data.total), accent: true }]} />
-        <SummaryBox className="grid-cols-1" items={[{ label: t("Rata-rata Masa Kerja", "Average Tenure"), value: `${data.avgTenure.toLocaleString("id-ID")} thn` }]} />
+        <SummaryBox className="grid-cols-1" items={[{ label: t("Rata-rata Masa Kerja", "Average Tenure"), value: `${data.avgTenure.toLocaleString(locale)} ${t("thn", "yrs")}` }]} />
         <SummaryBox className="grid-cols-1" items={[{ label: t("Layak Service Award (≥5 thn)", "Service-Award Eligible (≥5 yr)"), value: f.num(data.eligible5yr) }]} />
-        <SummaryBox className="grid-cols-1" items={[{ label: t("Masa Kerja Terpanjang", "Longest Tenure"), value: data.longest ? `${data.longest.tenureYears.toLocaleString("id-ID")} thn` : <Dash /> }]} />
+        <SummaryBox className="grid-cols-1" items={[{ label: t("Masa Kerja Terpanjang", "Longest Tenure"), value: data.longest ? `${data.longest.tenureYears.toLocaleString(locale)} ${t("thn", "yrs")}` : <Dash /> }]} />
       </div>
 
       <DocSection no="B" title={t("Distribusi Bracket Masa Kerja", "Tenure Bracket Distribution")} />
@@ -467,8 +468,8 @@ export function R22View({ data, meta }: { data: R22Data; meta: DocMeta }) {
               <TD className="font-bold text-slate-800">{e.employeeNo}</TD>
               <TD className="font-semibold text-slate-800">{e.name}</TD>
               <TD align="center">{f.dt(e.joinDate)}</TD>
-              <TD align="number" className="font-black">{e.tenureYears.toLocaleString("id-ID")} thn</TD>
-              <TD align="center"><DocBadge tone={milestone >= 20 ? "violet" : milestone >= 10 ? "green" : "sky"}>{milestone} thn</DocBadge></TD>
+              <TD align="number" className="font-black">{e.tenureYears.toLocaleString(locale)} {t("thn", "yrs")}</TD>
+              <TD align="center"><DocBadge tone={milestone >= 20 ? "violet" : milestone >= 10 ? "green" : "sky"}>{milestone} {t("thn", "yrs")}</DocBadge></TD>
               <TD>{e.unit ?? <Dash />}</TD>
               <TD>{e.position ?? <Dash />}</TD>
             </tr>

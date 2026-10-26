@@ -11,6 +11,7 @@ import { resolveMenuPerms } from "@/rekankerja/shared/services/menu-access";
 import { UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { buildPayslipPdfByLineId } from "@/rekankerja/payroll/services/payslip-pdf";
+import type { Lang } from "@/rekankerja/shared/lib/i18n-core";
 
 const FORBIDDEN_OWN_MSG = "Slip gaji ini bukan milik Anda";
 
@@ -29,8 +30,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ lineId: str
     // 45-b: gerbang vault uang — aktor sesi (userId+role platform); masked →
     // nilai uang PDF dirender "—" (identitas/tanggal tetap utuh).
     const mv = await getMoneyView(db, { userId: actor.userId, membershipRole: actor.role });
+    // BL2-a: bahasa label PDF — ?lang= dari unduhan UI mode EN (pola rekrutmen
+    // reports.ts); default "id" (slip by-design Indonesia).
+    const lang: Lang = req.nextUrl.searchParams.get("lang") === "en" ? "en" : "id";
     // Task 80d: stamp e-Sign run — PDF slip membawa QR ttd PayrollRun bila sudah ditandatangani.
-    const built = await buildPayslipPdfByLineId(db, lineId, mv, { esignReq: req });
+    const built = await buildPayslipPdfByLineId(db, lineId, mv, { esignReq: req, lang });
     if (!built) return NextResponse.json({ error: "Slip gaji tidak ditemukan" }, { status: 404 });
 
     if (!canViewAll) {

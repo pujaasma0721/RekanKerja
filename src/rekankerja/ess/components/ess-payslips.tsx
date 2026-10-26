@@ -80,7 +80,7 @@ function ItemList({ title, icon: Icon, items, tone, empty }: {
 }
 
 export function EssPayslips({ intent }: EssPayslipsProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   // intent "line:{lineId}" (dari dashboard) → buka detail langsung
   const [lineId, setLineId] = useState<string | null>(() => (intent && intent.startsWith("line:") ? intent.slice(5) : null));
   // Task adv-search — kondisi advance search utk daftar slip (personal ESS).
@@ -279,7 +279,7 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
                       mengotorisasi self (daftar ESS hanya run Confirmed/Paid).
                       Pola unduh sama dgn payroll-run-detail (a download). */}
                   <a
-                    href={`/api/rekankerja/payslip/${s.lineId}?download=1`}
+                    href={`/api/rekankerja/payslip/${s.lineId}?download=1&lang=${lang}`}
                     download
                     aria-label={t("Unduh PDF slip {p}", "Download payslip PDF {p}", { p: s.periodName })}
                     title={t("Unduh PDF", "Download PDF")}

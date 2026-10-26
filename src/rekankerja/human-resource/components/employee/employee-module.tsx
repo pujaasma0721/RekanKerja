@@ -117,16 +117,7 @@ interface DetailEmp {
   assignments: AssignmentHistory[];
 }
 
-// label EN paralel untuk tab detail (kunci tab = nilai internal, bukan data server)
-const TAB_LABEL_EN: Record<string, string> = {
-  personal: "Personal",
-  work: "Work",
-  family: "Family",
-  education: "Education",
-  experience: "Experience",
-  discipline: "Discipline",
-  letters: "Letters",
-};
+// label tab detail (tab tab = nilai internal, bukan data server) — sudah t() 2-arg di array tab
 
 /** Baris riwayat surat karyawan (GET /api/rekankerja/letters?employeeId= — 26-a). */
 interface LetterRow {
@@ -335,16 +326,16 @@ function EmployeeDetail() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl ov-tile p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {([
-            ["personal", "Personal", User],
-            ["work", "Pekerjaan", Briefcase],
-            ["family", "Keluarga", Heart],
-            ["education", "Pendidikan", GraduationCap],
-            ["experience", "Pengalaman", History],
-            ["discipline", "Disiplin", Scale],
-            ["letters", "Surat", FileText],
+            ["personal", t("Personal", "Personal"), User],
+            ["work", t("Pekerjaan", "Work"), Briefcase],
+            ["family", t("Keluarga", "Family"), Heart],
+            ["education", t("Pendidikan", "Education"), GraduationCap],
+            ["experience", t("Pengalaman", "Experience"), History],
+            ["discipline", t("Disiplin", "Discipline"), Scale],
+            ["letters", t("Surat", "Letters"), FileText],
           ] as const).map(([id, label, Icon]) => (
             <TabsTrigger key={id} value={id} className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:ov-fill [&[data-state=active]_[data-count]]:ov-tile">
-              <Icon className="h-4 w-4" aria-hidden /> {t(label, TAB_LABEL_EN[id])}
+              <Icon className="h-4 w-4" aria-hidden /> {label}
               {id === "work" && e.assignments.length > 1 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.assignments.length}</span>}
               {id === "family" && e.family.length > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.family.length}</span>}
               {id === "education" && e.education.length > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.education.length}</span>}
@@ -1237,19 +1228,7 @@ function AddExperienceDialog({ employeeId, onSaved }: { employeeId: string; onSa
   );
 }
 
-// label EN paralel untuk grid form Edit Data (kunci = field form)
-const EDIT_FIELD_LABEL_EN: Record<string, string> = {
-  "Nama Lengkap": "Full Name",
-  NIK: "NIK",
-  NPWP: "NPWP",
-  Email: "Email",
-  Telepon: "Phone",
-  "Status Pernikahan": "Marital Status",
-  Agama: "Religion",
-  "Gol. Darah": "Blood Type",
-  Kota: "City",
-  Alamat: "Address",
-};
+// label grid form Edit Data — sudah t() 2-arg di array grid
 
 function EditEmployeeDialog({ open, setOpen, employee }: { open: boolean; setOpen: (v: boolean) => void; employee: DetailEmp }) {
   const { t } = useI18n();
@@ -1301,12 +1280,12 @@ function EditEmployeeDialog({ open, setOpen, employee }: { open: boolean; setOpe
         <DialogHeader><DialogTitle className="text-base">{t("Edit Data — {name}", "Edit Data — {name}", { name: employee.fullName })}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           {([
-            ["fullName", "Nama Lengkap"], ["nationalId", "NIK"], ["taxId", "NPWP"],
-            ["email", "Email"], ["phone", "Telepon"], ["maritalStatus", "Status Pernikahan"],
-            ["religion", "Agama"], ["bloodType", "Gol. Darah"], ["city", "Kota"],
+            ["fullName", t("Nama Lengkap", "Full Name")], ["nationalId", t("NIK", "NIK")], ["taxId", t("NPWP", "NPWP")],
+            ["email", t("Email", "Email")], ["phone", t("Telepon", "Phone")], ["maritalStatus", t("Status Pernikahan", "Marital Status")],
+            ["religion", t("Agama", "Religion")], ["bloodType", t("Gol. Darah", "Blood Type")], ["city", t("Kota", "City")],
           ] as const).map(([key, label]) => (
             <div key={key}>
-              <Label className="text-xs">{t(label, EDIT_FIELD_LABEL_EN[label])}</Label>
+              <Label className="text-xs">{label}</Label>
               <Input value={form[key] ?? ""} onChange={(e) => set(key, e.target.value)} className="mt-1.5" />
             </div>
           ))}

@@ -570,10 +570,10 @@ function LogsPanel() {
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         {([
-          ["Sent", "Terkirim", "Sent", CheckCircle2, "text-brand"],
-          ["Failed", "Gagal", "Failed", XCircle, "text-rose-500"],
-          ["Skipped", "Dilewati", "Skipped", MinusCircle, "text-slate-400"],
-        ] as const).map(([key, label, labelEn, Icon, cls]) => (
+          ["Sent", t("Terkirim", "Sent"), CheckCircle2, "text-brand"],
+          ["Failed", t("Gagal", "Failed"), XCircle, "text-rose-500"],
+          ["Skipped", t("Dilewati", "Skipped"), MinusCircle, "text-slate-400"],
+        ] as const).map(([key, label, Icon, cls]) => (
           <Card key={key} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="flex items-center gap-3 p-4">
               <div className={cn("rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900", cls)}>
@@ -581,7 +581,7 @@ function LogsPanel() {
               </div>
               <div aria-live="polite">
                 <p className="text-xl font-extrabold tabular-nums">{stats[key] ?? 0}</p>
-                <p className="text-[11px] font-semibold text-slate-500">{t(label, labelEn)}</p>
+                <p className="text-[11px] font-semibold text-slate-500">{label}</p>
               </div>
             </CardContent>
           </Card>

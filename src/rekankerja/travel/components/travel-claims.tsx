@@ -752,7 +752,7 @@ export function TravelClaimsPage() {
                   <span>{t("(b)/(c) dihitung otomatis server dari (rincian + rugi kurs − a) vs uang muka", "(b)/(c) computed automatically by the server from (expenses + loss − a) vs advance")}</span>
                 </div>
                 <span className="rounded-lg border-2 ov-border-accent bg-white px-3 py-1 font-black ov-text-accent dark:bg-slate-900">
-                  Total = {fmtIDR(totalFormula)}
+                  {t("Total", "Total")} = {fmtIDR(totalFormula)}
                 </span>
               </div>
             </div>

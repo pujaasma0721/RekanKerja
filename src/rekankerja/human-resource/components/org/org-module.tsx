@@ -155,7 +155,7 @@ function OrgTree() {
                 <div className="mt-5 grid grid-cols-3 gap-3">
                   <StatMini label={t("Karyawan")} value={String(selected.employeeCount)} icon={Users} />
                   <StatMini label={t("Posisi")} value={String(selected.positionCount)} icon={Building2} />
-                  <StatMini label="Budget HC" value={String(selected.headcountBudget)} icon={LayersIcon} />
+                  <StatMini label={t("Budget HC", "Budget HC")} value={String(selected.headcountBudget)} icon={LayersIcon} />
                 </div>
                 {selected.headcountBudget > 0 && (
                   <div className="mt-4">
@@ -439,13 +439,13 @@ function CompanyProfile() {
           <DialogHeader><DialogTitle className="text-base">{t("Edit Profil Perusahaan", "Edit Company Profile")}</DialogTitle></DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             {([
-              ["name", "Nama Perusahaan", "Company Name", "full"], ["shortName", "Nama Singkat", "Short Name", "full"],
-              ["taxId", "NPWP", "NPWP", "full"], ["phone", "Telepon", "Phone", "full"],
-              ["email", "Email", "Email", "full"], ["website", "Website", "Website", "full"],
-              ["city", "Kota", "City", "full"], ["address", "Alamat Lengkap", "Full Address", "full"],
-            ] as const).map(([key, label, en]) => (
+              ["name", t("Nama Perusahaan", "Company Name")], ["shortName", t("Nama Singkat", "Short Name")],
+              ["taxId", t("NPWP", "NPWP")], ["phone", t("Telepon", "Phone")],
+              ["email", t("Email", "Email")], ["website", t("Website", "Website")],
+              ["city", t("Kota", "City")], ["address", t("Alamat Lengkap", "Full Address")],
+            ] as const).map(([key, label]) => (
               <div key={key} className={key === "address" ? "sm:col-span-2" : ""}>
-                <Label className="text-xs">{t(label, en)}</Label>
+                <Label className="text-xs">{label}</Label>
                 <Input value={form[key] ?? ""} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className="mt-1" />
               </div>
             ))}

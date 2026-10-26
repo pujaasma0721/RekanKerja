@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { AdvSearchButton } from "@/rekankerja/shared/components/adv-search";
 import { type AdvSearch, type AdvFieldDef, txt, num, sel, filterRowsByAdv } from "@/rekankerja/shared/lib/adv-search";
 
+// bilingual-safe: enum kategori aset DB — label EN via CATEGORY_EN (render t(cat, CATEGORY_EN[cat])).
 const CATEGORIES = ["Elektronik", "Kendaraan", "Seragam", "Alat Kerja", "Furniture", "Lainnya"] as const;
 // Task 103-f — pasangan EN kategori aset (nilai ID tetap dikirim/disimpan ke server).
 const CATEGORY_EN: Record<string, string> = { Elektronik: "Electronics", Kendaraan: "Vehicles", Seragam: "Uniform", "Alat Kerja": "Work Equipment", Furniture: "Furniture", Lainnya: "Other" };

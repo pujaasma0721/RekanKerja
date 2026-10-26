@@ -308,7 +308,7 @@ export function R41View({ data, meta }: { data: R41Data; meta: DocMeta }) {
   const gp = (p: { male: number; female: number }) => [f.num(p.male), f.num(p.female), f.num(p.male + p.female)];
   return (
     <ReportSheet docId="r41">
-      <DocHeader meta={meta} reportNo="R4.1" title="WLKP — Wajib Lapor Ketenagakerjaan" subtitle={t("Form Datar Resmi — UU No. 7/1981 jo. UU No. 25/1997", "Official Flat Form — Law No. 7/1981 & Law No. 25/1997")} audience={t("Kemnaker / Disnaker · Direksi", "Manpower Office · Directorate")} docNo={mkDocNo("r41", meta)} />
+      <DocHeader meta={meta} reportNo="R4.1" title={t("WLKP — Wajib Lapor Ketenagakerjaan", "WLKP — Manpower Mandatory Report (Law No. 7/1981)")} subtitle={t("Form Datar Resmi — UU No. 7/1981 jo. UU No. 25/1997", "Official Flat Form — Law No. 7/1981 & Law No. 25/1997")} audience={t("Kemnaker / Disnaker · Direksi", "Manpower Office · Directorate")} docNo={mkDocNo("r41", meta)} />
 
       <DocSection no="I" title={t("Identitas Perusahaan", "Company Identity")} />
       <div className="grid gap-px overflow-hidden rounded-lg border border-slate-300 bg-slate-300 sm:grid-cols-2">
@@ -469,7 +469,7 @@ export function R43View({ data, meta }: { data: R43Data; meta: DocMeta }) {
   const f = useDocFmt();
   return (
     <ReportSheet docId="r43" landscape>
-      <DocHeader meta={meta} reportNo="R4.3" title="Laporan Struktur dan Skala Upah" subtitle={t("Susunan & Rentang Upah per Grade — Panduan Kemnaker (PP 78/2015)", "Wage Structure & Scale per Grade — Kemnaker Guideline (GR 78/2015)")} audience={t("Kemnaker · Direksi · HR", "Manpower Office · Directorate · HR")} docNo={mkDocNo("r43", meta)} />
+      <DocHeader meta={meta} reportNo="R4.3" title={t("Laporan Struktur dan Skala Upah", "Structure and Scale of Wages Report")} subtitle={t("Susunan & Rentang Upah per Grade — Panduan Kemnaker (PP 78/2015)", "Wage Structure & Scale per Grade — Kemnaker Guideline (GR 78/2015)")} audience={t("Kemnaker · Direksi · HR", "Manpower Office · Directorate · HR")} docNo={mkDocNo("r43", meta)} />
 
       {data.umk && (
         <div className="mt-4 rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5">

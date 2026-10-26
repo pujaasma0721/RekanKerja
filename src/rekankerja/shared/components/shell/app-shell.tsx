@@ -1543,7 +1543,7 @@ function WorkspaceMenu() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel className="text-xs">Workspace</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs">{t("Workspace", "Workspace")}</DropdownMenuLabel>
         {(info?.workspaces ?? []).map((w) => (
           <DropdownMenuItem key={w.id} onClick={() => void switchTo(w.id)}>
             <Building2 className="h-4 w-4 shrink-0 text-slate-400" />

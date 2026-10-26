@@ -162,7 +162,7 @@ export function PayrollJournalsPage() {
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
-                              <a href={`/api/rekankerja/payroll-journals?export=csv&id=${j.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300">
+                              <a href={`/api/rekankerja/payroll-journals?export=csv&id=${j.id}&lang=${lang}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300">
                                 <FileDown className="h-3 w-3" /> CSV
                               </a>
                               {/* P1.4-BM (D-BM11) — ekspor GL ke format akuntansi eksternal. */}

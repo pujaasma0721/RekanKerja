@@ -256,7 +256,7 @@ export function TravelOverview() {
                   </div>
                   <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                     {t("Uang muka (advance) mengurangi (b) atau menambah (c) saat klaim dibuat; biaya pihak lain tidak dibayar ke karyawan — padanan", "The advance reduces (b) or adds to (c) when the claim is created; third-party costs are not paid to the employee — equivalent to")}
-                    <span className="font-semibold"> Travel &amp; Entertainment Settlement </span>
+                    <span className="font-semibold"> {t("Travel & Entertainment Settlement", "Travel & Entertainment Settlement")} </span>
                     {t("dengan status akhir Transferred → Paid via payroll.", "with final status Transferred → Paid via payroll.")}
                   </p>
                 </CardContent>
@@ -266,7 +266,7 @@ export function TravelOverview() {
                 <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base font-bold">
-                      <Wallet className="h-4 w-4 ov-text-accent" /> Budget {budget.year}
+                      <Wallet className="h-4 w-4 ov-text-accent" /> {t("Budget", "Budget")} {budget.year}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
