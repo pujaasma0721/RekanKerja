@@ -1,6 +1,6 @@
 "use client";
 // RekanKerja — Modul Organisasi: tree, company profile, org chart
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, initials, avatarColor } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
@@ -47,9 +47,16 @@ function OrgTree() {
   const { t } = useI18n();
   const { navigate } = useNav();
   const { data, loading, refresh } = useApi<{ tree: UnitNode[]; units: UnitNode[] }>("/api/rekankerja/org-units?withTree=1");
-  const [selected, setSelected] = useState<UnitNode | null>(null);
+  // QA-ORG-EDIT: simpan ID, bukan snapshot — supaya panel detail selalu
+  // menampilkan data terbaru (nama/induk/level) setelah edit di-refresh.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = useMemo(
+    () => data?.units.find((u) => u.id === selectedId) ?? null,
+    [data, selectedId]
+  );
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const employees = useApi<{ employees: Emp[]; total: number }>(
     selected ? `/api/rekankerja/employees?unit=${selected.id}&limit=100` : null
   );
@@ -68,7 +75,7 @@ function OrgTree() {
     return (
       <div key={node.id}>
         <button
-          onClick={() => { setSelected(node); if (depth < 3) toggle(node.id); }}
+          onClick={() => { setSelectedId(node.id); if (depth < 3) toggle(node.id); }}
           className={cn(
             "group flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-all",
             isSel
@@ -150,7 +157,13 @@ function OrgTree() {
                     <h2 className="mt-1.5 text-lg font-bold text-slate-900 dark:text-slate-100">{selected.name}</h2>
                     <p className="text-xs text-slate-500">{t("Induk: {p}", "Parent: {p}", { p: selected.parentName ?? "—" })}</p>
                   </div>
-                  <DeleteUnitButton unit={selected} onDeleted={() => { setSelected(null); refresh(); }} />
+                  {/* QA-ORG-EDIT: aksi edit + hapus unit terpilih */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1.5 font-semibold">
+                      <Pencil className="h-3.5 w-3.5" /> {t("Edit Unit", "Edit Unit")}
+                    </Button>
+                    <DeleteUnitButton unit={selected} onDeleted={() => { setSelectedId(null); refresh(); }} />
+                  </div>
                 </div>
                 <div className="mt-5 grid grid-cols-3 gap-3">
                   <StatMini label={t("Karyawan")} value={String(selected.employeeCount)} icon={Users} />
@@ -230,7 +243,108 @@ function OrgTree() {
       </div>
 
       <NewUnitDialog open={dialogOpen} setOpen={setDialogOpen} units={data?.units ?? []} onCreated={refresh} />
+      <EditUnitDialog open={editOpen} setOpen={setEditOpen} unit={selected} units={data?.units ?? []} onSaved={refresh} />
     </div>
+  );
+}
+
+// QA-ORG-EDIT — dialog ubah unit: kode (unik), nama, pindah induk (bukan
+// diri sendiri/keturunannya — API juga menolak via cek siklus), budget HC.
+function EditUnitDialog({ open, setOpen, unit, units, onSaved }: {
+  open: boolean; setOpen: (v: boolean) => void;
+  unit: UnitNode | null; units: UnitNode[]; onSaved: () => void;
+}) {
+  const { t } = useI18n();
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [parentId, setParentId] = useState<string | null>(null);
+  const [budget, setBudget] = useState("0");
+  const [busy, setBusy] = useState(false);
+
+  // Isi ulang form setiap kali dialog dibuka (unit bisa berganti/di-refresh)
+  useEffect(() => {
+    if (open && unit) {
+      setCode(unit.code); setName(unit.name);
+      setParentId(unit.parentId); setBudget(String(unit.headcountBudget));
+    }
+  }, [open, unit]);
+
+  // Induk kandidat = semua unit KECUALI diri sendiri & seluruh keturunannya
+  const banned = useMemo(() => {
+    const set = new Set<string>();
+    if (!unit) return set;
+    set.add(unit.id);
+    const queue = [unit.id];
+    while (queue.length) {
+      const cur = queue.shift()!;
+      for (const u of units) {
+        if (u.parentId === cur && !set.has(u.id)) { set.add(u.id); queue.push(u.id); }
+      }
+    }
+    return set;
+  }, [units, unit]);
+
+  if (!unit) return null;
+
+  const submit = async () => {
+    if (!code.trim() || !name.trim()) { toast.error(t("Kode dan nama wajib diisi", "Code and name are required")); return; }
+    setBusy(true);
+    try {
+      await apiSend("/api/rekankerja/org-units", "PATCH", {
+        id: unit.id, code: code.trim().toUpperCase(), name: name.trim(),
+        parentId, headcountBudget: Number(budget) || 0,
+      });
+      toast.success(t("Unit {n} diperbarui", "Unit {n} updated", { n: name }));
+      setOpen(false); onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base"><Pencil className="h-4 w-4 ov-text-accent" /> {t("Edit Unit Organisasi", "Edit Organizational Unit")}</DialogTitle>
+          <DialogDescription>{t("Ubah identitas unit, induk, dan budget headcount.", "Change the unit's identity, parent, and headcount budget.")}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3.5">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="edit-unit-code" className="text-xs">{t("Kode Unit *", "Unit Code *")}</Label>
+              <Input id="edit-unit-code" value={code} onChange={(e) => setCode(e.target.value)} className="mt-1 font-mono uppercase" />
+            </div>
+            <div>
+              <Label htmlFor="edit-unit-budget" className="text-xs">{t("Budget Headcount", "Headcount Budget")}</Label>
+              <Input id="edit-unit-budget" type="number" value={budget} onChange={(e) => setBudget(e.target.value)} className="mt-1" />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="edit-unit-name" className="text-xs">{t("Nama Unit *", "Unit Name *")}</Label>
+            <Input id="edit-unit-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">{t("Unit Induk", "Parent Unit")}</Label>
+            <Select value={parentId ?? "none"} onValueChange={(v) => setParentId(v === "none" ? null : v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder={t("Pilih induk (root bila kosong)", "Select parent (root if empty)")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t("— Tanpa induk (root) —", "— No parent (root) —")}</SelectItem>
+                {units.filter((u) => !banned.has(u.id)).map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {"　".repeat(Math.max(u.level - 1, 0))}{u.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1.5 text-[11px] text-slate-400">{t("Memindahkan unit otomatis menggeser level seluruh sub-unit di bawahnya.", "Moving a unit automatically shifts the level of all its sub-units.")}</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan Perubahan", "Save Changes")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

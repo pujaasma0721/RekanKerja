@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH update — T1-SECURITY: guard hak AKSI menu hr:tree (Ubah).
+// QA-ORG-EDIT: dulu hanya {name, headcountBudget, active} tapi UI tidak pernah
+// memakainya. Kini mendukung edit lengkap: kode (unik), nama, pindah induk
+// (cegah siklus + hitung ulang level seluruh subtree), dan budget headcount.
 export async function PATCH(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "hr:tree", "update");
@@ -77,14 +80,70 @@ export async function PATCH(req: NextRequest) {
 
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
+    const current = await db.orgUnit.findUnique({ where: { id: b.id } });
+    if (!current) return NextResponse.json({ error: "Unit tidak ditemukan" }, { status: 404 });
+    if (b.name != null && !String(b.name).trim()) return NextResponse.json({ error: "Nama unit tidak boleh kosong" }, { status: 400 });
+
+    // — Kode unit: boleh diubah, harus unik —
+    let code: string | undefined;
+    if (b.code != null) {
+      code = String(b.code).trim().toUpperCase();
+      if (!code) return NextResponse.json({ error: "Kode unit tidak boleh kosong" }, { status: 400 });
+      if (code !== current.code) {
+        const dup = await db.orgUnit.findUnique({ where: { code } });
+        if (dup) return NextResponse.json({ error: `Kode unit ${code} sudah dipakai` }, { status: 400 });
+      }
+    }
+
+    // — Pindah induk: validasi target & cegah siklus, hitung level baru —
+    let newParentId: string | null | undefined = undefined;
+    let newLevel: number | undefined = undefined;
+    if (b.parentId !== undefined) {
+      const target = b.parentId === null || b.parentId === "" ? null : String(b.parentId);
+      if (target !== current.parentId) {
+        if (target === current.id) return NextResponse.json({ error: "Unit tidak dapat menjadi induk dirinya sendiri" }, { status: 400 });
+        if (target) {
+          const parent = await db.orgUnit.findUnique({ where: { id: target } });
+          if (!parent) return NextResponse.json({ error: "Unit induk tidak ditemukan" }, { status: 400 });
+          // Naik dari calon induk ke root — tidak boleh melewati unit ini (siklus)
+          let p: { id: string; parentId: string | null } | null = parent;
+          while (p) {
+            if (p.id === current.id) return NextResponse.json({ error: "Tidak boleh memindahkan unit ke bawah dirinya sendiri" }, { status: 400 });
+            p = p.parentId ? await db.orgUnit.findUnique({ where: { id: p.parentId } }) : null;
+          }
+          newLevel = parent.level + 1;
+        } else {
+          newLevel = 1; // pindah ke root
+        }
+        newParentId = target;
+      }
+    }
+
     const unit = await db.orgUnit.update({
       where: { id: b.id },
       data: {
-        name: b.name, headcountBudget: b.headcountBudget != null ? Number(b.headcountBudget) : undefined,
+        code, name: b.name,
+        headcountBudget: b.headcountBudget != null ? Number(b.headcountBudget) : undefined,
         active: b.active,
+        parentId: newParentId, level: newLevel,
       },
     });
-    await db.activityLog.create({ data: { action: "Updated", entity: "OrgUnit", entityId: unit.id, detail: `Unit ${unit.name} diperbarui` } });
+
+    // — Level subtree bergeser mengikuti delta level unit ini —
+    if (newLevel !== undefined && newLevel !== current.level) {
+      const delta = newLevel - current.level;
+      const queue = [unit.id];
+      while (queue.length) {
+        const cur = queue.shift()!;
+        const children = await db.orgUnit.findMany({ where: { parentId: cur }, select: { id: true } });
+        for (const ch of children) {
+          await db.orgUnit.update({ where: { id: ch.id }, data: { level: { increment: delta } } });
+          queue.push(ch.id);
+        }
+      }
+    }
+
+    await db.activityLog.create({ data: { action: "Updated", entity: "OrgUnit", entityId: unit.id, detail: `Unit ${unit.name} (${unit.code}) diperbarui${newParentId !== undefined ? " — struktur induk diubah" : ""}` } });
     return NextResponse.json({ unit });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
