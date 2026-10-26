@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RekanKerja — Performa Terukur</title>
+<link rel="stylesheet" href="global.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;width:1280px;height:720px;overflow:hidden;background:var(--bg);}
+  .kicker{color:#047857;}
+  .t-title{font-family:var(--font-heading);font-weight:800;font-size:34px;line-height:1.16;letter-spacing:-0.015em;color:var(--primary);margin:10px 0 0;}
+  .mono{font-family:var(--font-num);}
+  .nt{font-family:var(--font-num);font-weight:700;color:var(--primary);}
+  .n{font-family:var(--font-num);font-weight:600;color:var(--primary);}
+  .band-label{margin-top:12px;font-size:13px;line-height:1.45;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="slide" style="display:flex;flex-direction:column;padding:54px 60px 48px;">
+
+  <div style="flex:none;">
+    <div class="kicker">POKOK BAHASAN 04</div>
+    <h1 class="t-title">Cepat pada Data Besar, Bukan Hanya Data Kecil</h1>
+    <p style="margin:10px 0 0;font-size:15px;color:var(--muted);">Diukur pada tenant uji <span class="n">5.000</span> karyawan — <span class="n">597</span> ribu baris data nyata.</p>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;">
+
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));">
+      <div style="padding-right:26px;">
+        <div class="mono" style="font-size:54px;font-weight:700;line-height:1;color:var(--accent);letter-spacing:-0.02em;">8<span style="font-size:22px;font-weight:600;margin-left:7px;letter-spacing:0;">ms</span></div>
+        <div class="band-label">ESS mobile per karyawan</div>
+      </div>
+      <div style="border-left:1px solid var(--line);padding:0 26px;">
+        <div class="mono" style="font-size:54px;font-weight:700;line-height:1;color:var(--accent);letter-spacing:-0.02em;">25<span style="font-size:22px;font-weight:600;margin-left:7px;letter-spacing:0;">ms</span></div>
+        <div class="band-label">Dashboard manajemen</div>
+      </div>
+      <div style="border-left:1px solid var(--line);padding:0 26px;">
+        <div class="mono" style="font-size:54px;font-weight:700;line-height:1;color:var(--accent);letter-spacing:-0.02em;">76<span style="font-size:22px;font-weight:600;margin-left:7px;letter-spacing:0;">ms</span></div>
+        <div class="band-label">Direktori karyawan halaman <span class="mono">1</span></div>
+      </div>
+      <div style="border-left:1px solid var(--line);padding-left:26px;">
+        <div class="mono" style="font-size:54px;font-weight:700;line-height:1;color:var(--accent);letter-spacing:-0.02em;">13<span style="font-size:22px;font-weight:600;margin-left:7px;letter-spacing:0;">ms</span></div>
+        <div class="band-label">Rekap presensi <span class="mono">103</span> rb baris</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:14px;margin-top:36px;">
+      <span class="mono" style="font-size:11px;font-weight:600;letter-spacing:.22em;color:var(--muted);">PERBAIKAN TERUKUR</span>
+      <div style="flex:1;border-top:1px solid var(--line);"></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px;">
+
+      <div class="card" style="height:62px;display:flex;align-items:center;padding:0 24px;gap:18px;">
+        <div style="width:318px;flex:none;font-family:var(--font-heading);font-weight:700;font-size:15px;color:var(--primary);">Detail payroll <span class="nt">5.000</span> baris</div>
+        <div class="mono" style="font-size:19px;font-weight:500;color:var(--muted);">5.400 ms <span style="color:var(--accent);font-weight:700;">→</span> <span style="color:var(--primary);font-weight:700;">150 ms</span></div>
+        <div class="mono" style="margin-left:auto;flex:none;background:var(--amber-soft);color:#B45309;font-weight:700;font-size:14px;padding:5px 12px;border-radius:8px;">36×</div>
+      </div>
+
+      <div class="card" style="height:62px;display:flex;align-items:center;padding:0 24px;gap:18px;">
+        <div style="width:318px;flex:none;font-family:var(--font-heading);font-weight:700;font-size:15px;color:var(--primary);">Ukuran respons payroll</div>
+        <div class="mono" style="font-size:19px;font-weight:500;color:var(--muted);">9,1 MB <span style="color:var(--accent);font-weight:700;">→</span> <span style="color:var(--primary);font-weight:700;">181 KB</span></div>
+        <div class="mono" style="margin-left:auto;flex:none;background:var(--amber-soft);color:#B45309;font-weight:700;font-size:14px;padding:5px 12px;border-radius:8px;">50×</div>
+      </div>
+
+      <div class="card" style="height:62px;display:flex;align-items:center;padding:0 24px;gap:18px;">
+        <div style="width:318px;flex:none;font-family:var(--font-heading);font-weight:700;font-size:15px;color:var(--primary);">Sortir direktori berdasar gaji</div>
+        <div class="mono" style="font-size:19px;font-weight:500;color:var(--muted);">6.100 ms <span style="color:var(--accent);font-weight:700;">→</span> <span style="color:var(--primary);font-weight:700;">587 ms</span></div>
+        <div class="mono" style="margin-left:auto;flex:none;background:var(--amber-soft);color:#B45309;font-weight:700;font-size:14px;padding:5px 12px;border-radius:8px;">10×</div>
+      </div>
+
+    </div>
+
+    <div style="display:flex;align-items:center;gap:9px;margin-top:22px;">
+      <i class="material-icons" style="font-size:17px;color:var(--amber);flex:none;">lightbulb</i>
+      <span style="font-size:12.5px;color:var(--muted);">Perbaikan didapat dari paginasi server-side, cache agregat, dan sort dua-fase — bukan tambah hardware.</span>
+    </div>
+
+  </div>
+
+</div>
+
+<aside data-notes class="hidden">
+  <ul>
+    <li>Awali dengan konteks pengukuran: tenant uji 5.000 karyawan dengan 597 ribu baris data nyata — bukan tabel demo yang kosong.</li>
+    <li>Baca band dengan tenang: 8 ms ESS mobile per karyawan, 25 ms dashboard manajemen, 76 ms direktori halaman 1, dan 13 ms untuk rekap presensi 103 ribu baris.</li>
+    <li>Jelaskan pola umum optimasinya: pindahkan kerja berat ke server, dekripsi cukup sekali, lalu paginasi server-side, cache agregat, dan sort dua-fase.</li>
+    <li>Tiga angka perbaikan: payroll 5.400 ms menjadi 150 ms (36×), ukuran respons 9,1 MB menjadi 181 KB (50×), sort gaji 6.100 ms menjadi 587 ms (10×) — semua tanpa tambah hardware.</li>
+    <li>Catatan metodologi: angka diambil dari kondisi warm yang stabil dan bisa dijalankan ulang kapan pun untuk verifikasi.</li>
+  </ul>
+</aside>
+</body>
+</html>

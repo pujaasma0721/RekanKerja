@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>Slide 01 · Teknologi di Balik RekanKerja</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #0B1220; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="slide slide-dark">
+
+  <!-- glow dekoratif kanan-atas (belakang screenshot) -->
+  <div data-decor aria-hidden="true" style="position:absolute; right:-160px; top:-60px; width:600px; height:580px; border-radius:9999px; background:radial-gradient(circle, rgba(52,211,153,0.20) 0%, rgba(52,211,153,0) 64%); filter:blur(46px);"></div>
+  <!-- glow dekoratif kiri-bawah -->
+  <div data-decor aria-hidden="true" style="position:absolute; left:-200px; bottom:-280px; width:540px; height:540px; border-radius:9999px; background:radial-gradient(circle, rgba(52,211,153,0.08) 0%, rgba(52,211,153,0) 60%); filter:blur(40px);"></div>
+
+  <div class="relative flex items-center h-full" style="padding:0 72px; gap:52px;">
+
+    <!-- KIRI · blok judul -->
+    <div class="flex-1" style="min-width:0;">
+      <div class="flex items-center" style="gap:14px;">
+        <span data-decor aria-hidden="true" style="display:inline-block; width:36px; height:2px; background:var(--accent-2);"></span>
+        <span class="kicker" style="color:var(--accent-2);">Dokumen Teknis · Untuk Manajemen</span>
+      </div>
+
+      <h1 style="font-family:var(--font-heading); font-weight:800; font-size:58px; line-height:1.1; letter-spacing:-0.015em; margin:24px 0 0; color:#F8FAFC;">
+        Teknologi di Balik<br>
+        <span style="color:var(--accent-2);">Rekan·Kerja</span>
+      </h1>
+
+      <p style="margin:28px 0 0; font-size:17px; line-height:1.55; color:#E2E8F0; font-weight:500;">
+        Arsitektur, infrastruktur, keamanan, dan keunggulan teknis.
+      </p>
+      <p style="margin:8px 0 0; font-size:15px; line-height:1.55; color:#94A3B8; max-width:530px;">
+        Semua angka berasal dari pengujian nyata pada sistem yang berjalan — bukan klaim pemasaran.
+      </p>
+
+      <!-- meta row -->
+      <div class="flex items-center flex-wrap" style="margin-top:36px; padding-top:22px; border-top:1px solid rgba(148,163,184,0.22); gap:28px;">
+        <div class="flex items-center" style="gap:9px;">
+          <i class="material-icons" style="font-size:19px; color:var(--accent-2);">stack</i>
+          <span style="font-family:var(--font-num); font-size:13px; font-weight:600; color:#CBD5E1;">Next.js 16 + TypeScript</span>
+        </div>
+        <div class="flex items-center" style="gap:9px;">
+          <i class="material-icons" style="font-size:19px; color:var(--accent-2);">database</i>
+          <span style="font-family:var(--font-num); font-size:13px; font-weight:600; color:#CBD5E1;">PostgreSQL 17</span>
+        </div>
+        <div class="flex items-center" style="gap:9px;">
+          <i class="material-icons" style="font-size:19px; color:var(--accent-2);">verified</i>
+          <span style="font-family:var(--font-num); font-size:13px; font-weight:600; color:#CBD5E1;">66/66 uji lulus</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- KANAN · screenshot login -->
+    <div class="flex-none relative" style="width:470px;">
+      <div data-decor aria-hidden="true" style="position:absolute; left:-80px; top:-90px; width:630px; height:560px; border-radius:9999px; background:radial-gradient(circle, rgba(52,211,153,0.17) 0%, rgba(52,211,153,0) 62%); filter:blur(44px);"></div>
+      <div class="browser-shot relative" style="width:470px; transform:rotate(-1deg);">
+        <div class="browser-bar">
+          <span class="dot" style="background:#F87171;"></span>
+          <span class="dot" style="background:#FBBF24;"></span>
+          <span class="dot" style="background:#34D399;"></span>
+        </div>
+        <img src="shot-login.png" alt="Halaman login RekanKerja" style="display:block; width:100%; height:auto;">
+      </div>
+    </div>
+  </div>
+
+  <!-- footer kiri-bawah (khusus cover) -->
+  <div style="position:absolute; left:72px; bottom:34px; font-size:12px; color:#94A3B8; letter-spacing:0.02em;">
+    RekanKerja · Sistem HRIS Multi-tenant
+  </div>
+</div>
+
+<aside data-notes class="hidden">
+  <ul>
+    <li>Buka dengan sapaan singkat, lalu posisikan dokumen ini sebagai lanjutan deck produk yang sudah dilihat manajemen — sekarang kita bedah sisi dalam sistemnya.</li>
+    <li>Tanamkan janji sejak awal: setiap klaim dalam dokumen ini punya angka uji di baliknya, tidak ada angka pemasaran.</li>
+    <li>Meta stack di bawah cukup disebut sekilas — Next.js, TypeScript, PostgreSQL — detailnya masuk di pokok bahasan pertama.</li>
+    <li>Arahkan perhatian ke screenshot login di kanan: produk yang sama, kali ini kita buka arsitekturnya.</li>
+  </ul>
+</aside>
+</body>
+</html>

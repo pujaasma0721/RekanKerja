@@ -57,7 +57,7 @@ server.log
 /tool-results/
 /db/
 /tests/
-/download/
+# /download/ — DELIBERATELY TRACKED: deliverable PPT/PDF harus tahan snapshot restore (insiden PPT-RESTORE)
 /examples/
 /mini-services/*
 !/mini-services/postgres/

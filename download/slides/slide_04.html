@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>Slide 04 · Arsitektur Multi-tenant</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #F7F9FB; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="relative h-full flex flex-col" style="padding:58px 72px 56px;">
+
+    <!-- judul -->
+    <div>
+      <div class="kicker">Pokok Bahasan 02</div>
+      <h1 style="font-family:var(--font-heading); font-weight:800; font-size:var(--fs-h1); letter-spacing:-0.01em; margin:10px 0 0; color:var(--primary);">
+        Satu Database, Isolasi Penuh per Perusahaan
+      </h1>
+    </div>
+
+    <!-- band angka -->
+    <div class="flex" style="margin-top:30px; padding:24px 0;">
+      <div class="flex-1" style="padding-right:36px;">
+        <div style="font-family:var(--font-num); font-weight:700; font-size:54px; line-height:1.05; color:var(--accent); letter-spacing:-0.01em;">222</div>
+        <div style="font-size:14px; color:var(--muted); margin-top:10px;">tabel domain per tenant</div>
+      </div>
+      <div class="flex-1" style="border-left:1px solid var(--line); padding:0 0 0 36px;">
+        <div style="font-family:var(--font-num); font-weight:700; font-size:54px; line-height:1.05; color:var(--accent); letter-spacing:-0.01em;">1</div>
+        <div style="font-size:14px; color:var(--muted); margin-top:10px;">schema PostgreSQL khusus per perusahaan</div>
+      </div>
+      <div class="flex-1" style="border-left:1px solid var(--line); padding:0 0 0 36px;">
+        <div style="font-family:var(--font-num); font-weight:700; font-size:54px; line-height:1.05; color:var(--accent); letter-spacing:-0.01em;">0,4 dtk</div>
+        <div style="font-size:14px; color:var(--muted); margin-top:10px;">median provisioning tenant baru</div>
+      </div>
+    </div>
+
+    <!-- 4 kartu -->
+    <div class="flex-1 flex flex-col justify-center">
+      <div class="grid" style="grid-template-columns:repeat(4, 1fr); gap:16px;">
+
+        <div class="card" style="padding:22px;">
+          <div class="ibox"><i class="material-icons" style="font-size:22px;">grid_view</i></div>
+          <div style="font-family:var(--font-heading); font-weight:700; font-size:15.5px; color:var(--primary); margin-top:16px;">Schema terisolasi</div>
+          <div style="font-size:13px; line-height:1.6; color:var(--muted); margin-top:8px;">
+            Data tiap perusahaan hidup di schema database terpisah, bukan sekadar kolom filter.
+          </div>
+        </div>
+
+        <div class="card" style="padding:22px;">
+          <div class="ibox"><i class="material-icons" style="font-size:22px;">account_tree</i></div>
+          <div style="font-family:var(--font-heading); font-weight:700; font-size:15.5px; color:var(--primary); margin-top:16px;">Registry platform</div>
+          <div style="font-size:13px; line-height:1.6; color:var(--muted); margin-top:8px;">
+            Daftar tenant + user + keanggotaan di schema publik terpisah dari data domain.
+          </div>
+        </div>
+
+        <div class="card" style="padding:22px;">
+          <div class="ibox"><i class="material-icons" style="font-size:22px;">bolt</i></div>
+          <div style="font-family:var(--font-heading); font-weight:700; font-size:15.5px; color:var(--primary); margin-top:16px;">Provisioning otomatis</div>
+          <div style="font-size:13px; line-height:1.6; color:var(--muted); margin-top:8px;">
+            Perusahaan baru dibuat lengkap <span style="font-family:var(--font-num); font-weight:600; color:var(--primary);">DDL</span> + data referensi dalam satu langkah.
+          </div>
+        </div>
+
+        <div class="card" style="padding:22px;">
+          <div class="ibox"><i class="material-icons" style="font-size:22px;">switch_account</i></div>
+          <div style="font-family:var(--font-heading); font-weight:700; font-size:15.5px; color:var(--primary); margin-top:16px;">Multi-company</div>
+          <div style="font-size:13px; line-height:1.6; color:var(--muted); margin-top:8px;">
+            Satu login bisa memegang beberapa perusahaan, konteks berganti penuh saat switch.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<aside data-notes class="hidden">
+  <ul>
+    <li>Pakai analogi gedung bertingkat: tiap tenant punya lantai sendiri yang berdiri sendiri — bukan satu ruang besar tempat semua meja dicampur.</li>
+    <li>Kontraskan dengan pendekatan shared-table: baris semua perusahaan dicampur dibedakan kolom filter — satu query yang salah scope langsung bocor lintas perusahaan.</li>
+    <li>Tunjuk angka 0,4 dtk: perusahaan baru median 0,4 detik ter-provision lengkap dengan DDL dan data referensi — onboarding tidak menunggu DBA.</li>
+    <li>Tutup dengan alasan bisnis: isolasi schema membuat kepatuhan audit dan backup per tenant bisa dijalankan per perusahaan, bukan seluruh sistem sekaligus.</li>
+  </ul>
+</aside>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>Slide 05 · Isolasi Data dalam Praktik</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #F7F9FB; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="relative h-full flex flex-col" style="padding:58px 72px 56px;">
+
+    <!-- judul -->
+    <div>
+      <div class="kicker">Pokok Bahasan 02 · Bukti</div>
+      <h1 style="font-family:var(--font-heading); font-weight:800; font-size:var(--fs-h1); letter-spacing:-0.01em; margin:10px 0 0; color:var(--primary);">
+        Isolasi yang Bisa Dibuktikan, Bukan Dijanjikan
+      </h1>
+    </div>
+
+    <!-- split 52/48 -->
+    <div class="flex-1 flex items-stretch" style="gap:48px; margin-top:26px;">
+
+      <!-- KIRI · checklist -->
+      <div style="width:52%;" class="flex flex-col justify-center">
+
+        <div class="flex" style="gap:16px; padding:15px 0;">
+          <i class="material-icons" style="font-size:22px; color:var(--accent); flex:none; margin-top:1px;">check_circle</i>
+          <div style="min-width:0;">
+            <div style="font-family:var(--font-heading); font-weight:700; font-size:16.5px; color:var(--primary); line-height:1.3;">Koneksi terpisah per schema</div>
+            <div style="font-size:13.5px; line-height:1.55; color:var(--muted); margin-top:5px;">
+              Setiap permintaan dilayani <span style="font-family:var(--font-num); font-weight:600; color:var(--primary);">PrismaClient</span> milik tenant itu sendiri, bukan koneksi bersama.
+            </div>
+          </div>
+        </div>
+
+        <div class="hairline"></div>
+
+        <div class="flex" style="gap:16px; padding:15px 0;">
+          <i class="material-icons" style="font-size:22px; color:var(--accent); flex:none; margin-top:1px;">check_circle</i>
+          <div style="min-width:0;">
+            <div style="font-family:var(--font-heading); font-weight:700; font-size:16.5px; color:var(--primary); line-height:1.3;">IDOR lintas tenant: <span style="font-family:var(--font-num); font-weight:700; color:var(--accent);">0</span> baris bocor</div>
+            <div style="font-size:13.5px; line-height:1.55; color:var(--muted); margin-top:5px;">
+              Uji otomatis memaksa query lintas schema dengan kredensial tenant lain, hasil nihil.
+            </div>
+          </div>
+        </div>
+
+        <div class="hairline"></div>
+
+        <div class="flex" style="gap:16px; padding:15px 0;">
+          <i class="material-icons" style="font-size:22px; color:var(--accent); flex:none; margin-top:1px;">check_circle</i>
+          <div style="min-width:0;">
+            <div style="font-family:var(--font-heading); font-weight:700; font-size:16.5px; color:var(--primary); line-height:1.3;">Host subdomain terikat tenant</div>
+            <div style="font-size:13.5px; line-height:1.55; color:var(--muted); margin-top:5px;">
+              Sesi dari subdomain perusahaan lain ditolak meski kredensialnya cocok.
+            </div>
+          </div>
+        </div>
+
+        <div class="hairline"></div>
+
+        <div class="flex" style="gap:16px; padding:15px 0;">
+          <i class="material-icons" style="font-size:22px; color:var(--accent); flex:none; margin-top:1px;">check_circle</i>
+          <div style="min-width:0;">
+            <div style="font-family:var(--font-heading); font-weight:700; font-size:16.5px; color:var(--primary); line-height:1.3;">Verifikasi dua browser paralel</div>
+            <div style="font-size:13.5px; line-height:1.55; color:var(--muted); margin-top:5px;">
+              Login dua tenant berdampingan, workspace masing-masing bersih tanpa kebocoran.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KANAN · screenshot dashboard -->
+      <div style="width:48%;" class="flex flex-col justify-center">
+        <div class="browser-shot">
+          <div class="browser-bar">
+            <span class="dot" style="background:#F87171;"></span>
+            <span class="dot" style="background:#FBBF24;"></span>
+            <span class="dot" style="background:#34D399;"></span>
+          </div>
+          <img src="shot-dashboard.png" alt="Dashboard RekanKerja ter-scope per perusahaan" style="display:block; width:100%; height:auto; object-fit:cover; object-position:top;">
+        </div>
+        <div style="font-size:12.5px; line-height:1.55; color:var(--muted); margin-top:12px;">
+          Dashboard per-company — angka ter-scope ke perusahaan aktif, bukan seluruh tenant.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<aside data-notes class="hidden">
+  <ul>
+    <li>Ceritakan asal usulnya secara singkat: suite uji penetrasi internal ini dijalankan otomatis setiap perubahan besar — bukan satu kali lalu selesai.</li>
+    <li>Poin paling kuat untuk disuarakan: uji IDOR memaksa query lintas schema memakai kredensial tenant lain dan hasilnya nihil — 0 baris bocor.</li>
+    <li>Ajak audiens membayangkan uji dua browser: dua tab berdampingan, dua perusahaan login bersamaan, workspace masing-masing bersih.</li>
+    <li>Tutup dengan artinya bagi klien enterprise: pola bukti seperti ini mempermudah audit keamanan karena bisa dijalankan ulang, bukan sekadar janji di dokumen.</li>
+  </ul>
+</aside>
+</body>
+</html>

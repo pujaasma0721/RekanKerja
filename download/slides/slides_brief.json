@@ -1,0 +1,99 @@
+{
+  "design": {
+    "title": "RekanKerja — Teknologi, Infrastruktur & Keamanan",
+    "style_name": "Enterprise slate + emerald (identik deck manajemen RekanKerja)",
+    "palette": { "background": "#F7F9FB", "primary": "#0F172A", "accent": "#059669" },
+    "typography": { "heading": "Plus Jakarta Sans", "body": "Inter", "numeric": "IBM Plex Mono" },
+    "reference": "Deck manajemen RekanKerja yang sudah disetujui — sistem token global.css sama"
+  },
+  "global_css_path": "/home/z/my-project/download/slides/global.css",
+  "slides_dir": "/home/z/my-project/download/slides",
+  "language": "id",
+  "speaker_notes": "short",
+  "slides": [
+    {
+      "title": "Cover — Teknologi di Balik RekanKerja",
+      "layout": "cover",
+      "output_path": "/home/z/my-project/download/slides/slide_01.html",
+      "task_brief": "COVER GELAP (class slide-dark). Kicker: 'DOKUMEN TEKNIS · UNTUK MANAJEMEN'. Judul display: 'Teknologi di Balik RekanKerja' — kata 'RekanKerja' dengan aksen emerald (atau titik tengah gaya wordmark 'Rekan·Kerja' dengan titik #34D399). Subjudul 2 baris: 'Arsitektur, infrastruktur, keamanan, dan keunggulan teknis.' / 'Semua angka berasal dari pengujian nyata pada sistem yang berjalan — bukan klaim pemasaran.' Meta row 3 item berikon (Material Icons): 'stack' Next.js 16 + TypeScript · 'database' PostgreSQL 17 · 'verified' 66/66 uji lulus. Kanan: screenshot login produk shot-login.png dalam .browser-shot lebar ±470px (bar 3-dot + img), sedikit rotate -1deg, glow emerald dekoratif di belakang (elemen data-decor, blur besar, opacity rendah). Footer kiri bawah kecil: 'RekanKerja · Sistem HRIS Multi-tenant' — tanpa header/footer halaman lain. Speaker notes: sambutan, posisi dokumen sebagai lanjutan deck produk, janji: setiap klaim ada angka ujinya."
+    },
+    {
+      "title": "Agenda",
+      "layout": "agenda",
+      "output_path": "/home/z/my-project/download/slides/slide_02.html",
+      "task_brief": "AGENDA terang. Judul: 'Lima Pokok Bahasan'. 5 baris bernomor (nomor mono emerald 01–05, judul bold + deskripsi 1 baris, divider .hairline antar baris): 01 'Fondasi teknologi' — stack modern satu bahasa end-to-end; 02 'Arsitektur multi-tenant' — satu database, isolasi penuh per perusahaan; 03 'Keamanan berlapis' — enkripsi, sesi, dan uji penetrasi otomatis; 04 'Infrastruktur & performa' — pooling cerdas dan angka latensi terukur; 05 'Keunggulan & roadmap teknis' — fitur yang membedakan dan arah pengembangan. Ghost number '05' besar dekoratif kanan bawah (opacity rendah). Tanpa screenshot. Speaker notes: alur 15 menit, sisip sesi tanya jawab di akhir."
+    },
+    {
+      "title": "Fondasi Teknologi",
+      "layout": "bento grid",
+      "output_path": "/home/z/my-project/download/slides/slide_03.html",
+      "task_brief": "STACK. Kicker 'POKOK BAHASAN 01'. Judul: 'Satu Bahasa, Ujung ke Ujung'. Grid 5 kartu (baris atas 3, baris bawah 2, atau grid 3×2 dengan 1 sel penjelasan): (1) ikon 'code' — 'Next.js 16 · App Router' — rendering server-side + API route dalam satu basis kode, update halaman tanpa deploy penuh; (2) ikon 'shield' — 'TypeScript 5 · strict' — kontrak tipe lintas 200+ modul domain, bug tertangkap saat kompilasi; (3) ikon 'storage' — 'Prisma ORM' — semua query terparameter: injeksi SQL terserap sejak dasar; (4) ikon 'database' — 'PostgreSQL 17' — transaksi ACID, isolasi schema per tenant, 222 tabel domain per perusahaan; (5) ikon 'palette' — 'Tailwind CSS 4' — UI konsisten, responsif mobile–desktop. Footer strip accent-soft: 'Dari layar sampai query database semuanya TypeScript — tidak ada lapisan jembatan yang rapuh antar bahasa.' Speaker notes: kenapa stack ini dipilih, maintanability jangka panjang, talent pool TypeScript/PostgreSQL mudah dicari di pasar kerja Indonesia."
+    },
+    {
+      "title": "Arsitektur Multi-tenant",
+      "layout": "stats band + columns",
+      "output_path": "/home/z/my-project/download/slides/slide_04.html",
+      "task_brief": "MULTI-TENANT. Kicker 'POKOK BAHASAN 02'. Judul: 'Satu Database, Isolasi Penuh per Perusahaan'. Band 3 angka mono besar emerald (48–56px) dengan hairline divider: '222' tabel domain per tenant · '1' schema PostgreSQL khusus per perusahaan · '0,4 dtk' median provisioning tenant baru. Di bawahnya 4 kartu kolom: (1) ikon 'grid_view' 'Schema terisolasi' — data tiap perusahaan hidup di schema database terpisah, bukan sekadar kolom filter; (2) ikon 'account_tree' 'Registry platform' — daftar tenant + user + keanggotaan di schema publik terpisah dari data domain; (3) ikon 'bolt' 'Provisioning otomatis' — perusahaan baru dibuat lengkap DDL + data referensi dalam satu langkah; (4) ikon 'switch_account' 'Multi-company' — satu login bisa memegang beberapa perusahaan, konteks berganti penuh saat switch. Speaker notes: analogi lantai gedung (tiap tenant punya ruang sendiri berdiri sendiri), kontras dengan pendekatan shared-table (baris dicampur), alasan kepatuhan & backup per tenant."
+    },
+    {
+      "title": "Isolasi Data dalam Praktik",
+      "layout": "split text+image",
+      "output_path": "/home/z/my-project/download/slides/slide_05.html",
+      "task_brief": "ISOLASI BUKTI. Kicker 'POKOK BAHASAN 02 · BUKTI'. Judul: 'Isolasi yang Bisa Dibuktikan, Bukan Dijanjikan'. Split 52/48. Kiri: 4 poin checklist emerald (ikon check_circle): (1) 'Koneksi terpisah per schema' — setiap permintaan dilayani PrismaClient milik tenant itu sendiri, bukan koneksi bersama; (2) 'IDOR lintas tenant: 0 baris bocor' — uji otomatis memaksa query lintas schema dengan kredensial tenant lain, hasil nihil; (3) 'Host subdomain terikat tenant' — sesi dari subdomain perusahaan lain ditolak meski kredensialnya cocok; (4) 'Verifikasi dua browser paralel' — login dua tenant berdampingan, workspace masing-masing bersih tanpa kebocoran. Kanan: shot-dashboard.png dalam .browser-shot (bar 3-dot, img object-fit cover top) + caption kecil di bawah: 'Dashboard per-company — angka ter-scope ke perusahaan aktif, bukan seluruh tenant.' Speaker notes: cerita singkat uji penetrasi internal, artinya bagi audit keamanan klien enterprise."
+    },
+    {
+      "title": "Enkripsi & Perlindungan Data Pribadi",
+      "layout": "grid 3x2",
+      "output_path": "/home/z/my-project/download/slides/slide_06.html",
+      "task_brief": "ENKRIPSI. Kicker 'POKOK BAHASAN 03'. Judul: 'Data Pribadi Terenkripsi Sejak di Dalam Database'. Grid 3×2 enam kartu (ikon di .ibox emerald-soft): (1) 'enhanced_encryption' 'AES-256-GCM field-level' — NIK, NPWP, dan gaji disimpan dalam bentuk terenkripsi, bukan teks polos; (2) 'key' 'Kunci per-tenant' — kunci derivasi unik per schema perusahaan: data satu tenant tak bisa dibaca dengan kunci tenant lain; (3) 'visibility_off' 'Masking adaptif' — NIK/NPWP tampil penuh hanya untuk peran yang berwenang, lainnya tersamar sebagian; (4) 'history' 'Audit trail ActivityLog' — setiap perubahan data penting tercatat: siapa, apa, kapan; (5) 'account_balance_wallet' 'Money vault' — nilai finansial punya verifier tambahan untuk mendeteksi manipulasi langsung di database; (6) 'draw' 'eSign terkunci konteks' — tanda tangan elektronik terikat dokumen + penandanya. Footer strip gelap (accent strip, teks italic): 'Sesuai amanat UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi — data pribadi diolah dengan perlindungan yang terukur.' Speaker notes: beda enkripsi field-level vs enkripsi disk saja, skenario kebocoran backup, posisi UU PDP."
+    },
+    {
+      "title": "Keamanan Aplikasi Teruji",
+      "layout": "checklist stats",
+      "output_path": "/home/z/my-project/download/slides/slide_07.html",
+      "task_brief": "UJI APPSEC. Kicker 'POKOK BAHASAN 03 · BUKTI'. Judul: '40 dari 40 Uji Keamanan Aplikasi Lulus'. Angka mono besar emerald '40/40' sebagai focal point di kanan atas area judul (atau band). Checklist 7 item (check_circle emerald, divider tipis): (1) Token palsu, dimanipulasi, kedaluwarsa → ditolak 401 di semua gerbang; (2) Logout mencabut sesi — token lama tak bisa dipakai ulang; (3) Brute force 31 percobaan → terkunci + HTTP 429 dengan Retry-After; (4) Injeksi SQL → terserap parameterized query Prisma, 0 tembus; (5) 10 variasi manipulasi path URL → 0 bypass middleware; (6) Mass-assignment → field sensitif tak bisa disuntik lewat body; (7) Cookie sesi HttpOnly + SameSite — tak terbaca JavaScript browser. Footer strip accent-soft: 'Total 66/66 uji otomatis lulus — 16 isolasi tenant, 40 keamanan aplikasi, 2 cache, 8 limit & kuota.' Speaker notes: suite ini jalan berulang tiap perubahan besar (regresi), gaya uji meniru OWASP top issues."
+    },
+    {
+      "title": "Infrastruktur Koneksi Database",
+      "layout": "before-after + cards",
+      "output_path": "/home/z/my-project/download/slides/slide_08.html",
+      "task_brief": "POOLING. Kicker 'POKOK BAHASAN 04'. Judul: 'Manajemen Koneksi yang Belajar dari Kegagalan'. Baris atas: kartu BEFORE/AFTER dua kolom — kiri kartu amber-soft border amber: 'SEBELUM' angka mono '89/300' + teks '211 query gagal saat 100 tenant aktif serentak — batas koneksi PostgreSQL jebol'; panah emerald 'arrow_forward'; kanan kartu accent-soft border emerald: 'SESUDAH' angka mono '200/200' + teks 'nol gagal pada beban identik setelah pool per-tenant + eviction'. Baris bawah 4 kartu kecil: (1) 'account_balance' 'Pool 2 koneksi per tenant aktif' — langganan, bukan rebutan; (2) 'timer' 'Idle 10 menit → 0 koneksi' — tenant tidak dipakai tak memakan kursi; (3) 'trending_up' 'Batas 300 koneksi' — naik dari default 100, dipantau pg_stat_activity; (4) 'groups' '±140 tenant aktif serentak per node' — di atas itu: PgBouncer + sharding (roadmap). Speaker notes: cerita jujur — benchmark menemukan dinding, diperbaiki sistemik, dibuktikan ulang; bukan angka marketing."
+    },
+    {
+      "title": "Performa Terukur",
+      "layout": "stats band + improvement rows",
+      "output_path": "/home/z/my-project/download/slides/slide_09.html",
+      "task_brief": "PERFORMA. Kicker 'POKOK BAHASAN 04'. Judul: 'Cepat pada Data Besar, Bukan Hanya Data Kecil'. Subjudul kecil: 'Diukur pada tenant uji 5.000 karyawan — 597 ribu baris data nyata.' Band 4 angka mono besar emerald (48–56px) dengan hairline divider: '8 ms' ESS mobile per karyawan · '25 ms' dashboard manajemen · '76 ms' direktori karyawan halaman 1 · '13 ms' rekap presensi 103 rb baris. Di bawahnya 3 baris 'perbaikan terukur' (kartu ramping berisi label + angka mono + multiplier amber): (1) 'Detail payroll 5.000 baris' — '5.400 ms → 150 ms' + badge '36×'; (2) 'Ukuran respons payroll' — '9,1 MB → 181 KB' + badge '50×'; (3) 'Sortir direktori berdasar gaji' — '6.100 ms → 587 ms' + badge '10×'. Catatan kaki kecil: 'Perbaikan didapat dari paginasi server-side, cache agregat, dan sort dua-fase — bukan tambah hardware.' Speaker notes: pola umum optimasi: pindahkan kerja berat ke server dan dekripsi sekali, angka stabil warm."
+    },
+    {
+      "title": "Uji Beban & Keandalan",
+      "layout": "cards 2x2 + band",
+      "output_path": "/home/z/my-project/download/slides/slide_10.html",
+      "task_brief": "BEBAN. Kicker 'POKOK BAHASAN 04'. Judul: 'Ditekan Bertingkat, Hasilnya Konsisten'. Grid 2×2 kartu besar: (1) ikon 'speed' 'Uji beban bertingkat' — 8 hingga 32 pengguna serentak mencampur 8 endpoint termasuk halaman berat: 0 error, p95 817 ms – 2,8 dtk; (2) ikon 'diversity_3' 'Benchmark 100 tenant' — 100 schema × 250 karyawan = 25.000 karyawan, 2,5 juta baris, database ~2 GB: query tenant p50 < 4 ms; (3) ikon 'restart_alt' 'Pemulihan otomatis' — watchdog memantau proses dan pulih dalam hitungan detik; jam kerja tak menunggu intervensi manual; (4) ikon 'wifi_off' 'Mode offline PWA' — aplikasi terpasang seperti aplikasi native, halaman inti tetap terbuka saat koneksi putus. Footer strip accent-soft: 'Koneksi database puncak saat uji: 17 dari 300 — persediaan ruang 94% masih tersisa.' Speaker notes: metodologi think-time realistis (bukan serangan sin), transparensi: angka dev server konservatif, produksi lebih cepat 30–50%."
+    },
+    {
+      "title": "Keunggulan Teknis Produk",
+      "layout": "bento grid 3x2",
+      "output_path": "/home/z/my-project/download/slides/slide_11.html",
+      "task_brief": "KEUNGGULAN. Kicker 'POKOK BAHASAN 05'. Judul: 'Detail yang Membedakan dari Sistem Sejenis'. Bento grid 3×2 enam kartu: (1) 'translate' 'Dwibahasa penuh ID/EN' — audit otomatis 149 string nyasar → 0; bahasa berganti tanpa reload; (2) 'smart_toy' 'Asisten AI internal' — tanya data HR dalam bahasa manusia, jawaban ter-scope izin pengguna; kartu ini diberi border 2px emerald + tag kecil 'AI'; (3) 'draw' 'eSign' — tanda tangan elektronik terikat identitas + dokumen, jejak audit lengkap; (4) 'install_mobile' 'PWA + offline' — pasang di HP tanpa app store, data inti tetap buka tanpa jaringan; (5) 'qr_code_2' 'Kios presensi QR' — token QR unik per tenant per periode, tak bisa dipakai tenant lain; (6) 'api' 'API key ber-scope' — kunci integrasi per izin, pencabutan berlaku seketika (401 langsung). Speaker notes: fokus 2–3 kartu sesi singkat: AI assistant, dwibahasa, PWA; sisanya disebut sekilas."
+    },
+    {
+      "title": "Kesiapan Produksi",
+      "layout": "two columns + footer band",
+      "output_path": "/home/z/my-project/download/slides/slide_12.html",
+      "task_brief": "PRODUKSI. Kicker 'POKOK BAHASAN 05'. Judul: 'Sudah Berjalan, Siap Naik Kelas'. Dua kolom kartu: KIRI 'DEPLOY HARI INI' (ikon 'rocket_launch') checklist 4 baris: proses diawasi PM2 + restart otomatis; PostgreSQL dedicated di server terpisah dari aplikasi; health check endpoint diawasi; migrasi idempoten — boot ulang aman tanpa intervensi. KANAN 'REKOMENDASI SIZING 100 TENANT' (ikon 'dns') grid 2×2 angka mono: '8 vCPU' CPU · '16 GB' RAM · '250 GB' NVMe SSD · '100–200 Mbps' dedicated; catatan kecil di bawah grid: 'Untuk 100 tenant aktif dengan 20.000+ karyawan total, dengan margin puncak.' Footer band 3 sel angka mono (kartu bersel divider): '±22 KB' pertumbuhan data per karyawan/bulan · '±6 GB/tahun' total di 100 tenant · '78–95%' hemat bandwidth via gzip. Speaker notes: sizing dari pengukuran empiris bukan brosur; pertumbuhan linear bisa dianggarkan; gzip aktif default."
+    },
+    {
+      "title": "Roadmap Teknis",
+      "layout": "timeline 3 phases",
+      "output_path": "/home/z/my-project/download/slides/slide_13.html",
+      "task_brief": "ROADMAP. Kicker 'POKOK BAHASAN 05 · ARAH'. Judul: 'Tiga Anak Tangga Skala Berikutnya'. Timeline horizontal 3 fase: node lingkaran mono emerald '01/02/03' + garis konektor horizontal, tiap fase kartu (chip label fase kecil mono): (1) 'Kapasitas koneksi' — PgBouncer transaction pooling + penandaan search_path per transaksi: melipatgandakan tenant aktif per node tanpa tambah server; (2) 'Sharding lintas node' — registry mengarahkan tenant ke node database berbeda saat pertumbuhan melewati satu mesin: tambah node, bukan ganti sistem; (3) 'Observability & laporan historis' — materialized view rekap presensi + dasbor metrik: query historis kembali instan di tenant sangat besar. Speaker notes: urutan biaya — murah dulu; tiap fase tidak mengubah kode aplikasi domain; batas arsitektur saat ini (±140 tenant aktif/node) sudah terukur."
+    },
+    {
+      "title": "Closing",
+      "layout": "closing dark",
+      "output_path": "/home/z/my-project/download/slides/slide_14.html",
+      "task_brief": "CLOSING GELAP (slide-dark, gradasi radial emerald halus). Kicker: 'PENUTUP'. Judul display besar: 'Dibangun untuk Tumbuh.' Subjudul 2 baris: 'Setiap angka dalam dokumen ini berasal dari pengujian nyata pada sistem yang sedang berjalan.' / 'Metodologi dan hasil lengkapnya tersedia — dan bisa dijalankan ulang kapan pun untuk diverifikasi.' Kotak CTA border emerald (bg rgba(52,211,153,0.10)): 'Mari jadwalkan sesi audit teknis langsung — kami buka arsitektur, kode, dan hasil ujinya.' Baris penutup bawah: wordmark 'Rekan·Kerja' (titik tengah #34D399) + 'Terima kasih — mari kita diskusikan.' Meta kecil: 'Dokumen teknis internal · pendamping deck produk RekanKerja'. Speaker notes: ajakan konkret, siapkan demo live benchmark bila diminta, tampilkan deck produk sebagai pasangan dokumen ini."
+    }
+  ]
+}

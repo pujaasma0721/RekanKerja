@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "POTONG:tidak | RUSAK:tidak | SKOR:9 — Alasan: Tata letak bersih, tipografi hierarkis jelas (nomor hijau + judul tebal + deskripsi abu-abu), spasi konsisten, dan konten teknis (multi-tenancy, end-to-end stack) terstruktur rapi tanpa elemen terpotong atau rusak.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1793056382,
+  "id": "202610270713005e40b71c252c426d",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202610270713005e40b71c252c426d",
+  "usage": {
+    "completion_tokens": 92,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 493,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 585
+  }
+}

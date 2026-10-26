@@ -8453,3 +8453,85 @@ Stage Summary:
 - Setiap slide punya speaker notes singkat (panduan bicara) — muncul di presenter view PowerPoint.
 - Sumber slide HTML (bisa diedit ulang): download/slides/ — global.css + slides_brief.json + slide_01..14.html + 8 screenshot PNG.
 - Konten memakai ANGKA RIIL sistem (43 karyawan, Rp 11,5 jt rata-rata, 2 PR pending, 5 kandidat seleksi) — bukan placeholder generik.
+
+---
+Task ID: PPT-TECH-c
+Agent: ppt-expert
+Task: Render slide 11-14 deck teknis RekanKerja (keunggulan, produksi, roadmap, closing)
+
+Work Log:
+- slide_11.html (Keunggulan Teknis Produk): bento grid 3×2 enam kartu ibox emerald-soft (translate/smart_toy/draw/install_mobile/qr_code_2/api); kartu Asisten AI ditegaskan border 2px emerald + ibox solid + tag mono 'AI'; angka 149→0 dan 401 dalam mono.
+- slide_12.html (Kesiapan Produksi): dua kolom — kiri checklist 'DEPLOY HARI INI' 4 baris check_circle divider hairline, kanan 'REKOMENDASI SIZING 100 TENANT' grid 2×2 angka mono emerald (8 vCPU / 16 GB / 250 GB / 100–200 Mbps) + catatan 20.000+ karyawan; footer band 3 sel bersel divider (±22 KB · ±6 GB/tahun · 78–95%).
+- slide_13.html (Roadmap Teknis): timeline horizontal CSS murni (node lingkaran 56px border emerald mono 01/02/03 + konektor div #D1FAE5 + stub vertikal, tanpa SVG), 3 kartu fase chip mono FASE 01–03 + ghost numeral dekoratif, strip accent-soft batas terukur ±140 tenant aktif/node.
+- slide_14.html (Closing): slide-dark #0B1220 + gradasi radial emerald + glow data-decor; judul display 'Dibangun untuk Tumbuh.' (aksen #34D399), subjudul 2 baris, CTA border emerald bg rgba(52,211,153,0.10) ikon event_available, footer wordmark Rekan·Kerja (titik #34D399) + meta dokumen.
+- QA: agent-browser (session pptechc) — 4/4 slide 1280×720, scroll 1280/720, overflow elemen non-decor = 0, ligature Material Icons 22×22 OK, font PJS/Mono/Inter termuat, konektor timeline presisi (line 246–1034 vs pusat node 245/640/1035); screenshot + VLM review audit/slides-pptechc/01-04: PASS semua.
+
+Stage Summary:
+- 4 slide dirender (slide_11–14) dengan empat layout bervariasi — bento 3×2 dengan kartu AI ditonjolkan, dua kolom + footer band 3 sel, timeline 3 fase node mono, dan closing gelap CTA — semuanya memakai token desain global.css deck manajemen (slate #F7F9FB + emerald #059669, Plus Jakarta Sans / Inter / IBM Plex Mono untuk semua angka), teks verbatim bahasa Indonesia, speaker notes <aside data-notes> di akhir body, tanpa header/footer halaman.
+
+---
+Task ID: PPT-TECH-a
+Agent: ppt-expert
+Task: Render slide 1-5 deck teknis RekanKerja (teknologi, infrastruktur, security)
+
+Work Log:
+- slide_01.html (Cover gelap): slide-dark #0B1220 + gradasi radial emerald, kicker "DOKUMEN TEKNIS · UNTUK MANAJEMEN", judul display 58px "Teknologi di Balik Rekan·Kerja" (wordmark emerald #34D399), subjudul 2 baris, meta row 3 ikon mono (stack/database/verified — 66/66 uji lulus); kanan shot-login.png dalam browser-shot 470px rotate -1deg + glow dekoratif data-decor; footer kiri-bawah "RekanKerja · Sistem HRIS Multi-tenant".
+- slide_02.html (Agenda): 5 baris bernomor mono emerald 01–05 (judul bold 20px + deskripsi 1 baris) dengan divider hairline; ghost "05" mono 270px opacity 5,5% kanan-bawah (reposisi penuh di dalam kanvas setelah VLM review awal menandai bleed terpotong — rev.2 PASS); tanpa screenshot.
+- slide_03.html (Fondasi Teknologi): bento grid 3+2 — 3 kartu vertikal (Next.js 16 · App Router / TypeScript 5 · strict / Prisma ORM) + 2 kartu horizontal lebar (PostgreSQL 17 / Tailwind CSS 4), judul kartu mono IBM Plex, angka 200+/222 mono ink; footer strip accent-soft kalimat "satu bahasa TypeScript" verbatim.
+- slide_04.html (Arsitektur Multi-tenant): band 3 angka mono 54px emerald dengan divider vertikal (222 / 1 / 0,4 dtk) sebagai focal point + 4 kartu kolom (Schema terisolasi, Registry platform, Provisioning otomatis, Multi-company) — kartu center vertikal di sisa ruang.
+- slide_05.html (Isolasi Data dalam Praktik): split 52/48 — kiri 4 checklist check_circle emerald (Koneksi terpisah per schema, IDOR "0" mono emerald, Host subdomain terikat tenant, Verifikasi dua browser paralel) dengan hairline; kanan shot-dashboard.png browser-shot rasio penuh + caption "Dashboard per-company — angka ter-scope ke perusahaan aktif".
+- QA: agent-browser session ppt-techa — 5/5 slide scrollW/H tepat 1280×720, overflow elemen non-decor = 0, kedua screenshot termuat (naturalWidth OK), font ter-load (Plus Jakarta Sans / Inter / IBM Plex Mono / Material Icons), console bersih; VLM review 5/5 PASS (screenshot di audit/slides-ppt-techa/).
+- Semua slide: link global.css relatif + Tailwind CDN + Material Icons, teks verbatim bahasa Indonesia dari brief, angka & label teknis pakai var(--font-num), speaker notes <aside data-notes class="hidden"> 4 bullet sebagai anak terakhir <body>, tanpa header/footer halaman, tanpa SVG flowchart/timeline grafis/base64.
+
+Stage Summary:
+- 5 slide pertama deck teknis RekanKerja selesai dirender (cover gelap, agenda bernomor, bento grid stack, band angka + 4 kartu, split checklist + screenshot dashboard) dengan 2 screenshot lokal (shot-login.png, shot-dashboard.png) dalam frame browser-shot — konsisten token desain deck manajemen yang sudah disetujui (slate #F7F9FB / emerald #059669 / dark #0B1220, Plus Jakarta Sans + Inter + IBM Plex Mono) dan terverifikasi bebas overflow 1280×720; layout bervariasi antar slide, siap dilanjutkan slide 6–14.
+
+---
+Task ID: PPT-TECH-b
+Agent: ppt-expert
+Task: Render slide 6-10 deck teknis RekanKerja (keamanan, infrastruktur, performa)
+
+Work Log:
+- slide_06 (Enkripsi & Perlindungan Data Pribadi): grid 3×2 enam kartu ibox emerald-soft (enhanced_encryption/key/visibility_off/history/account_balance_wallet/draw, "AES-256-GCM" mono) + footer strip GELAP #0B1220 ikon gavel berisi kalimat UU No. 27 Tahun 2022 PDP verbatim italic dengan highlight emerald.
+- slide_07 (Keamanan Aplikasi Teruji): focal angka mono "40/40" 60px emerald di kanan atas + label "UJI KEAMANAN APLIKASI"; checklist 7 baris dalam kartu putih bersel divider (check_circle emerald, lead bold → hasil muted, angka 401/31/429/0/10 mono); footer strip accent-soft total 66/66 (16+40+2+8).
+- slide_08 (Infrastruktur Koneksi Database): before/after dua kolom — kartu amber-soft "SEBELUM 89/300" vs kartu accent-soft "SESUDAH 200/200" (angka mono 68px) dihubung panah lingkaran emerald; baris bawah 4 kartu kecil mekanisme pool (2 koneksi/tenant, idle 10 menit → 0, batas 300, ±140 tenant/node).
+- slide_09 (Performa Terukur): band terbuka 4 angka mono 54px emerald dengan divider hairline vertikal (8/25/76/13 ms) + subjudul konteks 5.000 karyawan 597 rb baris; rule label "PERBAIKAN TERUKUR" + 3 kartu ramping label→angka mono→badge amber 36×/50×/10× + catatan kaki lightbulb (paginasi server-side, cache agregat, sort dua-fase).
+- slide_10 (Uji Beban & Keandalan): grid 2×2 kartu besar (speed/diversity_3/restart_alt/wifi_off) dengan angka mono inline (8–32 pengguna, p95 817 ms – 2,8 dtk; 100 schema × 250 = 25.000 karyawan, 2,5 juta baris, ~2 GB, p50 < 4 ms) + footer strip accent-soft koneksi puncak 17/300, ruang 94%.
+- QA: agent-browser session ppttechb — 5/5 slide tepat 1280×720 (scrollW/H 1280/720), 0 elemen keluar kanvas, font ter-load (Plus Jakarta Sans 800 / Inter / IBM Plex Mono 700 / Material Icons ligature), aside data-notes hidden di semua slide; screenshot audit/slides-ppttechb/ + review VLM: 4/5 PASS bersih, klaim "kartu bawah terpotong" pada slide_08 dibantah pengukuran geometri (gridBottom y=668, margin 52px utuh).
+
+Stage Summary:
+- 5 slide (06-10) deck teknis RekanKerja selesai dirender sebagai HTML standalone 1280×720 (link global.css relatif, Tailwind CDN + Material Icons, tanpa screenshot/SVG flowchart, tanpa nomor halaman), konsisten token desain slate #F7F9FB + emerald #059669 + Plus Jakarta Sans/Inter/IBM Plex Mono persis deck manajemen yang disetujui.
+- Lima layout dibedakan: grid 3×2 + footer gelap (06), checklist + focal 40/40 (07), before/after amber-emerald + 4 kartu (08), band mono terbuka + baris perbaikan badge multiplier (09), grid 2×2 + strip kapasitas (10); seluruh angka brief verbatim dan memakai var(--font-num), teks kontras AA (varian gelap emerald/amber #047857/#B45309 dipakai untuk teks kecil di atas soft background).
+
+---
+Task ID: PPT-RESTORE
+Agent: main (Z.ai Code)
+Task: User report: "tidak ada folder download pada side view" — folder download/ (berisi deliverable PPT) hilang dari file explorer setelah sandbox ter-restore ke snapshot lama.
+
+Work Log:
+- DIAGNOSA: insiden snapshot restore ke-3 — local HEAD tertinggal 9 commit, .env kembali ke one-liner SQLite, database PostgreSQL KOSONG (0 tabel), dev server mati, folder download/ (tidak pernah di-commit sesi sebelumnya) lenyap total. Kode selamat di GitHub → git fetch + pull --rebase (sejajar dengan origin 5a9125d).
+- PEMULIHAN ENVIRONMENT: .env ditulis ulang (PLATFORM/TENANT DB URL user rekankerja pasca-rebrand f221dda + TENANT_DB_CONNECTION_LIMIT=2 + SESSION_SECRET baru + MAIN_HOSTS/BASE_DOMAINS + SCHEDULER=true) · role+db PostgreSQL "rekankerja" dibuat di cluster lama (role onevity masih ada tapi kode pasca-rebrand memakai rekankerja) · bun install + db:generate + db:push · restore-demo.ts (3 tenant: MII 45 karyawan, Cahaya, Sentra) · 7 migrasi idempoten (checklist-tables, password-security, password-idle-timeout, tenant-schema-integrity, task80-esign, p3-benchmark, jkp) · dev server via setsid → /api/health 200, login hrd@mii.co.id 200, companies API data penuh.
+- RESTORE DECK MANAJEMEN: sumber HTML download/slides/ sesi lama tidak pernah di-commit (hilang permanen), TAPI render 14 slide PNG + PDF tersimpan di git (tmp/pptx-check/, commit 5a9125d) → rebuild download/RekanKerja-Presentasi-Manajemen.pptx via python-pptx (14 slide full-bleed PNG, 16:9 13,333×7,5 in, speaker notes Indonesia direkonstruksi dari deskripsi worklog PPT-4-a/b/c) + copy PDF. Verifikasi: 14 slide, notes 14/14 terisi.
+
+Stage Summary:
+- download/RekanKerja-Presentasi-Manajemen.pptx (2,3MB) + RekanKerja-Presentasi-Manajemen.pdf (1,6MB) PULIH — visual identik dengan deck yang diterima user (PNG yang sama), notes aproksimasi dari deskripsi worklog.
+- Environment demo sepenuhnya hidup kembali (PG role rekankerja + 3 tenant + migrasi + dev server).
+- PELAJARAN: deliverable di luar git = hilang saat snapshot restore → sejak commit ini folder download/ DI-COMMIT ke repo.
+
+---
+Task ID: PPT-TECH-DECK
+Agent: main (Z.ai Code) + ppt-expert subagents PPT-TECH-a/b/c
+Task: "dengan cara yang sama sekarang buatkan ppt untuk tekhnologi, infrastrujtur, security, semua keunggulan teknis" — deck teknis pendamping deck manajemen, cara/gaya sama dengan yang sudah diterima user.
+
+Work Log:
+- FAKTA DIVERIFIKASI DARI KODE (bukan dari ingatan): AES-256-GCM field-level (field-crypto.ts createCipheriv), 222 model schema tenant, role platform OWNER + aplikasi Admin/HR Manager/HR Staff/Approver/Viewer + ESS, Next.js 16.2.5, Prisma 6.19.2, PostgreSQL 17 embedded. Seluruh angka benchmark diambil verbatim dari entri worklog QA (QA-FULL 66/66, QA-SCALING-100T/FIX, QA-PAGELOAD-BIGTENANT, QA-F1F2-FIX, QA-PREPROD-FINAL, QA-SPECS-SERVER).
+- SCREENSHOT PRODUK ASLI (agent-browser session ppttech, viewport 1440×900, bahasa ID via rekankerja:lang): shot-login.png (layar login Indonesia), shot-dashboard.png (dashboard "Selamat pagi, Tri" 43 karyawan aktif), shot-attendance-live.png (Papan Kehadiran real-time) — ketiganya diverifikasi VLM: data lengkap, bukan skeleton. Jebakan lama diantisipasi (SW offline.html, dialog PWA, satu-per-satu).
+- STAGE 3: download/slides/global.css (token identik deck manajemen: slate #F7F9FB/#0F172A + emerald #059669, Plus Jakarta Sans/Inter/IBM Plex Mono, .browser-shot/.card/.kicker/.ibox) + slides_brief.json 14 slide Bahasa Indonesia dengan task_brief verbatim.
+- STAGE 4: 3 subagent ppt-expert paralel (PPT-TECH-a slide 1-5, PPT-TECH-b slide 6-10, PPT-TECH-c slide 11-14) — semua ter-commit + append worklog.
+- EXPORT batch_html2pptx.js → download/RekanKerja-Presentasi-Teknis.pptx; QA visual 2 putaran via LibreOffice→pdftoppm→VLM menemukan 2 bug nyata: (1) slide gelap 01/14 render PUTIH — akar masalah: .slide-dark memakai multi-layer background shorthand (gradient + warna) yang dirasterisasi konverter jadi PNG transparan sehingga warna dasar #0B1220 hilang → FIX global.css jadi background-color solid (glow tetap dibawa div data-decor di HTML); (2) ghost "05" slide agenda menabrak baris 4-5 + terpotong tepi → FIX dihapus. Re-export → VLM final 14/14 slide POTONG:tidak RUSAK:tidak SKOR 9.
+- Verifikasi struktur: 14 slide 16:9, speaker notes 14/14 Bahasa Indonesia (panduan bicara per slide), 6,2MB.
+
+Stage Summary:
+- DELIVERABLE: download/RekanKerja-Presentasi-Teknis.pptx — 14 slide: cover gelap + screenshot login asli, agenda, stack (Next.js 16/TS 5/Prisma/PG 17/Tailwind 4), arsitektur multi-tenant (222 tabel/schema, provisioning 0,4 dtk), isolasi data terbukti (IDOR 0, dual-browser) + screenshot dashboard, enkripsi AES-256-GCM + UU PDP, keamanan teruji 40/40, pooling before/after 89/300→200/200, performa 8/25/76/13 ms + perbaikan 36×/50×/10×, uji beban 0 error, keunggulan (dwibahasa/AI/eSign/PWA/kios/API key), sizing produksi, roadmap PgBouncer→sharding, closing gelap.
+- Kali ini SELURUH folder download/ (kedua deck + sumber HTML + screenshot) di-commit agar tahan snapshot restore.
+- Artefak QA: tmp/teckdeck-final/ (PDF render + 14 PNG), tmp/vlm-fin-*.json.

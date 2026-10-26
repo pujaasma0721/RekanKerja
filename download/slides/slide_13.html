@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Roadmap Teknis — RekanKerja</title>
+  <link rel="stylesheet" href="global.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>html,body{margin:0;padding:0;overflow:hidden;background:#F7F9FB}</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="h-full flex flex-col" style="padding:54px 60px">
+
+      <!-- Header -->
+      <header class="flex-none">
+        <div class="kicker">POKOK BAHASAN 05 · ARAH</div>
+        <h1 style="font-family:var(--font-heading);font-size:var(--fs-h1);font-weight:800;letter-spacing:-0.015em;line-height:1.15;color:var(--primary);margin-top:10px">Tiga Anak Tangga Skala Berikutnya</h1>
+      </header>
+
+      <!-- Node timeline (CSS murni: lingkaran + garis konektor div) -->
+      <div class="relative flex-none" style="margin-top:32px">
+        <div class="absolute" style="left:16%;right:16%;top:27px;height:2px;background:#D1FAE5"></div>
+        <div class="grid grid-cols-3 gap-6">
+          <div class="flex flex-col items-center">
+            <div class="flex items-center justify-center rounded-full" style="width:56px;height:56px;background:#FFFFFF;border:2px solid var(--accent);box-shadow:0 0 0 6px rgba(5,150,105,0.08)">
+              <span style="font-family:var(--font-num);font-size:19px;font-weight:700;color:var(--accent)">01</span>
+            </div>
+            <div style="width:2px;height:16px;background:#D1FAE5"></div>
+          </div>
+          <div class="flex flex-col items-center">
+            <div class="flex items-center justify-center rounded-full" style="width:56px;height:56px;background:#FFFFFF;border:2px solid var(--accent);box-shadow:0 0 0 6px rgba(5,150,105,0.08)">
+              <span style="font-family:var(--font-num);font-size:19px;font-weight:700;color:var(--accent)">02</span>
+            </div>
+            <div style="width:2px;height:16px;background:#D1FAE5"></div>
+          </div>
+          <div class="flex flex-col items-center">
+            <div class="flex items-center justify-center rounded-full" style="width:56px;height:56px;background:#FFFFFF;border:2px solid var(--accent);box-shadow:0 0 0 6px rgba(5,150,105,0.08)">
+              <span style="font-family:var(--font-num);font-size:19px;font-weight:700;color:var(--accent)">03</span>
+            </div>
+            <div style="width:2px;height:16px;background:#D1FAE5"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kartu fase -->
+      <section class="grid grid-cols-3 gap-6 flex-1">
+
+        <div class="card relative flex flex-col overflow-hidden" style="padding:20px 22px">
+          <span data-decor aria-hidden="true" class="absolute" style="right:14px;bottom:2px;font-family:var(--font-num);font-size:58px;font-weight:700;color:var(--accent);opacity:0.08;line-height:1">01</span>
+          <span style="align-self:flex-start;font-family:var(--font-num);font-size:11px;font-weight:600;letter-spacing:0.16em;color:var(--accent);background:var(--accent-soft);border:1px solid #D1FAE5;border-radius:999px;padding:3px 10px">FASE 01</span>
+          <div style="font-family:var(--font-heading);font-size:19px;font-weight:800;color:var(--primary);margin-top:14px">Kapasitas koneksi</div>
+          <p style="font-size:14.5px;font-weight:600;color:var(--primary);line-height:1.55;margin-top:8px">PgBouncer transaction pooling + penandaan search_path per transaksi:</p>
+          <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-top:6px">melipatgandakan tenant aktif per node tanpa tambah server.</p>
+        </div>
+
+        <div class="card relative flex flex-col overflow-hidden" style="padding:20px 22px">
+          <span data-decor aria-hidden="true" class="absolute" style="right:14px;bottom:2px;font-family:var(--font-num);font-size:58px;font-weight:700;color:var(--accent);opacity:0.08;line-height:1">02</span>
+          <span style="align-self:flex-start;font-family:var(--font-num);font-size:11px;font-weight:600;letter-spacing:0.16em;color:var(--accent);background:var(--accent-soft);border:1px solid #D1FAE5;border-radius:999px;padding:3px 10px">FASE 02</span>
+          <div style="font-family:var(--font-heading);font-size:19px;font-weight:800;color:var(--primary);margin-top:14px">Sharding lintas node</div>
+          <p style="font-size:14.5px;font-weight:600;color:var(--primary);line-height:1.55;margin-top:8px">Registry mengarahkan tenant ke node database berbeda saat pertumbuhan melewati satu mesin:</p>
+          <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-top:6px">tambah node, bukan ganti sistem.</p>
+        </div>
+
+        <div class="card relative flex flex-col overflow-hidden" style="padding:20px 22px">
+          <span data-decor aria-hidden="true" class="absolute" style="right:14px;bottom:2px;font-family:var(--font-num);font-size:58px;font-weight:700;color:var(--accent);opacity:0.08;line-height:1">03</span>
+          <span style="align-self:flex-start;font-family:var(--font-num);font-size:11px;font-weight:600;letter-spacing:0.16em;color:var(--accent);background:var(--accent-soft);border:1px solid #D1FAE5;border-radius:999px;padding:3px 10px">FASE 03</span>
+          <div style="font-family:var(--font-heading);font-size:19px;font-weight:800;color:var(--primary);margin-top:14px">Observability &amp; laporan historis</div>
+          <p style="font-size:14.5px;font-weight:600;color:var(--primary);line-height:1.55;margin-top:8px">Materialized view rekap presensi + dasbor metrik:</p>
+          <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-top:6px">query historis kembali instan di tenant sangat besar.</p>
+        </div>
+
+      </section>
+
+      <!-- Strip titik ukur -->
+      <div class="accent-soft-strip flex items-center gap-3 flex-none" style="margin-top:20px;padding:13px 22px">
+        <i class="material-icons" style="color:var(--accent);font-size:22px">linear_scale</i>
+        <p style="font-size:14px;font-weight:500;color:var(--primary);line-height:1.5">Batas terukur arsitektur saat ini: <span style="font-family:var(--font-num);font-weight:700">±140</span> tenant aktif serentak per node — setiap fase menaikkan kapasitas tanpa mengubah kode aplikasi domain.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <aside data-notes class="hidden">
+• Urutan fase mengikuti biaya: yang paling murah dikerjakan lebih dulu.
+• Fase 01 — PgBouncer melipatgandakan tenant aktif per node tanpa membeli server baru.
+• Fase 02 — sharding: saat satu mesin tak cukup, tambah node, bukan ganti sistem.
+• Fase 03 — observability untuk tenant sangat besar: rekap historis kembali instan.
+• Batas arsitektur saat ini sudah terukur, ±140 tenant aktif per node; tiap fase tidak menyentuh kode aplikasi domain.
+  </aside>
+</body>
+</html>

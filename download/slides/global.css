@@ -1,0 +1,121 @@
+/* ============================================================
+   RekanKerja — DECK TEKNIS · design tokens
+   Sistem identik dengan deck manajemen (slate + emerald):
+   bg #F7F9FB · ink #0F172A · accent #059669 · dark #0B1220
+   Font: Plus Jakarta Sans (judul) · Inter (body) · IBM Plex Mono (angka)
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+
+:root {
+  /* palet */
+  --bg: #F7F9FB;
+  --surface: #FFFFFF;
+  --primary: #0F172A;
+  --muted: #5B6B82;
+  --line: #E2E8F0;
+  --accent: #059669;
+  --accent-2: #34D399;
+  --accent-soft: #ECFDF5;
+  --amber: #D97706;
+  --amber-soft: #FEF3C7;
+  --dark: #0B1220;
+  --dark-line: #1E293B;
+
+  /* tipografi — token saja (family + skala), tanpa kelas jadi */
+  --font-heading: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-num: 'IBM Plex Mono', monospace;
+
+  --fs-display: 50px;
+  --fs-h1: 34px;
+  --fs-h2: 22px;
+  --fs-h3: 17px;
+  --fs-body: 15px;
+  --fs-small: 13px;
+  --fs-micro: 11px;
+}
+
+/* kanvas slide */
+.slide {
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg);
+  color: var(--primary);
+  font-family: var(--font-body);
+}
+.slide-dark {
+  /* PENTING: warna solid saja — konverter pptx tidak menangani multi-layer
+     gradient shorthand (warna dasar ikut tertelan raster transparan).
+     Glow emerald dibawa div data-decor di dalam tiap slide HTML. */
+  background-color: #0B1220;
+  color: #F8FAFC;
+}
+
+/* permukaan */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.card-dark {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--dark-line);
+  border-radius: 14px;
+}
+.accent-soft-strip {
+  background: var(--accent-soft);
+  border: 1px solid #D1FAE5;
+  border-radius: 12px;
+}
+
+/* label kecil teracak */
+.kicker {
+  font-family: var(--font-num);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* kotak ikon */
+.ibox {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex: none;
+}
+.ibox-amber { background: var(--amber-soft); color: var(--amber); }
+
+/* frame screenshot produk dalam "browser" */
+.browser-shot {
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px -24px rgba(15, 23, 42, 0.38);
+  overflow: hidden;
+}
+.browser-bar {
+  height: 30px;
+  background: #F1F5F9;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  flex: none;
+}
+.dot { width: 9px; height: 9px; border-radius: 9999px; flex: none; }
+
+/* divider rambut */
+.hairline { border-top: 1px solid var(--line); }
+
+/* catatan pembicara — tersembunyi visual, dibaca konverter */
+.hidden { display: none; }

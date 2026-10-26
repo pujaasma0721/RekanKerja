@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>Slide 03 · Fondasi Teknologi — Satu Bahasa, Ujung ke Ujung</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="global.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #F7F9FB; overflow: hidden; }
+  .mono-strong { font-family: var(--font-num); font-weight: 600; color: var(--primary); }
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="relative h-full flex flex-col" style="padding:58px 72px 56px;">
+
+    <!-- judul -->
+    <div style="margin-bottom:24px;">
+      <div class="kicker">Pokok Bahasan 01</div>
+      <h1 style="font-family:var(--font-heading); font-weight:800; font-size:var(--fs-h1); letter-spacing:-0.01em; margin:10px 0 0; color:var(--primary);">
+        Satu Bahasa, Ujung ke Ujung
+      </h1>
+    </div>
+
+    <!-- grid 5 kartu stack -->
+    <div class="flex-1 grid" style="grid-template-columns:repeat(6, 1fr); grid-template-rows:1.12fr 0.88fr; gap:16px;">
+
+      <!-- baris atas · 3 kartu -->
+      <div class="card" style="grid-column:span 2; padding:22px 24px;">
+        <div class="ibox"><i class="material-icons" style="font-size:22px;">code</i></div>
+        <div style="font-family:var(--font-num); font-weight:600; font-size:16px; color:var(--primary); margin-top:16px;">Next.js 16 · App Router</div>
+        <div style="font-size:13.5px; line-height:1.55; color:var(--muted); margin-top:8px;">
+          Rendering server-side + API route dalam satu basis kode, update halaman tanpa deploy penuh.
+        </div>
+      </div>
+
+      <div class="card" style="grid-column:span 2; padding:22px 24px;">
+        <div class="ibox"><i class="material-icons" style="font-size:22px;">shield</i></div>
+        <div style="font-family:var(--font-num); font-weight:600; font-size:16px; color:var(--primary); margin-top:16px;">TypeScript 5 · strict</div>
+        <div style="font-size:13.5px; line-height:1.55; color:var(--muted); margin-top:8px;">
+          Kontrak tipe lintas <span class="mono-strong">200+</span> modul domain, bug tertangkap saat kompilasi.
+        </div>
+      </div>
+
+      <div class="card" style="grid-column:span 2; padding:22px 24px;">
+        <div class="ibox"><i class="material-icons" style="font-size:22px;">storage</i></div>
+        <div style="font-family:var(--font-num); font-weight:600; font-size:16px; color:var(--primary); margin-top:16px;">Prisma ORM</div>
+        <div style="font-size:13.5px; line-height:1.55; color:var(--muted); margin-top:8px;">
+          Semua query terparameter: injeksi SQL terserap sejak dasar.
+        </div>
+      </div>
+
+      <!-- baris bawah · 2 kartu lebar -->
+      <div class="card flex items-center" style="grid-column:span 3; padding:22px 26px; gap:20px;">
+        <div class="ibox"><i class="material-icons" style="font-size:22px;">database</i></div>
+        <div style="min-width:0;">
+          <div style="font-family:var(--font-num); font-weight:600; font-size:16px; color:var(--primary);">PostgreSQL 17</div>
+          <div style="font-size:13.5px; line-height:1.55; color:var(--muted); margin-top:6px;">
+            Transaksi ACID, isolasi schema per tenant, <span class="mono-strong">222</span> tabel domain per perusahaan.
+          </div>
+        </div>
+      </div>
+
+      <div class="card flex items-center" style="grid-column:span 3; padding:22px 26px; gap:20px;">
+        <div class="ibox"><i class="material-icons" style="font-size:22px;">palette</i></div>
+        <div style="min-width:0;">
+          <div style="font-family:var(--font-num); font-weight:600; font-size:16px; color:var(--primary);">Tailwind CSS 4</div>
+          <div style="font-size:13.5px; line-height:1.55; color:var(--muted); margin-top:6px;">
+            UI konsisten, responsif mobile–desktop.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- footer strip -->
+    <div class="accent-soft-strip flex items-center" style="margin-top:20px; padding:14px 22px; gap:12px;">
+      <i class="material-icons" style="font-size:20px; color:var(--accent);">terminal</i>
+      <div style="font-size:14.5px; font-weight:500; color:var(--primary); line-height:1.5;">
+        Dari layar sampai query database semuanya TypeScript — tidak ada lapisan jembatan yang rapuh antar bahasa.
+      </div>
+    </div>
+  </div>
+</div>
+
+<aside data-notes class="hidden">
+  <ul>
+    <li>Jelaskan alasan utama pemilihan stack: satu bahasa dari UI sampai query menghapus lapisan jembatan antar bahasa — titik kegagalan klasik di sistem enterprise.</li>
+    <li>Sorot maintainability jangka panjang: kontrak tipe TypeScript menangkap bug saat kompilasi, bukan saat produksi jalan.</li>
+    <li>Sebut konteks pasar kerja Indonesia: developer TypeScript dan PostgreSQL relatif mudah dicari — tidak terkunci pada talenta niche.</li>
+    <li>Angka 200+ modul dan 222 tabel akan muncul lagi di slide arsitektur — tanam konteksnya di sini supaya terasa nyambung.</li>
+  </ul>
+</aside>
+</body>
+</html>

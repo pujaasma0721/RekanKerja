@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RekanKerja — Keamanan Aplikasi Teruji</title>
+<link rel="stylesheet" href="global.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;width:1280px;height:720px;overflow:hidden;background:var(--bg);}
+  .kicker{color:#047857;}
+  .t-title{font-family:var(--font-heading);font-weight:800;font-size:34px;line-height:1.16;letter-spacing:-0.015em;color:var(--primary);margin:10px 0 0;}
+  .mono{font-family:var(--font-num);}
+  .nt{font-family:var(--font-num);font-weight:700;color:var(--primary);}
+  .n{font-family:var(--font-num);font-weight:600;color:var(--primary);}
+  .row-lead{width:400px;flex:none;font-weight:600;font-size:15px;line-height:1.35;color:var(--primary);}
+  .row-res{font-size:14.5px;line-height:1.4;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="slide" style="display:flex;flex-direction:column;padding:54px 60px 52px;">
+
+  <div style="flex:none;display:flex;align-items:flex-start;justify-content:space-between;gap:40px;">
+    <div>
+      <div class="kicker">POKOK BAHASAN 03 · BUKTI</div>
+      <h1 class="t-title" style="max-width:720px;"><span class="nt">40</span> dari <span class="nt">40</span> Uji Keamanan Aplikasi Lulus</h1>
+    </div>
+    <div style="text-align:right;flex:none;padding-top:2px;">
+      <div class="mono" style="font-size:60px;font-weight:700;line-height:1;color:var(--accent);">40<span style="color:#5B6B82;">/40</span></div>
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:10px;">
+        <i class="material-icons" style="font-size:15px;color:var(--accent);">verified</i>
+        <span class="mono" style="font-size:11px;font-weight:600;letter-spacing:.2em;color:var(--muted);">UJI KEAMANAN APLIKASI</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="flex:1;min-height:0;margin-top:22px;padding:6px 30px;display:flex;flex-direction:column;">
+
+    <div style="flex:1;display:flex;align-items:center;gap:14px;">
+      <i class="material-icons" style="font-size:21px;color:var(--accent);flex:none;">check_circle</i>
+      <div class="row-lead">Token palsu, dimanipulasi, kedaluwarsa</div>
+      <div style="flex:none;font-weight:700;font-size:15px;color:var(--accent);">→</div>
+      <div class="row-res">ditolak <span class="n">401</span> di semua gerbang</div>
+    </div>
+
+    <div style="flex:1;display:flex;align-items:center;gap:14px;border-top:1px solid var(--line);">
+      <i class="material-icons" style="font-size:21px;color:var(--accent);flex:none;">check_circle</i>
+      <div class="row-lead">Logout mencabut sesi</div>
+      <div style="flex:none;font-size:15px;color:#5B6B82;">—</div>
+      <div class="row-res">token lama tak bisa dipakai ulang</div>
+    </div>
+
+    <div style="flex:1;display:flex;align-items:center;gap:14px;border-top:1px solid var(--line);">
+      <i class="material-icons" style="font-size:21px;color:var(--accent);flex:none;">check_circle</i>
+      <div class="row-lead">Brute force <span class="n">31</span> percobaan</div>
+      <div style="flex:none;font-weight:700;font-size:15px;color:var(--accent);">→</div>
+      <div class="row-res">terkunci + HTTP <span class="n">429</span> dengan Retry-After</div>
+    </div>
+
+    <div style="flex:1;display:flex;align-items:center;gap:14px;border-top:1px solid var(--line);">
+      <i class="material-icons" style="font-size:21px;color:var(--accent);flex:none;">check_circle</i>
+      <div class="row-lead">Injeksi SQL</div>
+      <div style="flex:none;font-weight:700;font-size:15px;color:var(--accent);">→</div>
+      <div class="row-res">terserap parameterized query Prisma, <span class="n">0</span> tembus</div>
+    </div>
+
+    <div style="flex:1;display:flex;align-items:center;gap:14px;border-top:1px solid var(--line);">
+      <i class="material-icons" style="font-size:21px;color:var(--accent);flex:none;">check_circle</i>
+      <div class="row-lead"><span class="n">10</span> variasi manipulasi path URL</div>
+      <div style="flex:none;font-weight:700;font-size:15px;color:var(--accent);">→</div>
+      <div class="row-res"><span class="n">0</span> bypass middleware</div>
+    </div>
+
+    <div style="flex:1;display:flex;align-items:center;gap:14px;border-top:1px solid var(--line);">
+      <i class="material-icons" style="font-size:21px;color:var(--accent);flex:none;">check_circle</i>
+      <div class="row-lead">Mass-assignment</div>
+      <div style="flex:none;font-weight:700;font-size:15px;color:var(--accent);">→</div>
+      <div class="row-res">field sensitif tak bisa disuntik lewat body</div>
+    </div>
+
+    <div style="flex:1;display:flex;align-items:center;gap:14px;border-top:1px solid var(--line);">
+      <i class="material-icons" style="font-size:21px;color:var(--accent);flex:none;">check_circle</i>
+      <div class="row-lead">Cookie sesi HttpOnly + SameSite</div>
+      <div style="flex:none;font-size:15px;color:#5B6B82;">—</div>
+      <div class="row-res">tak terbaca JavaScript browser</div>
+    </div>
+
+  </div>
+
+  <div class="accent-soft-strip" style="flex:none;margin-top:20px;height:60px;display:flex;align-items:center;gap:12px;padding:0 22px;">
+    <i class="material-icons" style="font-size:21px;color:var(--accent);flex:none;">task_alt</i>
+    <p style="margin:0;font-size:14px;color:var(--primary);">Total <span class="n" style="color:#047857;font-weight:700;">66/66</span> uji otomatis lulus — <span class="n" style="color:#047857;">16</span> isolasi tenant, <span class="n" style="color:#047857;">40</span> keamanan aplikasi, <span class="n" style="color:#047857;">2</span> cache, <span class="n" style="color:#047857;">8</span> limit &amp; kuota.</p>
+  </div>
+
+</div>
+
+<aside data-notes class="hidden">
+  <ul>
+    <li>Tegaskan di awal: 40 dari 40 uji keamanan aplikasi lulus — dijalankan otomatis terhadap sistem yang berjalan, bukan audit manual yang scenarionya bisa dipilih-pilih.</li>
+    <li>Jelaskan bahwa gaya ujinya meniru OWASP top issues: manipulasi token, sesi, brute force, injeksi SQL, manipulasi path, mass-assignment, hingga flag cookie.</li>
+    <li>Angka favorit untuk diceritakan: brute force 31 percobaan langsung dikunci dengan HTTP 429 dan Retry-After; mass-assignment tidak bisa menyuntik field sensitif lewat body.</li>
+    <li>Sifat regresi: suite ini berjalan ulang setiap perubahan besar — keamanan dijaga terus-menerus, bukan hanya dicek sekali saat rilis.</li>
+    <li>Footer adalah angka gabungan: total 66/66 — 16 isolasi tenant, 40 keamanan aplikasi, 2 cache, 8 limit &amp; kuota.</li>
+  </ul>
+</aside>
+</body>
+</html>
