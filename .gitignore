@@ -86,3 +86,4 @@ vendor/jasper/cache/
 
 # Artefak audit laporan (screenshot bukti + eval script — lokal saja)
 .audit-tmp/
+tmp-*.mjs

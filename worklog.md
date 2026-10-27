@@ -8626,3 +8626,69 @@ Stage Summary:
 - INF-01 (split-brain routing domain publik) SATU-SATU sisa temuan — KRITIS-INFRA, akar masalah di platform DI LUAR container (DNS/proxy), wajib ditindaklanjuti pemilik platform; tidak bisa diperbaiki dari sini.
 - Artefak: audit/uat-hr-base-fix/ (8 screenshot). Skrip seed: scripts/seed-uat-hr-base-demo.ts (idempoten — aman di-rerun; tidak mengubah KPI karyawan 45/43).
 - Jebakan QA dicatat permanen: komentar JSX {/* */} tidak valid di posisi ekspresi atribut (pakai // ); console.log innerText terpengaruh CSS text-transform uppercase (regex "Rata-rata" gagal padahal "RATA-RATA" tampil); agent-browser eval konteks persisten antar-panggilan (deklarasi const duplikat → SyntaxError — pakai IIFE).
+
+---
+
+Task ID: UAT-HR-BASE-ENV
+Agent: general-purpose (pemulihan environment)
+Task: Pulihkan environment pasca-insiden tool-session + restore snapshot untuk UAT HR-base
+
+Work Log:
+- Diagnostik: .env ter-restore ke 1 baris SQLite-only (DATABASE_URL=file:…custom.db); PostgreSQL mini-service HIDUP (127.0.0.1:5432, max_connections=300) namun database onevity KOSONG TOTAL (0 tabel public, 0 schema tenant — initdb bersih 46MB); dev server next-16 jalan dengan env rusak → /api/health 503 (Prisma validation error: PLATFORM_DB_URL kosong); ada 4 instance watch-dev.sh duplikat sisa restore snapshot; kode aman di git (HEAD b84efee, working tree bersih; src/generated/platform & tenant ada).
+- Kill seluruh proses dev app (watch-dev.sh ×4 + bun run dev + bash next dev + next-server) → port 3000 bebas; mini-services long-lived (smtp-catcher/candidate-portal, bun --hot index.ts) dibiarkan hidup.
+- Tulis ulang .env lengkap (pola terbukti QA-PREPROD-FINAL): PLATFORM_DB_URL + TENANT_DB_URL + TENANT_DB_BASE_URL (postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity — path penuh /onevity, tanpa ?schema=) + TENANT_DB_CONNECTION_LIMIT=2 + SESSION_SECRET (64-hex acak baru — aman karena seluruh data reseed dari nol) + REKANKERJA_MAIN_HOSTS=localhost:3000 + REKANKERJA_BASE_DOMAINS=localhost + SCHEDULER=true.
+- `prisma db push --schema prisma/schema.prisma` (generate sudah ada) → tabel public."Tenant"/"User"/"UserTenant" dibuat (58ms).
+- `bun scripts/restore-demo.ts` — provision 3 tenant demo: MII (tenant_pt_mitra_industri_internasional; seed penuh 44 karyawan + payroll 3 run + presensi) + Cahaya Digital Nusantara + Sentra Logistik Prima (seed referensi); akun owner hrd@mii.co.id (OWNER MII + ADMIN Cahaya) / ayu@cahaya.id / bambang@sentra.co.id; migrasi internal restore-demo (approval-structure, relink foto, access-scope, user-menu-access, email-config 29 template × 3 tenant) sukses — kecuali password-security di dalamnya gagal 3F000 (search_path sesi, diketahui) → diulang manual sukses.
+- Migrasi idempoten manual (semua exit 0): migrate-password-security (lockout 5x/15m seed) · migrate-checklist-tables (0 tabel — DDL seed sudah paritas) · migrate-password-idle-timeout (kolom sudah ada) · migrate-tenant-schema-integrity (0) · migrate-task80-esign (0 tabel) · migrate-jkp (F-01: pegawai 0% + JKK 0,14%, 1 baris/tenant → cek jkpFixedOk terpenuhi) · migrate-p3-benchmark (MII: 4 JobFamily / 16 Job / 17 SkillCatalog — persis hasil QA-PREPROD-FINAL).
+- `bun scripts/qa/06-bigtenant-seed.ts` — tenant_bench_101 reseed: 222 tabel, 5.000 karyawan, 596.952 baris, 212MB dalam 17,2 dtk + registrasi platform slug bench101 (user42@bench101.test/Bench101! OWNER) + baris PayrollRegulation kanonik (fix QA-PREPROD-FINAL).
+- Restart dev server via watchdog double-fork `( setsid nohup bash scripts/watch-dev.sh > /tmp/watch-dev.log 2>&1 & )` → SATU instance bersih (watchdog 3217 → next-server 3237, port 3000).
+- Boot: auto-parity mendeteksi gap (CT-LAHIR-P, TER PMK 168/2023, F-07 3+3, PII plaintext) → pipeline parity in-process di background SELESAI exit 0 (839 baris log, 0 error); scheduler aktif (siklus pertama 4/4 tenant OK, 3 job, 13 notifikasi); field-crypto kunci vault 4 tenant termuat. Demo rekrutmen parity menambah 1 karyawan MII00045 (Siti Rahmawati, hire demo PR-2026-0008) → total MII 45 karyawan (44 seed + 1 demo rekrutmen).
+- VERIFIKASI AKHIR: /api/health 200 (db ok, checkMs 6) · GET / 200 (46ms) · login POST hrd@mii.co.id/onevity123 → 200 + cookie sesi + auto-pick workspace OWNER MII · /api/auth/me 200 · employees 200 (45 baris, PII terenkripsi & masking "31••••••••••06" — field-crypto hidup) · dashboard 200 (278ms) · payroll-runs 200 · PG 10/300 koneksi · dev.log 0 error.
+
+Stage Summary:
+- ENVIRONMENT PULIH PENUH untuk UAT HR-base: .env lengkap (PLATFORM_DB_URL/TENANT_DB_URL/TENANT_DB_BASE_URL path /onevity tanpa ?schema=, TENANT_DB_CONNECTION_LIMIT=2, SESSION_SECRET baru, REKANKERJA_MAIN_HOSTS/BASE_DOMAINS, SCHEDULER=true) · PG hidup max_connections=300, 10 koneksi aktif.
+- DATA: 4 schema tenant — MII 45 karyawan (44 seed + 1 demo rekrutmen parity MII00045) / 18 OrgUnit / 4 JobFamily / 16 Job / 17 Skill / 3 PayrollRun, Cahaya + Sentra (referensi), bench101 5.000 karyawan (597k baris); registry public 4 Tenant / 4 User / 5 UserTenant; DB 206MB.
+- DEV SERVER: sehat via 1 watchdog (health 200, RSS ~2,2GB baseline dev, 0 error log); parity runner self-healing bekerja sesuai desain pasca-reseed; scheduler aktif.
+- LOGIN SMOKE TEST LULUS: POST /api/auth/login hrd@mii.co.id/onevity123 → 200 (cookie rekankerja_session, workspace OWNER MII auto-pilih; password policy 90 hari, idle timeout 30 mnt aktif). Akun demo lain tersedia: ayu@cahaya.id/cahaya12345 · bambang@sentra.co.id/sentra12345 · user42@bench101.test/Bench101!.
+- Catatan: nama schema Sentra aktual = tenant_sentra_logistik_prima (brief menulis …_perkasa); LOGIN page path bukan /login (root / yang merender UI auth) — tidak berdampak pada recovery.
+
+---
+Task ID: UAT-HR-BASE-1
+Agent: general-purpose (UAT browser bagian 1)
+Task: UAT HR Base — Autentikasi + Perusahaan + Company + Org Unit (user HR kritis, tanpa ubah kode)
+
+Work Log:
+- Setup: folder bukti audit/uat-hr-base; warm-up curl (health 200, root 200); agent-browser open → netralkan SW + prompt PWA (localStorage pwa-dismissed) + set rekankerja:lang=id → reload; UI penuh bahasa Indonesia.
+- A AUTENTIKASI: A1 login render (judul "RekanKerja — Human Resource Base", form MASUK, hero; dialog PWA tetap muncul sekali di sesi awal → klik "Nanti") — 01-login-page.png. A2 password salah → alert "Email atau kata sandi salah (sisa 4 percobaan sebelum akun terkunci)" (lockout counter hidup, tidak crash) — 02. A3 login benar → workspace OWNER MII "PT Mitra Industri Internasional · TRIAL", user Tri Handayani, dashboard 43 karyawan aktif/18 unit/2 approval — 03. A4 sesi = cookie httpOnly rekankerja_session (SameSite=lax, 7 hari; diverifikasi via header curl) — localStorage hanya preferensi.
+- B NAVIGASI: sidebar rail 9 modul + submenu HR Base lengkap (4 grup + dashboard/pengajuan/dokumen/komunikasi/laporan) — 04-sidebar-hr.png; dashboard HR render.
+- C PERUSAHAAN: C1 FAIL — halaman render tapi data kosong total (nama kosong, Karyawan=0/Unit=0/Posisi=0, semua info "—") padahal API /companies 200 (45 karyawan, 18 unit) dan DB punya alamat/telp/email/website/NPWP lengkap — 05. C2 FAIL (regresi edit company MASIH ADA): dialog edit terbuka KOSONG semua field; Simpan → toast "id company wajib" (400) — 06/07-company-save-failed.png. Isolasi: PATCH via fetch + id manual → 200 sukses (phone DB terubah) → bug 100% frontend. C3 FAIL — tidak ada validasi field wajib; nama dikosongkan → error generik teknis sama (bukan 500). C4: kode perusahaan READ-ONLY (tidak ada field kode di dialog; PATCH API tidak menerima code).
+- Root cause C (dibaca dari kode, tidak diubah): commit a90147e (multi-company switcher) mengubah GET companies → {companies[],activeId,multi} dan PATCH → wajib id by-id; CompanyProfile (org-module.tsx) masih baca data.company + tidak kirim id → halaman kosong + edit gagal.
+- D ORG UNIT: D1 PASS — tree 18 unit/4 level (CEO Office→6 divisi→sub-unit), badge karyawan per node, panel detail + okupasi vs budget — 08. D2 PASS — buat UAT-TEST-1 "Unit Uji Coba UAT" parent IT budget 5 → muncul (19 unit) + toast — 09/10. D3 FAIL-UI/PASS-API — TIDAK ADA dialog/tombol edit unit di UI (hanya Buat+Hapus); via API PATCH name→"v2" budget→7 tersimpan & bertahan setelah reload — 11-org-edit.png. D4 FAIL — kode unit TIDAK bisa diedit: UI tak ada edit; API PATCH silent-ignore field code (200 OK, kode tetap) — 12. D5 PASS — hapus dengan konfirmasi → hilang, kembali 18 unit — 13. D6 PASS — CEO Office (2 anak+2 karyawan): tombol Hapus disembunyikan UI (tanpa penjelasan); API DELETE → 400 "Unit memiliki sub-unit — hapus/pindahkan sub-unit terlebih dahulu" (bukan 500) — 14. D7 — Peta Organisasi (mode Orang/Unit, pan+zoom, buka/tutup semua cabang, filter level, export PNG 2×) + Kantor & Lokasi Kerja + expand/collapse tree — 15; tidak ada drag-drop reorder.
+- E HYGIENE: console 0 error / agent-browser errors kosong (hanya warning a11y Radix DialogContent + log HMR dev + 1x transient TypeError Failed-to-fetch dari konteks eval saat HMR rebuild — bukan error aplikasi). Browser ditutup rapi. 16 screenshot di audit/uat-hr-base/ + LAPORAN-UAT-HR-BASE-1.md.
+- Data UAT: phone company MII kini "(021) 555-0100" (via PATCH API langsung, sebagai bukti API sehat); unit uji dibuat→rename→hapus (tree bersih 18 unit).
+
+Stage Summary:
+- 12/18 skenario PASS; 4 FAIL (C1,C2,C3,D3-UI,D4) + 2 temuan besar semuanya di modul Perusahaan/edit-unit: F-01 KRITIS edit company gagal ("id company wajib" — frontend tidak kirim id; regresi multi-company switcher a90147e); F-02 MAJOR halaman Perusahaan tampil data kosong/nol (shape mismatch data.company vs companies[]) + form edit terbuka kosong (bahaya timpa data kosong jika F-01 di-fix sendirian); F-03 MAJOR tidak ada UI edit unit; F-04 MAJOR kode unit tidak bisa diubah (API diam-diam ignore) — fitur yang pernah diminta user, status: BELUM ada.
+- Yang sehat: auth (lockout informatif, sesi httpOnly), tree organisasi (18 unit 4 level), create+delete unit (dengan guard 400 jelas di API), Peta Organisasi kaya fitur, console 0 error.
+- Rekomendasi next: fix CompanyProfile (baca companies[activeId] / shape baru + kirim id di PATCH + prefill form dari data GET diperkaya field profil), tambah dialog edit unit (pakai PATCH API yang sudah ada), keputusan produk untuk edit-ability kode unit.
+
+---
+Task ID: UAT-HR-BASE-2
+Agent: general-purpose ×2 (browser 2b/2c, terputus oleh batas turn) + orkestrator (penyelesaian manual, verifikasi silang DB/VLM, cleanup, laporan)
+Task: UAT HR Base — Karyawan (Direktori/CRUD/Onboarding) + Posisi & Jabatan + Offboarding + pembersihan data uji
+
+Work Log:
+- SEGMEN 2b (agent): direktori render 45 (16) · search instan (17) · filter chip (18) · detail sheet + tab (19,20) · wizard onboarding 4 langkah + draft autosave (21) · create sukses MII00046 auto-number (22) · edit persist "Uji Coba UAT v2" (23,24, ActivityLog Updated×4) · duplikat NIK DITERIMA (25 — VLM: "Onboarding selesai") · form required marker (26) — sesi putus di batas turn 200.
+- SEGMEN 2c (agent): posisi list (27) · create "Staf Uji Coba UAT (P-UAT1)" (28,29) · edit persist v2 (30) · katalog jabatan 16 job (31) · grade G1-G8 (32) · validasi posisi (33) · cleanup posisi via UI — ActivityLog Created/Updated/Deleted · BONUS alur offboarding E2E utk MII00046: buat (10 tugas clearance + email 6 bagian) → Completed → PA-2026-0010 Resignation Processed → settlement PKWT Rp 6.375.000 (0,75 bln × 8,5 jt — PP 35/2021 Ps.15-17 EKSAK) + PayrollRun PR-2026-09-TER-01 Draft (35) — sesi putus lagi.
+- ORKESTRATOR (penyelesaian): MII00047 belum ter-cleanup → browser sisa dipakai live: detail dibuka, "Edit Data" TIDAK punya field status (hanya personal+PKWT) → konfirmasi F-17 (deaktivasi hanya via Offboarding); wizard onboarding diuji ulang: submit dgn nama kosong DIBLOKIR "Nama lengkap wajib diisi" + auto-jump ke langkah salah (26b) → B5 PASS + F-14 (bisa pindah langkah dgn field wajib kosong).
+- VERIFIKASI SILANG DB: MII00046 & MII00047 keduanya nationalId terdekripsi = 3271010101990001 (tenantCrypto) → F-13 KRITIS duplikat NIK diterima; kode employees.ts POST diverifikasi TANPA cek keunikan NIK; createOffboardingWithTasks TANPA guard duplikat → MII00046 punya 2 Offboarding (Completed + Open) → F-16.
+- Cek gaji OWNER: profil Hartono MII00001 tab Pekerjaan → GAJI POKOK "—" padahal rentang grade Rp 50-80 jt tampil (vault terkunci tanpa hint inline) → F-15; NIK/NPWP masking benar.
+- CLEANUP BEDAH DB: OffboardingTask 20 · Offboarding 2 · EmployeeComponentAssignment 1 · PayrollRun TER-01 (Draft, 0 line) 1 · PersonnelAction PA-2026-0010 1 · OnboardingTask 16 · Onboarding 2 · EmployeeAssignment 2 · Employee 2 (MII00046+47) · ActivityLog 29 · EmailLog 19 → direktori kembali 45 karyawan (UI "45 karyawan terdaftar", residue check CLEAN); nomor otomatis kembali MII00046 (MAX+1).
+- HYGIENE: console 0 error (hanya F-08 warning a11y Radix + HMR/PWA dev log); browser ditutup rapi.
+- LAPORAN lengkap: audit/uat-hr-base/LAPORAN-UAT-HR-BASE-2.md + 21 screenshot (16-35 + 26b).
+
+Stage Summary:
+- 20/23 skenario PASS (A4 sort tidak terverifikasi — sesi putus); FAIL hanya B4 duplikat NIK.
+- TEMUAN BARU: F-13 KRITIS (duplikat NIK diterima — tanpa validasi API/DB, NIK terenkripsi butuh blind-index) · F-14 MINOR (wizard onboarding bisa pindah langkah dgn field wajib kosong — validasi baru di Review) · F-15 MINOR (GAJI POKOK "—" utk OWNER tanpa penjelasan vault) · F-16 MINOR (hook PA exit buat Offboarding kedua tanpa guard) · F-17 INFO (tak ada nonaktifkan cepat — wajib lewat Offboarding penuh).
+- Kekuatan terverifikasi: wizard onboarding + draft autosave + auto-number; edit persist; perhitungan settlement PKWT EKSAK; PII masking; console bersih.
+- Data demo dipulihkan penuh: 45 karyawan, 18 unit, tanpa residu uji.
