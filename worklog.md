@@ -8569,3 +8569,20 @@ Work Log:
 Stage Summary:
 - Fitur live: dialog Edit Unit kini memperingatkan DAMPAK perubahan kode secara real-time — daftar dokumen PA pending yang akan gagal diproses (dengan nomor dokumen + nama karyawan + jenis), status aman bila tidak ada, plus advisory unduh ulang template import. Komit 74b83c5.
 - Catatan arsitektur: analisis memakai kode LAMA unit (bukan kode baru); dokumen yang menyimpan orgUnitId/toUnitId valid selalu dianggap aman (tidak muncul di peringatan).
+
+---
+Task ID: QA-ORG-CODE-IMPACT (verifikasi ulang)
+Agent: main (Z.ai Code)
+Task: User: "ya tambahkan" — konfirmasi fitur notifikasi dampak perubahan kode unit. Implementasi sudah selesai sesi sebelumnya (komit 74b83c5) tetapi context terputus sebelum laporan sampai ke user; sesi ini memverifikasi ulang end-to-end bahwa fitur hidup.
+
+Work Log:
+- Cek worklog + git: komit 74b83c5 (fitur) + 1ebb36a (worklog) sudah ada — backend GET ?impactCode (org-units.ts line 14-41) + frontend EditUnitDialog (org-module.tsx line 270-394) + lint 0 error terkonfirmasi utuh.
+- Seed dummy ke DB MII via mini-services/postgres (tabel "PersonnelAction", camelCase quoted): PA-A legacy (detailJson hanya toUnit=MII-ITD, Prepared) + PA-B (toUnit + orgUnitId id-unit-IT, Submitted) → API GET ?impactCode=MII-ITD via curl+session: {count:1, documents:[PA-A]} — PA-B benar ter-exclude (referensi id valid).
+- E2E agent-browser (sesi impact, 1 sesi saja untuk RAM): login hrd@mii.co.id → Unit Organisasi → klik Information Technology → Edit Unit (klik via eval JS — header sticky masih menutup tombol) → ganti kode MII-ITD→MII-TECH → alert amber muncul: judul "Kode unit akan berubah — periksa dampaknya", isi "1 dokumen pengajuan belum diproses dan hanya menyimpan kode MII-ITD — dokumen ini akan gagal diproses setelah kode diganti ke MII-TECH", daftar "• PA/TEST/IMPACT2/A — Dedi Mahendra (Transfer)", advisory "File impor Excel yang sudah disiapkan memakai kode lama akan ditolak — unduh ulang template setelah menyimpan". Network: GET impactCode=MII-ITD 200.
+- CATATAN SNAPSHOT: accessibility snapshot agent-browser tidak menampilkan teks alert ini (role=alert mungkin tidak ter-emit sebagai node) — verifikasi DOM harus via eval innerText dialog; jangan menilai fitur gagal hanya dari snapshot a11y.
+- Kembalikan kode ke MII-ITD → alert hilang (GONE-OK). Batal → buka ulang Edit Unit → prefill tetap MII-ITD (tidak ada perubahan tersimpan).
+- Cleanup: 2 dummy PA dihapus dari DB (DELETED: 2), unit tetap MII-ITD, browser ditutup, browser errors kosong, dev.log bersih.
+
+Stage Summary:
+- Fitur notifikasi dampak perubahan kode unit TERVERIFIKASI HIDUP kembali pasca context-switch: dialog Edit Unit memperingatkan dokumen PA pending yang hanya menyimpan kode lama (dengan docNo + karyawan + jenis), plus advisory template Excel; dokumen ber-referensi id tidak diperingatkan.
+- Artefak: audit/qa-org-edit/08-verify-impact-alert.png (komit be0915c). Data demo utuh (tidak ada perubahan unit).
