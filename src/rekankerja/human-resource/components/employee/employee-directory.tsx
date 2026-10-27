@@ -218,7 +218,8 @@ export function EmployeeDirectory() {
         title={t("Direktori Karyawan")}
         description={stats ? t("{n} karyawan terdaftar · posisi, grade, dan rekap upah", "{n} employees registered · positions, grades & payroll recap", { n: stats.total }) : t("Pusat data seluruh karyawan.", "The central directory of all employees.")}
         actions={
-          <div className="flex items-center gap-2">
+          // UAT-HR-BASE MAY-01 — flex-wrap agar baris aksi Onboarding/Import/Export membungkus di viewport mobile (390px)
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {/* toggle tampilan — segmented kecil */}
             <div className="flex h-9 items-center gap-0.5 rounded-lg bg-slate-100/90 p-0.5 dark:bg-slate-800/70" role="group" aria-label={t("Mode tampilan", "View mode")}>
               <button onClick={() => setView("grid")} aria-pressed={view === "grid"} title={t("Tampilan kartu", "Card view")}
@@ -250,7 +251,7 @@ export function EmployeeDirectory() {
         <div
           role="tablist"
           aria-label={t("Filter status karyawan", "Employee status filter")}
-          className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl bg-slate-100/90 p-1 [scrollbar-width:none] dark:bg-slate-800/70 [&::-webkit-scrollbar]:hidden"
+          className="flex max-w-full min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-xl bg-slate-100/90 p-1 [scrollbar-width:none] dark:bg-slate-800/70 [&::-webkit-scrollbar]:hidden"
         >
           {tabs.map((tb) => (
             <button

@@ -36,6 +36,8 @@ const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280;
 const pick = <T,>(arr: T[]): T => arr[Math.floor(rnd() * arr.length)];
 const randInt = (min: number, max: number) => Math.floor(rnd() * (max - min + 1)) + min;
 const pad = (n: number, len = 5) => String(n).padStart(len, "0");
+// UAT-HR-BASE MIN-06 — helper geser tanggal (dipakai mkPA + activity log PA)
+const plusDays = (base: Date, n: number) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + n);
 
 const RELIGIONS = ["Islam", "Kristen Protestan", "Katolik", "Hindu", "Buddha"];
 const MARITAL = ["Belum Menikah", "Menikah", "Cerai", "Janda/Duda"];
@@ -1154,16 +1156,23 @@ async function main() {
   // ============ PERSONNEL ACTIONS ============
   let paNo = 1;
   const mkPA = async (employeeId: string, type: string, status: string, reason: string, detail: Record<string, unknown> = {}, layerPlan: { role: string; userId?: string; st?: string }[] = [{ role: "HR Manager", userId: admin.id }]) => {
+    // UAT-HR-BASE MIN-06 — timeline KOHEREN (dulu tiap tanggal diacak terpisah
+    // sehingga submittedAt bisa mendahului createdAt): created → submit (+1-10 hr)
+    // → efektif (+10-40 hr setelah submit) → proses (+2-10 hr setelah efektif).
+    const created = new Date(2026, randInt(0, 5), randInt(1, 28));
+    const submitted = status !== "Prepared" ? plusDays(created, randInt(1, 10)) : null;
+    const effective = plusDays(submitted ?? created, randInt(10, 40));
+    const processed = status === "Processed" ? plusDays(effective, randInt(2, 10)) : null;
     const pa = await db.personnelAction.create({
       data: {
         docNo: `PA-2026-${pad(paNo++, 4)}`,
         employeeId, type, status, reason,
-        effectiveDate: new Date(2026, randInt(0, 11), randInt(1, 28)),
+        effectiveDate: effective,
         detailJson: JSON.stringify(detail),
         createdBy: admin.username,
-        createdAt: new Date(2026, randInt(0, 7), randInt(1, 28)),
-        submittedAt: status !== "Prepared" ? new Date(2026, randInt(0, 7), randInt(1, 28)) : null,
-        processedAt: status === "Processed" ? new Date(2026, randInt(0, 7), randInt(1, 28)) : null,
+        createdAt: created,
+        submittedAt: submitted,
+        processedAt: processed,
       },
     });
     for (let i = 0; i < layerPlan.length; i++) {
@@ -1179,7 +1188,8 @@ async function main() {
           personnelActionId: pa.id, layerNo: i + 1, approverRole: lp.role,
           approverId: lp.userId ?? admin.id, status: st,
           note: st === "Approved" ? "Setuju, lanjutkan." : st === "Rejected" ? "Perlu revisi data." : null,
-          decidedAt: st !== "Pending" ? new Date(2026, randInt(0, 7), randInt(1, 28)) : null,
+          // decidedAt berjenjang setelah submit (bukan tanggal acak lepas)
+          decidedAt: st !== "Pending" ? plusDays(submitted ?? created, randInt(1, 5) + i * 2) : null,
         },
       });
     }
@@ -1194,6 +1204,8 @@ async function main() {
         action: status === "Prepared" ? "Created" : status === "Submitted" ? "Submitted" : status === "Rejected" ? "Rejected" : status === "Processed" ? "Processed" : "Approved",
         entity: "PersonnelAction", entityId: pa.id,
         detail: `${type} — ${status}`,
+        // log ikut tanggal milestone PA (dulu default now() → "Submitted 26 Okt 2026" vs PA Apr)
+        createdAt: status === "Prepared" ? created : status === "Submitted" ? (submitted ?? created) : status === "Processed" ? (processed ?? effective) : effective,
       },
     });
     return pa;
@@ -1208,7 +1220,7 @@ async function main() {
   // salary adjustment (Approved)
   await mkPA(empIds[7], "SalaryAdjustment", "Approved", "Adjustment tahunan CPI 2026", { oldSalary: 6800000, newSalary: 7500000, percent: 10.3 });
   // transfer (Processed)
-  await mkPA(empIds[9], "Transfer", "Processed", "Rotasi ke QA untuk pengembangan karir", { fromUnit: "PRD-ASSY", toUnit: "QAD" }, [
+  const paTransfer = await mkPA(empIds[9], "Transfer", "Processed", "Rotasi ke QA untuk pengembangan karir", { fromUnit: "PRD-ASSY", toUnit: "QAD" }, [
     { role: "Dept Head", userId: mgrPrd.id, st: "Approved" }, { role: "HR Manager", userId: admin.id, st: "Approved" },
   ]);
   // resignation (Rejected)
@@ -1230,7 +1242,8 @@ async function main() {
   await db.activityLog.createMany({
     data: [
       { appUserId: admin.id, action: "Updated", entity: "Employee", entityId: empIds[3], detail: "Perbarui data kontak darurat" },
-      { appUserId: dirHrd.id, action: "Approved", entity: "PersonnelAction", entityId: "", detail: "PA-2026-0004 Transfer disetujui" },
+      // UAT-HR-BASE MIN-06 — log PA ter-link (dulu entityId kosong + tanggal now() → jejak "26 Okt" vs dokumen Apr)
+      { appUserId: dirHrd.id, action: "Approved", entity: "PersonnelAction", entityId: paTransfer.id, personnelActionId: paTransfer.id, detail: "PA-2026-0004 Transfer disetujui", createdAt: plusDays(paTransfer.submittedAt ?? paTransfer.createdAt, 4) },
       { appUserId: mgrPrd.id, action: "Created", entity: "Employee", entityId: empIds[25], detail: "Onboarding operator baru" },
       { appUserId: admin.id, action: "Created", entity: "OrgUnit", entityId: subUnits["MKT-DIG"], detail: "Unit Digital Marketing dibuat" },
       { appUserId: mgrFin.id, action: "Updated", entity: "WageComponent", entityId: "WC-003", detail: "Tunjangan transport naik ke 750.000" },

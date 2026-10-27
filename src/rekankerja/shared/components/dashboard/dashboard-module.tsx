@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import {
   Users, UserCheck, Network, BriefcaseBusiness, TrendingUp, Wallet, ArrowUpRight, ArrowRight,
-  CheckCircle2, Clock, FileText, Sparkles, Award,
+  CheckCircle2, Clock, FileText, Sparkles, Award, Lock,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n, loc, locActivity } from "@/rekankerja/shared/lib/i18n";
@@ -22,6 +22,8 @@ interface DashData {
   totalEmployees: number; activeEmployees: number; pendingActions: number;
   orgUnits: number; positions: number; newHiresThisYear: number; exitsYTD: number;
   avgSalary: number;
+  /** UAT-HR-BASE MIN-01 — false saat vault uang terkunci (avgSalary dimasking jadi 0). */
+  salaryVisible?: boolean;
   recentActions: { id: string; docNo: string; type: string; status: string; effectiveDate: string; employee: { fullName: string; employeeNo: string } }[];
   activities: { id: string; action: string; entity: string; detail: string | null; createdAt: string; appUser: { fullName: string; role: string } | null; employee: { fullName: string } | null }[];
   genderSplit: { gender: string; count: number }[];
@@ -53,11 +55,21 @@ export function DashboardModule() {
 
   const growth = data.newHiresThisYear - data.exitsYTD;
 
+  // UAT-HR-BASE MIN-01 — saat vault terkunci, tampilkan indikator "Terkunci"
+  // (bukan "Rp 0" yang tampak seperti data rusak/gaji nol).
+  const salaryLocked = data.salaryVisible === false;
+
   const kpis = [
     { label: t("Total Karyawan Aktif", "Total Active Employees"), value: data.activeEmployees.toLocaleString(locale), sub: t("{n} tidak aktif", "{n} inactive", { n: data.totalEmployees - data.activeEmployees }), icon: Users, hero: true, trend: t("+{n} hiring YTD", "+{n} hires YTD", { n: data.newHiresThisYear }) },
     { label: t("Approval Menunggu", "Pending Approvals"), value: data.pendingActions.toLocaleString(locale), sub: t("Pengajuan karyawan", "Employee requests"), icon: Clock, trend: t("Butuh keputusan", "Needs a decision") },
     { label: t("Unit Organisasi"), value: String(data.orgUnits), sub: t("{n} posisi terdefinisi", "{n} positions defined", { n: data.positions }), icon: Network, trend: t("Struktur hidup", "Active structure") },
-    { label: t("Rata-rata Gaji Pokok", "Average Base Salary"), value: fmtIDRShort(data.avgSalary), sub: t("Karyawan aktif", "Active employees"), icon: Wallet, trend: "Grade G1–G8" },
+    {
+      label: t("Rata-rata Gaji Pokok", "Average Base Salary"),
+      value: salaryLocked ? t("Terkunci", "Locked") : fmtIDRShort(data.avgSalary),
+      sub: salaryLocked ? t("Brankas uang perusahaan terkunci", "Company money vault is locked") : t("Karyawan aktif", "Active employees"),
+      icon: salaryLocked ? Lock : Wallet,
+      trend: salaryLocked ? t("Buka brankas uang untuk melihat", "Unlock the money vault to view") : "Grade G1–G8",
+    },
   ];
 
   // REC-AUDIT-FIX L7 — agregasi gender ROBUST: kolom Employee.gender memuat

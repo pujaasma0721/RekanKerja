@@ -86,6 +86,9 @@ export async function GET(req: NextRequest) {
     const avgSalary = cur.length > 0 ? Math.round(salarySum / cur.length) : 0;
     // 45-b: vault uang masked → avgSalary disembunyikan (0; shape tetap angka).
     const avgSalaryOut = mv.canSee ? avgSalary : 0;
+    // UAT-HR-BASE MIN-01 — sertakan status visibilitas agar UI bisa menampilkan
+    // indikator "Terkunci" alih-alih "Rp 0" yang menyesatkan saat vault terkunci.
+    const salaryVisible = mv.canSee;
 
     // headcount per division (top org units level 3)
     const divisions = await db.orgUnit.findMany({
@@ -140,6 +143,7 @@ export async function GET(req: NextRequest) {
       newHiresThisYear,
       exitsYTD,
       avgSalary: avgSalaryOut,
+      salaryVisible,
       recentActions: actions,
       activities,
       genderSplit: genderAgg.map((g) => ({ gender: g.gender, count: g._count })),

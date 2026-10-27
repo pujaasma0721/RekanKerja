@@ -16,6 +16,7 @@ import { AccentSwitcher } from "@/rekankerja/shared/components/shell/accent-swit
 import { NotificationBell } from "@/rekankerja/shared/components/shell/notification-bell";
 import { MoneyVaultButton } from "@/rekankerja/shared/components/shell/money-vault";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { trFor } from "@/rekankerja/shared/lib/i18n-core";
 import { useAccentTheme, applyAccentTheme, ACCENT_THEMES } from "@/rekankerja/shared/lib/accent-theme";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -28,7 +29,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList, Command } from "@/components/ui/command";
+import { CommandInput, CommandGroup, CommandItem, CommandList, Command } from "@/components/ui/command";
 import {
   LayoutDashboard, Users, Workflow, Settings2, Check, ChevronDown, UserRound,
   Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator, Building2,
@@ -1459,6 +1460,20 @@ function CommandPalette({ open, setOpen, onNavigate, module, menuAllowed }: {
     return groups.flatMap((g) => g.children.filter((c) => menuAllowed(g.section, c.id)).map((c) => ({ g, c })));
   }, [module, menuAllowed]);
 
+  // UAT-HR-BASE MIN-03 — section Navigasi ikut terfilter mengikuti query
+  // (dulu: semua menu selalu tampil apa pun yang diketik). Pencocokan dilakukan
+  // atas label KEDUA bahasa (trFor id/en) + label grup, case-insensitive.
+  const navItems = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter(({ g, c }) =>
+      `${trFor("id", c.label)} ${trFor("en", c.label)} ${g.label ?? ""} ${c.id}`.toLowerCase().includes(query),
+    );
+  }, [items, q]);
+
+  const employeesFound = (results.data?.employees?.length ?? 0) > 0;
+  const noResults = q.trim().length > 0 && navItems.length === 0 && !employeesFound && !(q.length >= 2 && results.loading);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="top-[15%] translate-y-0 gap-0 overflow-hidden p-0 shadow-2xl" aria-describedby={undefined}>
@@ -1475,22 +1490,27 @@ function CommandPalette({ open, setOpen, onNavigate, module, menuAllowed }: {
             <kbd className="rounded border border-slate-200 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 dark:border-slate-700">ESC</kbd>
           </div>
           <CommandList className="max-h-[420px] overflow-y-auto p-2">
-            <CommandGroup heading={`${t("Navigasi")} · ${MODULE_LABEL[module]}`}>
-              {items.map(({ g, c }) => {
-                const Icon = c.icon;
-                const groupLabel = g.label ? t(g.label) : t("Beranda");
-                return (
-                  <CommandItem key={`${g.section}-${c.id}`} value={`${g.label ?? "Beranda"} ${c.label}`} onSelect={() => runNav(g.section, c.id)} className="gap-3 rounded-lg px-3 py-2.5 text-[13px]">
-                    <Icon className="h-4 w-4 text-slate-400" />
-                    <span>{t(c.label)}</span>
-                    <span className="ml-auto text-[10px] uppercase tracking-wider text-slate-300 dark:text-slate-600">{groupLabel}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-            {q.length >= 2 && (
+            {/* UAT-HR-BASE MIN-03 — empty state deterministik (tidak bergantung mekanika internal cmdk) */}
+            {noResults && (
+              <p className="px-3 py-6 text-center text-xs text-slate-400">{t("Tidak ditemukan", "No results found")}</p>
+            )}
+            {navItems.length > 0 && (
+              <CommandGroup heading={`${t("Navigasi")} · ${MODULE_LABEL[module]}`}>
+                {navItems.map(({ g, c }) => {
+                  const Icon = c.icon;
+                  const groupLabel = g.label ? t(g.label) : t("Beranda");
+                  return (
+                    <CommandItem key={`${g.section}-${c.id}`} value={`${g.label ?? "Beranda"} ${c.label}`} onSelect={() => runNav(g.section, c.id)} className="gap-3 rounded-lg px-3 py-2.5 text-[13px]">
+                      <Icon className="h-4 w-4 text-slate-400" />
+                      <span>{t(c.label)}</span>
+                      <span className="ml-auto text-[10px] uppercase tracking-wider text-slate-300 dark:text-slate-600">{groupLabel}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
+            {q.length >= 2 && (results.loading || employeesFound) && (
               <CommandGroup heading={t("Karyawan")}>
-                <CommandEmpty className="py-6 text-center text-xs text-slate-400">{t("Tidak ditemukan", "No results found")}</CommandEmpty>
                 {results.loading && <p className="px-3 py-4 text-xs text-slate-400">{t("Mencari…")}</p>}
                 {results.data?.employees?.map((e) => (
                   <CommandItem key={e.id} value={e.employeeNo + e.fullName} onSelect={() => { setOpen(false); setQ(""); useNav.getState().navigate("employee", "detail", { id: e.id }); }} className="gap-3 rounded-lg px-3 py-2.5 text-[13px]">

@@ -195,7 +195,14 @@ export const tenure = (joinDate: string | Date | null | undefined) => {
   return rem ? `${years} thn ${rem} bln` : `${years} tahun`;
 };
 
-export const genderLabel = (g: string) => (getLang() === "en" ? (g === "F" ? "Female" : "Male") : g === "F" ? "Perempuan" : "Laki-laki");
+// UAT-HR-BASE MIN-05 — normalisasi gender konsisten di seluruh UI: data lama memuat
+// konvensi campuran M/F dan L/P; F/P → perempuan, M/L → laki-laki, sisanya "Tidak diisi".
+export const genderLabel = (g: string) => {
+  const v = (g ?? "").trim().toUpperCase();
+  if (v === "F" || v === "P") return getLang() === "en" ? "Female" : "Perempuan";
+  if (v === "M" || v === "L") return getLang() === "en" ? "Male" : "Laki-laki";
+  return getLang() === "en" ? "Unspecified" : "Tidak diisi";
+};
 
 // PA type label (safe import for modules without ui-kit)
 export const paTypeLabelSafe = (t: string): string => {

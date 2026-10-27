@@ -334,11 +334,18 @@ export function LetterTemplatesView() {
       <PageHeader
         eyebrow={t("Dokumen & Surat")}
         title={t("Template Surat", "Letter Templates")}
-        description={t(
-          "{total} template surat siap cetak — {d} disipliner · {p} personnel action · {s} surat layanan karyawan · {r} rekrutmen. Sesuaikan isi template dengan format surat perusahaan Anda.",
-          "{total} print-ready letter templates — {d} disciplinary · {p} personnel action · {s} employee service · {r} recruitment. Customize the templates to your company's letter format.",
-          { total: templates.length, d: disciplinary.length, p: personnel.length, s: service.length, r: recruitment.length },
-        )}
+        description={
+          // UAT-HR-BASE (catatan opsional) — hindari flash "0 template" selama
+          // data dimuat (async 2-3 dtk pertama).
+          loading && templates.length === 0
+            ? t("Memuat katalog template…", "Loading the template catalog…")
+            : t(
+          // UAT-HR-BASE MIN-04 — kategori kinerja (performance) ikut dicantumkan agar jumlah rincian = total katalog
+          "{total} template surat siap cetak — {d} disipliner · {p} personnel action · {s} surat layanan karyawan · {r} rekrutmen · {f} kinerja. Sesuaikan isi template dengan format surat perusahaan Anda.",
+          "{total} print-ready letter templates — {d} disciplinary · {p} personnel action · {s} employee service · {r} recruitment · {f} performance. Customize the templates to your company's letter format.",
+          { total: templates.length, d: disciplinary.length, p: personnel.length, s: service.length, r: recruitment.length, f: performance.length },
+        )
+        }
       />
 
       {/* tab katalog / permintaan masuk (26-a) */}

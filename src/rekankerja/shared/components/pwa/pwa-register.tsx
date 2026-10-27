@@ -78,10 +78,18 @@ export function PwaRegister() {
       deferredRef.current = e as BeforeInstallPromptEvent;
       // Cek penolakan terakhir hanya saat event datang (menghindari flash
       // banner bagi pengguna yang sudah menolak).
+      // UAT-HR-BASE (catatan opsional) — nilai flag lama berupa "1" (boolean,
+      // bukan timestamp) dibaca Date.now()-1 → selalu > 7 hari → banner muncul
+      // lagi meski sudah ditolak. Sekarang: nilai non-timestamp diperlakukan
+      // sebagai "baru saja ditolak" (supres 7 hari penuh).
       let recentlyDismissed = false;
       try {
         const raw = window.localStorage.getItem(DISMISS_KEY);
-        recentlyDismissed = raw ? Date.now() - Number(raw) < RESHOW_MS : false;
+        if (raw) {
+          const v = Number(raw);
+          const dismissedAt = Number.isFinite(v) && v > 1e12 ? v : Date.now();
+          recentlyDismissed = Date.now() - dismissedAt < RESHOW_MS;
+        }
       } catch {
         /* storage bisa diblokir — tampilkan saja */
       }

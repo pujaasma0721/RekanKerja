@@ -260,14 +260,28 @@ export async function GET(req: NextRequest) {
       .filter((label) => label !== "Tanpa data" || (eduCounts.get(label) ?? 0) > 0)
       .map((label) => ({ label, count: eduCounts.get(label) ?? 0 }));
 
+    // UAT-HR-BASE MIN-05 — normalisasi gender TUNGGAL (konvensi campuran M/F dan
+    // L/P di data lama): F/P → Perempuan; M/L → Laki-laki; sisanya → "Tanpa diisi".
+    // Dipakai BERSAMA oleh pie gender & crosstab gender×status — dulu pie
+    // membiarkan "P" jadi slice tersendiri sementara crosstab menggabungkannya
+    // ke "Laki-laki" (25+1 "P" vs 26 — dua widget saling bertentangan).
+    const genderNormOf = (g: string | null): string => {
+      const v = (g ?? "").trim().toUpperCase();
+      if (v === "F" || v === "P") return "Perempuan";
+      if (v === "M" || v === "L") return "Laki-laki";
+      return "Tanpa diisi";
+    };
+
     // cross-tab gender × status kepegawaian (status: assignment aktif —
     // sumber yang sama dgn employmentStatus di atas; null → "Tanpa data").
-    const genderByStatus: GenderStatusRow[] = (["Laki-laki", "Perempuan"] as const).map((g) => {
+    const genderByStatus: GenderStatusRow[] = ["Laki-laki", "Perempuan", "Tanpa diisi"]
+      .filter((g) => g === "Tanpa diisi" ? active.some((e) => genderNormOf(e.gender) === "Tanpa diisi") : true)
+      .map((g) => {
       const row: GenderStatusRow = {
         gender: g, Permanent: 0, Probation: 0, Contract: 0, Outsourcing: 0, "Tanpa data": 0,
       };
       for (const e of active) {
-        if ((e.gender === "F" ? "Perempuan" : "Laki-laki") !== g) continue;
+        if (genderNormOf(e.gender) !== g) continue;
         const st = e.employmentStatus ?? "Tanpa data";
         if (st === "Permanent" || st === "Probation" || st === "Contract" || st === "Outsourcing") row[st] += 1;
         else row["Tanpa data"] += 1;
@@ -276,7 +290,7 @@ export async function GET(req: NextRequest) {
     });
 
     const demografi = {
-      gender: dist(active.map((e) => (e.gender === "F" ? "Perempuan" : e.gender === "M" ? "Laki-laki" : e.gender)), ["Laki-laki", "Perempuan"]),
+      gender: dist(active.map((e) => genderNormOf(e.gender)), ["Laki-laki", "Perempuan"]),
       ageBuckets: noBirth > 0 ? [...ageBuckets, { key: "na", label: "Tanpa data", count: noBirth }] : ageBuckets,
       employmentStatus: dist(active.map((e) => e.employmentStatus), ["Permanent", "Probation", "Contract", "Outsourcing"]),
       marital: dist(active.map((e) => e.maritalStatus), ["Belum Menikah", "Menikah", "Cerai", "Janda/Duda"]),

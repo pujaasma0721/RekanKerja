@@ -43,7 +43,7 @@ export function ActionsModule({ view }: { view: string }) {
   if (view === "templates") return <LetterTemplatesView />;
   // P1.1-BM (D-BM1) — dicek sebelum params.id agar tidak tertelan detail PA.
   if (view === "profile-changes") return <ProfileChangesView />;
-  if (params.id) return <ActionDetail />;
+  if (params.id) return <ActionDetail origin={view} />;
   if (view === "inbox") return <ApprovalInbox />;
   return <AllDocuments />;
 }
@@ -573,7 +573,9 @@ interface PADetail {
   activities: { id: string; action: string; detail: string | null; createdAt: string; appUser: { fullName: string } | null }[];
 }
 
-function ActionDetail() {
+// UAT-HR-BASE MIN-02 — `origin` = view asal saat detail dibuka ("inbox" bila dari
+// Menunggu Persetujuan) agar tombol kembali mendarat di konteks asal, bukan selalu "all".
+function ActionDetail({ origin }: { origin: string }) {
   const { params, navigate, setParams } = useNav();
   const { t } = useI18n();
   const perms = useMenuPerms();
@@ -626,8 +628,8 @@ function ActionDetail() {
 
   return (
     <div>
-      <button onClick={() => { setParams({}); navigate("actions", "all"); }} className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-bold ov-text-accent hover:underline">
-        <ArrowLeft className="h-4 w-4" /> {t("Kembali ke Daftar", "Back to List")}
+      <button onClick={() => { setParams({}); navigate("actions", origin === "inbox" ? "inbox" : "all"); }} className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-bold ov-text-accent hover:underline">
+        <ArrowLeft className="h-4 w-4" /> {origin === "inbox" ? t("Kembali ke Menunggu Persetujuan", "Back to Pending Approvals") : t("Kembali ke Daftar", "Back to List")}
       </button>
 
       {/* header */}

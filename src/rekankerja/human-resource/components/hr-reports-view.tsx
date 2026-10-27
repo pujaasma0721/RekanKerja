@@ -465,7 +465,8 @@ function GenderStatusCard({ rows }: { rows: GenderStatusRow[] }) {
               {rows.map((r) => (
                 <TableRow key={r.gender} className="border-slate-100 dark:border-slate-800/60">
                   <TableCell className="whitespace-nowrap text-xs font-bold text-slate-700 dark:text-slate-200">
-                    {r.gender === "Laki-laki" ? t("Laki-laki", "Male") : t("Perempuan", "Female")}
+                    {/* UAT-HR-BASE MIN-05 — baris ketiga "Tanpa diisi" mungkin ada pasca normalisasi gender */}
+                    {r.gender === "Laki-laki" ? t("Laki-laki", "Male") : r.gender === "Perempuan" ? t("Perempuan", "Female") : t("Tanpa diisi", "Unspecified")}
                   </TableCell>
                   {cols.map((c) => (
                     <TableCell key={c} className={cn(
