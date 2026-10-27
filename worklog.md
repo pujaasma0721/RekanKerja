@@ -8553,3 +8553,19 @@ Stage Summary:
 - Fitur edit unit organisasi live: HR → Perusahaan & Organisasi → Unit Organisasi → klik unit → "Edit Unit" → ubah kode/nama/induk/budget → Simpan Perubahan. Pindah induk aman (anti-siklus UI+API, level subtree ter-recalculate, ActivityLog tercatat).
 - Komit fe6f826; artefak QA di audit/qa-org-edit/.
 - Pelajaran infra: gunakan pola double-fork `( setsid nohup X & )` untuk proses long-lived di sandbox; watchdog dev.sh kini berjalan dengan pola itu.
+
+---
+Task ID: QA-ORG-CODE-IMPACT
+Agent: main (Z.ai Code)
+Task: User: "ya buatkan notifikasi tsb" — permintaan lanjutan QA-ORG-EDIT: peringatan di dialog edit unit saat kode akan diganti, soal relasi dokumen PA pending yang resolve-nya bergantung kode.
+
+Work Log:
+- DESAIN: kode bukan kunci relasi (semua FK via id — audit schema sebelumnya), tapi 2 interface memakai kode: (1) dokumen PA pending tanpa orgUnitId yang hanya menyimpan toUnit=kode akan gagal resolve saat diproses; (2) template import Excel berbasis kode. Sistem tidak bisa mendeteksi file Excel di komputer user → advisory statis.
+- Backend org-units.ts GET: param impactCode → query PA (status IN Prepared/Submitted/Approved, detailJson contains kode case-insensitive, take 200) lalu filter presisi via parse JSON: hanya yang TIDAK punya orgUnitId/toUnitId DAN toUnit === kode exact (uppercase). Return { code, count, documents:[{docNo,type,employee}] }.
+- Frontend EditUnitDialog: state impact + useEffect debounce 400 ms — BUG LOGIS DITANGKAP SAAT DEV: fetch awalnya memakai kode BARU yang diketik user (kebalikan — yang bermasalah adalah dokumen menyimpan kode LAMA); diperbaiki fetch impactCode=unit.code, alert menampilkan old=unit.code new=kode baru. Alert amber (AlertTriangle + AlertTitle/Description shadcn) render saat codeChanged: count>0 → daftar docNo — employee (type) maks 5 + "+N lainnya"; count=0 → "Tidak ada dokumen pengajuan aktif yang bergantung pada kode lama ini"; selalu + advisory template import. Alert hilang otomatis saat kode dikembalikan; reset saat dialog dibuka/tutup.
+- QA E2E (sesi agent-browser impact, screenshot audit/qa-org-edit/06-07.png): insert dummy PA-A (detailJson hanya toUnit=MII-ITD, Prepared) + PA-B (dengan orgUnitId IT, Submitted) langsung ke DB MII → edit IT, ketik MII-TECH → alert muncul "1 dokumen pengajuan belum diproses... akan gagal diproses setelah kode diganti ke MII-TECH" + "• PA/TEST/IMPACT/A — Dedi Mahendra (Transfer)" + advisory Excel (network: GET impactCode=MII-ITD 200; PA-B benar ter-exclude); kembalikan MII-ITD → alert hilang (GONE-OK); unit Marketing → alert "Tidak ada dokumen..."; semua via Batal → kode unit tidak berubah (DB verify MII-ITD); dummy dihapus dari DB (CLEANED A+B).
+- Non-regresi: lint 0 error (6 warning pre-existing), tsc bersih, browser console 0 error. Watchdog dev server (pola double-fork) tetap hidup sepanjang sesi.
+
+Stage Summary:
+- Fitur live: dialog Edit Unit kini memperingatkan DAMPAK perubahan kode secara real-time — daftar dokumen PA pending yang akan gagal diproses (dengan nomor dokumen + nama karyawan + jenis), status aman bila tidak ada, plus advisory unduh ulang template import. Komit 74b83c5.
+- Catatan arsitektur: analisis memakai kode LAMA unit (bukan kode baru); dokumen yang menyimpan orgUnitId/toUnitId valid selalu dianggap aman (tidak muncul di peringatan).
