@@ -8692,3 +8692,20 @@ Stage Summary:
 - TEMUAN BARU: F-13 KRITIS (duplikat NIK diterima — tanpa validasi API/DB, NIK terenkripsi butuh blind-index) · F-14 MINOR (wizard onboarding bisa pindah langkah dgn field wajib kosong — validasi baru di Review) · F-15 MINOR (GAJI POKOK "—" utk OWNER tanpa penjelasan vault) · F-16 MINOR (hook PA exit buat Offboarding kedua tanpa guard) · F-17 INFO (tak ada nonaktifkan cepat — wajib lewat Offboarding penuh).
 - Kekuatan terverifikasi: wizard onboarding + draft autosave + auto-number; edit persist; perhitungan settlement PKWT EKSAK; PII masking; console bersih.
 - Data demo dipulihkan penuh: 45 karyawan, 18 unit, tanpa residu uji.
+
+---
+Task ID: UAT-HR-BASE-3
+Agent: main (Z.ai Code — orkestrator)
+Task: "jalankan ulang UAT penuh" — verifikasi ulang seluruh temuan UAT terhadap kode aktual + penutupan inkonsistensi snapshot-lokal vs origin
+
+Work Log:
+- REKONSTRUKSI: UAT ulang Bagian 1-2 (UAT-HR-BASE-1/2) tanpa sadar menguji kode BASI b84efee — rebase menyingkap origin/main sudah berisi fe6f826 (edit unit) + 74b83c5 (impact notif) + 4b68d92 (UAT pertama 33/34 PASS) + a7d8004 (UAT-HR-BASE-FIX MAY-01/MIN-01..08) + QA-COMPANY-EDIT/QA-PII-FULLACCESS-FIX — seluruh pekerjaan "hilang" aman di GitHub. Konflik worklog diselesaikan union; push 4a48bca.
+- INSIDEN OOM: pasca-rebase Turbopack kompilasi ulang penuh + Chrome → kernel OOM-kill next-server berulang (anon-rss 2,75GB; uptime reset tiap ~60 dtk; request menggantung). Mitigasi terbukti: tutup browser + kill watchdog ganda/orphan + satu watchdog bersih + warm-up route curl + buka browser lagi. Juga bersih 11 ActivityLog residu offboarding yang terlewat cleanup pertama (entri tanpa nama karyawan uji).
+- VERIFIKASI ULANG (browser, kode ter-fix): F-01 ✅ edit company bekerja (telepon 555-0100→0101 tersimpan DB+UI, PATCH 200) · F-02 ✅ halaman Perusahaan penuh data (43 karyawan/18 unit/20 posisi + form ter-prefill) · F-03 ✅ tombol "Edit Unit" ada + dialog lengkap · F-04 ✅ field "Unit Code *" editable + banner dampak "Unit code is about to change — check the impact" + analisis "No active action documents depend on this legacy code" + advisory Excel; Batal menjaga data · F-15 ✅ GAJI POKOK Hartono Rp 54.900.000 tampil utk OWNER + dashboard Rp 11,5 jt + PII (NIK/BPJS/bank) terdekripsi penuh · console 0 error.
+- TEMUAN TETAP VALID di kode aktual: F-13 KRITIS duplikat NIK (POST tanpa cek keunikan — kontras dgn jalur import Excel yang SUDAH punya nikSet existingNiks terdekripsi → inkonsistensi jalur input) · F-16 sebagian (POST manual guarded "satu proses aktif"; hook PA-exit createOffboardingWithTasks tetap tanpa guard).
+- Artefak: LAPORAN-UAT-HR-BASE-3-VERIFY.md + screenshot 37-41.
+
+Stage Summary:
+- JAWABAN ATAS UAT ULANG: seluruh temuan besar yang ditemukan di kode basi (F-01..F-04, F-15) SUDAH FIXED di origin dan terverifikasi bekerja di live browser pasca-rebase; F-13 (duplikat NIK) & F-16-parsial adalah SATU-SATU temuan fungsional yang masih terbuka + F-14/F-17 minor UX.
+- Status UAT modul HR Base: LULUS dengan 2 temuan terbuka (F-13 prioritas; F-16 kasus tepi).
+- Pelajaran permanen: cek `git fetch` + origin/main vs HEAD SEBELUM QA/UAT apapun (snapshot restore bisa meninggalkan lokal jauh tertinggal); worklog di GitHub adalah sumber kebenaran yang selamat.
