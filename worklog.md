@@ -8601,3 +8601,28 @@ Work Log:
 Stage Summary:
 - Modul Human Resource Base LULUS UAT 33/34 (97%): tidak ada blocker fungsional; 1 MAYOR (overflow mobile Direktori Karyawan), 8 MINOR/UX + catatan tambahan non-blocker + 1 catatan performa (employee-detail cold compile); 1 temuan KRITIS-INFRASTRUKTUR — split-brain routing domain publik (dev server container vs deployment remote dengan DB berbeda; bukti id unit cmvpuaw4…/cmtnsso…, vault configured true/false, dev.log) — perlu ditindaklanjuti pemilik platform sebelum domain dipakai pengguna nyata.
 - Laporan final: audit/uat-hr-base/LAPORAN-UAT.md.
+
+---
+Task ID: UAT-HR-BASE-FIX
+Agent: main (Z.ai Code)
+Task: Perbaiki seluruh temuan UAT modul Human Resource Base yang bisa ditangani dari dalam container (jawaban atas pertanyaan user "apakah sudah diperbaiki dari temuan uat hr-base?" — sebelumnya BELUM, komit terakhir hanya laporan audit).
+
+Work Log:
+- Baca ulang LAPORAN-UAT.md (audit/uat-hr-base/) + git log → konfirmasi 0 komit perbaikan pasca-UAT; buat rencana 10 item (FIX-1..10).
+- MAY-01 (MAYOR): employee-directory.tsx — div pembungkus aksi di dalam PageHeader.actions tidak punya flex-wrap (PageHeader wrapper-nya flex-wrap, tapi anak tunggalnya monolitik 440px) → tambah flex-wrap + justify-end; tablist segmented tambah min-w-0 flex-1.
+- MIN-01: dashboard.ts kirim salaryVisible (mv.canSee); dashboard-module.tsx tampilkan "Terkunci" + ikon Lock + sub "Brankas uang perusahaan terkunci" saat false (cabang unlocked diverifikasi visual; locked code-reviewed — vault dev tidak terkunci).
+- MIN-02: actions-module.tsx — ActionDetail kini terima origin=view; tombol balik navigate ke "inbox" bila asalnya Menunggu Persetujuan (label ikut kontekstual "Kembali ke Menunggu Persetujuan").
+- MIN-03: app-shell.tsx CommandPalette — navItems difilter per query atas label dua bahasa (trFor id/en) + label grup + id; empty state deterministik <p> (ganti CommandEmpty); grup Karyawan disembunyikan saat 0 hasil.
+- MIN-04: letter-templates-view.tsx — deskripsi header menambah "{f} kinerja" (3+12+5+4+4=28).
+- MIN-05: reports.ts genderNormOf tunggal (F/P→Perempuan, M/L→Laki-laki, lain→"Tanpa diisi") dipakai pie + crosstab (+ baris Tanpa diisi bersyarat); api.ts genderLabel sama; hr-reports-view.tsx label baris ketiga.
+- MIN-06/07/08: script baru scripts/seed-uat-hr-base-demo.ts (idempoten, 2x run verified: run kedua 0 mutasi): [A] 16 EmployeeDocument expiry tersebar (lewat 2 · ≤30 3 · ≤60 2 · ≤90 2 · panjang 7; docNumber via tc.encryptText); [B] 7 CareerPath dgn requiredSkillsJson; [C] timeline 9 PA — C1 redate level PA (guard created≤submitted≤effective≤processed; plus guard processed<effective yang terlewat di draf pertama), C2 layer decidedAt ke rentang submit–efektif, C3 ActivityLog ke milestone (>1 hari drift), C4 log yatim "PA-2026-0004 Transfer disetujui" ter-link; [D] gender "P"→"F" (MII00045); [E] 5 penugasan aset disebar 2025-11..2026-05. DUA bug stale-data ditangkap saat menulis (C3 pakai snapshot pas varibel `pas` di-reassign → re-fetch setelah C1 dan C2; plus parsing error komentar JSX di posisi ekspresi actions={}).
+- prisma/seed.ts (sumber masa depan): mkPA timeline koheren (plusDays module-level), decidedAt layer berjenjang, log createdAt = milestone; log yatim PA-2026-0004 kini ter-link.
+- Opsional: pwa-register.tsx — flag dismissal "rekankerja:pwa-dismissed" berupa "1" (bukan timestamp) dulu dibaca Date.now()-1 → selalu > 7 hari → banner muncul lagi; kini nilai non-timestamp diperlakukan "baru ditolak". letter-templates-view.tsx — placeholder "Memuat katalog template…" saat loading (anti flash "0 template").
+- Verifikasi: lint 0 error (6 warning pre-existing unused eslint-disable), tsc bersih; E2E browser (1 sesi, SW/PWA dinetralkan, lang id, login hrd@mii.co.id): MAY-01 scrollWidth 390=390 (juga 360px; sebelum 488) + 3 tombol aksi visible (Export wrap baris 2, kanan ≤374); MIN-01 API salaryVisible:true + KPI Rp 11.5 jt; MIN-02 inbox→detail→balik→"Menunggu Persetujuan" (?s=actions); MIN-03 "direk"→hanya Direktori Karyawan, "Dedi"→grup Karyawan saja, "zzzzqq"→Tidak ditemukan; MIN-04 header "…· 4 rekrutmen · 4 kinerja" = 28; MIN-05 pie 25/18 = crosstab 25/18 TOTAL 43 (slice "P" hilang); MIN-06 detail PA-2026-0002 Dibuat 9 Agu → Submit 17 Agu → Efektif 11 Sep + jejak "Submitted 17 Agu"; MIN-07 "16 dokumen · 2 kedaluwarsa · 3 ≤30 hari", filter ≤30 bekerja, NIK/paspor terdekripsi tampil; MIN-08 "7 Jalur Terdaftar" dgn syarat keahlian Lv; mobile dashboard 390 bersih; console + dev.log 0 error/500. 8 screenshot artefak.
+- Commit a7d8004 + push (main = origin/main).
+
+Stage Summary:
+- SEMUA temuan actionable UAT HR-Base kini DIPERBAIKI & DIVERIFIKASI: MAY-01 ✅, MIN-01..MIN-08 ✅, 2 catatan opsional ✅ (flash state + PWA flag), PERF-01 tetap catatan (cold-compile dev; ukur ulang di build produksi).
+- INF-01 (split-brain routing domain publik) SATU-SATU sisa temuan — KRITIS-INFRA, akar masalah di platform DI LUAR container (DNS/proxy), wajib ditindaklanjuti pemilik platform; tidak bisa diperbaiki dari sini.
+- Artefak: audit/uat-hr-base-fix/ (8 screenshot). Skrip seed: scripts/seed-uat-hr-base-demo.ts (idempoten — aman di-rerun; tidak mengubah KPI karyawan 45/43).
+- Jebakan QA dicatat permanen: komentar JSX {/* */} tidak valid di posisi ekspresi atribut (pakai // ); console.log innerText terpengaruh CSS text-transform uppercase (regex "Rata-rata" gagal padahal "RATA-RATA" tampil); agent-browser eval konteks persisten antar-panggilan (deklarasi const duplikat → SyntaxError — pakai IIFE).
