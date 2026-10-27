@@ -3,10 +3,42 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 
 // GET /api/rekankerja/org-units[?withTree=1]
+// GET /api/rekankerja/org-units?impactCode=MII-ITD — QA-ORG-CODE-IMPACT: analisis
+// dokumen PA yang masih bergantung pada KODE unit (resolve-by-code fallback),
+// dipakai dialog edit unit untuk memperingatkan sebelum kode diganti.
 export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
+    const impactCode = req.nextUrl.searchParams.get("impactCode");
+    if (impactCode !== null) {
+      const code = impactCode.trim().toUpperCase();
+      if (!code) return NextResponse.json({ impact: { code, count: 0, documents: [] } });
+      // Kandidat kasar: PA yang belum final (akan melewati resolve saat diproses)
+      // dan detailJson-nya mengandung kode (case-insensitive). Filter presisi
+      // (exact match + tanpa referensi id) dilakukan setelah parse JSON —
+      // contains kasar hanya untuk memangkas jumlah baris yang di-parse.
+      const pending = await db.personnelAction.findMany({
+        where: {
+          status: { in: ["Prepared", "Submitted", "Approved"] },
+          detailJson: { contains: code, mode: "insensitive" },
+        },
+        select: { docNo: true, type: true, detailJson: true, employee: { select: { fullName: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      });
+      const documents = pending.flatMap((pa) => {
+        let d: Record<string, unknown> = {};
+        try { d = JSON.parse(pa.detailJson ?? "{}") as Record<string, unknown>; } catch { /* detail rusak — abaikan */ }
+        // Dokumen yang menyimpan id valid tidak terpengaruh ganti kode.
+        const hasIdRef = [d.orgUnitId, d.toUnitId].some((v) => typeof v === "string" && v.trim() !== "");
+        const codeRef = typeof d.toUnit === "string" ? d.toUnit.trim().toUpperCase() : "";
+        if (hasIdRef || codeRef !== code) return [];
+        return [{ docNo: pa.docNo, type: pa.type, employee: pa.employee?.fullName ?? null }];
+      });
+      return NextResponse.json({ impact: { code, count: documents.length, documents } });
+    }
 
     const withTree = req.nextUrl.searchParams.get("withTree") === "1";
     const units = await db.orgUnit.findMany({

@@ -11,12 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
   Building2, Network, Landmark, ChevronRight, ChevronDown, Plus, Pencil, Users,
-  MapPin, Phone, Mail, Globe, Building, Layers as LayersIcon, Trash2, Building2 as BuildingIcon,
+  MapPin, Phone, Mail, Globe, Building, Layers as LayersIcon, Trash2, Building2 as BuildingIcon, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -250,6 +251,12 @@ function OrgTree() {
 
 // QA-ORG-EDIT — dialog ubah unit: kode (unik), nama, pindah induk (bukan
 // diri sendiri/keturunannya — API juga menolak via cek siklus), budget HC.
+// QA-ORG-CODE-IMPACT: mengubah KODE unit memicu analisis dampak — dokumen PA
+// pending yang resolve-nya hanya menyimpan kode lama akan gagal diproses;
+// ditampilkan sebagai peringatan sebelum disimpan + advisory template import.
+interface ImpactDoc { docNo: string; type: string; employee: string | null }
+interface CodeImpact { code: string; count: number; documents: ImpactDoc[] }
+
 function EditUnitDialog({ open, setOpen, unit, units, onSaved }: {
   open: boolean; setOpen: (v: boolean) => void;
   unit: UnitNode | null; units: UnitNode[]; onSaved: () => void;
@@ -260,14 +267,34 @@ function EditUnitDialog({ open, setOpen, unit, units, onSaved }: {
   const [parentId, setParentId] = useState<string | null>(null);
   const [budget, setBudget] = useState("0");
   const [busy, setBusy] = useState(false);
+  const [impact, setImpact] = useState<CodeImpact | null>(null);
 
   // Isi ulang form setiap kali dialog dibuka (unit bisa berganti/di-refresh)
   useEffect(() => {
     if (open && unit) {
       setCode(unit.code); setName(unit.name);
       setParentId(unit.parentId); setBudget(String(unit.headcountBudget));
+      setImpact(null);
     }
   }, [open, unit]);
+
+  // Deteksi perubahan kode → analisis dampak (debounce 400 ms, batal saat unmount).
+  // Analisis memakai kode LAMA (unit.code) — dokumen yang menyimpan kode lama
+  // inilah yang gagal resolve setelah unit berganti ke kode baru.
+  const codeChanged = !!unit && code.trim() !== "" && code.trim().toUpperCase() !== unit.code;
+  const newCode = code.trim().toUpperCase();
+  useEffect(() => {
+    if (!open || !unit) { setImpact(null); return; }
+    if (!codeChanged) { setImpact(null); return; }
+    let alive = true;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiSend<{ impact: CodeImpact }>(`/api/rekankerja/org-units?impactCode=${encodeURIComponent(unit.code)}`, "GET");
+        if (alive) setImpact(res.impact);
+      } catch { if (alive) setImpact(null); }
+    }, 400);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [codeChanged, open, unit]);
 
   // Induk kandidat = semua unit KECUALI diri sendiri & seluruh keturunannya
   const banned = useMemo(() => {
@@ -338,6 +365,46 @@ function EditUnitDialog({ open, setOpen, unit, units, onSaved }: {
             </Select>
             <p className="mt-1.5 text-[11px] text-slate-400">{t("Memindahkan unit otomatis menggeser level seluruh sub-unit di bawahnya.", "Moving a unit automatically shifts the level of all its sub-units.")}</p>
           </div>
+          {/* QA-ORG-CODE-IMPACT — peringatan dampak perubahan kode unit */}
+          {codeChanged && (
+            <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <AlertTitle className="text-[13px] font-bold">{t("Kode unit akan berubah — periksa dampaknya", "Unit code is about to change — check the impact")}</AlertTitle>
+              <AlertDescription className="text-xs text-amber-800 dark:text-amber-300/90">
+                {impact ? (
+                  impact.count > 0 ? (
+                    <>
+                      <p>
+                        {t(
+                          "{n} dokumen pengajuan belum diproses dan hanya menyimpan kode {old} — dokumen ini akan gagal diproses setelah kode diganti ke {new}",
+                          "{n} pending action documents rely on code {old} only — they will fail to process once the code changes to {new}",
+                          { n: impact.count, old: unit?.code, new: newCode },
+                        )}
+                      </p>
+                      <ul className="mt-1.5 space-y-0.5 font-mono text-[11px]">
+                        {impact.documents.slice(0, 5).map((d) => (
+                          <li key={d.docNo}>• {d.docNo}{d.employee ? ` — ${d.employee}` : ""} ({d.type})</li>
+                        ))}
+                      </ul>
+                      {impact.count > 5 && (
+                        <p className="mt-1 font-mono text-[11px]">+{impact.count - 5} {t("dokumen lainnya…", "more documents…")}</p>
+                      )}
+                    </>
+                  ) : (
+                    <p>{t("Tidak ada dokumen pengajuan aktif yang bergantung pada kode lama ini.", "No active action documents depend on this legacy code.")}</p>
+                  )
+                ) : (
+                  <p className="italic">{t("Memeriksa dokumen terkait…", "Checking related documents…")}</p>
+                )}
+                <p className="mt-1.5 border-t border-amber-200 pt-1.5 dark:border-amber-500/30">
+                  {t(
+                    "File impor Excel yang sudah disiapkan memakai kode lama akan ditolak — unduh ulang template setelah menyimpan.",
+                    "Prepared Excel import files using the old code will be rejected — re-download the template after saving.",
+                  )}
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>{t("Batal")}</Button>
