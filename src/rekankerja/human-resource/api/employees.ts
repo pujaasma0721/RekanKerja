@@ -168,6 +168,42 @@ export async function createEmployeeWithAssignment(
   return employee;
 }
 
+// ==== F-13 (UAT HR-Base 2) — keunikan NIK (KTP) antar karyawan ====
+// Semua jalur tulis NIK (wizard POST /employees, PATCH employee-detail,
+// import Excel, pengangkatan rekrutmen) kini memvalidasi duplikat lewat
+// helper ini — dulu hanya import yang mengecek → dua karyawan bisa punya
+// KTP sama persis (payroll/BPJS/pajak dua identitas, data sulit
+// direkonsiliasi). NIK tersimpan TERENKRIPSI (enc:v1, IV acak) sehingga
+// tidak bisa dibandingkan di level SQL — dekripsi lalu cocokkan di JS
+// (pola set nikSet jalur import di file ini). decryptText melewatkan
+// plaintext legacy apa adanya, jadi data pra-enkripsi ikut tercakup.
+// NOTE: cek dilakukan SEBELUM tulis (pre-check) — window race dua onboarding
+// paralel dengan NIK sama sangat kecil dan diterima (par pola import).
+/** Cari karyawan pemilik NIK (KTP) tertentu — null bila belum dipakai. */
+export async function findEmployeeByNationalId(
+  db: DbOrTx,
+  nationalId: string,
+): Promise<{ id: string; employeeNo: string; fullName: string } | null> {
+  const nik = nationalId.trim();
+  if (!nik) return null;
+  const tc = tenantCryptoForDb(db);
+  const rows = await db.employee.findMany({
+    where: { nationalId: { not: null } },
+    select: { id: true, employeeNo: true, fullName: true, nationalId: true },
+  });
+  for (const r of rows) {
+    if (tc.decryptText(r.nationalId) === nik) {
+      return { id: r.id, employeeNo: r.employeeNo, fullName: r.fullName };
+    }
+  }
+  return null;
+}
+
+/** Pesan 400 seragam untuk NIK yang sudah dipakai (wizard / edit / import / angkat rekrutmen). */
+export function nikTakenMessage(nik: string, owner: { employeeNo: string; fullName: string }): string {
+  return `NIK ${nik} sudah dipakai karyawan lain (${owner.employeeNo} — ${owner.fullName})`;
+}
+
 // GET /api/rekankerja/employees?q=...&status=...&unit=...&employmentStatus=...&limit=&offset=
 // Multi-tenant: db = schema tenant dari session cookie (isolasi per workspace).
 // Skema akses data (Task 30): hasil query dibatasi cakupan akses efektif
@@ -587,12 +623,28 @@ export async function POST(req: NextRequest) {
     // npwpWarning utk toast UI) namun data TETAP DISIMPAN (tidak memblokir).
     const npwp = npwpAdvisory(b.taxId != null ? String(b.taxId) : null);
 
+    // F-13 (UAT HR-Base 2) — NIK wajib UNIK antar karyawan: wizard dulu
+    // menerima NIK ganda tanpa peringatan (jalur import Excel sudah
+    // memvalidasi → inkonsisten antar jalur input). NIK tetap opsional di
+    // wizard, tapi bila diisi: 16 digit angka + belum dipakai karyawan mana
+    // pun (aktif maupun non-aktif — konsisten set nikSet import Excel).
+    const nationalId = b.nationalId != null ? String(b.nationalId).trim() : "";
+    if (nationalId) {
+      if (!/^\d{16}$/.test(nationalId)) {
+        return NextResponse.json({ error: "NIK harus 16 digit angka" }, { status: 400 });
+      }
+      const nikOwner = await findEmployeeByNationalId(db, nationalId);
+      if (nikOwner) {
+        return NextResponse.json({ error: nikTakenMessage(nationalId, nikOwner) }, { status: 400 });
+      }
+    }
+
     const employee = await createEmployeeWithAssignment(db, prefix, {
       fullName: b.fullName,
       gender: b.gender ?? "M",
       birthPlace: b.birthPlace ?? null,
       birthDate: b.birthDate ? new Date(b.birthDate) : null,
-      nationalId: b.nationalId ?? null,
+      nationalId: nationalId || null,
       taxId: npwp.value,
       maritalStatus: b.maritalStatus ?? null,
       religion: b.religion ?? null,

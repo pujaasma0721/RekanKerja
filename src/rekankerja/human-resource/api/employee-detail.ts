@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { requireScoped, isEmployeeInScope, resolveAccessScope } from "@/rekankerja/shared/services/access-scope";
 import { applyAssignmentChange, correctJobRow, CHANGE_REASON_LABEL, decryptBaseSalary } from "@/rekankerja/human-resource/services/assignment";
-import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
+import { tenantCryptoForDb, isEncrypted } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { computePkwtInfo } from "@/rekankerja/human-resource/services/pkwt";
-import { maskEmployeePii, type PiiScope } from "@/rekankerja/human-resource/api/employees";
+import { maskEmployeePii, findEmployeeByNationalId, nikTakenMessage, type PiiScope } from "@/rekankerja/human-resource/api/employees";
 // P1.1-BM — NPWP advisori (D-BM3) di jalur simpan PATCH + kontak darurat
 // (D-BM2) & NIK keluarga (D-BM4) di serializer GET.
 import { npwpAdvisory, serializeEmergencyContacts } from "@/rekankerja/human-resource/services/profile-change-service";
@@ -284,9 +284,10 @@ export async function PATCH(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
 
     // cek keberadaan + cakupan skema akses data SEBELUM menulis apa pun
+    // F-13: nationalId ikut diambil utk deteksi perubahan NIK (duplikat check).
     const exists = await db.employee.findUnique({
       where: { id },
-      select: { id: true, contractStart: true, contractEnd: true },
+      select: { id: true, contractStart: true, contractEnd: true, nationalId: true },
     });
     if (!exists) return NextResponse.json({ error: "Karyawan tidak ditemukan" }, { status: 404 });
     const scope = await resolveAccessScope(db, {
@@ -334,7 +335,35 @@ export async function PATCH(req: NextRequest) {
     // Task 52-d — no. BPJS masuk set enkripsi (migrate-encrypt-pii).
     const ENCRYPTED_PERSONAL: ReadonlySet<string> = new Set(["nationalId", "taxId", "bankAccount", "bpjsHealth", "bpjsEmpSkill"]);
     const data: Record<string, unknown> = {};
+    // F-13 (UAT HR-Base 2) — NIK wajib UNIK saat DIUBAH: nilai baru yang
+    // berbeda dari tersimpan → 16 digit angka + belum dipakai karyawan lain
+    // (kecuali dirinya sendiri — exclude by id). Nilai yang sama dengan
+    // tersimpan di-skip validasinya (data legacy < 16 digit tidak ikut
+    // ditolak bila tidak diubah), namun tetap di-re-encrypt bila kolom masih
+    // plaintext legacy (perilaku lama loop ENCRYPTED_PERSONAL dipertahankan).
+    let nikHandled = false;
+    if (b.nationalId !== undefined) {
+      nikHandled = true;
+      const newNik = b.nationalId != null ? String(b.nationalId).trim() : "";
+      const currentNik = tcW.decryptText(exists.nationalId) ?? "";
+      if (newNik !== currentNik) {
+        if (newNik) {
+          if (!/^\d{16}$/.test(newNik)) {
+            return NextResponse.json({ error: "NIK harus 16 digit angka" }, { status: 400 });
+          }
+          const nikOwner = await findEmployeeByNationalId(db, newNik);
+          if (nikOwner && nikOwner.id !== id) {
+            return NextResponse.json({ error: nikTakenMessage(newNik, nikOwner) }, { status: 400 });
+          }
+        }
+        data.nationalId = newNik ? tcW.encryptText(newNik) : null;
+      } else if (newNik && !isEncrypted(exists.nationalId)) {
+        // tak berubah, tapi kolom masih plaintext legacy → encrypt sekarang
+        data.nationalId = tcW.encryptText(newNik);
+      }
+    }
     for (const f of PERSONAL_FIELDS) {
+      if (f === "nationalId" && nikHandled) continue; // ditangani blok F-13 di atas
       if (b[f] === undefined) continue;
       data[f] = ENCRYPTED_PERSONAL.has(f) ? tcW.encryptText(b[f] as string | null) : b[f];
     }

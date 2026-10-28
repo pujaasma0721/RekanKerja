@@ -24,7 +24,7 @@ import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent } from "@/rekankerja/shared/services/email-service";
 import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
-import { createEmployeeWithAssignment, type AssignmentSeed } from "@/rekankerja/human-resource/api/employees";
+import { createEmployeeWithAssignment, findEmployeeByNationalId, nikTakenMessage, type AssignmentSeed } from "@/rekankerja/human-resource/api/employees";
 import { createOnboardingWithTasks, emailOnboardingChecklist } from "@/rekankerja/human-resource/api/onboarding";
 import { reconcileJoOpenSlots } from "@/rekankerja/recruitment/services/opening-service";
 import { emitWebhookEvent } from "@/rekankerja/recruitment/services/webhook-service";
@@ -558,6 +558,18 @@ export async function continueToOnboarding(
   const phone = tc.decryptText(applicant.phone) || null;
   const address = tc.decryptText(applicant.address) || null;
   const city = tc.decryptText(applicant.city) || null;
+
+  // F-13 (UAT HR-Base 2) — NIK wajib unik lintas jalur input: pelamar dengan
+  // KTP yang sudah dipakai karyawan lain (mis. mantan karyawan yang
+  // di-rehire via jalur rekrutmen) ditolak SEBELUM transaksi — pesan sama
+  // dengan wizard/import (employees.ts). Error membawa status 400 agar
+  // handler offers.ts memetakan 400 (bukan 500 mentah).
+  if (plainNationalId) {
+    const nikOwner = await findEmployeeByNationalId(db, plainNationalId);
+    if (nikOwner) {
+      throw Object.assign(new Error(nikTakenMessage(plainNationalId, nikOwner)), { status: 400 });
+    }
+  }
 
   const employeeData: Omit<Prisma.EmployeeUncheckedCreateInput, "employeeNo"> = {
     fullName: appt.candidate.fullName,
