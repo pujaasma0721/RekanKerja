@@ -8709,3 +8709,21 @@ Stage Summary:
 - JAWABAN ATAS UAT ULANG: seluruh temuan besar yang ditemukan di kode basi (F-01..F-04, F-15) SUDAH FIXED di origin dan terverifikasi bekerja di live browser pasca-rebase; F-13 (duplikat NIK) & F-16-parsial adalah SATU-SATU temuan fungsional yang masih terbuka + F-14/F-17 minor UX.
 - Status UAT modul HR Base: LULUS dengan 2 temuan terbuka (F-13 prioritas; F-16 kasus tepi).
 - Pelajaran permanen: cek `git fetch` + origin/main vs HEAD SEBELUM QA/UAT apapun (snapshot restore bisa meninggalkan lokal jauh tertinggal); worklog di GitHub adalah sumber kebenaran yang selamat.
+
+---
+Task ID: FIX-F13
+Agent: main (Z.ai Code)
+Task: "kerjakan perbaikan F-13 (validasi duplikat NIK di wizard onboarding) sekarang" — sekaligus menutup inkonsistensi lintas jalur input
+
+Work Log:
+- PROTOKOL PRA-KERJA (permintaan user): verifikasi lokal = origin GitHub dulu — HEAD 6e4a0fc = origin/main, working tree clean (aman mulai).
+- ANALISIS: 3 jalur tulis NIK tanpa guard duplikat — POST /employees (wizard), PATCH employee-detail, continueToOnboarding (rekrutmen); import Excel sudah divalidasi (nikSet). NIK terenkripsi enc:v1 random-IV → tak bisa di-query SQL → dekripsi+match di JS.
+- IMPLEMENTASI: helper findEmployeeByNationalId + nikTakenMessage di employees.ts (par pola nikSet import; decryptText meloloskan plaintext legacy); guard POST wizard (opsional, bila diisi wajib ^\d{16}$ + unik); guard PATCH (exclude diri; nilai tak berubah di-skip validasi; plaintext legacy tetap di-re-encrypt); guard rekrutmen (error bawa status 400 → dipetakan offers.ts, bukan 500).
+- VERIFIKASI (lint 0 error, tsc 0 error, browser login HR): 8/8 PASS — POST 15-digit 400 format · POST baru 201 MII00046 · POST duplikat 400 "NIK 3271010101990001 sudah dipakai karyawan lain (MII00046 — Uji F-13 Positif)" · PATCH NIK milik lain 400 · PATCH NIK sendiri 200 no-op · PATCH 15-digit 400 · WIZARD UI 4 langkah penuh dgn NIK duplikat → toast error jelas + tidak tersimpan + console 0 error. Catatan: NIK seed demo MII dummy 13 digit — duplikat diuji dgn NIK 16 digit valid (pola UAT asli); guard membandingkan string hasil dekripsi sehingga tetap mencakup data seed.
+- PEMULIHAN DATA: MII00046+47 + relasi (assignment/onboarding+tasks/activityLog/emailLog) dihapus terverifikasi; direktori kembali 45 karyawan; next no otomatis MII00046; 0 pasangan NIK duplikat; 0 emailLog sisa.
+- INSIDEN GIT: push pertama ditolak — origin bergerak; fetch menunjukkan ada commit verifikasi 6e4a0fc vs duplikat lokal 151e078 (pesan sama, hash beda — sisa snapshot). `git pull --rebase` menghasilkan commit intermediate 7ec41b7/4355d4e yang pecah; dirapikan dgn `git reset --soft 6e4a0fc` + commit tunggal ddac980 (7 file: 3 src + 4 bukti) — total diff diverifikasi persis 7 file tanpa embel-embel; push sukses, HEAD = origin/main = ddac980.
+- Artefak: audit/f13-fix/ (LAPORAN-FIX-F13.md + 3 screenshot: review NIK duplikat, toast penolakan ×2).
+
+Stage Summary:
+- F-13 [KRITIS] DITUTUP: semua jalur tulis NIK karyawan kini konsisten menolak duplikat (wizard/edit/import/rekrutmen) dengan pesan seragam yang menyebut pemilik NIK; format 16-digit ditegakkan server-side par jalur import.
+- Sisa temuan UAT terbuka: F-16 parsial (hook PA-exit tanpa guard offboarding) · F-14 minor (validasi wizard telat di Review) · F-17 info.
