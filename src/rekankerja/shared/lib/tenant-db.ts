@@ -87,6 +87,10 @@ export type { TenantPrismaClient };
 // SupportMessage (modul Online Support) masuk client hasil generate
 // (db.supportTicket / db.supportMessage); instance lama di cache dev
 // hot-reload akan ter-evict idle-sweeper seperti biasa.
+// FEAT-SUPPORT-P2: catatan (tanpa bump key) — model SupportAgentConfig
+// (sakelar tools read-only agen support, db.supportAgentConfig) masuk
+// client hasil generate; pembacaan lewat toolsEnabledFor() sudah
+// try/catch-toleran terhadap instance DMMF lama (fallback default).
 // =========================================================================
 // QA-SCALING-100T — PEMBATASAN KONEKSI (fix pasca-benchmark 100 tenant).
 // =========================================================================

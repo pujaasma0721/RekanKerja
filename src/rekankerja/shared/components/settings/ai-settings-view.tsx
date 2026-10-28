@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Bot, BookOpen, FlaskConical, KeyRound, Plus, Pencil, Trash2, Loader2, Sparkles, FileText } from "lucide-react";
+import { Bot, BookOpen, FlaskConical, Headset, KeyRound, Plus, Pencil, Trash2, Loader2, Sparkles, FileText } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
 // ================= PROVIDER AI =================
@@ -189,8 +189,92 @@ export function AiProviderView() {
             )}
           </CardContent>
         </Card>
+
+        {/* FEAT-SUPPORT-P2 — sakelar alat baca agen Online Support (L2). */}
+        <SupportAgentCard />
       </div>
     </div>
+  );
+}
+
+// ================= AGEN SUPPORT (FEAT-SUPPORT-P2) =================
+
+interface SupportAgentConfig {
+  toolsEnabled: boolean;
+}
+
+/** Kartu sakelar "alat baca" agen Online Support (L2 ⇄ L1) — tampil di
+ *  halaman Provider AI; auto-save saat toggle (PUT agent-config). */
+function SupportAgentCard() {
+  const { t } = useI18n();
+  const cfg = useApi<{ config: SupportAgentConfig }>("/api/rekankerja/support/agent-config");
+  const [enabled, setEnabled] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (cfg.data?.config && !loaded) {
+      setEnabled(cfg.data.config.toolsEnabled);
+      setLoaded(true);
+    }
+  }, [cfg.data, loaded]);
+
+  const toggle = async (next: boolean) => {
+    setEnabled(next);
+    setSaving(true);
+    try {
+      await apiSend("/api/rekankerja/support/agent-config", "PUT", { toolsEnabled: next });
+      toast.success(
+        next
+          ? t("Mode diagnosis agen diaktifkan", "Agent diagnosis mode enabled")
+          : t("Agen kembali ke mode percakapan murni", "Agent back to pure conversation mode"),
+      );
+      cfg.refresh();
+    } catch (e) {
+      setEnabled(!next);
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-[15px]">
+          <Headset className="h-4 w-4 text-brand" aria-hidden />
+          {t("Agen Support (Online Support)", "Support Agent (Online Support)")}
+          {loaded && <StatusPill status={enabled ? "Active" : "Inactive"} />}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+          <div>
+            <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
+              {t("Mode diagnosis (alat baca read-only)", "Diagnosis mode (read-only tools)")}
+            </p>
+            <p className="text-[11.5px] leading-relaxed text-slate-500">
+              {t(
+                "Izinkan Support AI memeriksa kode sumber, basis data perusahaan (dengan penyensoran data sensitif), dan log server saat mendiagnosa laporan pengguna. Tanpa ini, agen hanya menjawab dari pengetahuan umum.",
+                "Allow the Support AI to inspect source code, company database (with sensitive data masking), and server logs while diagnosing user reports. Without this, the agent answers from general knowledge only.",
+              )}
+            </p>
+          </div>
+          <Switch
+            checked={enabled}
+            onCheckedChange={(v) => void toggle(v)}
+            disabled={saving || cfg.loading}
+            aria-label={t("Mode diagnosis agen support", "Support agent diagnosis mode")}
+          />
+        </div>
+        <p className="text-[11px] leading-relaxed text-slate-400">
+          {t(
+            "Seluruh pemeriksaan bersifat hanya-baca dan diguard berlapis: query tulis ditolak, tabel kredensial/privasi diblokir, nilai gaji & kredensial disensor otomatis, dan jejak pemeriksaan dicatat di tiap percakapan.",
+            "All inspections are read-only and guarded in layers: write queries are rejected, credential/privacy tables are blocked, salary & credential values are masked automatically, and an inspection note is recorded in each conversation.",
+          )}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 

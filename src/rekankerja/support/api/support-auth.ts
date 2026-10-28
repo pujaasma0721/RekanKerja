@@ -82,12 +82,15 @@ export async function canManageAllTickets(req: NextRequest | Request): Promise<b
 
 /**
  * Guard akses satu tiket: pemilik (createdById) ATAU pemegang op manage.
+ * Parameter `ticket` cukup baris dengan kolom createdById (hasil findUnique
+ * polos MAUPUN findUnique select parsial — tipe struktural, bukan model
+ * penuh, supaya route detail tak terpaksa memuat relasi messages).
  * Return `{ ok: true }` bila boleh — selain itu NextResponse error siap kirim.
  */
 export async function ticketAccess(
   req: NextRequest | Request,
   a: SupportActor,
-  ticket: SupportTicket | null,
+  ticket: { createdById: string | null } | null,
 ): Promise<{ ok: true } | { ok: false; res: NextResponse }> {
   if (!ticket) return { ok: false, res: NextResponse.json({ error: "Tiket tidak ditemukan" }, { status: 404 }) };
   const isOwner = !!a.appUserId && ticket.createdById === a.appUserId;

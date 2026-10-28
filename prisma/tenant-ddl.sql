@@ -3922,6 +3922,15 @@ CREATE TABLE "SupportMessage" (
     CONSTRAINT "SupportMessage_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "SupportAgentConfig" (
+    "id" TEXT NOT NULL,
+    "toolsEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SupportAgentConfig_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 

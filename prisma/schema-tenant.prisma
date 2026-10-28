@@ -5494,7 +5494,7 @@ model SupportTicket {
 model SupportMessage {
   id         String   @id @default(cuid())
   ticketId   String
-  senderRole String // USER | AI | SYSTEM
+  senderRole String // USER | AI (support agent) | SYSTEM (catatan/status)
   senderName String? // snapshot nama pengirim utk tampilan
   body       String // isi pesan (balasan AI berformat markdown)
   createdAt  DateTime @default(now())
@@ -5502,4 +5502,23 @@ model SupportMessage {
   ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId, createdAt])
+}
+
+// ============================================================================
+// FEAT-SUPPORT-P2 — agen support LEVEL 2 (alat baca / tools read-only).
+//   · Loop ReAct berbasis protokol teks (TOOL_CALL/ARGS) di
+//     support/services/support-agent.ts — provider tanpa native function
+//     calling (builtin ZAI maupun OpenAI-compatible) tetap didukung.
+//   · 4 tool read-only di support/services/support-tools.ts:
+//       search_code (cari teks di kode sumber), read_file (baca potongan
+//     file), query_db (SELECT tunggal + denylist tabel rahasia + redaksi
+//     kolom uang/kredensial), read_logs (ekor log server, terscrub).
+//   · Tabel ini = SAKELAR TATA KELOLA per tenant (singleton; baris ABSEN =
+//     tools AKTIF — default aman karena seluruh tool hanya-baca + diguard).
+//     Diatur admin di Pengaturan → AI → kartu "Agen Support".
+// ============================================================================
+model SupportAgentConfig {
+  id           String   @id @default(cuid())
+  toolsEnabled Boolean  @default(true) // izinkan agen memakai alat baca (mode diagnosis)
+  updatedAt    DateTime @updatedAt
 }
