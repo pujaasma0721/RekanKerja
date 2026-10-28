@@ -921,6 +921,23 @@ export const BASE_EN: Record<string, string> = {
   "Kelola Laporan": "Report Management",
   "Lapor": "Report",
   "Kanal pelaporan anonim & penanganan (TPKS)": "Anonymous reporting & handling channel (SVA)",
+  // FEAT-SUPPORT-P1 — modul Online Support (label nav + pesan server API).
+  "Bantuan & penanganan masalah pengguna (AI)": "User help & issue handling (AI)",
+  "Percakapan baru": "New conversation",
+  "Judul percakapan minimal 5 karakter": "Conversation title is at least 5 characters",
+  "Judul percakapan maksimum 120 karakter": "Conversation title is limited to 120 characters",
+  "Terlalu banyak percakapan baru dalam waktu singkat — coba lagi nanti": "Too many new conversations in a short time — please try again later",
+  "Profil pengguna tidak ditemukan untuk tenant ini": "No user profile found for this tenant",
+  "Pesan tidak boleh kosong": "Message cannot be empty",
+  "Pesan maksimum 4.000 karakter": "Message is limited to 4,000 characters",
+  "Jumlah lampiran maksimum 5 file per pesan": "Maximum 5 attachments per message",
+  "Tiket tidak ditemukan": "Ticket not found",
+  "Akses ditolak: tiket ini bukan milik Anda dan Anda tidak memegang izin mengelola tiket seluruh pengguna":
+    "Access denied: this ticket is not yours and you do not hold the permission to manage everyone's tickets",
+  "AI sudah menjawab pesan terakhir — kirim pesan baru terlebih dahulu": "The AI has already answered the last message — send a new message first",
+  "Percakapan sudah ditutup": "This conversation is closed",
+  "Status tiket tidak dikenal": "Unknown ticket status",
+  "Berkas fisik lampiran tidak ditemukan di penyimpanan": "Attachment file not found in storage",
   // P3-SLICE-A (P3.1 job architecture) — entri i18n slice A ditambah tepat di bawah baris ini (jangan hapus marker).
   // P3.1-BM (D-BM23) — header/sheet/judul XLSX laporan struktur jabatan + pesan
   // server statis job family & job profile (exact-match trServer):

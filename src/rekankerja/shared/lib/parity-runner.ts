@@ -440,6 +440,9 @@ const STEPS: Step[] = [
   // snapshot AppraisalKpi) — SATU TEKS BEBAS (textarea, bukan dipecah per level)
   // + konversi metricLevelsJson lama → metric + seed pustaka contoh INNOVATION.
   { key: "kpi-metric", label: "KPI Metric — measureMode + metric (teks tunggal) + seed INNOVATION", run: (s) => import("../../../../scripts/migrate-kpi-metric").then((m) => m.main(s)) },
+  // FEAT-SUPPORT-P1 — modul Online Support: tabel SupportTicket/SupportMessage
+  // (chat bantuan AI bergaya ticketing; lampiran via Attachment generik).
+  { key: "support", label: "Online Support — tabel SupportTicket/SupportMessage (chat bantuan AI)", run: (s) => import("../../../../scripts/migrate-support").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -522,6 +525,11 @@ export async function checkParityGap(): Promise<ParityGap> {
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'AiProviderConfig' AND table_schema = ANY($1::text[])`,
     );
+    // FEAT-SUPPORT-P1 — tabel Online Support belum ada di schema mana pun = gap.
+    const supportTablesOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'SupportTicket' AND table_schema = ANY($1::text[])`,
+    );
     // Task 58-b — gap PLATFORM (bukan per-tenant): kolom Tenant.companyCode.
     // Kegagalan koneksi platform TIDAK boleh jadi false positive → anggap OK.
     let companyCodeOk = true;
@@ -573,6 +581,7 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (piiPlainOk > 0) reasons.push(`${piiPlainOk} tenant dengan PII lanjutan masih plaintext (Task 52-d)`);
     if (wbtOk < schemas.length) reasons.push(`${schemas.length - wbtOk} tenant tanpa tabel WhistleblowReport (Task 52-f)`);
     if (aiTablesOk < schemas.length) reasons.push(`${schemas.length - aiTablesOk} tenant tanpa tabel AI Assistant (Task 96)`);
+    if (supportTablesOk < schemas.length) reasons.push(`${schemas.length - supportTablesOk} tenant tanpa tabel Online Support (FEAT-SUPPORT-P1)`);
     if (!companyCodeOk) reasons.push("platform: kolom Tenant.companyCode belum ada (Task 58-b — registrasi workspace gagal)");
     if (runLogOk < schemas.length) reasons.push(`${schemas.length - runLogOk} tenant tanpa tabel PayrollRunLog (Task 63)`);
     if (wageHistOk < schemas.length) reasons.push(`${schemas.length - wageHistOk} tenant tanpa tabel EmployeeWageTemplateHistory (Task 64)`);
@@ -767,7 +776,7 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (okrColOk < schemas.length)
       reasons.push(`${schemas.length - okrColOk} tenant tanpa kolom PerformanceSetting.okrEnabled (B1 — mode OKR default OFF)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, dsrEmpOk, perfArchOk, okrTblOk, okrColOk) };
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, supportTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, dsrEmpOk, perfArchOk, okrTblOk, okrColOk) };
   } finally {
     await c.end();
   }

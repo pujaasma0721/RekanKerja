@@ -83,6 +83,10 @@ export type { TenantPrismaClient };
 // client hasil generate; instance lama tidak boleh dipakai ulang.
 // F9-REC: versi dinaikkan (F9REC) — DataSubjectRequest (DSR UU PDP) masuk
 // client hasil generate; instance lama tidak boleh dipakai ulang.
+// FEAT-SUPPORT-P1: catatan (tanpa bump key) — model SupportTicket +
+// SupportMessage (modul Online Support) masuk client hasil generate
+// (db.supportTicket / db.supportMessage); instance lama di cache dev
+// hot-reload akan ter-evict idle-sweeper seperti biasa.
 // =========================================================================
 // QA-SCALING-100T — PEMBATASAN KONEKSI (fix pasca-benchmark 100 tenant).
 // =========================================================================

@@ -41,7 +41,7 @@ import {
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
   MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode, UserRoundSearch,
-  UsersRound, UserRoundCheck, Handshake, PieChart, Settings, Target, ListChecks, MessagesSquare, Grid3x3, LifeBuoy, Hourglass, Telescope, Wrench, Route} from "lucide-react";
+  UsersRound, UserRoundCheck, Handshake, PieChart, Settings, Target, ListChecks, MessagesSquare, Grid3x3, LifeBuoy, Hourglass, Telescope, Wrench, Route, Headset} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanySwitcher } from "./company-switcher";
 
@@ -95,6 +95,10 @@ export const MODULES: ModuleMeta[] = [
   // P0-PERF — modul Performance (DEVELOPMENT-PLAN-PERFORMANCE.md §14.1:
   // ikon Target, fuchsia #d946ef — belum terpakai 8 modul lain)
   { id: "performance", label: "Performance", short: "Kinerja", desc: "Penilaian kinerja, kalibrasi & merit", icon: Target, ready: true, hex: "#d946ef" },
+  // FEAT-SUPPORT-P1 — modul Online Support: kanal bantuan pengguna (Support
+  // Service — chat interaktif + lampiran, ditangani AI support agent; akses
+  // menu diatur peran lewat Pengaturan → Keamanan & Akses → Hak Akses).
+  { id: "support", label: "Online Support", short: "Support", desc: "Bantuan & penanganan masalah pengguna (AI)", icon: Headset, ready: true, hex: "#65a30d" },
 ];
 
 export const SETTINGS_META = {
@@ -300,6 +304,16 @@ const WHISTLEBLOW_NAV: NavGroup[] = [
   ] },
 ];
 
+// FEAT-SUPPORT-P1 — modul Online Support: menu Support Service (chat
+// interaktif + lampiran gambar/dokumen, ditangani AI support agent bergaya
+// ticketing). Akses menu diatur peran (default: super admin & mode ALL);
+// op khusus "manage" = melihat & menangani tiket seluruh pengguna.
+const SUPPORT_NAV: NavGroup[] = [
+  { section: "support", children: [
+    { id: "service", label: "Support Service", icon: MessagesSquare },
+  ] },
+];
+
 // F0-REC — modul Rekrutmen (DEVELOPMENT-PLAN-RECRUITMENT.md §7.1): navigasi
 // tumbuh per fase. F0: Ringkasan + Master Rekrutmen (10 master + katalog
 // tahap seleksi). F1: pr (permintaan karyawan) + pr-approval. F2: openings
@@ -432,6 +446,7 @@ export function navOfModule(m: ModuleId): NavGroup[] {
     case "whistleblowing": return WHISTLEBLOW_NAV;
     case "recruitment": return RECRUITMENT_NAV;
     case "performance": return PERFORMANCE_NAV;
+    case "support": return SUPPORT_NAV;
     default: return HR_NAV;
   }
 }

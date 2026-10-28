@@ -46,6 +46,9 @@ const MedicalModule = dynamic(() => import("@/rekankerja/medical/components/medi
 // Task 52-f — modul whistleblowing (TPKS UU 12/2022): kanal laporan anonim
 // + penanganan (triase) oleh tim berwenang.
 const WhistleblowModule = dynamic(() => import("@/rekankerja/whistleblow/components/whistleblow-module").then((m) => ({ default: m.WhistleblowModule })), { ssr: false, loading: ModuleLoading });
+// FEAT-SUPPORT-P1 — modul Online Support (Support Service): chat bantuan
+// interaktif + lampiran, ditangani AI support agent (bergaya ticketing).
+const SupportModule = dynamic(() => import("@/rekankerja/support/components/support-module").then((m) => ({ default: m.SupportModule })), { ssr: false, loading: ModuleLoading });
 // F0-REC — modul Rekrutmen (DEVELOPMENT-PLAN-RECRUITMENT.md): F0 fondasi
 // (ringkasan + 10 master + katalog tahap seleksi); F1+ tumbuh per fase.
 const RecruitmentModule = dynamic(() => import("@/rekankerja/recruitment/components/recruitment-module").then((m) => ({ default: m.RecruitmentModule })), { ssr: false, loading: ModuleLoading });
@@ -170,6 +173,7 @@ function PageInner() {
             {section === "whistleblowing" && <WhistleblowModule view={view} />}
             {section === "recruitment" && <RecruitmentModule view={view} />}
             {section === "performance" && <PerformanceModule view={view} />}
+            {section === "support" && <SupportModule view={view} />}
           </motion.div>
         </AnimatePresence>
       </AppShell>

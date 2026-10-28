@@ -5449,3 +5449,57 @@ model CareerSiteConfig {
   heroSub    String? // ≤200 char — fallback default dwibahasa portal
   updatedAt  DateTime @updatedAt
 }
+
+// ============================================================================
+// FEAT-SUPPORT-P1 — Modul Online Support (menu "Support Service"): kanal
+// bantuan pengguna bergaya ticketing berbentuk PERCAKAPAN LANGSUNG dengan AI
+// support agent (chat interaktif + lampiran gambar/dokumen).
+//   · Tiket = 1 percakapan (SP-<tahun>-NNN); pesan = bubble chat
+//     (USER | AI | SYSTEM); status AKTIF → SELESAI / DITUTUP (bisa dibuka
+//     kembali bila user menindaklanjuti).
+//   · Kategori & prioritas ditetapkan otomatis oleh AI (triase) lewat marker
+//     [[META:KATEGORI|PRIORITAS]] di akhir balasan — di-strip sebelum disimpan.
+//   · Lampiran MEMAKAI tabel generik Attachment (entityType "SupportMessage",
+//     entityId = id pesan — lihat attachment-service.ts; whitelist JPG/PNG/
+//     WEBP/PDF ≤5MB). Gambar dianalisa AI via VLM (createVision) saat
+//     menjawab; dokumen (PDF) disimpan sebagai bukti/lampiran.
+//   · Kepemilikan: createdById = AppUser pembuat (plain string, tanpa FK —
+//     pola WhistleblowReport); pengguna hanya melihat tiketnya sendiri,
+//     kecuali pemegang op support:service/manage (Pengaturan → Hak Akses).
+// ============================================================================
+
+// Tiket percakapan support — pemilik = AppUser (snapshot nama utk tampilan).
+model SupportTicket {
+  id             String    @id @default(cuid())
+  ticketNo       String    @unique // SP-2025-001
+  subject        String // judul ringkas percakapan (≤120)
+  category       String    @default("LAINNYA") // BUG|PENGGUNAAN|DATA|AKUN|FITUR|LAINNYA (triase AI)
+  priority       String    @default("SEDANG") // RENDAH|SEDANG|TINGGI|KRITIS (triase AI)
+  status         String    @default("AKTIF") // AKTIF|SELESAI|DITUTUP
+  createdById    String? // AppUser pembuat (plain string, tanpa FK — pola WhistleblowReport)
+  createdByName  String? // snapshot nama pembuat utk tampilan daftar tiket
+  lastMessageAt  DateTime  @default(now())
+  closedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  messages SupportMessage[]
+
+  @@index([status])
+  @@index([createdById])
+  @@index([lastMessageAt])
+}
+
+// Pesan dalam tiket support — USER (pengguna) | AI (support agent) | SYSTEM.
+model SupportMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  senderRole String // USER | AI | SYSTEM
+  senderName String? // snapshot nama pengirim utk tampilan
+  body       String // isi pesan (balasan AI berformat markdown)
+  createdAt  DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}

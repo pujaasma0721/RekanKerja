@@ -323,6 +323,13 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "decide", label: "Memutuskan status & hasil laporan", hint: "Menerima, investigasi, menyelesaikan, atau menutup laporan" },
   ],
 
+  // FEAT-SUPPORT-P1 — Online Support: chat bantuan AI (chat sendiri cukup
+  // sesi + kepemilikan tiket — pengguna hanya melihat tiketnya; op "manage"
+  // = melihat & menangani tiket SELURUH pengguna tenant).
+  "support:service": [
+    { key: "manage", label: "Mengelola semua tiket support", hint: "Melihat & menangani percakapan support seluruh pengguna (bukan hanya milik sendiri)" },
+  ],
+
   // Settings — konfigurasi email (Task 34)
   "settings:email": [
     { key: "test", label: "Mengirim email uji", hint: "Tombol Tes Kirim pada konfigurasi SMTP" },

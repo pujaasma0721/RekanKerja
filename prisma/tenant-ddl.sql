@@ -82,6 +82,19 @@ CREATE TABLE "OrgUnit" (
 );
 
 -- CreateTable
+CREATE TABLE "JobFamily" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "parentId" TEXT,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "JobFamily_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Job" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
@@ -90,8 +103,55 @@ CREATE TABLE "Job" (
     "description" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "familyId" TEXT,
+    "mission" TEXT,
+    "dutiesJson" TEXT,
+    "qualificationsJson" TEXT,
+    "minEducation" TEXT,
+    "workingConditions" TEXT,
 
     CONSTRAINT "Job_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SkillCatalog" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "category" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SkillCatalog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EmployeeSkill" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "skillId" TEXT NOT NULL,
+    "level" INTEGER NOT NULL,
+    "evidence" TEXT,
+    "assessedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmployeeSkill_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CareerPath" (
+    "id" TEXT NOT NULL,
+    "fromPositionId" TEXT NOT NULL,
+    "toPositionId" TEXT NOT NULL,
+    "requiredSkillsJson" TEXT,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CareerPath_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -122,6 +182,7 @@ CREATE TABLE "Position" (
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "positionLevelId" TEXT,
+    "requiredSkillsJson" TEXT,
 
     CONSTRAINT "Position_pkey" PRIMARY KEY ("id")
 );
@@ -202,8 +263,83 @@ CREATE TABLE "EmployeeFamily" (
     "birthDate" TIMESTAMP(3),
     "occupation" TEXT,
     "isDependent" BOOLEAN NOT NULL DEFAULT true,
+    "nationalId" TEXT,
 
     CONSTRAINT "EmployeeFamily_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EmergencyContact" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "relationship" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "address" TEXT,
+    "isPrimary" BOOLEAN NOT NULL DEFAULT false,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmergencyContact_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EmployeeProfileChangeRequest" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "fieldsJson" TEXT NOT NULL,
+    "reason" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Submitted',
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmployeeProfileChangeRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AttendanceRegularizationRequest" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "workDate" DATE NOT NULL,
+    "kind" TEXT NOT NULL,
+    "clockIn" TEXT,
+    "clockOut" TEXT,
+    "reason" TEXT NOT NULL,
+    "attachmentIds" TEXT NOT NULL DEFAULT '[]',
+    "status" TEXT NOT NULL DEFAULT 'Submitted',
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AttendanceRegularizationRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ReferralSubmission" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "referrerEmployeeId" TEXT NOT NULL,
+    "jobOpeningId" TEXT,
+    "candidateName" TEXT NOT NULL,
+    "candidateEmail" TEXT,
+    "candidatePhone" TEXT,
+    "note" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Submitted',
+    "verifyNote" TEXT,
+    "verifiedById" TEXT,
+    "verifiedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ReferralSubmission_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -292,6 +428,7 @@ CREATE TABLE "ApprovalStructure" (
     "positionId" TEXT,
     "gradeId" TEXT,
     "positionLevelId" TEXT,
+    "escalateDays" INTEGER,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -545,6 +682,8 @@ CREATE TABLE "PayrollRegulation" (
     "jkpCompanyRate" DOUBLE PRECISION NOT NULL DEFAULT 0.0014,
     "jkpSalaryCap" DOUBLE PRECISION NOT NULL DEFAULT 5000000,
     "nonNpwpSurcharge" DOUBLE PRECISION NOT NULL DEFAULT 0.2,
+    "bpjsOfficeCode" TEXT,
+    "bpjsInpatientClass" TEXT,
     "useTer" BOOLEAN NOT NULL DEFAULT false,
     "active" BOOLEAN NOT NULL DEFAULT true,
 
@@ -1746,6 +1885,36 @@ CREATE TABLE "MedicalProvider" (
 );
 
 -- CreateTable
+CREATE TABLE "InsurancePolicy" (
+    "id" TEXT NOT NULL,
+    "providerId" TEXT NOT NULL,
+    "policyNo" TEXT NOT NULL,
+    "periodStart" TIMESTAMP(3) NOT NULL,
+    "periodEnd" TIMESTAMP(3) NOT NULL,
+    "premiumMonthly" TEXT,
+    "pctCompany" DOUBLE PRECISION NOT NULL DEFAULT 100,
+    "status" TEXT NOT NULL DEFAULT 'Active',
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "InsurancePolicy_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PolicyMember" (
+    "id" TEXT NOT NULL,
+    "policyId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "dependentId" TEXT,
+    "effectiveFrom" TIMESTAMP(3) NOT NULL,
+    "effectiveTo" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PolicyMember_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "MedicalBalance" (
     "id" TEXT NOT NULL,
     "employeeId" TEXT NOT NULL,
@@ -2194,6 +2363,24 @@ CREATE TABLE "CustomReport" (
 );
 
 -- CreateTable
+CREATE TABLE "ReportSchedule" (
+    "id" TEXT NOT NULL,
+    "reportId" TEXT NOT NULL,
+    "frequency" TEXT NOT NULL,
+    "dayOfWeek" INTEGER,
+    "dayOfMonth" INTEGER,
+    "hour" INTEGER NOT NULL DEFAULT 7,
+    "recipients" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "lastRunAt" TIMESTAMP(3),
+    "lastStatus" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ReportSchedule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "WhistleblowReport" (
     "id" TEXT NOT NULL,
     "ticketNo" TEXT NOT NULL,
@@ -2516,6 +2703,18 @@ CREATE TABLE "SelectionProcess" (
 );
 
 -- CreateTable
+CREATE TABLE "PrSelectionStage" (
+    "id" TEXT NOT NULL,
+    "prId" TEXT NOT NULL,
+    "selectionProcessId" TEXT NOT NULL,
+    "seqNo" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PrSelectionStage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PersonnelRequisition" (
     "id" TEXT NOT NULL,
     "prNo" TEXT NOT NULL,
@@ -2642,7 +2841,6 @@ CREATE TABLE "Applicant" (
     "institutionName" TEXT,
     "referralEmployeeId" TEXT,
     "email" TEXT,
-    -- REC-AUDIT-FIX M2 — blind index email (dedupe tanpa bongkar enkripsi)
     "emailHash" TEXT,
     "phone" TEXT,
     "address" TEXT,
@@ -2807,10 +3005,35 @@ CREATE TABLE "CandidateSelectionStep" (
     "reportFileName" TEXT,
     "letterNo" TEXT,
     "meetingUrl" TEXT,
+    "inviteTokenHash" TEXT,
+    "inviteTokenExpAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "CandidateSelectionStep_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CandidateStepEvaluator" (
+    "id" TEXT NOT NULL,
+    "selectionStepId" TEXT NOT NULL,
+    "evaluatorId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CandidateStepEvaluator_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InterviewSlot" (
+    "id" TEXT NOT NULL,
+    "selectionStepId" TEXT NOT NULL,
+    "startAt" TIMESTAMP(3) NOT NULL,
+    "durationMin" INTEGER NOT NULL DEFAULT 60,
+    "status" TEXT NOT NULL DEFAULT 'Open',
+    "bookedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "InterviewSlot_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2905,11 +3128,26 @@ CREATE TABLE "CandidateOffer" (
     "sentAt" TIMESTAMP(3),
     "respondedAt" TIMESTAMP(3),
     "appointedAt" TIMESTAMP(3),
+    "selfServiceTokenHash" TEXT,
+    "selfServiceTokenExpAt" TIMESTAMP(3),
     "createdById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "CandidateOffer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CandidateOfferVersion" (
+    "id" TEXT NOT NULL,
+    "offerId" TEXT NOT NULL,
+    "versionNo" INTEGER NOT NULL,
+    "payloadJson" TEXT NOT NULL,
+    "label" TEXT,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CandidateOfferVersion_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -3090,6 +3328,29 @@ CREATE TABLE "NotificationPref" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "NotificationPref_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PushConfig" (
+    "id" TEXT NOT NULL,
+    "vapidPublic" TEXT NOT NULL,
+    "vapidPrivate" TEXT NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PushConfig_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PushSubscription" (
+    "id" TEXT NOT NULL,
+    "appUserId" TEXT NOT NULL,
+    "endpoint" TEXT NOT NULL,
+    "endpointHash" TEXT NOT NULL,
+    "p256dh" TEXT NOT NULL,
+    "auth" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PushSubscription_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -3572,7 +3833,7 @@ CREATE TABLE "OkrKeyResult" (
     CONSTRAINT "OkrKeyResult_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable (B4-BL — succession planning D-BL13–15)
+-- CreateTable
 CREATE TABLE "SuccessionPosition" (
     "id" TEXT NOT NULL,
     "positionId" TEXT NOT NULL,
@@ -3601,7 +3862,7 @@ CREATE TABLE "SuccessorCandidate" (
     CONSTRAINT "SuccessorCandidate_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable (B5-BL — benchmark gaji pasar D-BL16/D-BL17)
+-- CreateTable
 CREATE TABLE "SalaryBenchmark" (
     "id" TEXT NOT NULL,
     "year" INTEGER NOT NULL,
@@ -3618,25 +3879,7 @@ CREATE TABLE "SalaryBenchmark" (
     CONSTRAINT "SalaryBenchmark_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
-
--- CreateIndex (B5-BL — unique 3-kolom nullable = NULL-distinct di PG; guard duplikat null-aware di service benchmark)
-CREATE UNIQUE INDEX "SalaryBenchmark_year_sourceLabel_gradeCode_positionId_key" ON "SalaryBenchmark"("year", "sourceLabel", "gradeCode", "positionId");
-
--- CreateIndex
-CREATE INDEX "SalaryBenchmark_year_gradeCode_idx" ON "SalaryBenchmark"("year", "gradeCode");
-
--- AddForeignKey (B5-BL)
-ALTER TABLE "SalaryBenchmark" ADD CONSTRAINT "SalaryBenchmark_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddColumn (B6-BL — link meeting video-call tahap seleksi; idempoten utk tenant
--- existing via scripts/migrate-recruitment-b6-wa-meeting.ts — INSERT kolom di
--- CREATE TABLE di atas menjadikan ALTER ini no-op pada provisioning tenant baru)
-ALTER TABLE "CandidateSelectionStep" ADD COLUMN IF NOT EXISTS "meetingUrl" TEXT;
-
--- CreateTable (B7-BL — branding portal karier per tenant; row ABSEN = fallback
--- kode default — migrasi TIDAK menge-seed default)
+-- CreateTable
 CREATE TABLE "CareerSiteConfig" (
     "id" TEXT NOT NULL,
     "tenantSlug" TEXT NOT NULL,
@@ -3649,39 +3892,38 @@ CREATE TABLE "CareerSiteConfig" (
     CONSTRAINT "CareerSiteConfig_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex (B7-BL)
-CREATE UNIQUE INDEX "CareerSiteConfig_tenantSlug_key" ON "CareerSiteConfig"("tenantSlug");
+-- CreateTable
+CREATE TABLE "SupportTicket" (
+    "id" TEXT NOT NULL,
+    "ticketNo" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'LAINNYA',
+    "priority" TEXT NOT NULL DEFAULT 'SEDANG',
+    "status" TEXT NOT NULL DEFAULT 'AKTIF',
+    "createdById" TEXT,
+    "createdByName" TEXT,
+    "lastMessageAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "closedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
--- AddColumn (B7-BL — magic-link cek status lamaran sekali-pakai; idempoten utk
--- tenant existing via scripts/migrate-recruitment-b7-status-link.ts — INSERT
--- kolom di CREATE TABLE di atas menjadikan ALTER ini no-op pada tenant baru)
-ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "statusLinkUsedAt" TIMESTAMP(3);
+    CONSTRAINT "SupportTicket_pkey" PRIMARY KEY ("id")
+);
 
--- AddColumn (B8-BL — referral tracker: referralNote = konteks/pesan perujuk;
--- referralRewardNote = catatan insentif MANUAL HR DI LUAR payroll §5. Idempoten
--- utk tenant existing via scripts/migrate-recruitment-b8-referral.ts — INSERT
--- kolom di CREATE TABLE di atas menjadikan ALTER ini no-op pada tenant baru)
-ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "referralNote" TEXT;
-ALTER TABLE "Applicant" ADD COLUMN IF NOT EXISTS "referralRewardNote" TEXT;
+-- CreateTable
+CREATE TABLE "SupportMessage" (
+    "id" TEXT NOT NULL,
+    "ticketId" TEXT NOT NULL,
+    "senderRole" TEXT NOT NULL,
+    "senderName" TEXT,
+    "body" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- AddColumn / DropColumn (KPI-METRIC — Metric / Measure of Success sebagai inti
--- pembuatan KPI: description = definisi KPI; measureMode Numeric|Descriptor
--- (Descriptor = KPI kualitatif dinilai langsung level 1–5, tanpa angka);
--- metric = SATU TEKS BEBAS (textarea tunggal — permintaan user; umumnya rubrik
--- "1: …" s.d. "5: …", format bebas). Idempoten utk tenant existing via
--- scripts/migrate-kpi-metric.ts — INSERT kolom di CREATE TABLE di atas
--- menjadikan ALTER ini no-op pada provisioning tenant baru.
--- metricText & metricLevelsJson (iterasi-1/2 sesi ini, belum rilis) di-DROP —
--- diganti kolom teks tunggal "metric".)
-ALTER TABLE "KpiDefinition" ADD COLUMN IF NOT EXISTS "measureMode" TEXT NOT NULL DEFAULT 'Numeric';
-ALTER TABLE "KpiDefinition" ADD COLUMN IF NOT EXISTS "metric" TEXT;
-ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "description" TEXT;
-ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "measureMode" TEXT NOT NULL DEFAULT 'Numeric';
-ALTER TABLE "AppraisalKpi" ADD COLUMN IF NOT EXISTS "metric" TEXT;
-ALTER TABLE "KpiDefinition" DROP COLUMN IF EXISTS "metricText";
-ALTER TABLE "AppraisalKpi" DROP COLUMN IF EXISTS "metricText";
-ALTER TABLE "KpiDefinition" DROP COLUMN IF EXISTS "metricLevelsJson";
-ALTER TABLE "AppraisalKpi" DROP COLUMN IF EXISTS "metricLevelsJson";
+    CONSTRAINT "SupportMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CompanyOffice_code_key" ON "CompanyOffice"("code");
@@ -3696,7 +3938,25 @@ CREATE UNIQUE INDEX "PositionLevel_code_key" ON "PositionLevel"("code");
 CREATE UNIQUE INDEX "OrgUnit_code_key" ON "OrgUnit"("code");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "JobFamily_code_key" ON "JobFamily"("code");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Job_code_key" ON "Job"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SkillCatalog_code_key" ON "SkillCatalog"("code");
+
+-- CreateIndex
+CREATE INDEX "EmployeeSkill_employeeId_idx" ON "EmployeeSkill"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EmployeeSkill_employeeId_skillId_key" ON "EmployeeSkill"("employeeId", "skillId");
+
+-- CreateIndex
+CREATE INDEX "CareerPath_fromPositionId_idx" ON "CareerPath"("fromPositionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CareerPath_fromPositionId_toPositionId_key" ON "CareerPath"("fromPositionId", "toPositionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Grade_code_key" ON "Grade"("code");
@@ -3718,6 +3978,39 @@ CREATE INDEX "EmployeeAssignment_validTo_idx" ON "EmployeeAssignment"("validTo")
 
 -- CreateIndex
 CREATE INDEX "EmployeeFamily_employeeId_idx" ON "EmployeeFamily"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "EmergencyContact_employeeId_idx" ON "EmergencyContact"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EmployeeProfileChangeRequest_docNo_key" ON "EmployeeProfileChangeRequest"("docNo");
+
+-- CreateIndex
+CREATE INDEX "EmployeeProfileChangeRequest_employeeId_status_idx" ON "EmployeeProfileChangeRequest"("employeeId", "status");
+
+-- CreateIndex
+CREATE INDEX "EmployeeProfileChangeRequest_status_idx" ON "EmployeeProfileChangeRequest"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AttendanceRegularizationRequest_docNo_key" ON "AttendanceRegularizationRequest"("docNo");
+
+-- CreateIndex
+CREATE INDEX "AttendanceRegularizationRequest_employeeId_status_idx" ON "AttendanceRegularizationRequest"("employeeId", "status");
+
+-- CreateIndex
+CREATE INDEX "AttendanceRegularizationRequest_status_idx" ON "AttendanceRegularizationRequest"("status");
+
+-- CreateIndex
+CREATE INDEX "AttendanceRegularizationRequest_workDate_idx" ON "AttendanceRegularizationRequest"("workDate");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ReferralSubmission_docNo_key" ON "ReferralSubmission"("docNo");
+
+-- CreateIndex
+CREATE INDEX "ReferralSubmission_referrerEmployeeId_status_idx" ON "ReferralSubmission"("referrerEmployeeId", "status");
+
+-- CreateIndex
+CREATE INDEX "ReferralSubmission_status_idx" ON "ReferralSubmission"("status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PersonnelAction_docNo_key" ON "PersonnelAction"("docNo");
@@ -4041,6 +4334,21 @@ CREATE UNIQUE INDEX "MedicalBenefitType_code_key" ON "MedicalBenefitType"("code"
 CREATE UNIQUE INDEX "MedicalProvider_code_key" ON "MedicalProvider"("code");
 
 -- CreateIndex
+CREATE INDEX "InsurancePolicy_status_periodEnd_idx" ON "InsurancePolicy"("status", "periodEnd");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "InsurancePolicy_providerId_policyNo_key" ON "InsurancePolicy"("providerId", "policyNo");
+
+-- CreateIndex
+CREATE INDEX "PolicyMember_employeeId_effectiveTo_idx" ON "PolicyMember"("employeeId", "effectiveTo");
+
+-- CreateIndex
+CREATE INDEX "PolicyMember_policyId_idx" ON "PolicyMember"("policyId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PolicyMember_policyId_employeeId_dependentId_effectiveFrom_key" ON "PolicyMember"("policyId", "employeeId", "dependentId", "effectiveFrom");
+
+-- CreateIndex
 CREATE INDEX "MedicalBalance_year_idx" ON "MedicalBalance"("year");
 
 -- CreateIndex
@@ -4182,6 +4490,9 @@ CREATE UNIQUE INDEX "CustomReport_code_key" ON "CustomReport"("code");
 CREATE INDEX "CustomReport_entity_idx" ON "CustomReport"("entity");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "ReportSchedule_reportId_key" ON "ReportSchedule"("reportId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "WhistleblowReport_ticketNo_key" ON "WhistleblowReport"("ticketNo");
 
 -- CreateIndex
@@ -4269,6 +4580,12 @@ CREATE UNIQUE INDEX "SlaGroup_code_key" ON "SlaGroup"("code");
 CREATE UNIQUE INDEX "SelectionProcess_code_key" ON "SelectionProcess"("code");
 
 -- CreateIndex
+CREATE INDEX "PrSelectionStage_prId_idx" ON "PrSelectionStage"("prId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PrSelectionStage_prId_selectionProcessId_key" ON "PrSelectionStage"("prId", "selectionProcessId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "PersonnelRequisition_prNo_key" ON "PersonnelRequisition"("prNo");
 
 -- CreateIndex
@@ -4313,7 +4630,7 @@ CREATE INDEX "Applicant_keepOnFileUntil_idx" ON "Applicant"("keepOnFileUntil");
 -- CreateIndex
 CREATE INDEX "Applicant_source_idx" ON "Applicant"("source");
 
--- CreateIndex (REC-AUDIT-FIX M2 — dedupe pelamar via blind index email)
+-- CreateIndex
 CREATE INDEX "Applicant_emailHash_idx" ON "Applicant"("emailHash");
 
 -- CreateIndex
@@ -4353,6 +4670,9 @@ CREATE INDEX "JobCandidate_employeeId_idx" ON "JobCandidate"("employeeId");
 CREATE UNIQUE INDEX "JobCandidate_prId_applicantId_key" ON "JobCandidate"("prId", "applicantId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "CandidateSelectionStep_inviteTokenHash_key" ON "CandidateSelectionStep"("inviteTokenHash");
+
+-- CreateIndex
 CREATE INDEX "CandidateSelectionStep_candidateId_status_idx" ON "CandidateSelectionStep"("candidateId", "status");
 
 -- CreateIndex
@@ -4360,6 +4680,18 @@ CREATE INDEX "CandidateSelectionStep_status_dueDate_idx" ON "CandidateSelectionS
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CandidateSelectionStep_candidateId_selectionProcessId_seqNo_key" ON "CandidateSelectionStep"("candidateId", "selectionProcessId", "seqNo");
+
+-- CreateIndex
+CREATE INDEX "CandidateStepEvaluator_evaluatorId_idx" ON "CandidateStepEvaluator"("evaluatorId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CandidateStepEvaluator_selectionStepId_evaluatorId_key" ON "CandidateStepEvaluator"("selectionStepId", "evaluatorId");
+
+-- CreateIndex
+CREATE INDEX "InterviewSlot_selectionStepId_status_idx" ON "InterviewSlot"("selectionStepId", "status");
+
+-- CreateIndex
+CREATE INDEX "InterviewSlot_status_startAt_idx" ON "InterviewSlot"("status", "startAt");
 
 -- CreateIndex
 CREATE INDEX "ScorecardTemplate_active_idx" ON "ScorecardTemplate"("active");
@@ -4386,6 +4718,9 @@ CREATE INDEX "RecruitmentLetter_kind_issuedAt_idx" ON "RecruitmentLetter"("kind"
 CREATE UNIQUE INDEX "CandidateOffer_offerNo_key" ON "CandidateOffer"("offerNo");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "CandidateOffer_selfServiceTokenHash_key" ON "CandidateOffer"("selfServiceTokenHash");
+
+-- CreateIndex
 CREATE INDEX "CandidateOffer_status_expiryDate_idx" ON "CandidateOffer"("status", "expiryDate");
 
 -- CreateIndex
@@ -4393,6 +4728,12 @@ CREATE INDEX "CandidateOffer_prId_idx" ON "CandidateOffer"("prId");
 
 -- CreateIndex
 CREATE INDEX "CandidateOffer_candidateId_idx" ON "CandidateOffer"("candidateId");
+
+-- CreateIndex
+CREATE INDEX "CandidateOfferVersion_offerId_idx" ON "CandidateOfferVersion"("offerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CandidateOfferVersion_offerId_versionNo_key" ON "CandidateOfferVersion"("offerId", "versionNo");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CandidateAppointment_offerId_key" ON "CandidateAppointment"("offerId");
@@ -4441,6 +4782,12 @@ CREATE INDEX "WebhookDelivery_status_nextRetryAt_idx" ON "WebhookDelivery"("stat
 
 -- CreateIndex
 CREATE UNIQUE INDEX "NotificationPref_employeeId_key" ON "NotificationPref"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "PushSubscription_appUserId_idx" ON "PushSubscription"("appUserId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PushSubscription_appUserId_endpointHash_key" ON "PushSubscription"("appUserId", "endpointHash");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RecruitmentSetting_key_key" ON "RecruitmentSetting"("key");
@@ -4531,6 +4878,8 @@ CREATE UNIQUE INDEX "Feedback360_appraisalId_reviewerId_reviewerType_key" ON "Fe
 
 -- CreateIndex
 CREATE INDEX "Feedback360Answer_feedbackId_competencyId_idx" ON "Feedback360Answer"("feedbackId", "competencyId");
+
+-- CreateIndex
 CREATE INDEX "Feedback360Answer_moderated_idx" ON "Feedback360Answer"("moderated");
 
 -- CreateIndex
@@ -4575,7 +4924,7 @@ CREATE INDEX "OkrObjective_ownerEmployeeId_idx" ON "OkrObjective"("ownerEmployee
 -- CreateIndex
 CREATE INDEX "OkrKeyResult_objectiveId_idx" ON "OkrKeyResult"("objectiveId");
 
--- CreateIndex (B4-BL — succession)
+-- CreateIndex
 CREATE UNIQUE INDEX "SuccessionPosition_positionId_key" ON "SuccessionPosition"("positionId");
 
 -- CreateIndex
@@ -4583,6 +4932,30 @@ CREATE INDEX "SuccessorCandidate_employeeId_idx" ON "SuccessorCandidate"("employ
 
 -- CreateIndex
 CREATE UNIQUE INDEX "SuccessorCandidate_successionPositionId_employeeId_key" ON "SuccessorCandidate"("successionPositionId", "employeeId");
+
+-- CreateIndex
+CREATE INDEX "SalaryBenchmark_year_gradeCode_idx" ON "SalaryBenchmark"("year", "gradeCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SalaryBenchmark_year_sourceLabel_gradeCode_positionId_key" ON "SalaryBenchmark"("year", "sourceLabel", "gradeCode", "positionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CareerSiteConfig_tenantSlug_key" ON "CareerSiteConfig"("tenantSlug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SupportTicket_ticketNo_key" ON "SupportTicket"("ticketNo");
+
+-- CreateIndex
+CREATE INDEX "SupportTicket_status_idx" ON "SupportTicket"("status");
+
+-- CreateIndex
+CREATE INDEX "SupportTicket_createdById_idx" ON "SupportTicket"("createdById");
+
+-- CreateIndex
+CREATE INDEX "SupportTicket_lastMessageAt_idx" ON "SupportTicket"("lastMessageAt");
+
+-- CreateIndex
+CREATE INDEX "SupportMessage_ticketId_createdAt_idx" ON "SupportMessage"("ticketId", "createdAt");
 
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -4598,6 +4971,24 @@ ALTER TABLE "OrgUnit" ADD CONSTRAINT "OrgUnit_parentId_fkey" FOREIGN KEY ("paren
 
 -- AddForeignKey
 ALTER TABLE "OrgUnit" ADD CONSTRAINT "OrgUnit_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobFamily" ADD CONSTRAINT "JobFamily_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "JobFamily"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Job" ADD CONSTRAINT "Job_familyId_fkey" FOREIGN KEY ("familyId") REFERENCES "JobFamily"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeSkill" ADD CONSTRAINT "EmployeeSkill_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeSkill" ADD CONSTRAINT "EmployeeSkill_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "SkillCatalog"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CareerPath" ADD CONSTRAINT "CareerPath_fromPositionId_fkey" FOREIGN KEY ("fromPositionId") REFERENCES "Position"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CareerPath" ADD CONSTRAINT "CareerPath_toPositionId_fkey" FOREIGN KEY ("toPositionId") REFERENCES "Position"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Position" ADD CONSTRAINT "Position_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -4658,6 +5049,21 @@ ALTER TABLE "EmployeeAssignment" ADD CONSTRAINT "EmployeeAssignment_workLocation
 
 -- AddForeignKey
 ALTER TABLE "EmployeeFamily" ADD CONSTRAINT "EmployeeFamily_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmergencyContact" ADD CONSTRAINT "EmergencyContact_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeProfileChangeRequest" ADD CONSTRAINT "EmployeeProfileChangeRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeProfileChangeRequest" ADD CONSTRAINT "EmployeeProfileChangeRequest_decidedById_fkey" FOREIGN KEY ("decidedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AttendanceRegularizationRequest" ADD CONSTRAINT "AttendanceRegularizationRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReferralSubmission" ADD CONSTRAINT "ReferralSubmission_referrerEmployeeId_fkey" FOREIGN KEY ("referrerEmployeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EmployeeEducation" ADD CONSTRAINT "EmployeeEducation_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -4954,6 +5360,18 @@ ALTER TABLE "TravelClaimExpense" ADD CONSTRAINT "TravelClaimExpense_claimId_fkey
 ALTER TABLE "MedicalBenefitTypeRule" ADD CONSTRAINT "MedicalBenefitTypeRule_medicalBenefitTypeId_fkey" FOREIGN KEY ("medicalBenefitTypeId") REFERENCES "MedicalBenefitType"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "InsurancePolicy" ADD CONSTRAINT "InsurancePolicy_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "MedicalProvider"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PolicyMember" ADD CONSTRAINT "PolicyMember_policyId_fkey" FOREIGN KEY ("policyId") REFERENCES "InsurancePolicy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PolicyMember" ADD CONSTRAINT "PolicyMember_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PolicyMember" ADD CONSTRAINT "PolicyMember_dependentId_fkey" FOREIGN KEY ("dependentId") REFERENCES "EmployeeFamily"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "MedicalBalance" ADD CONSTRAINT "MedicalBalance_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -5020,7 +5438,16 @@ ALTER TABLE "ShiftSwapRequest" ADD CONSTRAINT "ShiftSwapRequest_requesterId_fkey
 ALTER TABLE "ShiftSwapRequest" ADD CONSTRAINT "ShiftSwapRequest_targetId_fkey" FOREIGN KEY ("targetId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ReportSchedule" ADD CONSTRAINT "ReportSchedule_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "CustomReport"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "NonEmployeePayment" ADD CONSTRAINT "NonEmployeePayment_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "NonEmployeePartner"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PrSelectionStage" ADD CONSTRAINT "PrSelectionStage_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PersonnelRequisition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PrSelectionStage" ADD CONSTRAINT "PrSelectionStage_selectionProcessId_fkey" FOREIGN KEY ("selectionProcessId") REFERENCES "SelectionProcess"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PersonnelRequisition" ADD CONSTRAINT "PersonnelRequisition_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -5140,6 +5567,15 @@ ALTER TABLE "CandidateSelectionStep" ADD CONSTRAINT "CandidateSelectionStep_sele
 ALTER TABLE "CandidateSelectionStep" ADD CONSTRAINT "CandidateSelectionStep_performedById_fkey" FOREIGN KEY ("performedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "CandidateStepEvaluator" ADD CONSTRAINT "CandidateStepEvaluator_selectionStepId_fkey" FOREIGN KEY ("selectionStepId") REFERENCES "CandidateSelectionStep"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateStepEvaluator" ADD CONSTRAINT "CandidateStepEvaluator_evaluatorId_fkey" FOREIGN KEY ("evaluatorId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InterviewSlot" ADD CONSTRAINT "InterviewSlot_selectionStepId_fkey" FOREIGN KEY ("selectionStepId") REFERENCES "CandidateSelectionStep"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ScorecardTemplate" ADD CONSTRAINT "ScorecardTemplate_selectionProcessId_fkey" FOREIGN KEY ("selectionProcessId") REFERENCES "SelectionProcess"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -5180,6 +5616,9 @@ ALTER TABLE "CandidateOffer" ADD CONSTRAINT "CandidateOffer_jobOpeningId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "CandidateOffer" ADD CONSTRAINT "CandidateOffer_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CandidateOfferVersion" ADD CONSTRAINT "CandidateOfferVersion_offerId_fkey" FOREIGN KEY ("offerId") REFERENCES "CandidateOffer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CandidateAppointment" ADD CONSTRAINT "CandidateAppointment_offerId_fkey" FOREIGN KEY ("offerId") REFERENCES "CandidateOffer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -5249,6 +5688,9 @@ ALTER TABLE "WebhookDelivery" ADD CONSTRAINT "WebhookDelivery_endpointId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "NotificationPref" ADD CONSTRAINT "NotificationPref_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EsignRequest" ADD CONSTRAINT "EsignRequest_letterId_fkey" FOREIGN KEY ("letterId") REFERENCES "RecruitmentLetter"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -5355,375 +5797,18 @@ ALTER TABLE "OkrKeyResult" ADD CONSTRAINT "OkrKeyResult_objectiveId_fkey" FOREIG
 -- AddForeignKey
 ALTER TABLE "OkrKeyResult" ADD CONSTRAINT "OkrKeyResult_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "SuccessionPosition" ADD CONSTRAINT "SuccessionPosition_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- CreateTable (SB-RC-BL — tahapan seleksi kustom per PR / user-defined
--- selection process per requisition: HR memilih tahap + urutannya per PR;
--- kosong = standar tenant. Rantai kandidat existing TIDAK diubah — hanya
--- nominasi baru membaca daftar ini. Idempoten utk tenant existing via
--- scripts/migrate-recruitment-sb-stages.ts)
-CREATE TABLE "PrSelectionStage" (
-    "id" TEXT NOT NULL,
-    "prId" TEXT NOT NULL,
-    "selectionProcessId" TEXT NOT NULL,
-    "seqNo" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+-- AddForeignKey
+ALTER TABLE "SuccessorCandidate" ADD CONSTRAINT "SuccessorCandidate_successionPositionId_fkey" FOREIGN KEY ("successionPositionId") REFERENCES "SuccessionPosition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-    CONSTRAINT "PrSelectionStage_pkey" PRIMARY KEY ("id")
-);
+-- AddForeignKey
+ALTER TABLE "SuccessorCandidate" ADD CONSTRAINT "SuccessorCandidate_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- CreateIndex (SB-RC-BL)
-CREATE UNIQUE INDEX "PrSelectionStage_prId_selectionProcessId_key" ON "PrSelectionStage"("prId", "selectionProcessId");
+-- AddForeignKey
+ALTER TABLE "SalaryBenchmark" ADD CONSTRAINT "SalaryBenchmark_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- CreateIndex (SB-RC-BL)
-CREATE INDEX "PrSelectionStage_prId_idx" ON "PrSelectionStage"("prId");
+-- AddForeignKey
+ALTER TABLE "SupportMessage" ADD CONSTRAINT "SupportMessage_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "SupportTicket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey (SB-RC-BL)
-ALTER TABLE "PrSelectionStage" ADD CONSTRAINT "PrSelectionStage_prId_fkey" FOREIGN KEY ("prId") REFERENCES "PersonnelRequisition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey (SB-RC-BL)
-ALTER TABLE "PrSelectionStage" ADD CONSTRAINT "PrSelectionStage_selectionProcessId_fkey" FOREIGN KEY ("selectionProcessId") REFERENCES "SelectionProcess"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- ============================================================
--- P1-BENCHMARK (DEVELOPMENT-PLAN-BENCHMARK.md §4 P1.1/P1.3/P1.6)
--- 4 tabel baru + 1 kolom — idempoten utk tenant existing via
--- scripts/migrate-p1-benchmark.ts (CREATE TABLE IF NOT EXISTS / ADD COLUMN
--- IF NOT EXISTS); bagi tenant baru CREATE TABLE di provisioning sudah
--- mencakup semuanya.
--- ============================================================
-
--- AddColumn (P1.1 D-BM4 — NIK anggota keluarga, terenkripsi aplikasi enc:v1:t:)
-ALTER TABLE "EmployeeFamily" ADD COLUMN IF NOT EXISTS "nationalId" TEXT;
-
--- CreateTable (P1.1 D-BM2 — kontak darurat karyawan)
-CREATE TABLE IF NOT EXISTS "EmergencyContact" (
-    "id" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "relationship" TEXT NOT NULL,
-    "phone" TEXT NOT NULL,
-    "address" TEXT,
-    "isPrimary" BOOLEAN NOT NULL DEFAULT false,
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "EmergencyContact_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable (P1.1 D-BM1 — pengajuan ubah data diri ESS + approval)
-CREATE TABLE IF NOT EXISTS "EmployeeProfileChangeRequest" (
-    "id" TEXT NOT NULL,
-    "docNo" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "fieldsJson" TEXT NOT NULL,
-    "reason" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'Submitted',
-    "decidedById" TEXT,
-    "decidedAt" TIMESTAMP(3),
-    "decisionNote" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "EmployeeProfileChangeRequest_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable (P1.3 D-BM7 — regularisasi absensi mandiri + approval)
-CREATE TABLE IF NOT EXISTS "AttendanceRegularizationRequest" (
-    "id" TEXT NOT NULL,
-    "docNo" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "workDate" DATE NOT NULL,
-    "kind" TEXT NOT NULL,
-    "clockIn" TEXT,
-    "clockOut" TEXT,
-    "reason" TEXT NOT NULL,
-    "attachmentIds" TEXT NOT NULL DEFAULT '[]',
-    "status" TEXT NOT NULL DEFAULT 'Submitted',
-    "decidedById" TEXT,
-    "decidedAt" TIMESTAMP(3),
-    "decisionNote" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "AttendanceRegularizationRequest_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable (P1.6 D-BM15 — staging pengajuan referral ESS)
-CREATE TABLE IF NOT EXISTS "ReferralSubmission" (
-    "id" TEXT NOT NULL,
-    "docNo" TEXT NOT NULL,
-    "referrerEmployeeId" TEXT NOT NULL,
-    "jobOpeningId" TEXT,
-    "candidateName" TEXT NOT NULL,
-    "candidateEmail" TEXT,
-    "candidatePhone" TEXT,
-    "note" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'Submitted',
-    "verifyNote" TEXT,
-    "verifiedById" TEXT,
-    "verifiedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "ReferralSubmission_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex (P1.1/P1.3/P1.6)
-CREATE INDEX IF NOT EXISTS "EmergencyContact_employeeId_idx" ON "EmergencyContact"("employeeId");
-CREATE UNIQUE INDEX IF NOT EXISTS "EmployeeProfileChangeRequest_docNo_key" ON "EmployeeProfileChangeRequest"("docNo");
-CREATE INDEX IF NOT EXISTS "EmployeeProfileChangeRequest_employeeId_status_idx" ON "EmployeeProfileChangeRequest"("employeeId", "status");
-CREATE INDEX IF NOT EXISTS "EmployeeProfileChangeRequest_status_idx" ON "EmployeeProfileChangeRequest"("status");
-CREATE UNIQUE INDEX IF NOT EXISTS "AttendanceRegularizationRequest_docNo_key" ON "AttendanceRegularizationRequest"("docNo");
-CREATE INDEX IF NOT EXISTS "AttendanceRegularizationRequest_employeeId_status_idx" ON "AttendanceRegularizationRequest"("employeeId", "status");
-CREATE INDEX IF NOT EXISTS "AttendanceRegularizationRequest_status_idx" ON "AttendanceRegularizationRequest"("status");
-CREATE INDEX IF NOT EXISTS "AttendanceRegularizationRequest_workDate_idx" ON "AttendanceRegularizationRequest"("workDate");
-CREATE UNIQUE INDEX IF NOT EXISTS "ReferralSubmission_docNo_key" ON "ReferralSubmission"("docNo");
-CREATE INDEX IF NOT EXISTS "ReferralSubmission_referrerEmployeeId_status_idx" ON "ReferralSubmission"("referrerEmployeeId", "status");
-CREATE INDEX IF NOT EXISTS "ReferralSubmission_status_idx" ON "ReferralSubmission"("status");
-
--- AddForeignKey (P1.1/P1.3/P1.6)
-ALTER TABLE "EmergencyContact" DROP CONSTRAINT IF EXISTS "EmergencyContact_employeeId_fkey";
-ALTER TABLE "EmergencyContact" ADD CONSTRAINT "EmergencyContact_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "EmployeeProfileChangeRequest" DROP CONSTRAINT IF EXISTS "EmployeeProfileChangeRequest_employeeId_fkey";
-ALTER TABLE "EmployeeProfileChangeRequest" ADD CONSTRAINT "EmployeeProfileChangeRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "EmployeeProfileChangeRequest" DROP CONSTRAINT IF EXISTS "EmployeeProfileChangeRequest_decidedById_fkey";
-ALTER TABLE "EmployeeProfileChangeRequest" ADD CONSTRAINT "EmployeeProfileChangeRequest_decidedById_fkey" FOREIGN KEY ("decidedById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "AttendanceRegularizationRequest" DROP CONSTRAINT IF EXISTS "AttendanceRegularizationRequest_employeeId_fkey";
-ALTER TABLE "AttendanceRegularizationRequest" ADD CONSTRAINT "AttendanceRegularizationRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ReferralSubmission" DROP CONSTRAINT IF EXISTS "ReferralSubmission_referrerEmployeeId_fkey";
-ALTER TABLE "ReferralSubmission" ADD CONSTRAINT "ReferralSubmission_referrerEmployeeId_fkey" FOREIGN KEY ("referrerEmployeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- ============================================================
--- P2-BENCHMARK (DEVELOPMENT-PLAN-BENCHMARK.md §4 P2) — SEMUA idempoten
--- (pola migrate-p1-benchmark):
---   * kolom: PayrollRegulation.bpjsOfficeCode/bpjsInpatientClass (D-BM16),
---     ApprovalStructure.escalateDays (D-BM21),
---     CandidateSelectionStep.inviteTokenHash/inviteTokenExpAt (D-BM18),
---     CandidateOffer.selfServiceTokenHash/selfServiceTokenExpAt (D-BM19)
---   * tabel: InsurancePolicy + PolicyMember (D-BM20),
---     CandidateStepEvaluator + InterviewSlot (D-BM18),
---     CandidateOfferVersion (D-BM19), PushConfig + PushSubscription (D-BM17)
--- ============================================================
-
--- kolom baru (idempoten)
-ALTER TABLE "PayrollRegulation" ADD COLUMN IF NOT EXISTS "bpjsOfficeCode" TEXT;
-ALTER TABLE "PayrollRegulation" ADD COLUMN IF NOT EXISTS "bpjsInpatientClass" TEXT;
-ALTER TABLE "ApprovalStructure" ADD COLUMN IF NOT EXISTS "escalateDays" INTEGER;
-ALTER TABLE "CandidateSelectionStep" ADD COLUMN IF NOT EXISTS "inviteTokenHash" TEXT;
-ALTER TABLE "CandidateSelectionStep" ADD COLUMN IF NOT EXISTS "inviteTokenExpAt" TIMESTAMP(3);
-ALTER TABLE "CandidateOffer" ADD COLUMN IF NOT EXISTS "selfServiceTokenHash" TEXT;
-ALTER TABLE "CandidateOffer" ADD COLUMN IF NOT EXISTS "selfServiceTokenExpAt" TIMESTAMP(3);
-
--- P2.5-BM (D-BM20) — polis asuransi grup + enrollment
-CREATE TABLE IF NOT EXISTS "InsurancePolicy" (
-    "id" TEXT NOT NULL,
-    "providerId" TEXT NOT NULL,
-    "policyNo" TEXT NOT NULL,
-    "periodStart" TIMESTAMP(3) NOT NULL,
-    "periodEnd" TIMESTAMP(3) NOT NULL,
-    "premiumMonthly" TEXT,
-    "pctCompany" DOUBLE PRECISION NOT NULL DEFAULT 100,
-    "status" TEXT NOT NULL DEFAULT 'Active',
-    "note" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "InsurancePolicy_pkey" PRIMARY KEY ("id")
-);
-CREATE TABLE IF NOT EXISTS "PolicyMember" (
-    "id" TEXT NOT NULL,
-    "policyId" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "dependentId" TEXT,
-    "effectiveFrom" TIMESTAMP(3) NOT NULL,
-    "effectiveTo" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "PolicyMember_pkey" PRIMARY KEY ("id")
-);
-
--- P2.3-BM (D-BM18) — panel evaluator + slot jadwal wawancara
-CREATE TABLE IF NOT EXISTS "CandidateStepEvaluator" (
-    "id" TEXT NOT NULL,
-    "selectionStepId" TEXT NOT NULL,
-    "evaluatorId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "CandidateStepEvaluator_pkey" PRIMARY KEY ("id")
-);
-CREATE TABLE IF NOT EXISTS "InterviewSlot" (
-    "id" TEXT NOT NULL,
-    "selectionStepId" TEXT NOT NULL,
-    "startAt" TIMESTAMP(3) NOT NULL,
-    "durationMin" INTEGER NOT NULL DEFAULT 60,
-    "status" TEXT NOT NULL DEFAULT 'Open',
-    "bookedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "InterviewSlot_pkey" PRIMARY KEY ("id")
-);
-
--- P2.4-BM (D-BM19) — riwayat versi offer
-CREATE TABLE IF NOT EXISTS "CandidateOfferVersion" (
-    "id" TEXT NOT NULL,
-    "offerId" TEXT NOT NULL,
-    "versionNo" INTEGER NOT NULL,
-    "payloadJson" TEXT NOT NULL,
-    "label" TEXT,
-    "createdById" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "CandidateOfferVersion_pkey" PRIMARY KEY ("id")
-);
-
--- P2.2-BM (D-BM17) — web push config + langganan
-CREATE TABLE IF NOT EXISTS "PushConfig" (
-    "id" TEXT NOT NULL,
-    "vapidPublic" TEXT NOT NULL,
-    "vapidPrivate" TEXT NOT NULL,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "PushConfig_pkey" PRIMARY KEY ("id")
-);
-CREATE TABLE IF NOT EXISTS "PushSubscription" (
-    "id" TEXT NOT NULL,
-    "appUserId" TEXT NOT NULL,
-    "endpoint" TEXT NOT NULL,
-    "endpointHash" TEXT NOT NULL,
-    "p256dh" TEXT NOT NULL,
-    "auth" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "PushSubscription_pkey" PRIMARY KEY ("id")
-);
-
--- index + unique (idempoten)
-CREATE UNIQUE INDEX IF NOT EXISTS "InsurancePolicy_providerId_policyNo_key" ON "InsurancePolicy"("providerId", "policyNo");
-CREATE INDEX IF NOT EXISTS "InsurancePolicy_status_periodEnd_idx" ON "InsurancePolicy"("status", "periodEnd");
-CREATE INDEX IF NOT EXISTS "PolicyMember_employeeId_effectiveTo_idx" ON "PolicyMember"("employeeId", "effectiveTo");
-CREATE INDEX IF NOT EXISTS "PolicyMember_policyId_idx" ON "PolicyMember"("policyId");
-CREATE UNIQUE INDEX IF NOT EXISTS "CandidateStepEvaluator_selectionStepId_evaluatorId_key" ON "CandidateStepEvaluator"("selectionStepId", "evaluatorId");
-CREATE INDEX IF NOT EXISTS "CandidateStepEvaluator_evaluatorId_idx" ON "CandidateStepEvaluator"("evaluatorId");
-CREATE INDEX IF NOT EXISTS "InterviewSlot_selectionStepId_status_idx" ON "InterviewSlot"("selectionStepId", "status");
-CREATE INDEX IF NOT EXISTS "InterviewSlot_status_startAt_idx" ON "InterviewSlot"("status", "startAt");
-CREATE UNIQUE INDEX IF NOT EXISTS "CandidateOfferVersion_offerId_versionNo_key" ON "CandidateOfferVersion"("offerId", "versionNo");
-CREATE INDEX IF NOT EXISTS "CandidateOfferVersion_offerId_idx" ON "CandidateOfferVersion"("offerId");
-CREATE UNIQUE INDEX IF NOT EXISTS "PushSubscription_appUserId_endpointHash_key" ON "PushSubscription"("appUserId", "endpointHash");
-CREATE INDEX IF NOT EXISTS "PushSubscription_appUserId_idx" ON "PushSubscription"("appUserId");
-CREATE UNIQUE INDEX IF NOT EXISTS "CandidateSelectionStep_inviteTokenHash_key" ON "CandidateSelectionStep"("inviteTokenHash");
-CREATE UNIQUE INDEX IF NOT EXISTS "CandidateOffer_selfServiceTokenHash_key" ON "CandidateOffer"("selfServiceTokenHash");
-
--- FK (drop-if-exists lalu add — idempoten)
-ALTER TABLE "InsurancePolicy" DROP CONSTRAINT IF EXISTS "InsurancePolicy_providerId_fkey";
-ALTER TABLE "InsurancePolicy" ADD CONSTRAINT "InsurancePolicy_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "MedicalProvider"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "PolicyMember" DROP CONSTRAINT IF EXISTS "PolicyMember_policyId_fkey";
-ALTER TABLE "PolicyMember" ADD CONSTRAINT "PolicyMember_policyId_fkey" FOREIGN KEY ("policyId") REFERENCES "InsurancePolicy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "PolicyMember" DROP CONSTRAINT IF EXISTS "PolicyMember_employeeId_fkey";
-ALTER TABLE "PolicyMember" ADD CONSTRAINT "PolicyMember_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "PolicyMember" DROP CONSTRAINT IF EXISTS "PolicyMember_dependentId_fkey";
-ALTER TABLE "PolicyMember" ADD CONSTRAINT "PolicyMember_dependentId_fkey" FOREIGN KEY ("dependentId") REFERENCES "EmployeeFamily"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "CandidateStepEvaluator" DROP CONSTRAINT IF EXISTS "CandidateStepEvaluator_selectionStepId_fkey";
-ALTER TABLE "CandidateStepEvaluator" ADD CONSTRAINT "CandidateStepEvaluator_selectionStepId_fkey" FOREIGN KEY ("selectionStepId") REFERENCES "CandidateSelectionStep"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "CandidateStepEvaluator" DROP CONSTRAINT IF EXISTS "CandidateStepEvaluator_evaluatorId_fkey";
-ALTER TABLE "CandidateStepEvaluator" ADD CONSTRAINT "CandidateStepEvaluator_evaluatorId_fkey" FOREIGN KEY ("evaluatorId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "InterviewSlot" DROP CONSTRAINT IF EXISTS "InterviewSlot_selectionStepId_fkey";
-ALTER TABLE "InterviewSlot" ADD CONSTRAINT "InterviewSlot_selectionStepId_fkey" FOREIGN KEY ("selectionStepId") REFERENCES "CandidateSelectionStep"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "CandidateOfferVersion" DROP CONSTRAINT IF EXISTS "CandidateOfferVersion_offerId_fkey";
-ALTER TABLE "CandidateOfferVersion" ADD CONSTRAINT "CandidateOfferVersion_offerId_fkey" FOREIGN KEY ("offerId") REFERENCES "CandidateOffer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "PushSubscription" DROP CONSTRAINT IF EXISTS "PushSubscription_appUserId_fkey";
-ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- ============================================================
--- P3-BENCHMARK (D-BM23/24/27) — job architecture + skills + career path
--- (blok idempoten — CREATE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS)
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS "JobFamily" (
-    "id" TEXT NOT NULL,
-    "code" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "parentId" TEXT,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "JobFamily_pkey" PRIMARY KEY ("id")
-);
-
-CREATE TABLE IF NOT EXISTS "SkillCatalog" (
-    "id" TEXT NOT NULL,
-    "code" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "category" TEXT,
-    "active" BOOLEAN NOT NULL DEFAULT true,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "SkillCatalog_pkey" PRIMARY KEY ("id")
-);
-
-CREATE TABLE IF NOT EXISTS "EmployeeSkill" (
-    "id" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "skillId" TEXT NOT NULL,
-    "level" INTEGER NOT NULL,
-    "evidence" TEXT,
-    "assessedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "EmployeeSkill_pkey" PRIMARY KEY ("id")
-);
-
-CREATE TABLE IF NOT EXISTS "CareerPath" (
-    "id" TEXT NOT NULL,
-    "fromPositionId" TEXT NOT NULL,
-    "toPositionId" TEXT NOT NULL,
-    "requiredSkillsJson" TEXT,
-    "note" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "CareerPath_pkey" PRIMARY KEY ("id")
-);
-
-ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "familyId" TEXT;
-ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "mission" TEXT;
-ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "dutiesJson" TEXT;
-ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "qualificationsJson" TEXT;
-ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "minEducation" TEXT;
-ALTER TABLE "Job" ADD COLUMN IF NOT EXISTS "workingConditions" TEXT;
-ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "requiredSkillsJson" TEXT;
-
-CREATE UNIQUE INDEX IF NOT EXISTS "JobFamily_code_key" ON "JobFamily"("code");
-CREATE INDEX IF NOT EXISTS "JobFamily_parentId_idx" ON "JobFamily"("parentId");
-CREATE INDEX IF NOT EXISTS "Job_familyId_idx" ON "Job"("familyId");
-CREATE UNIQUE INDEX IF NOT EXISTS "SkillCatalog_code_key" ON "SkillCatalog"("code");
-CREATE UNIQUE INDEX IF NOT EXISTS "EmployeeSkill_employeeId_skillId_key" ON "EmployeeSkill"("employeeId", "skillId");
-CREATE INDEX IF NOT EXISTS "EmployeeSkill_employeeId_idx" ON "EmployeeSkill"("employeeId");
-CREATE UNIQUE INDEX IF NOT EXISTS "CareerPath_fromPositionId_toPositionId_key" ON "CareerPath"("fromPositionId", "toPositionId");
-CREATE INDEX IF NOT EXISTS "CareerPath_fromPositionId_idx" ON "CareerPath"("fromPositionId");
-
-ALTER TABLE "JobFamily" DROP CONSTRAINT IF EXISTS "JobFamily_parentId_fkey";
-ALTER TABLE "JobFamily" ADD CONSTRAINT "JobFamily_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "JobFamily"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Job" DROP CONSTRAINT IF EXISTS "Job_familyId_fkey";
-ALTER TABLE "Job" ADD CONSTRAINT "Job_familyId_fkey" FOREIGN KEY ("familyId") REFERENCES "JobFamily"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "EmployeeSkill" DROP CONSTRAINT IF EXISTS "EmployeeSkill_employeeId_fkey";
-ALTER TABLE "EmployeeSkill" ADD CONSTRAINT "EmployeeSkill_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "EmployeeSkill" DROP CONSTRAINT IF EXISTS "EmployeeSkill_skillId_fkey";
-ALTER TABLE "EmployeeSkill" ADD CONSTRAINT "EmployeeSkill_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "SkillCatalog"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "CareerPath" DROP CONSTRAINT IF EXISTS "CareerPath_fromPositionId_fkey";
-ALTER TABLE "CareerPath" ADD CONSTRAINT "CareerPath_fromPositionId_fkey" FOREIGN KEY ("fromPositionId") REFERENCES "Position"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "CareerPath" DROP CONSTRAINT IF EXISTS "CareerPath_toPositionId_fkey";
-ALTER TABLE "CareerPath" ADD CONSTRAINT "CareerPath_toPositionId_fkey" FOREIGN KEY ("toPositionId") REFERENCES "Position"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- P3.4-BM (D-BM26) — jadwal kirim laporan kustom
-CREATE TABLE IF NOT EXISTS "ReportSchedule" (
-    "id" TEXT NOT NULL,
-    "reportId" TEXT NOT NULL,
-    "frequency" TEXT NOT NULL,
-    "dayOfWeek" INTEGER,
-    "dayOfMonth" INTEGER,
-    "hour" INTEGER NOT NULL DEFAULT 7,
-    "recipients" TEXT NOT NULL,
-    "active" BOOLEAN NOT NULL DEFAULT true,
-    "lastRunAt" TIMESTAMP(3),
-    "lastStatus" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "ReportSchedule_pkey" PRIMARY KEY ("id")
-);
-CREATE UNIQUE INDEX IF NOT EXISTS "ReportSchedule_reportId_key" ON "ReportSchedule"("reportId");
-ALTER TABLE "ReportSchedule" DROP CONSTRAINT IF EXISTS "ReportSchedule_reportId_fkey";
-ALTER TABLE "ReportSchedule" ADD CONSTRAINT "ReportSchedule_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "CustomReport"("id") ON DELETE CASCADE ON UPDATE CASCADE;
