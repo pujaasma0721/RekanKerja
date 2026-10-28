@@ -31,6 +31,10 @@ interface UnitNode {
   children?: UnitNode[];
 }
 
+// F-05 — hindari dobel kata "Unit Unit …" pada toast/dialog ketika nama unit
+// memang sudah berawalan "Unit" (mis. "Unit Uji Coba UAT").
+const unitPhrase = (name: string) => (/^unit\b/i.test(name.trim()) ? name.trim() : `Unit ${name.trim()}`);
+
 interface Emp {
   id: string; employeeNo: string; fullName: string; employmentStatus: string; status: string;
   position: { title: string } | null; orgUnit: { name: string } | null;
@@ -321,7 +325,7 @@ function EditUnitDialog({ open, setOpen, unit, units, onSaved }: {
         id: unit.id, code: code.trim().toUpperCase(), name: name.trim(),
         parentId, headcountBudget: Number(budget) || 0,
       });
-      toast.success(t("Unit {n} diperbarui", "Unit {n} updated", { n: name }));
+      toast.success(t("{n} diperbarui", "{n} updated", { n: unitPhrase(name) }));
       setOpen(false); onSaved();
     } catch (e) {
       toast.error((e as Error).message);
@@ -434,14 +438,34 @@ function DeleteUnitButton({ unit, onDeleted }: { unit: UnitNode; onDeleted: () =
     setBusy(true);
     try {
       await apiSend(`/api/rekankerja/org-units?id=${unit.id}`, "DELETE");
-      toast.success(t("Unit {n} dihapus", "Unit {n} deleted", { n: unit.name }));
+      toast.success(t("{n} dihapus", "{n} deleted", { n: unitPhrase(unit.name) }));
       setConfirmOpen(false);
       onDeleted();
     } catch (e) {
       toast.error((e as Error).message);
     } finally { setBusy(false); }
   };
-  if (unit.childCount > 0 || unit.employeeCount > 0) return null;
+  // F-07 — jangan sembunyikan tombol diam-diam: tampilkan NONAKTIF + alasan
+  // (guard kini juga mencakup posisi, par dengan pengecekan API DELETE).
+  const blockedBy: string[] = [];
+  if (unit.childCount > 0) blockedBy.push(t("{n} sub-unit", "{n} sub-units", { n: unit.childCount }));
+  if (unit.employeeCount > 0) blockedBy.push(t("{n} karyawan", "{n} employees", { n: unit.employeeCount }));
+  if (unit.positionCount > 0) blockedBy.push(t("{n} posisi", "{n} positions", { n: unit.positionCount }));
+  if (blockedBy.length > 0) {
+    const reason = t("Hapus dinonaktifkan karena unit masih memiliki {x}", "Delete is disabled because the unit still has {x}", { x: blockedBy.join(", ") });
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        disabled
+        aria-label={reason}
+        title={reason}
+        className="gap-1.5 border-slate-200 text-slate-400 dark:border-slate-700 dark:text-slate-500"
+      >
+        <Trash2 className="h-3.5 w-3.5" /> {t("Hapus")}
+      </Button>
+    );
+  }
   return (
     <>
       <Button variant="outline" size="sm" className="gap-1.5 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-400" onClick={() => setConfirmOpen(true)}>
@@ -450,7 +474,7 @@ function DeleteUnitButton({ unit, onDeleted }: { unit: UnitNode; onDeleted: () =
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle className="text-base">{t("Hapus unit?", "Delete unit?")}</DialogTitle></DialogHeader>
-          <p className="text-sm text-slate-500">{t("Unit")} <b>{unit.name}</b> {t("akan dihapus permanen.", "will be permanently deleted.")}</p>
+          <p className="text-sm text-slate-500"><b>{unitPhrase(unit.name)}</b> {t("akan dihapus permanen.", "will be permanently deleted.")}</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>{t("Batal")}</Button>
             <Button onClick={doDelete} disabled={busy} className="bg-rose-600 hover:bg-rose-700">{busy ? t("Menghapus…", "Deleting…") : t("Hapus")}</Button>
@@ -474,7 +498,7 @@ function NewUnitDialog({ open, setOpen, units, onCreated }: { open: boolean; set
     setBusy(true);
     try {
       await apiSend("/api/rekankerja/org-units", "POST", { code: code.trim().toUpperCase(), name: name.trim(), parentId, headcountBudget: Number(budget) || 0 });
-      toast.success(t("Unit {n} berhasil dibuat", "Unit {n} created successfully", { n: name }));
+      toast.success(t("{n} berhasil dibuat", "{n} created successfully", { n: unitPhrase(name) }));
       setOpen(false); setCode(""); setName(""); setParentId(null); setBudget("0");
       onCreated();
     } catch (e) {
@@ -666,6 +690,14 @@ function CompanyProfile() {
               </div>
             ))}
           </div>
+          {/* F-10 — dokumentasikan bahwa kode perusahaan read-only by design */}
+          <p className="rounded-xl bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+            {t(
+              "Kode perusahaan ({code}) bersifat tetap — tidak dapat diubah dari profil ini.",
+              "The company code ({code}) is fixed — it cannot be changed from this profile.",
+              { code: c.code },
+            )}
+          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("Batal")}</Button>
             <Button onClick={save} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan")}</Button>

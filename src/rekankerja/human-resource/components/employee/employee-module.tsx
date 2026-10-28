@@ -239,6 +239,22 @@ function EmployeeDetail() {
                   <ClipboardEdit className="h-3.5 w-3.5" /> {t("Ubah Penempatan", "Change Placement")}
                 </Button>
               )}
+              {/* F-17 — discoverability deaktivasi: penonaktifan karyawan memang
+                  wajib lewat modul Offboarding (audit trail — by design), tapi
+                  kini ada jalur pintas dari profil yang langsung membuka dialog
+                  proses baru dengan karyawan TERISI — HR tidak perlu tahu harus
+                  mencari ke mana. */}
+              {perms.can("hr", "offboarding", "create") && e.status === "Active" && !openOffboarding && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("employee", "offboarding", { newFor: e.id })}
+                  className="gap-2 border-white/25 bg-white/10 font-bold text-white hover:bg-white/20 hover:text-white backdrop-blur"
+                  title={t("Buat proses offboarding (checklist clearance) untuk karyawan ini", "Create an offboarding process (clearance checklist) for this employee")}
+                >
+                  <LogOut className="h-3.5 w-3.5" /> {t("Proses Keluar", "Start Exit Process")}
+                </Button>
+              )}
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">

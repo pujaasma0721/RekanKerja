@@ -8,7 +8,7 @@ import { notifyEmailEvent, approverEmailsOf } from "@/rekankerja/shared/services
 import { resolveStructuralTargets, PATargetError, type StructuralTargets } from "@/rekankerja/human-resource/services/pa-targets";
 import { findActiveDelegation } from "@/rekankerja/shared/services/approval-engine";
 import { applyTerminationSettlement } from "@/rekankerja/payroll/services/settlement-service";
-import { createOffboardingWithTasks, DEFAULT_OFFBOARDING_TASKS } from "@/rekankerja/human-resource/api/offboarding";
+import { createOffboardingWithTasks, DEFAULT_OFFBOARDING_TASKS, findBlockingOffboarding } from "@/rekankerja/human-resource/api/offboarding";
 import { terminatePolicyMemberships } from "@/rekankerja/medical/services/policy-service";
 
 // Error alur kerja dengan status HTTP — dilempar dari dalam $transaction agar
@@ -561,17 +561,27 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       // ===== 5-OFFBOARDING: proses offboarding OTOMATIS — best-effort, SETELAH =====
       // commit transaksi PA. PA Resignation/Termination/Retirement yang baru
       // diproses membuat proses offboarding (checklist clearance 9 tugas) bila
-      // karyawan belum punya proses berjalan (Open). Kegagalan TIDAK memblokir
-      // proses PA — dicatat ActivityLog + console.warn; HR bisa buat manual.
+      // karyawan belum punya proses berjalan (Open) ATAU yang sudah selesai
+      // (Completed — F-16: karyawan yang di-offboard manual lalu PA-nya
+      // diproses tidak boleh mendapat record KEDUA). Kegagalan TIDAK
+      // memblokir proses PA — dicatat ActivityLog + console.warn; HR bisa
+      // buat manual.
       let offboardingCreated = false;
       if (isTermination) {
         const exitDate = detail.lastDay ? new Date(String(detail.lastDay)) : effectiveDate;
         try {
-          const existing = await db.offboarding.findFirst({
-            where: { employeeId: action.employeeId, status: "Open" },
-            select: { id: true },
-          });
-          if (!existing) {
+          const existing = await findBlockingOffboarding(db, action.employeeId);
+          if (existing) {
+            // F-16 — dilewati + jejak audit (bukan diam-diam): HR tahu kenapa
+            // tidak ada checklist baru dari PA ini.
+            await db.activityLog.create({
+              data: {
+                appUserId: actor.appUserId, personnelActionId: id, employeeId: action.employeeId,
+                action: "Skipped", entity: "Offboarding", entityId: existing.id,
+                detail: `Offboarding otomatis dari ${action.docNo} (${paTypeLabel(action.type)}) DILEWATI — karyawan sudah memiliki proses offboarding ${existing.status === "Open" ? "yang masih berjalan" : "yang sudah selesai"} (ID ${existing.id})`,
+              },
+            });
+          } else {
             const ob = await createOffboardingWithTasks(db, {
               employeeId: action.employeeId,
               personnelActionId: id,

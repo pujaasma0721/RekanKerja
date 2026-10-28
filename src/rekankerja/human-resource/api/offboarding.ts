@@ -37,6 +37,19 @@ export interface CreateOffboardingOpts {
   reason?: string | null;
 }
 
+/** F-16 — proses offboarding yang MENGHALANGI pembuatan proses baru untuk
+ *  karyawan yang sama: berjalan (Open) ATAU sudah selesai (Completed —
+ *  karyawan sudah keluar; record kedua hanya menambah duplikat checklist).
+ *  Status Cancelled TIDAK menghalangkan (proses lama batal → boleh buat baru).
+ *  Dipakai bersama oleh POST manual & hook PA-exit agar dua jalur ini konsisten. */
+export async function findBlockingOffboarding(tx: DbOrTx, employeeId: string) {
+  return tx.offboarding.findFirst({
+    where: { employeeId, status: { in: ["Open", "Completed"] } },
+    select: { id: true, status: true, completedAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 /** Buat Offboarding + checklist bawaan (seq 1..n) dalam SATU create Prisma
  *  (nested create tasks — atomik). Dipakai POST manual & hook PA exit.
  *  Task 27-b: bila karyawan masih memegang aset aktif, SATU tugas clearance
@@ -190,13 +203,20 @@ export async function POST(req: NextRequest) {
     });
     if (!employee) return NextResponse.json({ error: "Karyawan tidak ditemukan" }, { status: 400 });
 
-    // satu proses aktif per karyawan (hindari checklist ganda)
-    const existing = await db.offboarding.findFirst({
-      where: { employeeId: b.employeeId, status: "Open" },
-      select: { id: true },
-    });
+    // F-16 — satu proses per karyawan: tolak bila masih BERJALAN (Open) atau
+    // karyawan SUDAH PERNAH menyelesaikan offboarding (Completed). Tanpa cek
+    // Completed, karyawan yang di-offboard lalu PA-nya diproses mendapat 2 record.
+    const existing = await findBlockingOffboarding(db, b.employeeId);
     if (existing) {
-      return NextResponse.json({ error: "Proses offboarding untuk karyawan ini sudah berjalan" }, { status: 400 });
+      return NextResponse.json(
+        {
+          error:
+            existing.status === "Open"
+              ? "Proses offboarding untuk karyawan ini sudah berjalan — selesaikan atau batalkan proses yang ada terlebih dahulu"
+              : "Karyawan ini sudah pernah menyelesaikan proses offboarding — proses baru tidak dapat dibuat",
+        },
+        { status: 400 },
+      );
     }
 
     let lastDay: Date | null = null;

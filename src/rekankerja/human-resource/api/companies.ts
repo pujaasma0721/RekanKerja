@@ -119,7 +119,13 @@ export async function PATCH(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "id company wajib" }, { status: 400 });
 
     const data: Record<string, unknown> = {};
-    if (b.name !== undefined) data.name = String(b.name).trim();
+    // F-06 — jangan pernah biarkan nama kosong tersimpan (hazard menimpa data
+    // valid dengan string kosong; klien sudah memvalidasi, ini guard server).
+    if (b.name !== undefined) {
+      const name = String(b.name).trim();
+      if (!name) return NextResponse.json({ error: "Nama perusahaan wajib diisi" }, { status: 400 });
+      data.name = name;
+    }
     if (b.shortName !== undefined) data.shortName = String(b.shortName).trim() || null;
     if (b.taxId !== undefined) data.taxId = b.taxId ? String(b.taxId) : null;
     if (b.address !== undefined) data.address = b.address ? String(b.address) : null;

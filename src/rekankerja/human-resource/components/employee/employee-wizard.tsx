@@ -174,6 +174,18 @@ export function OnboardingWizard() {
   const back = () => { setStep((s) => Math.max(s - 1, 1)); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const submit = async () => {
+    // F-14 — validasi ulang SEMUA langkah di Review (defense-in-depth: jalur
+    // Lanjut sudah tervalidasi per-langkah, tapi draft restore/edit balik bisa
+    // menyisakan field wajib kosong). Gagal → lompat ke langkah pertama yang
+    // salah + toast — user tidak perlu menunggu error 400 dari server.
+    for (const s of [1, 2] as const) {
+      if (!validateStep(s)) {
+        setStep(s);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        toast.error(t("Lengkapi field yang ditandai merah", "Complete the fields marked in red"));
+        return;
+      }
+    }
     // P1.1-BM (D-BM2) — kontak darurat opsional: tiap baris harus lengkap.
     const ecFilled = ecRows.filter((r) => r.name.trim() || r.phone.trim());
     if (ecFilled.some((r) => !r.name.trim() || !r.phone.trim())) {

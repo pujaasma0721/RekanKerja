@@ -37,6 +37,9 @@ import { type AdvSearch, type AdvFieldDef, txt, num, dt, sel, filterRowsByAdv } 
 export function OffboardingModule() {
   const { params } = useNav();
   if (params.id) return <OffboardingDetail id={params.id} />;
+  // F-17 — tombol "Proses Keluar" di profil karyawan mengarah ke sini dengan
+  // param newFor: buka dialog proses baru yang sudah terisi karyawan tsb.
+  if (params.newFor) return <OffboardingList preselectEmployeeId={params.newFor} />;
   return <OffboardingList />;
 }
 
@@ -151,12 +154,17 @@ function OwnerChip({ owner }: { owner: string | null }) {
 }
 
 // ================= DAFTAR =================
-function OffboardingList() {
+function OffboardingList({ preselectEmployeeId }: { preselectEmployeeId?: string } = {}) {
   const { navigate } = useNav();
   const { t } = useI18n();
   const perms = useMenuPerms();
   const [status, setStatus] = useState("all");
-  const [createOpen, setCreateOpen] = useState(false);
+  // F-17 — datang dari tombol "Proses Keluar" di profil karyawan: dialog proses
+  // baru langsung terbuka dengan karyawan TERISI (state awal dari prop — tanpa
+  // effect). preselected dibersihkan saat dialog ditutup (key dialog berganti
+  // → prefilled state ter-reset) supaya "Proses Baru" manual berikutnya kosong.
+  const [createOpen, setCreateOpen] = useState(!!preselectEmployeeId);
+  const [preselected, setPreselected] = useState<string | null>(preselectEmployeeId ?? null);
   // Task adv-e — Advance Search (filter tambahan di atas filter status; sort server tak tersentuh)
   const [adv, setAdv] = useState<AdvSearch | null>(null);
   // Task 76 — state sort server-side
@@ -300,8 +308,10 @@ function OffboardingList() {
       </Card>
 
       <CreateOffboardingDialog
+        key={preselected ?? "new"}
         open={createOpen}
-        setOpen={(v) => { setCreateOpen(v); if (!v) refresh(); }}
+        setOpen={(v) => { setCreateOpen(v); if (!v) { setPreselected(null); refresh(); } }}
+        defaultEmployeeId={preselected ?? undefined}
         onCreated={(newId) => { refresh(); navigate("employee", "offboarding", { id: newId }); }}
       />
     </div>
@@ -309,14 +319,17 @@ function OffboardingList() {
 }
 
 // dialog buat proses manual
-function CreateOffboardingDialog({ open, setOpen, onCreated }: {
+function CreateOffboardingDialog({ open, setOpen, onCreated, defaultEmployeeId }: {
   open: boolean;
   setOpen: (v: boolean) => void;
   onCreated: (id: string) => void;
+  defaultEmployeeId?: string;
 }) {
   const { t } = useI18n();
   const opts = useApi<{ managers: { id: string; fullName: string; employeeNo: string }[] }>("/api/rekankerja/employee-options");
-  const [employeeId, setEmployeeId] = useState("");
+  // F-17 — prefill karyawan dari tombol "Proses Keluar" profil: state awal
+  // dari prop + remount via key saat preselect berganti (tanpa effect).
+  const [employeeId, setEmployeeId] = useState(defaultEmployeeId ?? "");
   const [lastDay, setLastDay] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
