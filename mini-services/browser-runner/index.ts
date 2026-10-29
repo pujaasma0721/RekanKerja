@@ -26,22 +26,45 @@
 //   · Budget: maks 2 sesi serentak · 24 aksi/sesi · 3 tangkapan layar ·
 //     sesi idle > 3 menit ditutup otomatis (reaper).
 //   · Viewport 1366×900, locale id-ID, timezone Asia/Jakarta.
-//   · Playwright diambil dari instalasi GLOBAL sandbox (precedent:
-//     .e2e/p8-ui-e2e.mjs) — bukan dependency project Next.js.
+//   · Playwright resolusi portabel (env SUPPORT_PLAYWRIGHT_PATH → node_modules
+//     lokal mini-service → path global sandbox) — lihat PW_PATH_CANDIDATES.
 // =====================================================================
 
 const PORT = 3020;
 const BASE = (process.env.SUPPORT_APP_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/+$/, "");
 const ORIGIN = new URL(BASE).origin;
 
-// ---- playwright via path absolut (instalasi global sandbox) ----
-const PW_PATH = "/home/z/.npm-global/lib/node_modules/playwright/index.mjs";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Any = any;
 
+// ---- playwright — resolusi PORTABEL (env → node_modules lokal → global sandbox).
+//    Deploy di server baru: `cd mini-services/browser-runner && bun add playwright
+//    && bunx playwright install chromium`, ATAU set SUPPORT_PLAYWRIGHT_PATH ke
+//    instalasi playwright yang sudah ada (mis. global npm). ----
+const PW_PATH_CANDIDATES = [
+  process.env.SUPPORT_PLAYWRIGHT_PATH,
+  new URL("./node_modules/playwright/index.mjs", import.meta.url).pathname,
+  "/home/z/.npm-global/lib/node_modules/playwright/index.mjs",
+].filter((p): p is string => Boolean(p));
+const PW_INSTALL_HINT =
+  "modul playwright tidak ditemukan — install di mini-service " +
+  "(cd mini-services/browser-runner && bun add playwright && bunx playwright install chromium) " +
+  "atau set env SUPPORT_PLAYWRIGHT_PATH ke path index.mjs instalasi playwright yang sudah ada";
+
 let pwMod: { chromium: { launch(opts?: Record<string, unknown>): Promise<Any> } } | null = null;
 async function playwright() {
-  if (!pwMod) pwMod = (await import(PW_PATH)) as NonNullable<typeof pwMod>;
+  if (!pwMod) {
+    let lastErr: unknown = null;
+    for (const p of PW_PATH_CANDIDATES) {
+      try {
+        pwMod = (await import(p)) as NonNullable<typeof pwMod>;
+        return pwMod;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw new Error(`${PW_INSTALL_HINT} (terakhir dicoba: ${lastErr instanceof Error ? lastErr.message : String(lastErr)})`);
+  }
   return pwMod;
 }
 
