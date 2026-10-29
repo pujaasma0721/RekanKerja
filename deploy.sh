@@ -20,7 +20,7 @@
 #   REKANKERJA_BUILD_ROOT induk folder build (default /home/puja)
 #   REKANKERJA_BRANCH     branch             (default main)
 #   PM2_APP            nama proses pm2    (default rekankerja)
-#   HEALTH_URL         URL healthcheck    (default https://rekankerja.sayone.my.id/)
+#   HEALTH_URL         URL healthcheck    (default https://rekankerja.namatawa.my.id/)
 #
 # Log: /home/rekankerja/rekankerja-deploy.log
 # ============================================================================
@@ -33,7 +33,7 @@ set -euo pipefail
 APP_DIR="${REKANKERJA_APP_DIR:-/home/rekankerja/rekankerja}"
 BUILD_ROOT="${REKANKERJA_BUILD_ROOT:-/home/rekankerja}"
 PM2_APP="${PM2_APP:-rekankerja}"
-HEALTH_URL="${HEALTH_URL:-https://rekankerja.sayone.my.id/}"
+HEALTH_URL="${HEALTH_URL:-https://rekankerja.namatawa.my.id/}"
 # catatan: healthcheck memakai public URL (nginx .6 → .23:3001). Bila nginx
 # belum di-cutover dari .15, set HEALTH_URL=http://127.0.0.1:3001/ .
 BRANCH="${REKANKERJA_BRANCH:-main}"
