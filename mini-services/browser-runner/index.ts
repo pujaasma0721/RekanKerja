@@ -55,7 +55,10 @@ const PW_INSTALL_HINT =
   "atau set env SUPPORT_PLAYWRIGHT_PATH ke path index.mjs instalasi playwright yang sudah ada";
 
 const PW_EXEC = process.env.SUPPORT_CHROMIUM_PATH || undefined;
-let pwMod: { chromium: { launch(opts?: Record<string, unknown>): Promise<Any> } } | null = null;
+/** Tipe browser: "chromium" (default) atau "firefox" — server dgn CPU tua
+ *  (mis. VM QEMU emulated) di mana chromium 156 segfault, pakai firefox. */
+const PW_TYPE = process.env.SUPPORT_BROWSERTYPE === "firefox" ? "firefox" : "chromium";
+let pwMod: { chromium: { launch(opts?: Record<string, unknown>): Promise<Any> }; firefox?: { launch(opts?: Record<string, unknown>): Promise<Any> } } | null = null;
 async function playwright() {
   if (!pwMod) {
     let lastErr: unknown = null;
@@ -92,6 +95,7 @@ interface Session {
   identity: { name: string | null; email: string | null; tenantName: string | null } | null;
 }
 
+
 const sessions = new Map<string, Session>();
 let browser: Any = null;
 let lastBrowserUse = 0;
@@ -122,17 +126,23 @@ async function safeUrl(s: Session): Promise<string> {
 
 async function getBrowser() {
   if (browser) return browser;
-  const { chromium } = await playwright();
-  browser = await chromium.launch({
-    headless: true,
-    executablePath: PW_EXEC,
-    args: [
-      "--no-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--disable-software-rasterizer",
-    ],
-  });
+  const pw = await playwright();
+  const bt = pw[PW_TYPE];
+  if (!bt) throw new Error(`tipe browser tidak tersedia di instalasi playwright: ${PW_TYPE}`);
+  if (PW_TYPE === "firefox") {
+    browser = await bt.launch({ headless: true });
+  } else {
+    browser = await bt.launch({
+      headless: true,
+      executablePath: PW_EXEC,
+      args: [
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--disable-software-rasterizer",
+      ],
+    });
+  }
   lastBrowserUse = Date.now();
   return browser;
 }
