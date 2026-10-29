@@ -773,12 +773,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const navigateToModule = useCallback(
     (m: ModuleId) => {
+      // FEAT-SUPPORT-P6 — Online Support dibuka di TAB BARU: pengguna yang
+      // menemui error di suatu menu biasanya langsung membuka support; bila
+      // support menggantikan section di tab yang sama, modul asal ter-unmount
+      // dan HALAMAN YANG INGIN DILAPORKAN (form terisi, data termuat, pesan
+      // error di layar) HILANG. Tab baru + param ctx (module:section:view
+      // halaman asal) menjaga halaman error tetap utuh di tab sebelumnya.
+      if (m === "support" && module !== "support") {
+        const sp = new URLSearchParams({ m: "support" });
+        sp.set("ctx", `${module}:${section}:${view}`);
+        window.open(`/?${sp.toString()}`, "_blank", "noopener,noreferrer");
+        setSheet(null);
+        return;
+      }
       const target = firstAllowedOfModule(m);
       if (target) navigate(target.section, target.view);
       else setModule(m);
       setSheet(null);
     },
-    [firstAllowedOfModule, navigate, setModule],
+    [firstAllowedOfModule, navigate, setModule, module, section, view],
   );
 
   const goHome = () => {

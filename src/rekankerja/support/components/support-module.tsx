@@ -45,7 +45,7 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import {
   Headset, Plus, Send, Paperclip, X, FileText, Download, ArrowLeft, Search,
-  Loader2, CheckCircle2, RotateCcw, ImageIcon, FileDiff, ChevronDown, ChevronRight, ImagePlus, Lock,
+  Loader2, CheckCircle2, RotateCcw, ImageIcon, FileDiff, ChevronDown, ChevronRight, ImagePlus, Lock, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -153,6 +153,14 @@ const PATCH_STATUS_UI: Record<string, { id: string; en: string; cls: string }> =
 const ACCEPTED_MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 const MAX_FILES = 5;
 const MAX_BYTES = 5 * 1024 * 1024;
+
+// FEAT-SUPPORT-P6 — label singkat modul asal untuk penanda konteks tiket
+// (?ctx=<module>:<section>:<view> dibawa saat support dibuka via ikon shell).
+const ORIGIN_MODULE_SHORT: Record<string, string> = {
+  hr: "HR Base", payroll: "Payroll", attendance: "Attendance", leave: "Leave",
+  travel: "Travel", medical: "Medical", whistleblowing: "Whistleblowing",
+  recruitment: "Recruitment", performance: "Performance", platform: "Platform Admin",
+};
 
 function fmtSize(n: number): string {
   return n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -608,6 +616,22 @@ function SupportServiceView() {
   const [subject, setSubject] = useState("");
   const [creating, setCreating] = useState(false);
 
+  // FEAT-SUPPORT-P6 — konteks halaman asal: ikon Online Support di shell membuka
+  // tab baru `/?m=support&ctx=<module>:<section>:<view>` supaya halaman yang error
+  // tetap utuh di tab sebelumnya. Param ctx di luar m/s/v/id/wizard dibuang oleh
+  // writeUrl saat pengguna bernavigasi di dalam support → tangkap SEKALI di sini.
+  const originCtx = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const v = new URLSearchParams(window.location.search).get("ctx");
+      if (!v || !/^[a-z]+(:[a-z0-9-]+){1,3}$/.test(v)) return null;
+      const parts = v.split(":");
+      return { module: parts[0], short: ORIGIN_MODULE_SHORT[parts[0]] ?? parts[0], path: parts.slice(1).join("/") };
+    } catch {
+      return null;
+    }
+  }, []);
+
   const ticketsApi = useApi<{ tickets: TicketRow[] }>(
     `/api/rekankerja/support/tickets${scope === "all" ? "?scope=all" : ""}`,
     [scope],
@@ -771,11 +795,15 @@ function SupportServiceView() {
   }, [ticketsApi, ticketApi, msgApi, patchesApi]);
 
   const createTicket = useCallback(async () => {
-    const s = subject.trim();
-    if (s.length < 5) {
+    const base = subject.trim();
+    if (base.length < 5) {
       toast.error(t("Judul percakapan minimal 5 karakter", "Conversation title is at least 5 characters"));
       return;
     }
+    // P6 — penanda halaman asal (support dibuka via ikon di shell): AI agent
+    // langsung tahu area masalahnya. Dipotong agar total tetap ≤ 120 (validasi API).
+    const suffix = originCtx ? ` — (dari: ${originCtx.short})` : "";
+    const s = (base.slice(0, 120 - suffix.length) + suffix).trim();
     setCreating(true);
     try {
       const r = await apiSend<{ ticket: TicketRow }>("/api/rekankerja/support/tickets", "POST", { subject: s });
@@ -789,7 +817,7 @@ function SupportServiceView() {
     } finally {
       setCreating(false);
     }
-  }, [subject, t, refreshAll]);
+  }, [subject, originCtx, t, refreshAll]);
 
   /** Validasi + tambah lampiran ke antrian composer. Mengembalikan jumlah file
    *  yang diterima (dipakai utk umpan balik tempel/seret-lepas). */
@@ -1417,6 +1445,19 @@ function SupportServiceView() {
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               {t("Judul percakapan minimal 5 karakter", "Conversation title is at least 5 characters")}
             </p>
+            {originCtx && (
+              <div className="mt-2 flex items-start gap-2 rounded-lg border border-teal-200 bg-teal-50/60 px-3 py-2 text-[11px] leading-relaxed text-teal-900 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-200">
+                <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>
+                  {t("Dibuka dari halaman", "Opened from page")} <strong>{originCtx.short}</strong>
+                  {originCtx.path && <span className="font-mono"> · {originCtx.path}</span>}
+                  {t(
+                    " — tab halaman tersebut tetap terbuka, sehingga error yang ingin Anda laporkan tidak hilang. Lampirkan screenshot dari tab sebelumnya bila perlu; judul tiket otomatis diberi penanda halaman asal.",
+                    " — that tab stays open, so the error you want to report is not lost. Attach a screenshot from the previous tab if needed; the ticket title is automatically tagged with the origin page.",
+                  )}
+                </span>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewOpen(false)} disabled={creating}>
