@@ -152,6 +152,36 @@ model SupportUsageLog {
   @@index([tenantId, createdAt])
 }
 
+/// FEAT-SUPPORT-P8 — setelan konsol platform (key-value sederhana, satu baris
+/// per kunci). Dipakai antara lain fitur Sinkron Git: "github.autopush" =
+/// "true" → setiap patch yang DISETUJUI langsung di-commit & di-push ke GitHub.
+model PlatformSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// FEAT-SUPPORT-P8 — riwayat sinkronisasi git (push/pull) oleh pemilik
+/// aplikasi dari konsol platform, termasuk auto-push pasca-persetujuan
+/// patch. Audit lengkap: aksi apa, cabang, pesan, hasil per-remote (token
+/// kredensial SELALU dimask sebelum disimpan), oleh siapa, kapan.
+model GithubSyncLog {
+  id        String   @id @default(cuid())
+  /// PUSH | PULL | AUTO_PUSH
+  action    String
+  /// OK | GAGAL
+  status    String
+  branch    String   @default("")
+  /// pesan commit (push) / nama remote (pull)
+  message   String   @default("")
+  /// ringkasan hasil per-remote / pesan error (sudah dimask)
+  detail    String   @default("")
+  byName    String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 /// FEAT-SUPPORT-P7.1 — notifikasi ke konsol pemilik aplikasi (feed "Bug &
 /// Patch"). Pemicu: agent mengonfirmasi BUG prioritas TINGGI/KRITIS, atau
 /// agent mengajukan usulan patch (MENUNGGU keputusan). Ditulis best-effort

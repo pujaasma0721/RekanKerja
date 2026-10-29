@@ -30,6 +30,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import type { SupportToolResult } from "@/rekankerja/support/services/support-tools";
+import { maybeAutoPushAfterPatch } from "@/rekankerja/platform/services/github-sync";
 
 // ------------------------------ konstanta ------------------------------
 
@@ -452,5 +453,15 @@ export async function decidePatchProposal(
       detail: `Usulan patch "${p.filePath}" disetujui & diterapkan oleh ${nama}${noteClean ? ` (${noteClean})` : ""}`,
     },
   }).catch(() => { /* audit best-effort */ });
+
+  // P8 — auto-push (bila pemilik aplikasi mengaktifkannya): commit + push
+  // perubahan (termasuk file patch ini) ke GitHub dengan pesan yang merujuk
+  // nomor tiket. Fire-and-forget — kegagalan sync TIDAK menggagalkan
+  // persetujuan yang sudah sah (file diterapkan & pesan sistem terkirim).
+  try {
+    const tk = await db.supportTicket.findUnique({ where: { id: ticketId }, select: { ticketNo: true } });
+    if (tk) void maybeAutoPushAfterPatch(tk.ticketNo, p.filePath, nama).catch(() => { /* best-effort */ });
+  } catch { /* best-effort */ }
+
   return { ok: true, status: "DISETUJUI" };
 }

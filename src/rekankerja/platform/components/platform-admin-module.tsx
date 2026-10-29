@@ -19,6 +19,7 @@ import {
   ShieldCheck, Building2, RefreshCw, Loader2, KeyRound, PlugZap, Coins,
   Activity, ShieldOff, FileText, Save, ChevronRight, LogOut, Lock,
   Bug, FileDiff, CheckCheck, Check, X, Inbox,
+  Github, GitBranch, ArrowUpToLine, ArrowDownToLine, History, AlertTriangle, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,60 @@ interface SupportQueueData {
 }
 interface PlatformAdminSession {
   admin: { email: string; name: string; lastLoginAt: string | null } | null;
+}
+
+// P8 — bentuk JSON dari /api/rekankerja/platform/admin/github-sync
+interface GitSyncDirtyFile {
+  path: string;
+  status: string;
+  staged: boolean;
+  untracked: boolean;
+}
+interface GitSyncCommit {
+  hash: string;
+  author: string;
+  date: string;
+  subject: string;
+}
+interface GitSyncStatus {
+  ok: boolean;
+  error?: string;
+  branch: string;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  remotes: Array<{ name: string; url: string }>;
+  dirtyFiles: GitSyncDirtyFile[];
+  dirtyCount: number;
+  recentCommits: GitSyncCommit[];
+}
+interface GitSyncHistoryRow {
+  id: string;
+  action: "PUSH" | "PULL" | "AUTO_PUSH";
+  status: "OK" | "GAGAL";
+  branch: string;
+  message: string;
+  detail: string;
+  byName: string;
+  createdAt: string;
+}
+interface GitSyncData {
+  status: GitSyncStatus;
+  autoPush: boolean;
+  history: GitSyncHistoryRow[];
+}
+interface GitPushResultView {
+  committed: boolean;
+  commitHash: string | null;
+  commitMessage: string;
+  filesCommitted: number;
+  nothingToDo: boolean;
+  remotes: Array<{ name: string; ok: boolean; detail: string }>;
+}
+interface GitPullResultView {
+  updated: boolean;
+  newCommits: GitSyncCommit[];
+  output: string;
 }
 
 const SUPPORT_STATUS_META: Record<string, { label: string; cls: string }> = {
@@ -914,6 +969,440 @@ function BugPatchTab({ q, onRefresh }: { q: SupportQueueData | null; loading: bo
   );
 }
 
+/** Tab "Sinkron Git" (P8) — status repo, push, pull, auto-push, riwayat. */
+function GitSyncTab({ data, onRefresh }: { data: GitSyncData | null; onRefresh: () => void }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState<"push" | "pull" | null>(null);
+  const [pushMsg, setPushMsg] = useState("");
+  const [pullRemote, setPullRemote] = useState("");
+  const [autostash, setAutostash] = useState(false);
+  const [pushResult, setPushResult] = useState<GitPushResultView | null>(null);
+  const [pullResult, setPullResult] = useState<GitPullResultView | null>(null);
+  const [autopushBusy, setAutopushBusy] = useState(false);
+
+  const st = data?.status ?? null;
+  const remotes = st?.remotes ?? [];
+  const effectivePullRemote =
+    pullRemote && remotes.some((r) => r.name === pullRemote) ? pullRemote : (remotes[0]?.name ?? "");
+  const dirty = st?.dirtyFiles ?? [];
+  const dirtyCount = st?.dirtyCount ?? 0;
+  const ahead = st?.ahead ?? 0;
+  const behind = st?.behind ?? 0;
+  const autoPush = data?.autoPush ?? false;
+  const history = data?.history ?? [];
+
+  const doPush = async () => {
+    setBusy("push");
+    setPushResult(null);
+    try {
+      const r = await apiSend<{ ok: true; result: GitPushResultView }>(
+        "/api/rekankerja/platform/admin/github-sync",
+        "POST",
+        { action: "push", message: pushMsg.trim() },
+      );
+      setPushResult(r.result);
+      if (r.result.nothingToDo) {
+        toast.info(t("Tidak ada perubahan untuk dikirim — repo sudah sinkron.", "Nothing to send — the repo is already in sync."));
+      } else {
+        const okCount = r.result.remotes.filter((x) => x.ok).length;
+        toast.success(
+          t(
+            `Terkirim ke ${okCount}/${r.result.remotes.length} remote — ${r.result.committed ? `commit ${r.result.commitHash ?? "?"} (${r.result.filesCommitted} file)` : "commit tertunda terkirim"}.`,
+            `Pushed to ${okCount}/${r.result.remotes.length} remotes — ${r.result.committed ? `commit ${r.result.commitHash ?? "?"} (${r.result.filesCommitted} files)` : "pending commits sent"}.`,
+          ),
+        );
+      }
+      onRefresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const doPull = async () => {
+    if (!effectivePullRemote) return;
+    setBusy("pull");
+    setPullResult(null);
+    try {
+      const r = await apiSend<{ ok: true; result: GitPullResultView }>(
+        "/api/rekankerja/platform/admin/github-sync",
+        "POST",
+        { action: "pull", remote: effectivePullRemote, autostash },
+      );
+      setPullResult(r.result);
+      if (r.result.updated) {
+        toast.success(
+          t(`${r.result.newCommits.length} commit baru ditarik dari ${effectivePullRemote}.`, `${r.result.newCommits.length} new commits pulled from ${effectivePullRemote}.`),
+        );
+      } else {
+        toast.info(t("Sudah terbaru — tidak ada commit baru di remote.", "Already up to date — no new commits on the remote."));
+      }
+      onRefresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleAutoPush = async (enabled: boolean) => {
+    setAutopushBusy(true);
+    try {
+      await apiSend("/api/rekankerja/platform/admin/github-sync", "POST", { action: "set-autopush", enabled });
+      toast.success(
+        enabled
+          ? t("Auto-push AKTIF — patch yang disetujui langsung dikirim ke GitHub.", "Auto-push ON — approved patches are pushed to GitHub immediately.")
+          : t("Auto-push dimatikan.", "Auto-push turned off."),
+      );
+      onRefresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setAutopushBusy(false);
+    }
+  };
+
+  if (st && !st.ok) {
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title={t("Repositori git tidak terbaca", "Git repository unreadable")}
+        description={st.error ?? ""}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* ---- status repositori ---- */}
+      <section className="rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p8-git-status-title">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="p8-git-status-title" className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+              <GitBranch className="h-4 w-4" aria-hidden />
+              {t("Status Repositori", "Repository Status")}
+            </h2>
+            <p className="text-[12px] text-slate-500 dark:text-slate-400">
+              {t(
+                "Kondisi kode aplikasi di server vs GitHub — file patch yang Anda setujui muncul sebagai file berubah di sini.",
+                "The application code on the server vs GitHub — patch files you approve appear here as changed files.",
+              )}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="outline" className="border-0 bg-slate-100 px-2 font-mono text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              {st?.branch || "—"}
+            </Badge>
+            {ahead > 0 && (
+              <Badge variant="outline" className="border-0 bg-teal-100 px-2 text-[10.5px] text-teal-700 dark:bg-teal-950 dark:text-teal-300">
+                {t(`${ahead} commit belum terkirim`, `${ahead} unpushed commits`)}
+              </Badge>
+            )}
+            {behind > 0 && (
+              <Badge variant="outline" className="border-0 bg-amber-100 px-2 text-[10.5px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                {t(`${behind} commit tertinggal`, `${behind} commits behind`)}
+              </Badge>
+            )}
+            <Badge
+              variant="outline"
+              className={cn(
+                "border-0 px-2 text-[10.5px]",
+                dirtyCount === 0
+                  ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+              )}
+            >
+              {dirtyCount === 0 ? t("Bersih", "Clean") : t(`${dirtyCount} file berubah`, `${dirtyCount} changed files`)}
+            </Badge>
+          </div>
+        </div>
+
+        {/* remote terdaftar (URL dimask) */}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {remotes.length === 0 ? (
+            <span className="text-[11.5px] text-slate-400">{t("Tidak ada remote terdaftar.", "No remotes registered.")}</span>
+          ) : (
+            remotes.map((r) => (
+              <span key={r.name} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 dark:border-slate-700 dark:bg-slate-800/60">
+                <Github className="h-3 w-3 shrink-0 text-slate-400" aria-hidden />
+                <span className="shrink-0 text-[11px] font-semibold text-slate-700 dark:text-slate-200">{r.name}</span>
+                <span className="max-w-[240px] truncate font-mono text-[10px] text-slate-400" title={r.url}>{r.url}</span>
+              </span>
+            ))
+          )}
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {/* file berubah */}
+          <div>
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              {t("File Berubah (belum di-commit)", "Changed Files (uncommitted)")}
+            </p>
+            {dirty.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-[12px] text-slate-400 dark:border-slate-700">
+                {t("Tidak ada file berubah — kode server sama dengan commit terakhir.", "No changed files — server code matches the last commit.")}
+              </div>
+            ) : (
+              <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-800 [scrollbar-width:thin]">
+                {dirty.map((f) => (
+                  <div key={f.path} className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <span
+                      className={cn(
+                        "shrink-0 rounded px-1 font-mono text-[10px] font-bold",
+                        f.untracked
+                          ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                          : "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300",
+                      )}
+                    >
+                      {f.untracked ? "new" : f.staged ? "stg" : "mod"}
+                    </span>
+                    <span className="min-w-0 truncate font-mono text-[11px] text-slate-600 dark:text-slate-300" title={f.path}>{f.path}</span>
+                  </div>
+                ))}
+                {dirtyCount > dirty.length && (
+                  <p className="px-1.5 text-[10.5px] text-slate-400">+{dirtyCount - dirty.length} {t("file lainnya…", "more files…")}</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* commit terakhir */}
+          <div>
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              {t("Commit Terakhir", "Recent Commits")}
+            </p>
+            <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-800 [scrollbar-width:thin]">
+              {(st?.recentCommits ?? []).length === 0 ? (
+                <p className="p-3 text-center text-[12px] text-slate-400">{t("(belum ada commit)", "(no commits yet)")}</p>
+              ) : (
+                (st?.recentCommits ?? []).map((c) => (
+                  <div key={c.hash} className="flex items-baseline gap-2 px-1.5 py-1">
+                    <span className="shrink-0 font-mono text-[10.5px] text-teal-700 dark:text-teal-400">{c.hash}</span>
+                    <span className="min-w-0 flex-1 truncate text-[11.5px] text-slate-600 dark:text-slate-300" title={c.subject}>{c.subject}</span>
+                    <span className="shrink-0 text-[10px] text-slate-400">{c.date}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ---- aksi push & pull ---- */}
+      <div className="grid gap-5 md:grid-cols-2">
+        {/* push */}
+        <section className="rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p8-push-title">
+          <h2 id="p8-push-title" className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+            <ArrowUpToLine className="h-4 w-4" aria-hidden />
+            {t("Kirim ke GitHub (Push)", "Push to GitHub")}
+          </h2>
+          <p className="mb-3 text-[12px] text-slate-500 dark:text-slate-400">
+            {t(
+              "Commit SEMUA perubahan tertunda (termasuk file patch yang disetujui), lalu kirim ke semua remote GitHub.",
+              "Commit ALL pending changes (including approved patch files), then send to every GitHub remote.",
+            )}
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="p8-push-msg">{t("Pesan commit", "Commit message")}</Label>
+            <Textarea
+              id="p8-push-msg"
+              value={pushMsg}
+              onChange={(e) => setPushMsg(e.target.value)}
+              maxLength={300}
+              className="min-h-[60px] text-[12.5px]"
+              placeholder={dirtyCount > 0 ? `chore: perubahan aplikasi (${dirtyCount} file)` : "chore: perubahan aplikasi"}
+            />
+          </div>
+          <Button
+            className="mt-3 w-full gap-1.5 bg-teal-700 text-[12.5px] text-white hover:bg-teal-800"
+            disabled={busy !== null || remotes.length === 0}
+            onClick={() => void doPush()}
+          >
+            {busy === "push" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <ArrowUpToLine className="h-4 w-4" aria-hidden />}
+            {busy === "push" ? t("Mengirim…", "Pushing…") : t("Commit & Kirim", "Commit & Push")}
+          </Button>
+          {pushResult && (
+            <div className="mt-3 space-y-1.5">
+              {pushResult.committed ? (
+                <div className="rounded-lg bg-teal-50 px-2.5 py-1.5 text-[11.5px] text-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
+                  {t(`Commit ${pushResult.commitHash ?? "?"} — ${pushResult.filesCommitted} file`, `Commit ${pushResult.commitHash ?? "?"} — ${pushResult.filesCommitted} files`)} · “{pushResult.commitMessage}”
+                </div>
+              ) : pushResult.nothingToDo ? null : (
+                <div className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11.5px] text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+                  {t("Tidak ada file baru untuk di-commit — commit yang tertunda dikirim.", "No new files to commit — pending commits were sent.")}
+                </div>
+              )}
+              {pushResult.remotes.map((r) => (
+                <div
+                  key={r.name}
+                  className={cn(
+                    "flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px]",
+                    r.ok
+                      ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : "bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300",
+                  )}
+                >
+                  {r.ok ? <Check className="mt-0.5 h-3 w-3 shrink-0" aria-hidden /> : <X className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />}
+                  <span><span className="font-semibold">{r.name}</span> — {r.detail}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* pull */}
+        <section className="rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p8-pull-title">
+          <h2 id="p8-pull-title" className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+            <ArrowDownToLine className="h-4 w-4" aria-hidden />
+            {t("Tarik dari GitHub (Pull)", "Pull from GitHub")}
+          </h2>
+          <p className="mb-3 text-[12px] text-slate-500 dark:text-slate-400">
+            {t(
+              "Ambil commit terbaru dari GitHub ke server (fast-forward saja — tidak pernah menimpa riwayat lokal).",
+              "Fetch the latest commits from GitHub onto the server (fast-forward only — never rewrites local history).",
+            )}
+          </p>
+          <div className="space-y-1.5">
+            <Label>{t("Remote", "Remote")}</Label>
+            <Select value={effectivePullRemote} onValueChange={setPullRemote}>
+              <SelectTrigger className="h-9 text-[12.5px]" aria-label={t("remote tujuan pull", "pull remote")}>
+                <SelectValue placeholder={t("pilih remote", "pick a remote")} />
+              </SelectTrigger>
+              <SelectContent>
+                {remotes.map((r) => (
+                  <SelectItem key={r.name} value={r.name} className="text-[13px]">{r.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700">
+            <div className="min-w-0">
+              <p className="text-[12px] font-medium text-slate-700 dark:text-slate-200">{t("Simpan sementara (autostash)", "Stash first (autostash)")}</p>
+              <p className="text-[10.5px] text-slate-400">
+                {t("Bila ada file berubah: simpan dulu, tarik, lalu pulihkan otomatis.", "If files changed: stash, pull, then restore automatically.")}
+              </p>
+            </div>
+            <Switch checked={autostash} onCheckedChange={setAutostash} aria-label={t("autostash", "autostash")} />
+          </div>
+          <Button
+            variant="outline"
+            className="mt-3 w-full gap-1.5 text-[12.5px]"
+            disabled={busy !== null || !effectivePullRemote}
+            onClick={() => void doPull()}
+          >
+            {busy === "pull" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <ArrowDownToLine className="h-4 w-4" aria-hidden />}
+            {busy === "pull" ? t("Menarik…", "Pulling…") : t("Tarik Terbaru", "Pull Latest")}
+          </Button>
+          {pullResult && (
+            <div className="mt-3 space-y-1.5">
+              {pullResult.updated ? (
+                <>
+                  <div className="rounded-lg bg-teal-50 px-2.5 py-1.5 text-[11.5px] text-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
+                    {t(`${pullResult.newCommits.length} commit baru masuk:`, `${pullResult.newCommits.length} new commits in:`)}
+                  </div>
+                  <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-800 [scrollbar-width:thin]">
+                    {pullResult.newCommits.map((c) => (
+                      <div key={c.hash} className="flex items-baseline gap-2 px-1">
+                        <span className="shrink-0 font-mono text-[10.5px] text-teal-700 dark:text-teal-400">{c.hash}</span>
+                        <span className="min-w-0 flex-1 truncate text-[11.5px] text-slate-600 dark:text-slate-300" title={c.subject}>{c.subject}</span>
+                        <span className="shrink-0 text-[10px] text-slate-400">{c.date}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11.5px] text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+                  {t("Sudah terbaru — server sejalan dengan remote.", "Up to date — the server matches the remote.")}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* ---- auto-push pasca-patch ---- */}
+      <section className="rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p8-autopush-title">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 id="p8-autopush-title" className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+              <Zap className="h-4 w-4" aria-hidden />
+              {t("Auto-Push Pasca-Patch", "Post-Patch Auto-Push")}
+            </h2>
+            <p className="max-w-xl text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">
+              {t(
+                "Saat AKTIF: setiap usulan patch yang Anda SETUJUI (tab Bug & Patch) langsung di-commit & dikirim ke semua remote GitHub dengan pesan fix(nomor tiket). Perubahan lain yang belum di-commit pada saat itu ikut terbawa dalam commit yang sama.",
+                "When ON: every patch you APPROVE (Bug & Patch tab) is immediately committed & pushed to all GitHub remotes with a fix(ticket no) message. Other uncommitted changes at that moment are included in the same commit.",
+              )}
+            </p>
+          </div>
+          <Switch checked={autoPush} disabled={autopushBusy} onCheckedChange={(v) => void toggleAutoPush(v)} aria-label={t("auto-push", "auto-push")} />
+        </div>
+      </section>
+
+      {/* ---- riwayat sinkronisasi ---- */}
+      <section className="rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p8-hist-title">
+        <h2 id="p8-hist-title" className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+          <History className="h-4 w-4" aria-hidden />
+          {t("Riwayat Sinkronisasi", "Sync History")}
+        </h2>
+        <p className="mb-3 text-[12px] text-slate-500 dark:text-slate-400">
+          {t("Audit 10 operasi terakhir — push, pull, dan auto-push pasca-patch.", "Audit trail of the last 10 operations — push, pull, and post-patch auto-push.")}
+        </p>
+        {history.length === 0 ? (
+          <EmptyState icon={History} title={t("Belum ada riwayat", "No history yet")} description={t("Operasi push/pull akan tercatat di sini.", "Push/pull operations will be recorded here.")} />
+        ) : (
+          <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 [scrollbar-width:thin]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-[11px]">{t("Aksi", "Action")}</TableHead>
+                  <TableHead className="text-[11px]">{t("Hasil", "Result")}</TableHead>
+                  <TableHead className="text-[11px]">{t("Ringkasan", "Summary")}</TableHead>
+                  <TableHead className="text-[11px]">{t("Oleh", "By")}</TableHead>
+                  <TableHead className="text-[11px]">{t("Waktu", "Time")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {history.map((h) => (
+                  <TableRow key={h.id}>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "border-0 px-1.5 text-[10px]",
+                          h.action === "PUSH"
+                            ? "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300"
+                            : h.action === "PULL"
+                              ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                              : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+                        )}
+                      >
+                        {h.action}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className={cn("text-[11.5px] font-semibold", h.status === "OK" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                        {h.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="max-w-[320px]">
+                      <p className="truncate font-mono text-[11px] text-slate-600 dark:text-slate-300" title={h.message}>{h.message || "—"}</p>
+                      <p className="line-clamp-2 text-[10.5px] text-slate-400" title={h.detail}>{h.detail}</p>
+                    </TableCell>
+                    <TableCell className="text-[11px] text-slate-500 dark:text-slate-400">{h.byName || "—"}</TableCell>
+                    <TableCell className="text-[11px] text-slate-500 dark:text-slate-400">{fmtDateTime(h.createdAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 export function PlatformAdminModule(_props: { view?: string }) {
   const { t } = useI18n();
   // P5-SEC — realm sesi MANDIRI: whoami lewat cookie platform (path-scoped,
@@ -924,16 +1413,26 @@ export function PlatformAdminModule(_props: { view?: string }) {
   const api = useApi<AdminOverview>(admin ? "/api/rekankerja/platform/admin/support" : null, [!!admin]);
   // P7.2 — antrean Bug & Patch lintas tenant (badge belum-dibaca di tab).
   const qApi = useApi<SupportQueueData>(admin ? "/api/rekankerja/platform/admin/support-queue" : null, [!!admin]);
-  const [tab, setTab] = useState<"service" | "queue">("service");
+  // P8 — status sinkronisasi git (badge tab: ada perubahan belum terkirim).
+  const gApi = useApi<GitSyncData>(admin ? "/api/rekankerja/platform/admin/github-sync" : null, [!!admin]);
+  const [tab, setTab] = useState<"service" | "queue" | "sync">("service");
 
   // P7.1 — poll ringan utk badge notifikasi (45 dtk; antrean lintas-tenant
   // murah pada jumlah tenant wajar, dan tab aktif apapun tetap ter-update).
   const qRefresh = qApi.refresh;
+  const gRefresh = gApi.refresh;
   useEffect(() => {
     if (!admin) return;
     const h = window.setInterval(() => { void qRefresh(); }, 45_000);
     return () => window.clearInterval(h);
   }, [admin, qRefresh]);
+
+  // P8 — poll status git lebih jarang (perintah git lokal, murah).
+  useEffect(() => {
+    if (!admin) return;
+    const h = window.setInterval(() => { void gRefresh(); }, 60_000);
+    return () => window.clearInterval(h);
+  }, [admin, gRefresh]);
 
   if (ps.loading && !ps.data) {
     return <LoadingRows rows={6} />;
@@ -949,6 +1448,7 @@ export function PlatformAdminModule(_props: { view?: string }) {
   const refreshAll = () => {
     void api.refresh();
     void qApi.refresh();
+    void gApi.refresh();
   };
 
   return (
@@ -957,8 +1457,8 @@ export function PlatformAdminModule(_props: { view?: string }) {
         eyebrow="PLATFORM ADMIN"
         title={t("Layanan Support", "Support Service")}
         description={t(
-          "Kelola layanan Online Support berbayar: aktivasi per tenant, kuota giliran AI, provider AI platform, pemakaian & estimasi biaya, serta antrean bug & usulan patch lintas tenant.",
-          "Manage the paid Online Support service: per-tenant activation, AI turn quotas, the platform AI provider, usage & cost estimates, plus the cross-tenant bug & patch queue.",
+          "Kelola layanan Online Support berbayar: aktivasi per tenant, kuota giliran AI, provider AI platform, pemakaian & estimasi biaya, antrean bug & usulan patch lintas tenant, serta sinkronisasi perubahan kode ke GitHub.",
+          "Manage the paid Online Support service: per-tenant activation, AI turn quotas, the platform AI provider, usage & cost estimates, the cross-tenant bug & patch queue, plus syncing code changes to GitHub.",
         )}
         actions={
           <div className="flex items-center gap-2">
@@ -972,7 +1472,7 @@ export function PlatformAdminModule(_props: { view?: string }) {
       />
 
       {/* P7.2 — tab konsol: layanan/tenant vs bug/patch */}
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "service" | "queue")}>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "service" | "queue" | "sync")}>
         <TabsList className="mb-4 h-9">
           <TabsTrigger value="service" className="gap-1.5 px-3 text-[12px]">
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
@@ -987,10 +1487,25 @@ export function PlatformAdminModule(_props: { view?: string }) {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="sync" className="gap-1.5 px-3 text-[12px]">
+            <Github className="h-3.5 w-3.5" aria-hidden />
+            {t("Sinkron Git", "Git Sync")}
+            {(gApi.data?.status.dirtyCount ?? 0) > 0 && (
+              <span className="ml-0.5 h-2 w-2 rounded-full bg-teal-500" aria-label={t("ada perubahan belum terkirim", "unpushed changes")} />
+            )}
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {tab === "queue" ? (
+      {tab === "sync" ? (
+        gApi.loading && !gApi.data ? (
+          <LoadingRows rows={6} />
+        ) : gApi.error ? (
+          <EmptyState icon={ShieldOff} title={t("Gagal memuat status git", "Failed to load git status")} description={gApi.error} />
+        ) : (
+          <GitSyncTab data={gApi.data} onRefresh={() => void gApi.refresh()} />
+        )
+      ) : tab === "queue" ? (
         qApi.loading && !q ? (
           <LoadingRows rows={6} />
         ) : qApi.error ? (

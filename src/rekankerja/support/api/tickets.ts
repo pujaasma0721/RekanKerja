@@ -127,6 +127,11 @@ export async function POST(req: NextRequest) {
         if (!conflict || attempt === 2) throw e;
       }
     }
+    // audit-FIX: null-guard eksplisit — tiap jalur gagal di loop seharusnya
+    // sudah throw; ini sabuk pengaman agar tidak TypeError di bawah.
+    if (!ticket) {
+      return NextResponse.json({ error: "Gagal membuat nomor tiket unik — coba lagi sebentar" }, { status: 500 });
+    }
 
     // sambutan agen — teks tetap (tanpa LLM): tiket langsung siap dipakai.
     await a.db.supportMessage.create({

@@ -86,14 +86,14 @@ export async function supportUsageOfMonth(tenantId: string, now = new Date()): P
       where: { tenantId, createdAt: { gte: monthStartUtc(now) } },
       select: { llmSteps: true, tokensIn: true, tokensOut: true },
     });
-    return rows.reduce(
+    return rows.reduce<SupportUsageSummary>(
       (acc, r) => ({
         turns: acc.turns + 1,
         llmSteps: acc.llmSteps + r.llmSteps,
         tokensIn: acc.tokensIn + r.tokensIn,
         tokensOut: acc.tokensOut + r.tokensOut,
       }),
-      { turns: 0, llmSteps: 0, tokensIn: 0, tokensOut: 0 } as SupportUsageSummary,
+      { turns: 0, llmSteps: 0, tokensIn: 0, tokensOut: 0 },
     );
   } catch {
     return { turns: 0, llmSteps: 0, tokensIn: 0, tokensOut: 0 };
