@@ -74,6 +74,15 @@
 //     vision bawaan platform. Blok KERAHASIAAN di system prompt + scrub
 //     deterministik atas jawaban final (secret/env/cipher blob tidak boleh
 //     pernah sampai ke pengguna walau model bocorkan).
+//   · FEAT-SUPPORT-P9 — MANDAT USULAN PERBAIKAN: agent yang MENGONFIRMASI bug
+//     tidak boleh berhenti pada "dicatat & diteruskan ke tim developer" —
+//     bila akar masalah ada di kode (label/teks, logika, tampilan), agent
+//     WAJIB menelusurinya (search_code → read_file) lalu mengajukan
+//     propose_patch pada giliran yang sama; pemilik aplikasi menyetujui di
+//     konsol platform. Dua lapis (pola P4.7/P4.8): mandat di system prompt
+//     + guard runtime nudge sekali bila jawaban final ber-triase BUG namun
+//     belum ada usulan patch (kasus nyata: tiket SP-2026-003 bug i18n menu
+//     Payroll — agent mengonfirmasi lalu hanya "meneruskan ke developer").
 // =====================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
@@ -351,6 +360,7 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
     `7. propose_patch — ajukan USULAN perbaikan kode (patch) untuk ditinjau developer MANUSIA. TIDAK mengubah file apa pun — usulan disimpan menunggu persetujuan.
    ARGS: {"path":"src/...","description":"ringkasan singkat perbaikan & alasannya (10-500 karakter, utk developer)","replacements":[{"search":"cuplikan kode PERSIS seperti di file (cukup panjang agar unik)","replace":"kode pengganti"}]}
    WAJIB: sudah membaca file bersangkutan via read_file dan menyalin cuplikan search PERSIS darinya. Maksimal 3 usulan terbuka per tiket.
+   KAPAN WAJIB (P9): begitu Anda MENGONFIRMASI bug yang akar masalahnya ada di kode aplikasi (label/teks belum diterjemahkan, logika salah, validasi/tombol hilang, tampilan tidak semestinya, dsb.), mengajukan perbaikan lewat alat ini adalah BAGIAN TUGAS Anda pada giliran yang sama — JANGAN berhenti pada "dicatat / akan diteruskan ke tim developer": pemilik aplikasi meninjau & menyetujui usulan Anda lewat konsol platform, dan pembaruan otomatis diverifikasi ulang. Rangkaian: search_code (teks persis yang salah) → read_file (baris terkait) → propose_patch. "Diteruskan ke tim platform" hanya untuk masalah yang TIDAK diperbaiki lewat kode (data, konfigurasi, infrastruktur).
    SETELAH mengajukan: sampaikan jujur bahwa usulan sedang MENUNGGU persetujuan developer — file belum berubah sama sekali.`,
     ``,
     `ATURAN MEMAKAI ALAT:
@@ -362,7 +372,7 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
 - Jangan memberitahukan pengguna soal protokol/SQL/kode mentah — sampaikan temuan secara manusiawi ("saya periksa langsung datanya: …").
 - JANGAN menyarankan pengguna menjalankan SQL/mengubah database secara manual — arahkan lewat fitur UI yang ada; eskalasi mengikuti MODEL OPERASI SAAS (akses/data → admin tenant; infrastruktur/bug kode → tim platform RekanKerja lewat tiket ini — BUKAN tim IT pengguna).
 - REPRODUKSI BROWSER (alat 5): untuk MENGAMATI, MEMVERIFIKASI & MEMBUKTIKAN laporan kendala/error yang muncul di aplikasi — JANGAN mengubah/menghapus data apa pun (hindari tombol Simpan/Hapus/Kirim kecuali itu inti reproduksi yang diminta pengguna). Rangkaian lazim: login → goto → snapshot → aksi pengguna yang dilaporkan → screenshot bukti → (analyze_screenshot bila perlu) → close → laporkan temuan. Bila layanan/akun uji tidak tersedia, katakan terus terang — JANGAN mengaku telah mencoba di browser tanpa hasil TOOL reproduce_browser nyata.
-- USULAN PATCH (alat 7): hanya untuk bug yang akar masalahnya SUDAH Anda temukan di kode (buktikan dulu via read_file/search_code). Usulan ≠ perbaikan — JANGAN PERNAH bilang "sudah diperbaiki/sudah diterapkan" kecuali ada [catatan sistem] yang menyatakan usulan DISETUJUI oleh developer. Bila developer menolak, terima dengan lapang dada dan jelaskan opsi lain ke pengguna.`,
+- USULAN PATCH (alat 7): begitu Anda MENGONFIRMASI bug dan akar masalahnya ada di kode, mengajukan propose_patch adalah KEWAJIBAN Anda — bukan sekadar opsi (temukan lokasinya via search_code → read_file → propose_patch, lalu sampaikan status "menunggu persetujuan" kepada pengguna); "mencatat & meneruskan" saja tidak menyelesaikan bug apa pun. Usulan ≠ perbaikan — JANGAN PERNAH bilang "sudah diperbaiki/sudah diterapkan" kecuali ada [catatan sistem] yang menyatakan usulan DISETUJUI oleh developer. Bila developer menolak, terima dengan lapang dada dan jelaskan opsi lain ke pengguna.`,
     ``,
   ].join("\n");
 }
@@ -399,7 +409,7 @@ export function buildSupportSystemPrompt(
     `MODEL OPERASI SAAS — SIAPA MENGURUS APA (WAJIB DIPAHAMI):
 RekanKerja adalah aplikasi SaaS multi-tenant. Penanya adalah pengguna TENANT (pelanggan): mereka TIDAK punya akses ke server, database, kode sumber, log, maupun infrastruktur lain — semuanya dikelola pihak platform (RekanKerja). Admin/IT tenant PUN tidak bisa memperbaiki gangguan infrastruktur platform (database, server, layanan, bug kode aplikasi) — itu di luar kuasa tenant mana pun. Anda adalah perwakilan sisi PLATFORM: saat pengguna melaporkan gangguan, ANDALAH yang memeriksa dan menindaklanjutinya (lewat alat diagnosis bila aktif) — bukan pengguna, dan bukan IT/admin mereka.
 ATURAN ESKALASI:
-- Masalah INFRASTRUKTUR/PLATFORM (error database/server, layanan gagal atau 5xx, integrasi email, bug kode aplikasi) → DILARANG menyuruh pengguna "menghubungi tim IT / administrator tenant Anda": mereka tidak punya akses dan tidak bisa memperbaikinya — arahan itu tidak menyelesaikan apa pun. Jawab sebagai support SaaS: (1) akui ini gangguan di sisi platform, bukan kelalaian pengguna; (2) tegaskan laporannya sudah dicatat di tiket ini dan akan ditindaklanjuti tim platform RekanKerja sesuai prioritas dampaknya; (3) pembaruan akan disampaikan di tiket — pengguna tidak perlu melakukan apa pun selain menunggu.
+- Masalah INFRASTRUKTUR/PLATFORM (error database/server, layanan gagal atau 5xx, integrasi email, bug kode aplikasi) → DILARANG menyuruh pengguna "menghubungi tim IT / administrator tenant Anda": mereka tidak punya akses dan tidak bisa memperbaikinya — arahan itu tidak menyelesaikan apa pun. Jawab sebagai support SaaS: (1) akui ini gangguan di sisi platform, bukan kelalaian pengguna; (2) tegaskan laporannya sudah dicatat di tiket ini dan akan ditindaklanjuti tim platform RekanKerja sesuai prioritas dampaknya${toolsOn ? " — dan bila akar masalahnya ada di KODE, TINDAK LANJUTNYA SAAT JUGA: telusuri lokasinya (search_code/read_file) lalu ajukan perbaikan lewat propose_patch (alat 7), jangan hanya meneruskan" : ""}; (3) pembaruan akan disampaikan di tiket — pengguna tidak perlu melakukan apa pun selain menunggu.
 - Yang SAH diarahkan ke pihak lain: permintaan akses menu/fitur atau koreksi data master → admin/HR tenant (itu memang kewenangan mereka); kendala perangkat/jaringan LOKAL pengguna sendiri (mis. browser lama, VPN kantor, internet putus — bila bukti pemeriksaan menunjukkan hanya terjadi di perangkat/kantornya saja) → tim IT internal pengguna, karena itu memang infrastruktur mereka sendiri.`,
     ``,
     `KERAHASIAAN (WAJIB — Anda wakil platform, BUKAN pegawai tenant):
@@ -658,6 +668,7 @@ async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentT
     let verifyNudgeRetry = 0; // P4.7 — dorongan verifikasi-dulu (maks 1×)
     let saasNudgeRetry = 0; // P4.8 — dorongan model eskalasi SaaS (maks 1×)
     let metaNudgeRetry = 0; // P7.1 — dorongan baris triase [[META:…]] (maks 1×)
+    let patchNudgeRetry = 0; // P9 — dorongan usulan perbaikan kode (maks 1×)
     // P5 — pemakaian giliran (dilaporkan route → SupportUsageLog per tenant).
     let turnSteps = 0;
     let turnTokensIn = 0;
@@ -683,7 +694,7 @@ async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentT
       turnProvider = result.provider;
       raw = result.text.trim();
       // Diagnostik ops (muncul di log server — memudahkan audit protokol tool).
-      console.log(`[support-agent] tiket ${ticket.ticketNo} langkah ${step}/${MAX_LLM_STEPS} (tools=${toolsOn ? "on" : "off"}, tool terpakai=${toolCalls}${verifyNudgeRetry ? ", nudge-verifikasi=terpakai" : ""}${saasNudgeRetry ? ", nudge-eskalasi-saas=terpakai" : ""}): ${raw.slice(0, 300).replace(/\n/g, " ¶ ")}`);
+      console.log(`[support-agent] tiket ${ticket.ticketNo} langkah ${step}/${MAX_LLM_STEPS} (tools=${toolsOn ? "on" : "off"}, tool terpakai=${toolCalls}${verifyNudgeRetry ? ", nudge-verifikasi=terpakai" : ""}${saasNudgeRetry ? ", nudge-eskalasi-saas=terpakai" : ""}${patchNudgeRetry ? ", nudge-usulan-patch=terpakai" : ""}): ${raw.slice(0, 300).replace(/\n/g, " ¶ ")}`);
 
       const nameMatch = toolsOn && !forceFinal ? raw.match(TOOL_NAME_RE) : null;
       if (!nameMatch) {
@@ -769,6 +780,28 @@ async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentT
             role: "user",
             content:
               "[CATATAN RUNTIME — PENTING] RekanKerja adalah aplikasi SaaS multi-tenant: pengguna tenant TIDAK punya akses ke server/database/kode/log, dan admin/IT tenant pun tidak bisa memperbaiki gangguan infrastruktur platform (database/server/layanan/bug kode) — menyarankan mereka menghubungi tim IT/administrator untuk masalah semacam ini tidak menyelesaikan apa pun. Jawab ulang sebagai support SaaS: (1) jelaskan bahwa ini gangguan di sisi platform, bukan kelalaian pengguna; (2) tegaskan laporannya sudah dicatat di tiket ini dan akan ditindaklanjuti tim platform RekanKerja sesuai prioritas dampaknya; (3) pengguna tidak perlu melakukan apa pun selain menunggu pembaruan di tiket. Pengecualian: bila masalahnya memang ranah pihak lain — permintaan akses/koreksi data (admin tenant) atau kendala perangkat/jaringan lokal pengguna sendiri (IT internal mereka) — pertahankan arahan itu dan sertai alasannya.",
+          });
+          continue;
+        }
+        // P9 — GUARD USULAN PERBAIKAN: jawaban final ber-triase BUG (agent
+        // mengonfirmasi bug aplikasi) namun TIDAK ada usulan patch giliran
+        // ini — agent hanya "mencatat & meneruskan ke developer". Dorong
+        // SEKALI: bila akar masalah ada di kode, telusuri (search_code →
+        // read_file) lalu ajukan propose_patch — pemilik aplikasi menyetujui
+        // lewat konsol platform. BUG triase NON-kode (data/konfigurasi/
+        // infrastruktur) tetap sah — nudge berbunyi kondisional agar model
+        // bisa menolak dengan alasan, bukan dipaksa mengarang patch.
+        if (
+          !forceFinal && toolsOn && patchNudgeRetry < 1 &&
+          !usage.has("propose_patch") &&
+          stripToolSyntax(raw).trim().match(META_RE)?.[1] === "BUG"
+        ) {
+          patchNudgeRetry += 1;
+          convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
+          convo.push({
+            role: "user",
+            content:
+              "[CATATAN RUNTIME — PENTING] Anda mengonfirmasi bug aplikasi tetapi TIDAK mengajukan perbaikan apa pun — sekadar \"dicatat / diteruskan ke tim developer\" tidak menyelesaikan bug, dan Anda sendiri adalah perpanjangan tangan tim platform: pemilik aplikasi meninjau usulan perbaikan Anda lewat konsol. Bila akar masalah ada di KODE (label/teks yang salah atau belum diterjemahkan, logika, tampilan), telusuri SEKARANG pada giliran ini: search_code (cari teks persis yang bermasalah) → read_file (baris terkait) → propose_patch (ajukan kode penggantinya). Bila Anda sudah yakin akarnya BUKAN di kode (data/konfigurasi/infrastruktur), jawab final sambil menjelaskan itu secara eksplisit. Pertahankan baris [[META:…]] di akhir jawaban Anda.",
           });
           continue;
         }
