@@ -68,7 +68,10 @@ export function installUnauthorizedInterceptor() {
       if ((status === "ready" || status === "select-tenant") && !expired) {
         const path = typeof args[0] === "string" ? args[0] : (args[0] instanceof URL ? args[0].pathname : "");
         // /api/auth/me dipanggil keepalive & load() — 401 di situ ditangani store.
-        if (!path.includes("/api/auth/")) expire("timeout");
+        // P5-SEC: 401 dari realm PLATFORM (login konsol pemilik salah, sesi
+        // platform kedaluwarsa) TIDAK bercerita apa-apa tentang sesi tenant —
+        // jangan pernah mengekspire sesi tenant karenanya.
+        if (!path.includes("/api/auth/") && !path.includes("/api/rekankerja/platform/")) expire("timeout");
       }
     }
     return res;

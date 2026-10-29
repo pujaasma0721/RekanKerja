@@ -1,49 +1,64 @@
 // RekanKerja — Online Support P5: guard API khusus PEMILIK APLIKASI. ========
 // =====================================================================
-// FEAT-SUPPORT-P5: seluruh endpoint /api/rekankerja/platform/admin/* hanya
-// boleh dipanggil oleh User.isSuperadmin (pemilik aplikasi) — BUKAN admin
-// tenant. Ini beda fundamental dari guard lain di aplikasi:
-//   · requireTenant / requireMenuAction → otorisasi DALAM tenant (membership)
-//   · requirePlatformAdmin → otorisasi LINTAS tenant (pemilik aplikasi)
-// Admin/OWNER tenant yang mencoba endpoint ini → 403 (mereka pelanggan —
-// tidak punya urusan mengelola tenant lain maupun aktivasi layanan).
+// FEAT-SUPPORT-P5-SEC (pemisahan realm, respons audit keamanan): guard ini
+// kini MANDIRI dari realm tenant —
+//   · Identitas: tabel PlatformAdmin di PUBLIC schema (bukan User platform
+//     yang kebetulan member tenant, bukan AppUser tenant). Pemilik aplikasi
+//     tidak perlu menjadi anggota tenant mana pun.
+//   · Sesi: cookie realm platform (rk_platform_admin) yang ditandatangani
+//     kunci BERBEDA dan path-scoped /api/rekankerja/platform/** — sesi
+//     tenant (rekankerja_session) TIDAK PERNAH diterima di sini, WALAUPUN
+//     user-nya ber-flag isSuperadmin. Satu arah saja: kredensial PlatformAdmin
+//     + sesi platform.
+// Dengan demikian: akun tenant yang dikompromikan tidak bisa mencapai API
+// platform; cookie platform yang dicuri tidak membuka akses tenant.
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { readVerifiedSession } from "@/rekankerja/shared/lib/auth";
+import { readPlatformSessionCookie } from "@/rekankerja/shared/lib/platform-session";
 import { db as platformDb } from "@/lib/db";
 
 export interface PlatformAdminActor {
-  userId: string;
+  adminId: string;
   email: string;
   name: string;
 }
 
 /**
- * Validasi sesi sebagai pemilik aplikasi (User.isSuperadmin).
+ * Validasi sesi REALM PLATFORM ADMIN (cookie rk_platform_admin + cocokkan
+ * sessionVersion di DB — pola T1-SECURITY). TIDAK ada fallback ke sesi tenant.
  * Return { ok: true, actor } atau { ok: false, res } siap kirim.
- * 401 bila tanpa sesi valid; 403 bila sesi valid tapi bukan pemilik aplikasi.
  */
 export async function requirePlatformAdmin(
   req: NextRequest | Request,
 ): Promise<{ ok: true; actor: PlatformAdminActor } | { ok: false; res: NextResponse }> {
-  let payload: Awaited<ReturnType<typeof readVerifiedSession>> = null;
+  const payload = readPlatformSessionCookie(req);
+  if (!payload) {
+    return {
+      ok: false,
+      res: NextResponse.json(
+        { error: "Masuk dulu sebagai pemilik aplikasi (konsol platform)", code: "PLATFORM_LOGIN_REQUIRED" },
+        { status: 401 },
+      ),
+    };
+  }
+  // Baca via $queryRaw agar tetap bekerja saat cache Prisma client lama
+  // (pola readVerifiedSession auth.ts).
+  let row: { id: string; email: string; name: string; active: boolean; sessionVersion: number } | null = null;
   try {
-    payload = await readVerifiedSession(req);
+    const rows = await platformDb.$queryRaw<Array<{ id: string; email: string; name: string; active: boolean; sessionVersion: number }>>`
+      SELECT id, email, name, active, "sessionVersion" FROM "PlatformAdmin" WHERE id = ${payload.aid} LIMIT 1`;
+    row = rows[0] ?? null;
   } catch {
-    payload = null;
+    row = null;
   }
-  if (!payload?.uid) {
-    return { ok: false, res: NextResponse.json({ error: "Sesi tidak valid — masuk kembali" }, { status: 401 }) };
+  if (!row || row.active !== true || Number(row.sessionVersion) !== payload.sv) {
+    return {
+      ok: false,
+      res: NextResponse.json(
+        { error: "Sesi platform tidak sah — masuk kembali", code: "PLATFORM_LOGIN_REQUIRED" },
+        { status: 401 },
+      ),
+    };
   }
-  const user = await platformDb.user.findUnique({
-    where: { id: payload.uid },
-    select: { id: true, email: true, name: true, isSuperadmin: true },
-  });
-  if (!user) {
-    return { ok: false, res: NextResponse.json({ error: "Sesi tidak valid — masuk kembali" }, { status: 401 }) };
-  }
-  if (user.isSuperadmin !== true) {
-    return { ok: false, res: NextResponse.json({ error: "Halaman ini hanya untuk pemilik aplikasi (platform)" }, { status: 403 }) };
-  }
-  return { ok: true, actor: { userId: user.id, email: user.email, name: user.name } };
+  return { ok: true, actor: { adminId: row.id, email: row.email, name: row.name } };
 }

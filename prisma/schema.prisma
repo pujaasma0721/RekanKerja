@@ -72,9 +72,34 @@ model UserTenant {
 
 // ============ SUPPORT SERVICE — LAYANAN BERBAYAR (FEAT-SUPPORT-P5) ============
 // Ketentuan layanan: Online Support adalah layanan ADD-ON berbayar yang
-// diaktifkan per-tenant OLEH PEMILIK APLIKASI (User.isSuperadmin) lewat
+// diaktifkan per-tenant OLEH PEMILIK APLIKASI (PlatformAdmin) lewat
 // modul Platform Admin. TIDAK ADA API tenant yang bisa mengubah tabel ini —
 // tenant admin (OWNER/ADMIN membership) pun tidak bisa menyentuhnya.
+
+/// IDENTITAS PEMILIK APLIKASI — realm MANDIRI di public schema (P5-SEC).
+/// Sama sekali TIDAK terhubung dengan: User platform (dipakai login tenant
+/// + membership UserTenant), maupun AppUser tenant. Pemilik aplikasi TIDAK
+/// PERLU menjadi anggota tenant mana pun; kredensial & sesinya terpisah
+/// penuh (lihat shared/lib/platform-session.ts). Pemisahan inilah yang
+/// membuat akun tenant yang dikompromikan TIDAK PERNAH bisa mencapai konsol
+/// platform — dan sebaliknya.
+model PlatformAdmin {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String
+  /// scrypt salt+hash — pola sama dgn User (hashPassword/verifyPassword auth.ts)
+  passwordHash   String
+  active         Boolean   @default(true)
+  /// Lockout login (pola User): 5 percobaan gagal → kunci 15 menit.
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  /// Revokasi sesi server-side: token membawa versi ini; logout menaikkan
+  /// versi → semua cookie sesi platform lama otomatis tidak sah.
+  sessionVersion Int       @default(0)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
 
 /// Status aktivasi layanan support per tenant — sumber kebenaran gate.
 model SupportEntitlement {

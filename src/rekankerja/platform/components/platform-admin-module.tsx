@@ -17,7 +17,7 @@
 import { useEffect, useState } from "react";
 import {
   ShieldCheck, Building2, RefreshCw, Loader2, KeyRound, PlugZap, Coins,
-  Activity, ShieldOff, FileText, Save, ChevronRight,
+  Activity, ShieldOff, FileText, Save, ChevronRight, LogOut, Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,6 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { useApi, apiSend, fmtDateTime } from "@/rekankerja/shared/lib/api";
-import { useSession } from "@/rekankerja/shared/lib/session-store";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { cn } from "@/lib/utils";
@@ -76,6 +75,9 @@ interface UsageDetail {
   month: string;
   summary: { turns: number; llmSteps: number; tokensIn: number; tokensOut: number };
   logs: UsageLogRow[];
+}
+interface PlatformAdminSession {
+  admin: { email: string; name: string; lastLoginAt: string | null } | null;
 }
 
 const SUPPORT_STATUS_META: Record<string, { label: string; cls: string }> = {
@@ -433,26 +435,127 @@ function ProviderCard({ provider, onSaved }: { provider: AdminProvider; onSaved:
   );
 }
 
+/** Kartu LOGIN realm platform (P5-SEC) — kredensial PlatformAdmin di public
+ *  schema, SEPENUHNYA terpisah dari login tenant: akun tenant (termasuk
+ *  OWNER/superadmin tenant) tidak bisa masuk lewat sini tanpa kredensial
+ *  pemilik aplikasi yang sah. */
+function PlatformLoginCard({ onLoggedIn }: { onLoggedIn: () => void }) {
+  const { t } = useI18n();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password) {
+      toast.error(t("Isi email dan kata sandi pemilik aplikasi", "Enter the app owner's email and password"));
+      return;
+    }
+    setBusy(true);
+    try {
+      await apiSend("/api/rekankerja/platform/admin/session", "POST", { email: email.trim(), password });
+      toast.success(t("Selamat datang, pemilik aplikasi", "Welcome, application owner"));
+      setPassword("");
+      onLoggedIn();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "unknown");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-md py-10">
+      <form
+        onSubmit={submit}
+        className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+        aria-labelledby="platform-login-title"
+      >
+        <div className="mb-5 flex flex-col items-center text-center">
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-teal-700 text-white shadow-lg shadow-teal-900/20">
+            <Lock className="h-6 w-6" aria-hidden />
+          </span>
+          <h2 id="platform-login-title" className="mt-3 flex items-center gap-2 text-[16px] font-semibold text-slate-900 dark:text-slate-50">
+            {t("Konsol Pemilik Aplikasi", "Application Owner Console")}
+          </h2>
+          <p className="mt-1 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">
+            {t(
+              "Masuk dengan akun pemilik aplikasi — kredensial terpisah dari akun tenant/karyawan mana pun.",
+              "Sign in with your application-owner account — credentials separate from any tenant/employee account.",
+            )}
+          </p>
+        </div>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="platform-login-email" className="text-[12px]">{t("Email", "Email")}</Label>
+            <Input
+              id="platform-login-email" type="email" required autoComplete="username"
+              value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="owner@rekankerja.id" className="h-10 text-[13px]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="platform-login-password" className="text-[12px]">{t("Kata sandi", "Password")}</Label>
+            <Input
+              id="platform-login-password" type="password" required autoComplete="current-password"
+              value={password} onChange={(e) => setPassword(e.target.value)}
+              className="h-10 text-[13px]"
+            />
+          </div>
+        </div>
+        <Button type="submit" className="mt-5 h-10 w-full text-[13px]" disabled={busy}>
+          {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden /> : <ShieldCheck className="mr-1 h-4 w-4" aria-hidden />}
+          {t("Masuk Konsol Platform", "Sign in to Platform Console")}
+        </Button>
+        <p className="mt-3 text-center text-[10.5px] leading-relaxed text-slate-400">
+          {t(
+            "Sesi konsol terpisah penuh dari sesi aplikasi tenant (cookie berbeda, hanya berlaku di API platform) dan berakhir otomatis dalam 8 jam.",
+            "The console session is fully separate from your tenant app session (different cookie, platform APIs only) and expires automatically after 8 hours.",
+          )}
+        </p>
+      </form>
+    </div>
+  );
+}
+
+/** Tombol keluar realm platform (revokasi sesi server-side). */
+function PlatformLogoutButton({ onDone }: { onDone: () => void }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const logout = async () => {
+    setBusy(true);
+    try {
+      await apiSend("/api/rekankerja/platform/admin/session", "DELETE");
+      toast.success(t("Keluar dari konsol platform", "Signed out of the platform console"));
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button variant="outline" size="sm" className="h-8 text-[12px]" disabled={busy} onClick={() => void logout()}>
+      {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden /> : <LogOut className="mr-1 h-3.5 w-3.5" aria-hidden />}
+      {t("Keluar", "Sign out")}
+    </Button>
+  );
+}
+
 export function PlatformAdminModule(_props: { view?: string }) {
   const { t } = useI18n();
-  const session = useSession();
-  const isAppOwner = session.info?.user?.isSuperadmin === true;
-  const api = useApi<AdminOverview>(isAppOwner ? "/api/rekankerja/platform/admin/support" : null, [isAppOwner]);
+  // P5-SEC — realm sesi MANDIRI: whoami lewat cookie platform (path-scoped,
+  // kunci tanda tangan berbeda dari sesi tenant). Tanpa sesi platform → kartu
+  // login khusus; sesi tenant (apapun role/flag-nya) tidak pernah diperiksa.
+  const ps = useApi<PlatformAdminSession>("/api/rekankerja/platform/admin/session");
+  const admin = ps.data?.admin ?? null;
+  const api = useApi<AdminOverview>(admin ? "/api/rekankerja/platform/admin/support" : null, [!!admin]);
 
-  // Guard render (defense-in-depth — API tetap pengaman sebenarnya).
-  if (!isAppOwner) {
-    return (
-      <div className="grid min-h-[50vh] place-items-center">
-        <EmptyState
-          icon={ShieldOff}
-          title={t("Akses ditolak", "Access denied")}
-          description={t(
-            "Konsol ini hanya untuk pemilik aplikasi. Admin/OWNER tenant tidak dapat mengaksesnya.",
-            "This console is for the application owner only. Tenant admins/owners cannot access it.",
-          )}
-        />
-      </div>
-    );
+  if (ps.loading && !ps.data) {
+    return <LoadingRows rows={6} />;
+  }
+  if (!admin) {
+    return <PlatformLoginCard onLoggedIn={() => ps.refresh()} />;
   }
 
   const d = api.data;
@@ -467,10 +570,13 @@ export function PlatformAdminModule(_props: { view?: string }) {
           "Manage the paid Online Support service: per-tenant activation, AI turn quotas, the platform AI provider, and usage & cost estimates.",
         )}
         actions={
-          <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => api.refresh()} disabled={api.loading}>
-            {api.loading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden /> : <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />}
-            {t("Muat ulang", "Refresh")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => api.refresh()} disabled={api.loading}>
+              {api.loading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden /> : <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />}
+              {t("Muat ulang", "Refresh")}
+            </Button>
+            <PlatformLogoutButton onDone={() => ps.refresh()} />
+          </div>
         }
       />
 
