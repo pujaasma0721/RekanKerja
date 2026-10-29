@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "(1) **Real data rows** are loaded (no error or skeleton states visible).\n(2) **Visible log rows:**\n*   **26 Okt 2026 15:29** | **SISTEM** | **Scheduled** (Scheduler)\n*   **26 Okt 2026 14:32** | **SISTEM** | **Scheduled** (Scheduler)\n*   **26 Okt 2026 13:14** | **MII000001** | **Viewed** (Employee: Agus Salim)\n(3) **No overlay or dialog** is present; the main page content is fully visible and unobstructed.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1793029064,
+  "id": "2026102623374109c613ac226c4079",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "2026102623374109c613ac226c4079",
+  "usage": {
+    "completion_tokens": 141,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1733,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1874
+  }
+}

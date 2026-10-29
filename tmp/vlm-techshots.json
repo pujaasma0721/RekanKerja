@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "**Image 1:**\n(1) **Page:** \"Keamanan & Akses\" (Security & Access) > Tab **\"Kebijakan Kata Sandi\"** (Password Policy).  \n(2) **State:** Real loaded data (configuration form).  \n(3) **Content:** Form fields for password complexity (Min/Max length 8/64, Min unique chars 4, Max consecutive same/diff chars 3), toggles for uppercase, lowercase, digits, special chars, and restrictions on username/email/common passwords. Right panel shows a \"Uji Coba Sandi\" (Test Password) tool with sample user \"Dewi Lestari\".  \n(4) **Overlays:** None visible.\n\n**Image 2:**\n(1) **Page:** \"Keamanan & Akses\" (Security & Access) > Tab **\"Hak Akses per Pengguna\"** (User Access Rights).  \n(2) **State:** Real loaded data.  \n(3) **Content:** Summary cards showing 6 Users, 4 Restricted Menus, 2 User Data Rules, 2 Super Admins. Below is a user list (left) with \"Tri Handayani\" selected as OWNER/Super Admin, and a detail panel (right) showing her permissions (auto Super Admin, full menu/data access).  \n(4) **Overlays:** None visible.\n\n**Image 3:**\n(1) **Page:** \"Keamanan & Akses\" (Security & Access) > Tab **\"Pengguna\"** (Users).  \n(2) **State:** Real loaded data table.  \n(3) **Content:** Table of 6 application users (Agus Salim, Bambang Prakoso, Hartono Wijksono, Joko Susilo, Sri Wahyuni, Tri Handayani) with columns for Role (Viewer/Approver/Admin/OWNER), Last Login, Password Expiry (mostly \"Berlaku 90 hari lagi\"), and Status (Aktif).  \n(4) **Overlays:** None visible.\n\n**Image 4:**\n(1) **Page:** **\"Log Aktivitas\"** (Activity Log) under the System Configuration menu.  \n(2) **State:** Skeleton/loading state (placeholder blocks).  \n(3) **Content:** Page header with filters (Advance Search, All Actions/Entities/Employees, Date Range) and an \"Export CSV\" button. The main content area shows ~7 light blue rectangular skeleton placeholders where the log entries should load.  \n(4) **Overlays:** None visible.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1793028570,
+  "id": "202610262329203d832785d3714979",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202610262329203d832785d3714979",
+  "usage": {
+    "completion_tokens": 542,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 6759,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 7301
+  }
+}

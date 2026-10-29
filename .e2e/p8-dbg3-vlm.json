@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "The screenshot displays the **Dashboard** page of the **Human Resource Base** application. The visible tabs at the top are **RekanKerja**, **Human Resource Base**, and **cnv31pl**.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791848827,
+  "id": "20261013074705c48361d3f4ff46f8",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20261013074705c48361d3f4ff46f8",
+  "usage": {
+    "completion_tokens": 45,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 3773,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 3818
+  }
+}

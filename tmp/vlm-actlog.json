@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "(1) **No**, the table is **not** loaded with real log rows. It displays an error state (\"Gagal memuat log\" / \"Failed to fetch\") instead of data or skeleton placeholders.\n\n(2) **N/A** — No example rows are visible because the data failed to load.\n\n(3) **No**, there are no unexpected overlays or dialogs. The page shows only the standard layout with an inline error message in the content area.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1793028652,
+  "id": "20261026233049e2c617978da6455c",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20261026233049e2c617978da6455c",
+  "usage": {
+    "completion_tokens": 95,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1746,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1841
+  }
+}
