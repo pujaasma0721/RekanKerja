@@ -142,6 +142,24 @@ function PageInner() {
   // halaman login live tidak tersentuh sampai pilihan desain diambil.
   if (searchParams.get("mockup") === "auth") return <AuthDesignLab />;
 
+  // FEAT-SUPPORT-P5-SEC (fix jalur masuk konsol): konsol pemilik aplikasi
+  // TIDAK boleh terjebak di balik AuthGate tenant — akun pemilik by design
+  // tanpa membership tenant, sehingga login tenant SELALU menolaknya
+  // ("Incorrect email or password"). Saat menu platform dibuka tanpa sesi
+  // tenant, render modul di luar AuthGate: modul self-gate via realm sesi
+  // PlatformAdmin mandiri (kartu login khusus bila belum masuk; sesi
+  // tenant — role/flag apa pun — tidak pernah diperiksa). Sesi tenant
+  // yang setengah jalan (select-tenant) tidak terganggu: hanya dibaca.
+  if (section === "platform" && (session.status === "anonymous" || session.status === "select-tenant")) {
+    return (
+      <I18nProvider>
+        <main className="min-h-screen bg-background">
+          <PlatformAdminModule />
+        </main>
+      </I18nProvider>
+    );
+  }
+
   // Mode UI masih diputuskan (session ready, belum ada override, hak menu
   // belum termuat) → splash agar tidak berkedip shell admin.
   const deciding = session.status === "ready" && !modeOverride && !meMenu.data && !meMenu.error;
