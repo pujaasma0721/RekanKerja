@@ -8872,3 +8872,45 @@ Rilis: 498942d (push ke origin/main setelah rebase ad982a7).
 Stage Summary:
 - P4.1 SELESAI & TERPUSH: pengguna kini bisa menempel tangkapan layar langsung dari clipboard (Ctrl/Cmd+V), menyalin file dari file manager lalu menempelnya di chat, atau menyeret file ke area utas — semuanya tanpa menyentuh tombol lampiran; tangkapan layar otomatis dinamai; pesan hanya-gambar sah dan AI tetap fungsional (VLM membaca gambar, fallback jujur bila analisa gagal).
 
+
+---
+
+## 2026-10-29 — FEAT-SUPPORT-P4.2 (Online Support): UX scroll halus + balasan AI rapat
+
+Task: dua keluhan pengguna — (1) "chat support service selalu refresh beberapa saat, chat yang sedang berlangsung lari kemana-mana sehingga user harus selalu scroll ke bawah untuk melihat jawaban — apa tujuannya & bisa dibuat smooth?"; (2) "jawaban text dari AI terlihat selalu space ke bawah/tidak rapat, user harus banyak scroll untuk melihat jawaban utuh".
+
+Rilis: d97f56e (push origin/main).
+
+### Diagnosis (jawaban atas pertanyaan user)
+- Poling 15 dtk memang SENGAJA ada dan tetap dipertahankan: satu-satunya cara utk menghadirkan balasan AI (giliran agen bisa makan waktu — L2/L3 memeriksa kode/data/browser sampai ~3,5 menit), keputusan patch developer lain, dan perubahan status TANPA reload manual. Yang bermasalah bukan polingnya, tapi dua efek sampingnya:
+  1. FLASH SKELETON: useApi men-set loading=true di tiap refresh → kondisi render lama `ticketApi.loading || msgApi.loading` mengganti SELURUH utas dgn LoadingRows ~100ms tiap poling (chat "kedip-kedip").
+  2. YANK SCROLL: efek autoscroll lama bergantung [msgApi.data, aiBusy] — objek data BARU tiap poling (meski isi identik) → scrollTo(bottom) TANPA SYARAT tiap 15 dtk → posisi baca user ditarik paksa ke dasar.
+- Spasi AI: margin markdown longgar (p my-1, list space-y-0.5, heading mt-2) + DAFTAR "LOOSE" (model menyisipkan baris kosong antar item → tiap <li> berisi <p> bermargin → margin ganda) + leading-relaxed.
+
+### Perubahan (support-module.tsx)
+- SKELETON HANYA SAAT BELUM ADA DATA: `(!ticket && ticketApi.loading) || (msgApi.loading && !msgApi.data)` — poling dgn data yang sudah ada TIDAK lagi mengganti utas (list tiket kiri juga: `ticketsApi.loading && !ticketsApi.data`). Ganti tiket → efek reset (setData(null) ×3 + reset konteks scroll) supaya skeleton tampil utk tiket baru, bukan utas lama sesaat.
+- SCROLL CERDAS "REKAT-DI-DASAR" (ganti autoscroll lama):
+  - useIsomorphicLayoutEffect (layout effect di client, useEffect di SSR) atas [msgApi.data]: bandingkan id pesan TERAKHIR vs ref — sama → poling tanpa pesan baru → JANGAN sentuh scroll; beda (pesan baru) → bila user dekat dasar (<140px) tempelkan scroll INSTAN sinkron dgn mutasi DOM (pra-paint — user tak pernah melihat "lompatan"), bila user sedang membaca riwayat → tampilkan pill mengambang "Pesan baru" (klik → lompat halus).
+  - RACE PENTING yang ditemukan saat E2E (kasus user di dasar + pesan masuk malah muncul pill): browser menembakkan event scroll (scroll-anchoring, scrollTop tak berubah) SEBELUM efek pasif React membaca status — layout effect membaca status PRA-mutasi sehingga race tertutup; ditambah guard onThreadScroll mengabaikan event scroll dgn scrollTop yang tidak bergerak (bukan aksi user, melainkan efek konten bertambah).
+  - Buka/ganti tiket → langsung ke pesan terbaru (prev===null → jump instan). Pesan sendiri (send()) → fokuskan ke dasar. Indikator "mengetik" (aiBusy) → turun hanya bila user di dasar.
+  - Poling kini juga hanya jalan saat tab terlihat (document.visibilityState).
+- RENDER RAPAT: MD_COMPONENTS diciut (p my-0.5 + first/last:my-0, list my-0.5 space-y-0, heading mt-1.5 mb-0.5, table/pre my-1, li py td py-0.5) + `[&>p]:my-0` di li (membunuh margin ganda loose-list) + bubble py-2.5→py-2 & leading-relaxed→leading-normal.
+- AGENT (support-agent.ts) ATURAN MENJAWAB #2 diperluas: "Tulis RAPAT dan hemat ruang: hindari heading kecuali jawaban benar-benar panjang, jangan menyisipkan baris kosong ekstra antar item daftar, dan jangan mengulang pertanyaan pengguna."
+
+### Verifikasi
+- GATES: bun run lint 0 error (12 warning pre-existing) · tsc -p tsconfig.p41check.json EXIT 0 · dev.log bersih.
+- E2E BROWSER (agent-browser, hrd@mii.co.id, tiket uji "Uji P4.2" — skrip .e2e/p42-api-helper.mjs mengirim pesan dari sesi API terpisah utk menyimulasikan pesan masuk):
+  1. buka tiket → langsung di dasar (jump instan) ✓;
+  2. sampler 120ms × 25 dtk: user scroll naik 500px → poling 15 dtk BERLANGSUNG → scrollTop KONSTAN (683, minTop=maxTop setelah scroll) + [role=log] TIDAK PERNAH hilang (0 skeleton flash) — dulu di titik ini chat "lari" ✓;
+  3. pesan baru masuk saat user membaca riwayat → pill "Pesan baru" muncul + posisi baca tetap ✓ (screenshot 01);
+  4. klik pill → lompat halus ke dasar + pill hilang ✓;
+  5. RACE FIX terbukti: user di dasar + pesan baru via poling → LANGSUNG menempel di dasar (tanpa pill — sebelum fix, kasus ini gagal dan pill muncul salah) ✓;
+  6. pertanyaan how-to + giliran AI nyata (agent 201) → balasan bernomor masuk via poling → tetap menempel di dasar ✓; render balasan RAPAT (screenshot 02);
+  7. mobile 390px overflow 0; console 0 page error.
+- VLM verifikasi 2 screenshot: pill muncul benar saat posisi di tengah riwayat; balasan AI "RAPAT dan padat, jarak antar baris sangat kecil, tanpa spasi berlebihan"; 0 cacat visual.
+- PEMULIHAN DATA UJI: tiket "Uji P4.2%" dihapus (attachment 0, orphan 0).
+- Artefak: audit/support-p4.2/ (3 screenshot) + .e2e/p42-api-helper.mjs.
+
+Stage Summary:
+- P4.2 SELESAI & TERPUSH: polling tetap ada (fungsinya menjawab real-time tanpa reload) tapi kini BISU secara visual — tanpa kedipan skeleton dan tanpa menarik posisi baca; autoscroll hanya terjadi saat memang ada pesan baru dan user sedang berada di dasar chat, sementara user yang sedang membaca riwayat mendapat pill "Pesan baru" ala WhatsApp. Balasan AI kini rapat/padat (CSS diciut + loose-list fix + instruksi format hemat ruang pada agent).
+
