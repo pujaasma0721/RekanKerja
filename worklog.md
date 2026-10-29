@@ -8842,3 +8842,33 @@ Stage Summary:
 - Bukti kunci E2E: patch nyata diterapkan ke file setelah approval manusia (0.25→0.025 terverifikasi di disk); file DIPASTIKAN tak berubah sebelum approval; penolakan jujur saat governance OFF; KONFLIK terdeteksi saat hash mismatch; keputusan ganda ditolak 409.
 - Insiden turut ditambal: korupsi file ai-settings-view.tsx warisan P3 (2 byte hilang) yang membuat halaman Provider AI gagal compile — ditemukan lewat gerbang tsc P4, diperbaiki, kini 0 error parse.
 - Fase berikutnya (bila dilanjutkan): P5 opsional — analitik support (volume/kategori/SLA, pandangan admin), atau eskalasi tiket ke manusia (handoff + notifikasi).
+
+---
+
+## 2026-10-29 — FEAT-SUPPORT-P4.1 (Online Support): lampiran cepat — tempel tangkapan layar langsung (Ctrl+V) & seret-lepas
+
+Task: permintaan pengguna — "pastikan pada chat support service user bisa langsung copy-paste gambar dari hasil screenshot atau dari file tanpa harus menekan tombol attachment".
+
+Rilis: 498942d (push ke origin/main setelah rebase ad982a7).
+
+### Perubahan
+- CLIENT support-module.tsx — TIGA jalur lampiran kini setara (tombol paperclip tetap ada, tapi bukan lagi satu-satunya):
+  1. TEMPASTE LANGSUNG (inti permintaan): listener "paste" LEVEL DOKUMEN aktif hanya saat composer tersedia (tiket terbuka, status ≠ DITUTUP). Membaca clipboardData.files + fallback clipboardData.items (kind "file") — mencakup PrintScreen/Win+Shift+S, salin-gambar dari web, dan salin FILE dari file manager (Ctrl+C file → Ctrl+V di chat). GUARD target: dialog ([role="dialog"]) dilewati; kolom isian di luar composer (pencarian, dll.) dilewati; paste TEKS tidak diintervensi (0 file → biarkan default). Umpan balik: chip muncul + toast "n lampiran siap dikirim — tulis pesan atau langsung tekan Enter".
+  2. SERET-LEPAS (drag & drop) di area utas: handler dragenter/dragover/dragleave/drop di <section> (relative) + OVERLAY visual aksen-brand "Drop files to attach" (pointer-events-none, counter dragDepth anti-kedip lintas elemen anak); dragover SELALU preventDefault saat types berisi "Files" supaya browser tidak membuka file bila drop ditolak (composer sibuk/tiket tertutup).
+  3. Tombol paperclip lama tetap (jalur file dialog).
+  - PESAN HANYA-LAMPIRAN kini sah (alami utk paste-screenshot → Enter): kirim diizinkan bila ada lampiran meski teks kosong; tombol Kirim aktif; ChatBubble melewati bubble teks bila body kosong (lampiran + meta tetap tampil, gaya WhatsApp); placeholder + baris bantuan diperbarui menyebut Ctrl+V & drag.
+  - PENAMAAN OTOMATIS: file clipboard bernama generik ("image.png"/tanpa nama) di-rename "tangkapan-layar-YYYYMMDD-HHmmss.png" (locale id) / "screenshot-…" (en) — new File() bungkus blob asli + lastModified dipertahankan; ekstensi dari nama/MIME (jpeg→jpg). pickFiles di-refactor: menerima FileList|File[], mengembalikan jumlah file diterima (umpan balik toast), MIME di-infer dari ekstensi bila file.type kosong (parity dgn inferMime server).
+- SERVER ticket-messages.ts — aturan "pesan wajib berisi teks" dilunakkan jadi "teks ATAU lampiran": body boleh kosong bila ada files (validasi files dipindah ke atas); pesan error baru "Pesan tidak boleh kosong — tulis pesan atau lampirkan file".
+- AGENT support-agent.ts — toLlmMessages: body USER kosong → placeholder "[pengguna mengirim lampiran tanpa teks — konteks analisa lampiran menyertainya di bawah]" (provider tidak menerima content kosong); ATURAN MENJAWAB #8 baru: pesan hanya-lampiran ditanggapi dari konteks VLM yang otomatis menyertainya, lalu dilayani seperti laporan biasa. describeRecentImages (VLM) sudah mencakup pesan semacam ini tanpa perubahan (baca Attachment per entityId).
+
+### Verifikasi
+- GATES: bun run lint 0 error · tsc -p tsconfig.p41check.json EXIT_CODE=0 (fokus file support — pola p3check/p4check; full tsc tak diandalkan di box 4GB) · dev.log bersih pasca-E2E.
+- E2E API (.e2e/p41-api-e2e.mjs, 5/5 LULUS): pesan hanya-lampiran (body kosong + PNG) → 201 + metadata lampiran; pesan kosong total → 400 pesan baru; riwayat menampilkan pesan USER body kosong + 1 lampiran; giliran AI → 201 (fallback jujur saat VLM menolak PNG uji 79-byte — perilaku lama yang benar: minta pengguna menjelaskan).
+- E2E BROWSER (agent-browser, login hrd@mii.co.id, SW di-unregister, tiket uji "Uji P4.1 browser: paste lampiran" SP-2026-002): (1) placeholder baru "Write a message or paste a screenshot (Ctrl+V)…" tampil; (2) SIMULASI PASTE NYATA — ClipboardEvent sintetis dgn File PNG 127KB (screenshot asli halaman) di-dispatch ke textarea composer → defaultPrevented=true, chip "screenshot-20261029-014254.png · 127 KB" muncul (auto-rename dari "image.png"), textarea tetap kosong, tombol Kirim AKTIF; (3) Enter → pesan terkirim, composer reset, thumbnail gambar di utas TANPA bubble teks; (4) AI MEMBALAS DARI MEMBACA SCREENSHOT: "Saya melihat Anda sedang berada di halaman Online Support… UI aplikasi berjalan normal" — bukti VLM benar-benar menganalisa gambar yang ditempel; (5) SIMULASI DRAG-DROP — DragEvent sintetis dgn File canvas "uji-drop.png" → overlay "Drop files to attach" tampil (tangkap layar bukti), drop → chip masuk, dragleave → overlay hilang; (6) baris bantuan baru tampil; (7) mobile 390px: overflow 0, composer terlihat; (8) 0 page error (console hanya log Fast Refresh dev).
+- VLM verifikasi 2 state UI baru (02-paste-chip.png, 04-dragdrop-overlay.png): chip & overlay tampil benar, 0 cacat visual.
+- PEMULIHAN DATA UJI: tiket "Uji P4.1%" + pesan cascade + baris Attachment (polimorfik — manual) + file fisik uploads/ dihapus; 1 orphan Attachment sisa E2E API pertama ikut dibersihkan (0 sisa terverifikasi query NOT EXISTS); SupportAgentConfig tidak tersentuh.
+- Artefak: audit/support-p4.1/ (5 screenshot) + .e2e/p41-api-e2e.mjs + .e2e/p41-cleanup.mjs + tsconfig.p41check.json.
+
+Stage Summary:
+- P4.1 SELESAI & TERPUSH: pengguna kini bisa menempel tangkapan layar langsung dari clipboard (Ctrl/Cmd+V), menyalin file dari file manager lalu menempelnya di chat, atau menyeret file ke area utas — semuanya tanpa menyentuh tombol lampiran; tangkapan layar otomatis dinamai; pesan hanya-gambar sah dan AI tetap fungsional (VLM membaca gambar, fallback jujur bila analisa gagal).
+
