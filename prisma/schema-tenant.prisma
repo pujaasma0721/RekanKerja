@@ -5517,8 +5517,24 @@ model SupportMessage {
 //     tools AKTIF — default aman karena seluruh tool hanya-baca + diguard).
 //     Diatur admin di Pengaturan → AI → kartu "Agen Support".
 // ============================================================================
+// FEAT-SUPPORT-P3 — agen support LEVEL 3 (reproduksi browser headless):
+//   · Tool reproduce_browser (mini-service browser-runner :3020 — satu aksi
+//     per panggilan, terkurung origin aplikasi sendiri) + analyze_screenshot
+//     (VLM atas tangkapan layar hasil reproduksi). Bukti tangkapan layar
+//     dilampirkan otomatis ke balasan AI tiket (Attachment SupportMessage).
+//   · Kolom baru (migrasi scripts/migrate-support-p3.ts, parity "support3"):
+//       browserEnabled     — sakelar per tenant (baris ABSEN = aktif)
+//       browserLoginEmail  — akun UJI khusus reproduksi (disetel admin;
+//                            browser bertindak sebagai akun ini, BUKAN akun
+//                            pengguna pelapor)
+//       browserLoginPassEnc — kata sandi akun uji TERENKRIPSI field-crypto
+//                            (enc:v1:t:… — pola AiProviderConfig.apiKey)
+// ============================================================================
 model SupportAgentConfig {
-  id           String   @id @default(cuid())
-  toolsEnabled Boolean  @default(true) // izinkan agen memakai alat baca (mode diagnosis)
-  updatedAt    DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  toolsEnabled       Boolean  @default(true) // izinkan agen memakai alat baca (mode diagnosis)
+  browserEnabled     Boolean  @default(true) // FEAT-SUPPORT-P3: izinkan reproduksi browser headless
+  browserLoginEmail  String? // email akun uji reproduksi (tanpa FK — konten dari admin tenant)
+  browserLoginPassEnc String? // kata sandi akun uji — terenkripsi (enc:v1:t:… — field-crypto per-tenant)
+  updatedAt          DateTime @updatedAt
 }

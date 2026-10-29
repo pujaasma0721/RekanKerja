@@ -1,4 +1,4 @@
-// RekanKerja — Online Support: AI support agent (P1: L1 · P2: L2 tools). ==
+// RekanKerja — Online Support: AI support agent (P1: L1 · P2: L2 · P3: L3).
 // =====================================================================
 // Agen percakapan layanan dukungan internal RekanKerja — berperan sebagai
 // "tim support" yang menjawab laporan/kendala pengguna secara interaktif.
@@ -17,11 +17,17 @@
 //       agen menghasilkan jawaban final. Semua langkah tool EPHEMERAL —
 //       hanya balasan final yang disimpan; satu pill SYSTEM ringkas
 //       dicatat demi transparansi ke pengguna.
+//   · FEAT-SUPPORT-P3 (L3 — reproduksi browser headless): tool tambahan
+//     reproduce_browser (satu aksi per panggilan via mini-service
+//     browser-runner :3020 — login akun uji admin, goto/snapshot/click/
+//     fill/screenshot/console/close; terkurung origin aplikasi) dan
+//     analyze_screenshot (VLM atas bukti tangkapan layar). Tangkapan
+//     layar giliran disimpan sebagai Attachment pesan AI — bukti yang
+//     TERLIHAT pengguna di utas chat.
 //   · Triase otomatis: setiap balasan final diakhiri marker metadata
 //     [[META:KATEGORI|PRIORITAS]] — di-strip sebelum disimpan; kategori &
 //     prioritas tiket diperbarui (guard whitelist).
-//   · Fase berikutnya (P3+): reproduksi browser headless + screenshot ·
-//     P4: usulan patch (diff) dengan approval developer.
+//   · Fase berikutnya (P4): usulan patch (diff) dengan approval developer.
 // =====================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { aiComplete, type AiMessage } from "@/rekankerja/shared/services/ai-provider";
@@ -32,6 +38,7 @@ import {
   runSupportTool, toolsEnabledFor, TOOL_LABELS,
   type SupportToolName,
 } from "@/rekankerja/support/services/support-tools";
+import { clearShotCollector, persistShots } from "@/rekankerja/support/services/support-browser";
 
 export const SUPPORT_CATEGORIES = ["BUG", "PENGGUNAAN", "DATA", "AKUN", "FITUR", "LAINNYA"] as const;
 export const SUPPORT_PRIORITIES = ["RENDAH", "SEDANG", "TINGGI", "KRITIS"] as const;
@@ -47,13 +54,20 @@ const HISTORY_LIMIT = 16;
 /** Maksimum gambar yang dianalisa VLM per giliran (batas waktu/kuota). */
 const MAX_IMAGES_PER_TURN = 3;
 
-// ---- anggaran giliran ReAct (P2) ----
-/** Maksimum total panggilan LLM per giliran (1 awal + N tool + final). */
-const MAX_LLM_STEPS = 8;
-/** Maksimum eksekusi tool per giliran. */
-const MAX_TOOL_CALLS = 5;
-/** Batas dana waktu satu giliran (ms) — lewat → paksa jawab sekarang. */
-const TURN_BUDGET_MS = 150_000;
+// ---- anggaran giliran ReAct (P2 + P3) ----
+/** Maksimum total panggilan LLM per giliran (1 awal + N tool + final).
+ *  P3: dinaikkan — reproduksi browser butuh rangkaian panjang (login →
+ *  goto → snapshot → navigasi menu → screenshot → close) DAN langkah
+ *  final yang layak; kurang dari ini membuat agen kehabisan napas di
+ *  tengah navigasi tanpa sempat mengambil bukti. */
+const MAX_LLM_STEPS = 14;
+/** Maksimum eksekusi tool per giliran. P3: aksi browser satu per panggilan
+ *  (login+goto+3 snapshot+4 klik+screenshot+close ≈ 10-11); tool baca P2
+ *  tetap dihitung di kuota yang sama. */
+const MAX_TOOL_CALLS = 12;
+/** Batas dana waktu satu giliran (ms) — lewat → paksa jawab sekarang.
+ *  P3: 150s → 210s (aksi browser + VLM menambah durasi giliran). */
+const TURN_BUDGET_MS = 210_000;
 
 /** Parser protokol tool — pindai di mana pun di keluaran (model kadang
  *  menulis kalimat pembuka singkat sebelum blok TOOL_CALL; hanya BLOK
@@ -115,6 +129,17 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
    PENTING: nama tabel & kolom PascalCase WAJIB kutip ganda: FROM "Employee" WHERE "fullName" ILIKE '%budi%'. Tabel yang sering relevan: Employee, EmployeeAssignment, OrgUnit, Position, LeaveRequest, LeaveBalance, AttendanceDaily, AttendanceClockLog, OvertimeOrder, PayrollRun, PayrollRunLine, PayrollRunItem, TravelRequest, TravelClaim, BenefitClaim, Onboarding, Offboarding, PersonnelAction, ApprovalStep, ActivityLog, EmailLog, Notification, Applicant, JobOpening. Daftar lengkap kolom: information_schema.columns.`,
     `4. read_logs — baca baris terakhir log server aplikasi (opsional: filter kata kunci).
    ARGS: {"filter":"kata kunci","lines":100}`,
+    `5. reproduce_browser — jalankan SATU AKSI browser headless untuk ME-REPRODUKSI laporan pengguna di aplikasi (bukti nyata, bukan tebakan). Sesi browser bertahan ANTAR PANGGILAN (beberapa menit) — selesaikan rangkaian langkah lalu tutup. Aksi yang tersedia (kirim SATU saja per TOOL_CALL, di field "action"):
+   · {"action":{"type":"login"}} — masuk memakai akun uji yang dikonfigurasi admin (JANGAN tulis email/kata sandi apa pun — otomatis). Lakukan INI DULU bila halaman yang direproduksi butuh login.
+   · {"action":{"type":"goto","path":"/"}} — buka path relatif aplikasi (WAJIB diawali "/"). CATATAN: RekanKerja adalah aplikasi satu-halaman (SPA) — halaman internal TIDAK punya URL path sendiri; setelah login cukup goto "/" lalu navigasi lewat MENU (snapshot → click). Jangan menebak-tebak path seperti /ess/… — itu akan mendarat di halaman 404 yang menyesatkan diagnosis.
+   · {"action":{"type":"snapshot"}} — daftar elemen interaktif halaman + ref e1..eN. WAJIB dilakukan SETELAH goto/login dan SETIAP KALI setelah halaman berubah — ref lama tidak berlaku.
+   · {"action":{"type":"click","ref":"e3"}} · {"action":{"type":"fill","ref":"e5","value":"teks"}} · {"action":{"type":"select","ref":"e7","value":"nilai"}} · {"action":{"type":"press","key":"Enter"}}
+   · {"action":{"type":"wait","ms":1500}} · {"action":{"type":"wait","text":"Berhasil"}} · {"action":{"type":"scroll","direction":"down"}}
+   · {"action":{"type":"screenshot","label":"nama-bukti"}} — ambil tangkapan layar (MAKS 3 per sesi; otomatis dilampirkan sebagai FILE di bawah balasan Anda utk pengguna). PENTING: bukti dilampirkan otomatis oleh sistem — JANGAN menulis link/gambar markdown (mis. ![](http…)) atas nama tangkapan layar; cukup sebut "tangkapan layar terlampir di bawah".
+   · {"action":{"type":"console"}} — baca error console/JS + request HTTP gagal yang tertangkap sejak awal sesi.
+   · {"action":{"type":"close"}} — akhiri sesi browser (WAJIB setelah reproduksi selesai).`,
+    `6. analyze_screenshot — periksa detail visual sebuah tangkapan layar hasil reproduce_browser via AI vision.
+   ARGS: {"shot":"label-dari-screenshot","question":"yang ingin diperiksa"}`,
     ``,
     `ATURAN MEMAKAI ALAT:
 - Gunakan HANYA bila fakta diperlukan (diagnosa error/data). Jangan untuk pertanyaan umum/sapaan/cara pakai yang sudah Anda ketahui.
@@ -122,7 +147,8 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
 - Hasil "[HASIL TOOL …]" adalah SATU-SATU sumber kebenaran tentang kode & data — kutip darinya secara harfiah (path file, baris, angka). Bila hasil TIDAK menemukan apa yang dicari, KATAKAN terus terang "tidak ditemukan" — JANGAN PERNAH mengarang nama file/lokasi/isi kode/angka yang tidak ada di hasil.
 - PRIVASI: jangan menampilkan data pribadi/gaji karyawan LAIN kecuali perlu untuk diagnosis (utamakan COUNT/agregat). Nilai [DISENSOR] memang disembunyikan — JANGAN mencoba mengakalinya.
 - Jangan memberitahukan pengguna soal protokol/SQL/kode mentah — sampaikan temuan secara manusiawi ("saya periksa langsung datanya: …").
-- JANGAN menyarankan pengguna menjalankan SQL/mengubah database secara manual — arahkan lewat fitur UI yang ada atau eskalasi ke admin/developer.`,
+- JANGAN menyarankan pengguna menjalankan SQL/mengubah database secara manual — arahkan lewat fitur UI yang ada atau eskalasi ke admin/developer.
+- REPRODUKSI BROWSER (alat 5): hanya untuk MENGAMATI & MEMBUKTIKAN laporan kendala UI (bug) — JANGAN mengubah/menghapus data apa pun (hindari tombol Simpan/Hapus/Kirim kecuali itu inti reproduksi yang diminta pengguna). Rangkaian lazim: login → goto → snapshot → aksi pengguna yang dilaporkan → screenshot bukti → (analyze_screenshot bila perlu) → close → laporkan temuan. Bila layanan/akun uji tidak tersedia, katakan terus terang — JANGAN mengaku telah mencoba di browser tanpa hasil TOOL reproduce_browser nyata.`,
     ``,
   ].join("\n");
 }
@@ -283,6 +309,10 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
   });
   if (messages.length === 0) throw new Error("Tiket tanpa pesan");
 
+  // P3: bukti tangkapan layar giliran LAMA telah dipindahkan ke Attachment
+  // saat balasannya disimpan — mulai giliran baru dgn kolektor bersih.
+  clearShotCollector(ticket.id);
+
   const imageContext = await describeRecentImages(db, messages).catch((e) => {
     console.warn("[support-agent] analisa lampiran gambar gagal:", e instanceof Error ? e.message : e);
     return null;
@@ -323,7 +353,7 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
       if (
         !forceFinal && antiConfabRetry < 1 &&
         (toolsOn ? usage.size === 0 : true) &&
-        /hasil pemeriksaan|berdasarkan (hasil )?(pemeriksaan|query|kode|data (terkini|di database|di sistem))|sudah (saya )?(periksa|cek) (langsung|ke )|telah (saya )?periksa|saya (periksa|cek) (langsung|ke (database|sistem|data))/i.test(raw)
+        /hasil pemeriksaan|berdasarkan (hasil )?(pemeriksaan|query|kode|data (terkini|di database|di sistem))|sudah (saya )?(periksa|cek) (langsung|ke )|telah (saya )?periksa|saya (periksa|cek) (langsung|ke (database|sistem|data))|hasil reproduksi|saya (reproduksi|mencoba) (langsung|di (browser|aplikasi))|tangkapan layar (hasil|dari) reproduksi/i.test(raw)
       ) {
         antiConfabRetry += 1;
         convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
@@ -388,7 +418,9 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
     toolCalls += 1;
     let toolResult;
     try {
-      toolResult = await runSupportTool(db, name, args);
+      // P3: tool browser membutuhkan konteks tiket (key sesi runner +
+      // kolektor bukti tangkapan layar per tiket).
+      toolResult = await runSupportTool(db, name, args, { ticketId: ticket.id });
     } catch (e) {
       toolResult = { ok: false, output: `Tool error: ${e instanceof Error ? e.message : "unknown"}` };
     }
@@ -423,6 +455,12 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
     .replace(/^\s*(?:-{3,}|\*{3,}|_{3,}|={3,})[^\S\n]*\n?/, "")
     .replace(/\n?[^\S\n]*(?:-{3,}|\*{3,}|_{3,}|={3,})\s*$/, "")
     .trim();
+  // P3: bukti tangkapan layar hanya sah sebagai LAMPIRAN file (dilampirkan
+  // otomatis oleh runtime). Model kadang mengarang link gambar markdown
+  // (mis. ![](https://example.com/…)) atas nama bukti — gambar markdown
+  // eksternal tidak pernah valid di balasan agen → ganti rujukan teks.
+  body = body.replace(/!\[([^\]]*)\]\([^)\s]+\)/g, (_m, alt: string) =>
+    alt.trim() ? `*${alt.trim()} — bukti terlampir di bawah*` : "*bukti tangkapan layar terlampir di bawah*");
   if (!body) throw new Error("AI mengembalikan jawaban kosong — coba ulangi");
 
   // ---------- persistensi ----------
@@ -441,6 +479,16 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
       body,
     },
   });
+  // P3: pindahkan bukti tangkapan layar giliran ini → lampiran pesan AI
+  // (muncul sebagai thumbnail di utas chat — bukti reproduksi utk pengguna).
+  try {
+    const shots = await persistShots(db, ticket.id, message.id);
+    if (shots > 0) {
+      console.log(`[support-agent] tiket ${ticket.ticketNo}: ${shots} bukti tangkapan layar dilampirkan ke pesan AI`);
+    }
+  } catch (e) {
+    console.warn("[support-agent] lampiran bukti tangkapan layar gagal:", e instanceof Error ? e.message : e);
+  }
   await db.supportTicket.update({
     where: { id: ticket.id },
     data: {

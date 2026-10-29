@@ -1,8 +1,8 @@
-// RekanKerja — Online Support P2 (FEAT-SUPPORT-P2): alat baca agen. =====
+// RekanKerja — Online Support P2/P3 (FEAT-SUPPORT-P2 · P3): alat agen. ==
 // =====================================================================
-// 4 TOOL READ-ONLY yang boleh dipakai agen support (level otonomi L2)
-// selama satu giliran menjawab — dijalankan loop ReAct di support-agent.ts
-// (protokol teks TOOL_CALL/ARGS — provider tanpa native function calling):
+// TOOL yang boleh dipakai agen support selama satu giliran menjawab —
+// dijalankan loop ReAct di support-agent.ts (protokol teks TOOL_CALL/ARGS
+// — provider tanpa native function calling):
 //   1. search_code — cari teks literal di kode sumber aplikasi (src/,
 //      prisma/, scripts/, *.md root). Case-insensitive, dibatasi.
 //   2. read_file  — baca potongan file (path WAJIB relatif root proyek;
@@ -10,22 +10,34 @@
 //   3. query_db   — SATU pernyataan SELECT/WITH read-only ke database
 //      TENANT AKTIF (isolasi tenant tetap utuh — client schema-tenant).
 //   4. read_logs  — baca ekor log server aplikasi (dibatasi + terscrub).
+//   5. reproduce_browser (P3) — SATU AKSI browser headless per panggilan
+//      (login/goto/snapshot/click/fill/select/press/scroll/wait/screenshot/
+//      console/close) via mini-service browser-runner — terkurung origin
+//      aplikasi sendiri; login memakai AKUN UJI admin (bukan pelapor).
+//   6. analyze_screenshot (P3) — analisa VLM atas tangkapan layar hasil
+//      reproduce_browser (bukti ephemeral giliran → dilampirkan ke pesan AI).
 //
 // PRINSIP KEAMANAN (audit-tested):
-//   · Tidak ada tool yang menulis apa pun (murni baca).
-//   · Path: relative-only, tanpa "..", deny dotfile/env/kunci/db/audit/tmp/
-//     node_modules/.next/generated; ekstensi whitelist teks saja.
-//   · SQL: satu pernyataan, wajib SELECT/WITH, token terlarang ditolak
-//     (DML/DDL/session/pg_*), dibungkus subquery LIMIT, statement_timeout,
-//     denylist TABEL RAHASIA (kredensial/privasi), redaksi nilai kolom
-//     uang & kredensial ([DISENSOR]), sel + total output dibatasi.
-//   · Log: hanya ekor file log aplikasi, substring rahasia di-scrub.
+//   · Tool 1-4 murni BACA. Path: relative-only, tanpa "..", deny
+//     dotfile/env/kunci/db/audit/tmp/node_modules/.next/generated;
+//     ekstensi whitelist teks saja. SQL: satu pernyataan, wajib
+//     SELECT/WITH, token terlarang ditolak (DML/DDL/session/pg_*),
+//     dibungkus subquery LIMIT, statement_timeout, denylist TABEL
+//     RAHASIA (kredensial/privasi), redaksi nilai kolom uang &
+//     kredensial ([DISENSOR]), sel + total output dibatasi. Log: hanya
+//     ekor file log aplikasi, substring rahasia di-scrub.
+//   · Tool 5-6 (browser): guard di support-browser.ts + browser-runner
+//     (origin kurungan, budget aksi/tangkapan, TTL sesi, download
+//     dibatalkan); kredensial akun uji terenkripsi field-crypto dan
+//     TIDAK PERNAH masuk konteks LLM.
 //   · Semua hasil hanya jadi konteks ephemeral giliran LLM — TIDAK
-//     disimpan ke database; hanya balasan akhir agen yang tersimpan.
+//     disimpan ke database; hanya balasan akhir agen (+ bukti tangkapan
+//     layar P3 sebagai Attachment) yang tersimpan.
 // =====================================================================
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { runBrowserTool, analyzeScreenshotTool } from "@/rekankerja/support/services/support-browser";
 
 // ------------------------------ registry ------------------------------
 
@@ -36,7 +48,7 @@ export interface SupportToolResult {
 }
 
 /** Nama tool yang dikenal (dipakai prompt + parser). */
-export const SUPPORT_TOOL_NAMES = ["search_code", "read_file", "query_db", "read_logs"] as const;
+export const SUPPORT_TOOL_NAMES = ["search_code", "read_file", "query_db", "read_logs", "reproduce_browser", "analyze_screenshot"] as const;
 export type SupportToolName = (typeof SUPPORT_TOOL_NAMES)[number];
 
 /** Label ramah untuk pill transparansi di UI (SYSTEM). */
@@ -45,7 +57,15 @@ export const TOOL_LABELS: Record<SupportToolName, string> = {
   read_file: "kode sumber",
   query_db: "basis data",
   read_logs: "log server",
+  reproduce_browser: "reproduksi browser",
+  analyze_screenshot: "analisa tangkapan layar",
 };
+
+/** Konteks eksekusi tool (P3): identitas tiket — dipakai tool browser
+ *  untuk key sesi runner + kolektor bukti tangkapan layar per tiket. */
+export interface SupportToolCtx {
+  ticketId: string;
+}
 
 /** Apakah tools read-only diaktifkan utk tenant ini? (SupportAgentConfig;
  *  baris ABSEN → true; tabel belum termigrasi / instance DMMF lama → true —
@@ -59,11 +79,13 @@ export async function toolsEnabledFor(db: TenantDb): Promise<boolean> {
   }
 }
 
-/** Jalankan satu tool berdasarkan nama + args JSON terurai. */
+/** Jalankan satu tool berdasarkan nama + args JSON terurai. Tool browser
+ *  (P3) membutuhkan ctx.ticketId (key sesi + kolektor bukti per tiket). */
 export async function runSupportTool(
   db: TenantDb,
   name: string,
   args: Record<string, unknown>,
+  ctx?: SupportToolCtx,
 ): Promise<SupportToolResult> {
   switch (name) {
     case "search_code":
@@ -74,6 +96,14 @@ export async function runSupportTool(
       return queryDb(db, args);
     case "read_logs":
       return readLogs(args);
+    case "reproduce_browser":
+      return ctx
+        ? runBrowserTool(db, ctx.ticketId, args)
+        : { ok: false, output: "Tool browser membutuhkan konteks tiket." };
+    case "analyze_screenshot":
+      return ctx
+        ? analyzeScreenshotTool(db, ctx.ticketId, args)
+        : { ok: false, output: "Tool browser membutuhkan konteks tiket." };
     default:
       return { ok: false, output: `Tool "${name}" tidak dikenal. Yang tersedia: ${SUPPORT_TOOL_NAMES.join(", ")}.` };
   }

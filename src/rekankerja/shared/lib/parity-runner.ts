@@ -446,6 +446,10 @@ const STEPS: Step[] = [
   // FEAT-SUPPORT-P2 — agen support level 2: tabel SupportAgentConfig (sakelar
   // tools read-only: search_code/read_file/query_db/read_logs).
   { key: "support2", label: "Online Support P2 — tabel SupportAgentConfig (sakelar alat baca agen)", run: (s) => import("../../../../scripts/migrate-support-p2").then((m) => m.main(s)) },
+  // FEAT-SUPPORT-P3 — agen support level 3: kolom SupportAgentConfig
+  // browserEnabled/browserLoginEmail/browserLoginPassEnc (reproduksi browser
+  // headless reproduce_browser + analyze_screenshot + akun uji terenkripsi).
+  { key: "support3", label: "Online Support P3 — kolom browser SupportAgentConfig (reproduksi browser agen)", run: (s) => import("../../../../scripts/migrate-support-p3").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -538,6 +542,12 @@ export async function checkParityGap(): Promise<ParityGap> {
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'SupportAgentConfig' AND table_schema = ANY($1::text[])`,
     );
+    // FEAT-SUPPORT-P3 — kolom browser SupportAgentConfig belum ada = gap
+    // (tenant pra-P3: reproduksi browser agen tak bisa dikonfigurasi).
+    const supportBrowserOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'SupportAgentConfig' AND column_name = 'browserEnabled' AND table_schema = ANY($1::text[])`,
+    );
     // Task 58-b — gap PLATFORM (bukan per-tenant): kolom Tenant.companyCode.
     // Kegagalan koneksi platform TIDAK boleh jadi false positive → anggap OK.
     let companyCodeOk = true;
@@ -591,6 +601,7 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (aiTablesOk < schemas.length) reasons.push(`${schemas.length - aiTablesOk} tenant tanpa tabel AI Assistant (Task 96)`);
     if (supportTablesOk < schemas.length) reasons.push(`${schemas.length - supportTablesOk} tenant tanpa tabel Online Support (FEAT-SUPPORT-P1)`);
     if (supportAgentCfgOk < schemas.length) reasons.push(`${schemas.length - supportAgentCfgOk} tenant tanpa tabel SupportAgentConfig (FEAT-SUPPORT-P2)`);
+    if (supportBrowserOk < schemas.length) reasons.push(`${schemas.length - supportBrowserOk} tenant tanpa kolom browser SupportAgentConfig (FEAT-SUPPORT-P3)`);
     if (!companyCodeOk) reasons.push("platform: kolom Tenant.companyCode belum ada (Task 58-b — registrasi workspace gagal)");
     if (runLogOk < schemas.length) reasons.push(`${schemas.length - runLogOk} tenant tanpa tabel PayrollRunLog (Task 63)`);
     if (wageHistOk < schemas.length) reasons.push(`${schemas.length - wageHistOk} tenant tanpa tabel EmployeeWageTemplateHistory (Task 64)`);

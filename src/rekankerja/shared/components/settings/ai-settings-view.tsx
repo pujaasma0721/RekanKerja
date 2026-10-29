@@ -197,24 +197,36 @@ export function AiProviderView() {
   );
 }
 
-// ================= AGEN SUPPORT (FEAT-SUPPORT-P2) =================
+// ================= AGEN SUPPORT (FEAT-SUPPORT-P2 · P3) =================
 
 interface SupportAgentConfig {
   toolsEnabled: boolean;
+  browserEnabled: boolean;
+  browserLoginEmail: string | null;
+  hasBrowserLoginPass: boolean;
 }
 
-/** Kartu sakelar "alat baca" agen Online Support (L2 ⇄ L1) — tampil di
- *  halaman Provider AI; auto-save saat toggle (PUT agent-config). */
+/** Kartu tata kelola agen Online Support — sakelar alat baca (L2 ⇄ L1),
+ *  sakelar reproduksi browser (L3) + akun uji reproduksi (kata sandi
+ *  write-only, terenkripsi field-crypto). Tampil di halaman Provider AI. */
 function SupportAgentCard() {
   const { t } = useI18n();
   const cfg = useApi<{ config: SupportAgentConfig }>("/api/rekankerja/support/agent-config");
   const [enabled, setEnabled] = useState(true);
+  const [browser, setBrowser] = useState(true);
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [hasPass, setHasPass] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingAcc, setSavingAcc] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (cfg.data?.config && !loaded) {
       setEnabled(cfg.data.config.toolsEnabled);
+      setBrowser(cfg.data.config.browserEnabled);
+      setEmail(cfg.data.config.browserLoginEmail ?? "");
+      setHasPass(cfg.data.config.hasBrowserLoginPass);
       setLoaded(true);
     }
   }, [cfg.data, loaded]);
@@ -238,13 +250,66 @@ function SupportAgentCard() {
     }
   };
 
+  const toggleBrowser = async (next: boolean) => {
+    setBrowser(next);
+    setSaving(true);
+    try {
+      await apiSend("/api/rekankerja/support/agent-config", "PUT", { browserEnabled: next });
+      toast.success(
+        next
+          ? t("Reproduksi browser otomatis diaktifkan", "Automatic browser reproduction enabled")
+          : t("Reproduksi browser dimatikan", "Browser reproduction disabled"),
+      );
+      cfg.refresh();
+    } catch (e) {
+      setBrowser(!next);
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveAccount = async () => {
+    setSavingAcc(true);
+    try {
+      const res = await apiSend<{ config: SupportAgentConfig }>(
+        "/api/rekankerja/support/agent-config",
+        "PUT",
+        { browserLoginEmail: email.trim(), ...(pass ? { browserLoginPass: pass } : {}) },
+      );
+      setEmail(res.config.browserLoginEmail ?? "");
+      setHasPass(res.config.hasBrowserLoginPass);
+      setPass("");
+      toast.success(t("Akun uji browser tersimpan — kata sandi dienkripsi", "Browser test account saved — password encrypted"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
+    } finally {
+      setSavingAcc(false);
+    }
+  };
+
+  const clearAccount = async () => {
+    setSavingAcc(true);
+    try {
+      await apiSend("/api/rekankerja/support/agent-config", "PUT", { clearBrowserLogin: true });
+      setEmail("");
+      setPass("");
+      setHasPass(false);
+      toast.success(t("Akun uji browser dihapus", "Browser test account removed"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
+    } finally {
+      setSavingAcc(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-[15px]">
           <Headset className="h-4 w-4 text-brand" aria-hidden />
           {t("Agen Support (Online Support)", "Support Agent (Online Support)")}
-          {loaded && <StatusPill status={enabled ? "Active" : "Inactive"} />}
+          {loaded && <StatusPill status={enabled || browser ? "Active" : "Inactive"} />}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -267,10 +332,80 @@ function SupportAgentCard() {
             aria-label={t("Mode diagnosis agen support", "Support agent diagnosis mode")}
           />
         </div>
+
+        {/* FEAT-SUPPORT-P3 — sakelar reproduksi browser headless (L3). */}
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+          <div>
+            <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
+              {t("Reproduksi browser otomatis (L3)", "Automatic browser reproduction (L3)")}
+            </p>
+            <p className="text-[11.5px] leading-relaxed text-slate-500">
+              {t(
+                "Izinkan Support AI menjalankan browser internal (headless) untuk membuktikan laporan bug secara langsung: masuk dengan akun uji, membuka halaman terkait, dan mengambil tangkapan layar bukti yang dilampirkan ke percakapan.",
+                "Allow the Support AI to drive an internal headless browser to verify bug reports first-hand: sign in with a test account, open the relevant page, and capture screenshot evidence attached to the conversation.",
+              )}
+            </p>
+          </div>
+          <Switch
+            checked={browser}
+            onCheckedChange={(v) => void toggleBrowser(v)}
+            disabled={saving || cfg.loading}
+            aria-label={t("Mode reproduksi browser agen support", "Support agent browser reproduction mode")}
+          />
+        </div>
+
+        {/* FEAT-SUPPORT-P3 — akun uji reproduksi (browser bertindak sebagai akun ini). */}
+        <div className="rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+          <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
+            {t("Akun uji browser", "Browser test account")}
+          </p>
+          <p className="text-[11.5px] leading-relaxed text-slate-500">
+            {t(
+              "Browser reproduksi bertindak sebagai akun uji ini — bukan akun pengguna pelapor. Gunakan akun khusus dengan hak secukupnya (mis. role HR, tanpa MFA). Kata sandi disimpan terenkripsi dan tidak pernah dibagikan ke model AI.",
+              "The reproduction browser acts as this test account — not the reporting user's account. Use a dedicated account with just enough rights (e.g. an HR role, without MFA). The password is stored encrypted and is never shared with the AI model.",
+            )}
+          </p>
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="sb-email">{t("Email akun uji", "Test account email")}</Label>
+              <Input
+                id="sb-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nama@perusahaan.id"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sb-pass">{t("Kata sandi", "Password")}</Label>
+              <Input
+                id="sb-pass"
+                type="password"
+                value={pass}
+                onChange={(e) => setPass(e.target.value)}
+                placeholder={hasPass ? "•••••••• (tersimpan — isi untuk mengganti)" : t("minimal 6 karakter", "at least 6 characters")}
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={() => void saveAccount()} disabled={savingAcc || saving || cfg.loading}>
+              {savingAcc && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />}
+              {t("Simpan Akun Uji", "Save Test Account")}
+            </Button>
+            {(hasPass || email) && (
+              <Button size="sm" variant="outline" onClick={() => void clearAccount()} disabled={savingAcc || saving}>
+                {t("Hapus Akun Uji", "Remove Test Account")}
+              </Button>
+            )}
+          </div>
+        </div>
+
         <p className="text-[11px] leading-relaxed text-slate-400">
           {t(
-            "Seluruh pemeriksaan bersifat hanya-baca dan diguard berlapis: query tulis ditolak, tabel kredensial/privasi diblokir, nilai gaji & kredensial disensor otomatis, dan jejak pemeriksaan dicatat di tiap percakapan.",
-            "All inspections are read-only and guarded in layers: write queries are rejected, credential/privacy tables are blocked, salary & credential values are masked automatically, and an inspection note is recorded in each conversation.",
+            "Seluruh pemeriksaan bersifat hanya-baca dan diguard berlapis: query tulis ditolak, tabel kredensial/privasi diblokir, nilai gaji & kredensial disensor otomatis, dan jejak pemeriksaan dicatat di tiap percakapan. Browser reproduksi terkurung di aplikasi ini saja (tidak bisa membuka situs lain), dibatasi jumlah aksi/tangkapan layar, dan selalu ditutup otomatis.",
+            "All inspections are read-only and guarded in layers: write queries are rejected, credential/privacy tables are blocked, salary & credential values are masked automatically, and an inspection note is recorded in each conversation. The reproduction browser is confined to this application only (cannot open other sites), capped in actions/screenshots, and always closed automatically.",
           )}
         </p>
       </CardContent>

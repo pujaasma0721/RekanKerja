@@ -880,7 +880,7 @@ export const BASE_EN: Record<string, string> = {
   "mnt": "min",
   // P2-SLICE-D (P2.4 offer versioning) — entri i18n slice D ditambah tepat di bawah baris ini (jangan hapus marker).
   // P2.4-BM (D-BM19) — offer versioning + putusan mandiri kandidat:
-  "Riwayat Versi": "Version History",
+  // (entri "Riwayat Versi" duplikat dgn baris 594 dihapus — fix P3 tsc)
   "Tautan Putusan Mandiri": "Self-Service Decision Link",
   "Buat Counter": "Create Counter",
   "Simpan Counter": "Save Counter",
@@ -987,7 +987,7 @@ export const BASE_EN: Record<string, string> = {
   "Hadir hari ini": "Present today",
   "Cuti hari ini": "On leave today",
   "Menunggu approval": "Awaiting approval",
-  "Menunggu Persetujuan": "Awaiting Approval",
+  // (entri "Menunggu Persetujuan" duplikat dgn baris 491 dihapus — fix P3 tsc)
   "Pengajuan anggota tim yang menunggu keputusan Anda": "Team requests awaiting your decision",
   "Tidak ada pengajuan yang menunggu Anda": "No requests awaiting you",
   "Semua pengajuan anggota tim sudah diputuskan.": "All team requests have been decided.",
