@@ -1135,7 +1135,7 @@ function GitSyncTab({ data, onRefresh }: { data: GitSyncData | null; onRefresh: 
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {/* file berubah */}
-          <div>
+          <div className="min-w-0">
             <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
               {t("File Berubah (belum di-commit)", "Changed Files (uncommitted)")}
             </p>
@@ -1144,9 +1144,9 @@ function GitSyncTab({ data, onRefresh }: { data: GitSyncData | null; onRefresh: 
                 {t("Tidak ada file berubah — kode server sama dengan commit terakhir.", "No changed files — server code matches the last commit.")}
               </div>
             ) : (
-              <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-800 [scrollbar-width:thin]">
+              <div className="max-h-64 space-y-1 overflow-x-hidden overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-800 [scrollbar-width:thin]">
                 {dirty.map((f) => (
-                  <div key={f.path} className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                  <div key={f.path} className="flex min-w-0 items-center gap-2 overflow-hidden rounded-md px-1.5 py-1 hover:bg-slate-50 dark:hover:bg-slate-800/60">
                     <span
                       className={cn(
                         "shrink-0 rounded px-1 font-mono text-[10px] font-bold",
@@ -1168,7 +1168,7 @@ function GitSyncTab({ data, onRefresh }: { data: GitSyncData | null; onRefresh: 
           </div>
 
           {/* commit terakhir */}
-          <div>
+          <div className="min-w-0">
             <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
               {t("Commit Terakhir", "Recent Commits")}
             </p>
@@ -1177,7 +1177,7 @@ function GitSyncTab({ data, onRefresh }: { data: GitSyncData | null; onRefresh: 
                 <p className="p-3 text-center text-[12px] text-slate-400">{t("(belum ada commit)", "(no commits yet)")}</p>
               ) : (
                 (st?.recentCommits ?? []).map((c) => (
-                  <div key={c.hash} className="flex items-baseline gap-2 px-1.5 py-1">
+                  <div key={c.hash} className="flex min-w-0 items-baseline gap-2 overflow-hidden px-1.5 py-1">
                     <span className="shrink-0 font-mono text-[10.5px] text-teal-700 dark:text-teal-400">{c.hash}</span>
                     <span className="min-w-0 flex-1 truncate text-[11.5px] text-slate-600 dark:text-slate-300" title={c.subject}>{c.subject}</span>
                     <span className="shrink-0 text-[10px] text-slate-400">{c.date}</span>
@@ -1192,7 +1192,7 @@ function GitSyncTab({ data, onRefresh }: { data: GitSyncData | null; onRefresh: 
       {/* ---- aksi push & pull ---- */}
       <div className="grid gap-5 md:grid-cols-2">
         {/* push */}
-        <section className="rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p8-push-title">
+        <section className="min-w-0 rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p8-push-title">
           <h2 id="p8-push-title" className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-slate-900 dark:text-slate-50">
             <ArrowUpToLine className="h-4 w-4" aria-hidden />
             {t("Kirim ke GitHub (Push)", "Push to GitHub")}
@@ -1252,7 +1252,7 @@ function GitSyncTab({ data, onRefresh }: { data: GitSyncData | null; onRefresh: 
         </section>
 
         {/* pull */}
-        <section className="rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p8-pull-title">
+        <section className="min-w-0 rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p8-pull-title">
           <h2 id="p8-pull-title" className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-slate-900 dark:text-slate-50">
             <ArrowDownToLine className="h-4 w-4" aria-hidden />
             {t("Tarik dari GitHub (Pull)", "Pull from GitHub")}
@@ -1303,7 +1303,7 @@ function GitSyncTab({ data, onRefresh }: { data: GitSyncData | null; onRefresh: 
                   </div>
                   <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-800 [scrollbar-width:thin]">
                     {pullResult.newCommits.map((c) => (
-                      <div key={c.hash} className="flex items-baseline gap-2 px-1">
+                      <div key={c.hash} className="flex min-w-0 items-baseline gap-2 overflow-hidden px-1">
                         <span className="shrink-0 font-mono text-[10.5px] text-teal-700 dark:text-teal-400">{c.hash}</span>
                         <span className="min-w-0 flex-1 truncate text-[11.5px] text-slate-600 dark:text-slate-300" title={c.subject}>{c.subject}</span>
                         <span className="shrink-0 text-[10px] text-slate-400">{c.date}</span>
@@ -1352,7 +1352,7 @@ function GitSyncTab({ data, onRefresh }: { data: GitSyncData | null; onRefresh: 
         {history.length === 0 ? (
           <EmptyState icon={History} title={t("Belum ada riwayat", "No history yet")} description={t("Operasi push/pull akan tercatat di sini.", "Push/pull operations will be recorded here.")} />
         ) : (
-          <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 [scrollbar-width:thin]">
+          <div className="max-h-72 overflow-auto rounded-lg border border-slate-200 dark:border-slate-800 [scrollbar-width:thin]">
             <Table>
               <TableHeader>
                 <TableRow>
