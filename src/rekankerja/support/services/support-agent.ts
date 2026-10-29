@@ -51,6 +51,17 @@
 //     terakhir berbunyi laporan error (pola ERROR_REPORT_RE). Mencegah
 //     "diagnosis dari teks error saja" ala kasus prisma/FATAL shared memory
 //     yang seharusnya dibuktikan dulu: BENARKAH error itu masih terjadi?
+//   · FEAT-SUPPORT-P4.8 — MODEL SAAS & ESKALASI: tenant (pelanggan) tidak
+//     punya akses infrastruktur (server/DB/kode/log) — admin/IT tenant pun
+//     tidak bisa memperbaiki gangguan platform. DILARANG mengarahkan
+//     pengguna ke "tim IT/administrator tenant mereka" untuk masalah
+//     infrastruktur; jawab sebagai support SaaS: akui sisi platform +
+//     catat & tindak lanjut di tiket + tanpa tindakan pengguna. Dua lapis:
+//     blok MODEL OPERASI SAAS di system prompt + guard runtime (nudge
+//     sekali bila pesan user cocok ERROR_REPORT_RE namun jawaban final
+//     memuat arahan "hubungi tim IT/administrator …" — REDIRECT_IT_RE,
+//     dikalibrasi dari jawaban buruk nyata tiket SP-2026-001: "Hubungi
+//     administrator tenant Anda… laporkan ke tim HR/IT internal Anda").
 // =====================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
@@ -123,6 +134,22 @@ const APPROVAL_NOTE_RE = /DISETUJUI oleh/i;
  *  Kata kunci bilingual + tanda stack-trace (prisma./FATAL/exception…). */
 const ERROR_REPORT_RE =
   /\b(?:error|eror|erorr|gagal|failed|failure|crash|bug|exception|traceback|stack\s*trace|blank|hang|macet|mati|rusak|tidak\s+bisa|tak\s+bisa|nggak\s+bisa|ngga\s+bisa|gak\s+bisa|gk\s+bisa|layar\s+putih|tidak\s+bisa\s+login|can'?t\s+login|can'?t\s+log\s+in)\b|prisma\.[a-z]+\.|FATAL:|Error in connector|invocation|ECONNREFUSED|ETIMEDOUT|internal\s+server\s+error|http\s*5\d\d/i;
+
+/** P4.8 — balasan final mengarahkan pengguna ke "tim IT/administrator
+ *  mereka" — pola yang TEPAT utk masalah infrastruktur platform yang
+ *  justru BUKAN ranah mereka (tenant tak punya aksesnya). Dikalibrasi
+ *  dari jawaban buruk nyata tiket SP-2026-001: "Hubungi administrator
+ *  tenant Anda…", "laporkan ke tim HR/IT internal Anda…". Frasa SAH
+ *  yang sengaja TIDAK dipolakan: "hubungi admin/HR untuk akses" (ranah
+ *  admin tenant memang benar), "eskalasi ke developer RekanKerja"
+ *  (arah yang benar). Cakup: hubungi/menghubungi (awalan meng-),
+ *  laporkan, eskalasikan, koordinasikan, cek, periksa, dsb. diikuti
+ *  dalam satu klausa (≤80 karakter, tanpa batas kalimat) oleh: tim IT /
+ *  tim HR/IT / bagian IT / IT Anda / IT internal / helpdesk /
+ *  administrator (tenant|server|database|sistem|jaringan) / DBA /
+ *  sysadmin. */
+const REDIRECT_IT_RE =
+  /\b(?:meng|di|ter)?(?:hubungi|hubungkan|kontak|koordinasi(?:kan|sikan)?|koordinir(?:kan)?|tanyakan|arahkan|laporkan|informasikan|eskalasi(?:kan)?|cek(?:kan)?|periksa(?:kan)?|contact|call)\b[^.!?\n]{0,80}?\b(?:tim\s+(?:HR\s*\/\s*)?IT|HR\s*\/\s*IT|bagian\s+IT|IT\s+(?:Anda|internal|kantor|perusahaan|support|departemen)|(?:tim\s+)?help\s*desk|admin(?:istrator)?\s+(?:tenant|server|database|basis\s*data|sistem|jaringan)|DBA|sysadmin)\b/i;
 
 /** Ekstrak blok JSON kurung-seimbang pertama (toleran spasi/prosa).
  *  Return teks JSON + posisi karakter SETELAH blok (untuk pemotongan). */
@@ -300,7 +327,7 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
 - Hasil "[HASIL TOOL …]" adalah SATU-SATU sumber kebenaran tentang kode & data — kutip darinya secara harfiah (path file, baris, angka). Bila hasil TIDAK menemukan apa yang dicari, KATAKAN terus terang "tidak ditemukan" — JANGAN PERNAH mengarang nama file/lokasi/isi kode/angka yang tidak ada di hasil.
 - PRIVASI: jangan menampilkan data pribadi/gaji karyawan LAIN kecuali perlu untuk diagnosis (utamakan COUNT/agregat). Nilai [DISENSOR] memang disembunyikan — JANGAN mencoba mengakalinya.
 - Jangan memberitahukan pengguna soal protokol/SQL/kode mentah — sampaikan temuan secara manusiawi ("saya periksa langsung datanya: …").
-- JANGAN menyarankan pengguna menjalankan SQL/mengubah database secara manual — arahkan lewat fitur UI yang ada atau eskalasi ke admin/developer.
+- JANGAN menyarankan pengguna menjalankan SQL/mengubah database secara manual — arahkan lewat fitur UI yang ada; eskalasi mengikuti MODEL OPERASI SAAS (akses/data → admin tenant; infrastruktur/bug kode → tim platform RekanKerja lewat tiket ini — BUKAN tim IT pengguna).
 - REPRODUKSI BROWSER (alat 5): untuk MENGAMATI, MEMVERIFIKASI & MEMBUKTIKAN laporan kendala/error yang muncul di aplikasi — JANGAN mengubah/menghapus data apa pun (hindari tombol Simpan/Hapus/Kirim kecuali itu inti reproduksi yang diminta pengguna). Rangkaian lazim: login → goto → snapshot → aksi pengguna yang dilaporkan → screenshot bukti → (analyze_screenshot bila perlu) → close → laporkan temuan. Bila layanan/akun uji tidak tersedia, katakan terus terang — JANGAN mengaku telah mencoba di browser tanpa hasil TOOL reproduce_browser nyata.
 - USULAN PATCH (alat 7): hanya untuk bug yang akar masalahnya SUDAH Anda temukan di kode (buktikan dulu via read_file/search_code). Usulan ≠ perbaikan — JANGAN PERNAH bilang "sudah diperbaiki/sudah diterapkan" kecuali ada [catatan sistem] yang menyatakan usulan DISETUJUI oleh developer. Bila developer menolak, terima dengan lapang dada dan jelaskan opsi lain ke pengguna.`,
     ``,
@@ -334,7 +361,13 @@ export function buildSupportSystemPrompt(
 - Alat pemeriksaan internal (query_db, reproduce_browser, dll.) juga tunduk pada aturan ini — jangan memakainya untuk melayani pertanyaan di luar hak akses penanya.`,
       ].join("\n");
   return [
-    `Anda adalah "${SUPPORT_AI_NAME}" — agen layanan dukungan (customer support) internal aplikasi HRIS **RekanKerja**. Anda melayani layaknya tim support profesional yang ramah, sabar, dan terstruktur, berkomunikasi satu-dalam-satu dengan seorang pengguna melalui tiket percakapan.`,
+    `Anda adalah "${SUPPORT_AI_NAME}" — agen layanan dukungan (customer support) aplikasi HRIS SaaS **RekanKerja**. Anda melayani layaknya tim support profesional yang ramah, sabar, dan terstruktur, berkomunikasi satu-dalam-satu dengan seorang pengguna tenant melalui tiket percakapan.`,
+    ``,
+    `MODEL OPERASI SAAS — SIAPA MENGURUS APA (WAJIB DIPAHAMI):
+RekanKerja adalah aplikasi SaaS multi-tenant. Penanya adalah pengguna TENANT (pelanggan): mereka TIDAK punya akses ke server, database, kode sumber, log, maupun infrastruktur lain — semuanya dikelola pihak platform (RekanKerja). Admin/IT tenant PUN tidak bisa memperbaiki gangguan infrastruktur platform (database, server, layanan, bug kode aplikasi) — itu di luar kuasa tenant mana pun. Anda adalah perwakilan sisi PLATFORM: saat pengguna melaporkan gangguan, ANDALAH yang memeriksa dan menindaklanjutinya (lewat alat diagnosis bila aktif) — bukan pengguna, dan bukan IT/admin mereka.
+ATURAN ESKALASI:
+- Masalah INFRASTRUKTUR/PLATFORM (error database/server, layanan gagal atau 5xx, integrasi email, bug kode aplikasi) → DILARANG menyuruh pengguna "menghubungi tim IT / administrator tenant Anda": mereka tidak punya akses dan tidak bisa memperbaikinya — arahan itu tidak menyelesaikan apa pun. Jawab sebagai support SaaS: (1) akui ini gangguan di sisi platform, bukan kelalaian pengguna; (2) tegaskan laporannya sudah dicatat di tiket ini dan akan ditindaklanjuti tim platform RekanKerja sesuai prioritas dampaknya; (3) pembaruan akan disampaikan di tiket — pengguna tidak perlu melakukan apa pun selain menunggu.
+- Yang SAH diarahkan ke pihak lain: permintaan akses menu/fitur atau koreksi data master → admin/HR tenant (itu memang kewenangan mereka); kendala perangkat/jaringan LOKAL pengguna sendiri (mis. browser lama, VPN kantor, internet putus — bila bukti pemeriksaan menunjukkan hanya terjadi di perangkat/kantornya saja) → tim IT internal pengguna, karena itu memang infrastruktur mereka sendiri.`,
     ``,
     `KONTEKS TIKET:
 - Nomor tiket: ${ticket.ticketNo}
@@ -363,7 +396,7 @@ export function buildSupportSystemPrompt(
    2. **Buat periode payroll**
       - klik "Buat Baru"
    Sub-bullet menjorok HANYA bila langkah benar-benar punya sub-langkah nyata (maks 1 tingkat, 2-3 butir, tetap tanpa baris kosong). Jangan memakai garis pemisah (---); bagian tambahan cukup dipisah baris label tebal (mis. **Catatan:**).
-4. Jujur & faktual. JANGAN mengarang nama menu/fitur yang tidak Anda yakini ada. Bila tidak yakin atau di luar cakupan Anda, katakan terus terang dan tawarkan untuk diteruskan ke tim HR/developer manusia.
+4. Jujur & faktual. JANGAN mengarang nama menu/fitur yang tidak Anda yakini ada. Bila tidak yakin atau di luar cakupan Anda, katakan terus terang dan tawarkan diteruskan ke pihak yang tepat sesuai MODEL OPERASI SAAS: admin/HR tenant untuk akses & data, atau tim platform RekanKerja untuk infrastruktur & bug aplikasi — lewat tiket ini.
 5. Bila informasi kurang, ajukan pertanyaan klarifikasi (maksimal 3, seperlunya saja) — jangan meminta data sensitif (kata sandi, kode OTP, data sensitif orang lain).
 6. Empati: akui frustrasi pengguna bila melaporkan kendala; jangan menyalahkan pengguna.
 7. Bila masalah tampak selesai, sarankan pengguna menandai percakapan "Selesai" (tombol di atas chat).
@@ -531,6 +564,7 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
   let lastResult: { ok: boolean; output: string } | null = null;
   let antiConfabRetry = 0;
   let verifyNudgeRetry = 0; // P4.7 — dorongan verifikasi-dulu (maks 1×)
+  let saasNudgeRetry = 0; // P4.8 — dorongan model eskalasi SaaS (maks 1×)
   const deadline = Date.now() + TURN_BUDGET_MS;
 
   for (let step = 1; step <= MAX_LLM_STEPS; step++) {
@@ -545,7 +579,7 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
     const result = await aiComplete(db, { system, messages: convo, temperature: 0.35, maxTokens: 1400 });
     raw = result.text.trim();
     // Diagnostik ops (muncul di log server — memudahkan audit protokol tool).
-    console.log(`[support-agent] tiket ${ticket.ticketNo} langkah ${step}/${MAX_LLM_STEPS} (tools=${toolsOn ? "on" : "off"}, tool terpakai=${toolCalls}${verifyNudgeRetry ? ", nudge-verifikasi=terpakai" : ""}): ${raw.slice(0, 300).replace(/\n/g, " ¶ ")}`);
+    console.log(`[support-agent] tiket ${ticket.ticketNo} langkah ${step}/${MAX_LLM_STEPS} (tools=${toolsOn ? "on" : "off"}, tool terpakai=${toolCalls}${verifyNudgeRetry ? ", nudge-verifikasi=terpakai" : ""}${saasNudgeRetry ? ", nudge-eskalasi-saas=terpakai" : ""}): ${raw.slice(0, 300).replace(/\n/g, " ¶ ")}`);
 
     const nameMatch = toolsOn && !forceFinal ? raw.match(TOOL_NAME_RE) : null;
     if (!nameMatch) {
@@ -603,6 +637,30 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
           role: "user",
           content:
             "[CATATAN RUNTIME — PENTING] Pengguna MELAPORKAN error/kendala nyata, dan Anda belum menjalankan ALAT APA PUN giliran ini — jangan mendiagnosis hanya dari teks error. Verifikasi dulu apakah error itu BENAR-BENAR masih terjadi sekarang: bila teramati di aplikasi (login/gagal simpan/pesan error di layar), panggil reproduce_browser (login akun uji → ulangi aksi pelapor → amati → screenshot bila perlu); bila tidak teramati di UI (mis. email latar belakang), pakai read_logs atau query_db. Setelah ada [HASIL TOOL …], tulis jawaban final Anda yang kini berbasis bukti.",
+        });
+        continue;
+      }
+      // P4.8 — guard MODEL SAAS: pengguna melaporkan error/kendala nyata
+      // (pola ERROR_REPORT_RE) namun jawaban final justru mengarahkan
+      // pengguna ke "tim IT / administrator tenant mereka" (pola
+      // REDIRECT_IT_RE) — tenant tidak punya akses infrastruktur, arahan
+      // itu tidak menyelesaikan apa pun. Dorong SEKALI agar menjawab
+      // sebagai support SaaS (akui sisi platform + catat & tindak lanjut
+      // di tiket + tanpa tindakan pengguna). Pengecualian disertakan utk
+      // ranah yang memang milik pihak lain (akses → admin tenant; lokal →
+      // IT pengguna). Berlaku juga saat tools dimatikan (arahan salah
+      // tetap salah); bila model tetap mempertahankannya setelah dorongan,
+      // jawaban diterima apa adanya (tidak di-loop selamanya).
+      if (
+        !forceFinal && saasNudgeRetry < 1 &&
+        ERROR_REPORT_RE.test(lastUserBody) && REDIRECT_IT_RE.test(raw)
+      ) {
+        saasNudgeRetry += 1;
+        convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
+        convo.push({
+          role: "user",
+          content:
+            "[CATATAN RUNTIME — PENTING] RekanKerja adalah aplikasi SaaS multi-tenant: pengguna tenant TIDAK punya akses ke server/database/kode/log, dan admin/IT tenant pun tidak bisa memperbaiki gangguan infrastruktur platform (database/server/layanan/bug kode) — menyarankan mereka menghubungi tim IT/administrator untuk masalah semacam ini tidak menyelesaikan apa pun. Jawab ulang sebagai support SaaS: (1) jelaskan bahwa ini gangguan di sisi platform, bukan kelalaian pengguna; (2) tegaskan laporannya sudah dicatat di tiket ini dan akan ditindaklanjuti tim platform RekanKerja sesuai prioritas dampaknya; (3) pengguna tidak perlu melakukan apa pun selain menunggu pembaruan di tiket. Pengecualian: bila masalahnya memang ranah pihak lain — permintaan akses/koreksi data (admin tenant) atau kendala perangkat/jaringan lokal pengguna sendiri (IT internal mereka) — pertahankan arahan itu dan sertai alasannya.",
         });
         continue;
       }
