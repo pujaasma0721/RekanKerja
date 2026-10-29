@@ -490,6 +490,7 @@ export const BASE_EN: Record<string, string> = {
   "Pengajuan & Persetujuan": "Requests & Approvals",
   "Menunggu Persetujuan": "Pending Approvals",
   "Semua Pengajuan": "All Requests",
+  "Pengajuan Ubah Data": "Profile Change Requests",
 
   // — navigasi Payroll —
   "Ringkasan": "Overview",
@@ -500,10 +501,18 @@ export const BASE_EN: Record<string, string> = {
   "Komponen Upah": "Wage Components",
   "Template Upah": "Wage Templates",
   "Data Gaji Karyawan": "Employee Payroll Data",
+  // FIX-I18N-PAYROLL — label yang lolos tanpa entri kamus (tampil Indonesia
+  // saat bahasa EN aktif — persis bug yang dilaporkan via Online Support).
+  "Simulasi THP": "THP Simulation",
+  "Analisis Pasar": "Market Analysis",
+  "Benchmark Pasar": "Market Benchmark",
+  "Bukan Pegawai": "Non-Employee",
+  "Pembayaran Bukan Pegawai": "Non-Employee Payments",
   "Transaksi": "Transactions",
   "Transaksi & Rapel": "Transactions & Retro Pay",
   "Benefit Karyawan": "Employee Benefits",
   "Laporan Tahunan": "Annual Reports",
+  "Laporan Payroll": "Payroll Reports",
   "SPT & Pajak (1721-A1)": "SPT & Tax (1721-A1)",
   "Parameter": "Parameters",
   "Parameter Pajak": "Tax Parameters",
