@@ -179,7 +179,16 @@ function PageInner() {
       </AppShell>
       )}
       </AuthGate>
-      <AiChatWidget />
+      {/* FEAT-SUPPORT-P4.4 — bubble asisten AI disembunyikan saat modul
+          Support Service (chat support) aktif: peran "tanya AI" sudah diga-
+          nti halaman chat support itu sendiri; bubble kembali muncul begitu
+          beralih ke menu lain. Guard uiMode admin: ESS tak punya menu support
+          (section store bisa stale saat berpindah mode) → di ESS selalu tampil.
+          hidden (display:none) alih-alih unmount: state widget (panel terbuka/
+          tab/riwayat DM) + animasi pop-in tidak di-reset tiap pindah menu. */}
+      <div hidden={uiMode !== "ess" && section === "support"}>
+        <AiChatWidget />
+      </div>
       <PwaRegister />
     </I18nProvider>
   );

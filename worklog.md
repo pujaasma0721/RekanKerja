@@ -8943,3 +8943,27 @@ Task: umpan balik user (dgn tangkapan layar bertanda merah): "bagian ini yang sa
 
 Stage Summary:
 - P4.3 SELESAI: seluruh balasan AI — baru maupun riwayat lama — kini tampil seragam RAPAT ala contoh user: baris label tebal langsung di atas daftar, item antar-baris tanpa ruang kosong, sub-bullet menjorok rapi; artefak spasi-akhir-baris dibersihkan di display (retroaktif semua pesan) sekaligus di penyimpanan (jawaban baru).
+
+---
+
+## 2026-10-29 — FEAT-SUPPORT-P4.4 (Online Support): bubble AI tersembunyi saat Support Service aktif
+
+Task: permintaan user — "hide bubble chat ketika menu support service chat aktif, dan bubble chat muncul ketika menu support service tersebut tidak aktif/beralih ke menu lain".
+
+### Perubahan (src/app/page.tsx)
+- <AiChatWidget /> dibungkus <div hidden={uiMode !== "ess" && section === "support"}>: saat modul Support Service aktif (section nav === "support" di shell admin), seluruh widget (tombol mengambang + panel) disembunyikan — chat support menggantikan peran "tanya AI"; begitu beralih ke menu/module lain, bubble langsung kembali tampil.
+- Guard uiMode admin penting: ESS tidak punya menu support namun section di nav-store bisa STALE berisi "support" (sisa sesi admin sebelum berpindah mode) → tanpa guard, bubble bisa tersembunyi keliru di ESS. Di ESS bubble selalu tampil.
+- hidden (display:none) ALIH-ALIH conditional unmount: komponen tetap ter-mount sehingga (a) state widget — panel terbuka, tab aktif, riwayat DM lokal — tidak hilang tiap pindah menu, (b) animasi pop-in spring (delay 0.4 dtk) tidak diulang setiap kali kembali dari Support Service. Seluruh konten widget fixed-position → wrapper zero-height, nol dampak layout. Riwayat chat Asisten/Ahli HR memang tersimpan server-side (useApi per mode) — tetap ada saat remount, pendekatan ini hanya mempertahankan state UI.
+
+### Verifikasi
+- GATES: bun run lint 0 error (12 warning pre-existing) · tsc -p tsconfig.p44check.json (fokus src/app/page.tsx) EXIT 0 · dev.log bersih.
+- E2E BROWSER (agent-browser, hrd@mii.co.id):
+  1. Dashboard: bubble tampil (rect 52×52) ✓; panel dibuka (aria-expanded=true) utk uji state.
+  2. Navigasi ke Support Service: wrapper display:none — DOM terukur: checkVisibility=false, rect 0×0, offsetParent=null; komponen TETAP ter-mount (bubbleInDom=true) ✓ (screenshot 01; VLM konfirmasi sudut kanan-bawah kosong).
+  3. Beralih ke menu lain (HR Base → Dashboard): bubble kembali tampil 52×52 dan panel MASIH TERBUKA (aria-expanded=true — state tak ter-reset) ✓ (screenshot 02; VLM konfirmasi panel terbuka ada).
+  4. Akses langsung URL ?m=support (kasus refresh/berbagi tautan): halaman Support Service + bubble tersembunyi sejak awal ✓ (screenshot 03).
+  5. 0 page error · 0 console error.
+- Artefak: audit/support-p4.4/ (3 screenshot) + tsconfig.p44check.json. Hanya navigasi baca — tanpa data uji yang perlu dipulihkan.
+
+Stage Summary:
+- P4.4 SELESAI: bubble asisten AI kini otomatis menghilang ketika pengguna berada di modul Support Service (tempat chat dukungan penuh berada) dan muncul kembali — lengkap dengan kondisi terakhirnya — begitu pengguna berpindah ke menu lain; mode ESS tidak terpengaruh.
