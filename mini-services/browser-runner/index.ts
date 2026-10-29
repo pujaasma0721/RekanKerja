@@ -432,27 +432,50 @@ async function handleAction(b: Record<string, unknown>): Promise<Response> {
 }
 
 // ------------------------------ serve --------------------------------
+// Runtime NETRAL: node (22+; dipanggil via tsx) ATAU bun — keduanya diuji.
+// Server http atauong web-standards: Request/Response yang sama dipakai dua-duanya.
 
-Bun.serve({
-  port: PORT,
-  async fetch(req) {
-    const u = new URL(req.url);
-    try {
-      if (req.method === "GET" && u.pathname === "/health") {
-        return json({ ok: true, sessions: sessions.size, base: BASE });
-      }
-      if (req.method === "POST" && u.pathname === "/session") {
-        return await handleSession((await req.json().catch(() => ({}))) as Record<string, unknown>);
-      }
-      if (req.method === "POST" && u.pathname === "/action") {
-        return await handleAction((await req.json().catch(() => ({}))) as Record<string, unknown>);
-      }
-      return json({ ok: false, error: "not found" }, 404);
-    } catch (e) {
-      return json({ ok: false, error: msg(e).slice(0, 300) }, 500);
+import http from "node:http";
+
+async function route(req: Request): Promise<Response> {
+  const u = new URL(req.url);
+  try {
+    if (req.method === "GET" && u.pathname === "/health") {
+      return json({ ok: true, sessions: sessions.size, base: BASE });
     }
-  },
-});
+    if (req.method === "POST" && u.pathname === "/session") {
+      return await handleSession((await req.json().catch(() => ({}))) as Record<string, unknown>);
+    }
+    if (req.method === "POST" && u.pathname === "/action") {
+      return await handleAction((await req.json().catch(() => ({}))) as Record<string, unknown>);
+    }
+    return json({ ok: false, error: "not found" }, 404);
+  } catch (e) {
+    return json({ ok: false, error: msg(e).slice(0, 300) }, 500);
+  }
+}
+
+http
+  .createServer(async (nreq, nres) => {
+    try {
+      const chunks: Buffer[] = [];
+      for await (const c of nreq) chunks.push(c as Buffer);
+      const raw = Buffer.concat(chunks);
+      const init: Record<string, any> = {
+        method: nreq.method,
+        headers: Object.fromEntries(Object.entries(nreq.headers).filter(([, v]) => !v || typeof v === "string")),
+      };
+      if (raw.length) init.body = new Uint8Array(raw);
+      const wres = await route(new Request(`http://127.0.0.1:${PORT}${nreq.url ?? "/"}`, init));
+      const body = Buffer.from(await wres.arrayBuffer());
+      nres.writeHead(wres.status, { "Content-Type": wres.headers.get("content-type") ?? "application/json" });
+      nres.end(body);
+    } catch (e) {
+      nres.writeHead(500, { "Content-Type": "application/json" });
+      nres.end(JSON.stringify({ ok: false, error: msg(e).slice(0, 200) }));
+    }
+  })
+  .listen(PORT, "127.0.0.1");
 
 // Reaper: sesi idle > TTL ditutup; browser dihentikan saat tak terpakai.
 setInterval(() => {
@@ -467,4 +490,4 @@ setInterval(() => {
   }
 }, 15_000);
 
-console.log(`[browser-runner] P3 siap di :${PORT} — target aplikasi ${BASE}`);
+console.log(`[browser-runner] siap di :${PORT} (127.0.0.1 saja — server-ke-server) — target aplikasi ${BASE}`);
