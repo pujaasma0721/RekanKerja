@@ -3923,9 +3923,34 @@ CREATE TABLE "SupportMessage" (
 );
 
 -- CreateTable
+CREATE TABLE "SupportPatchProposal" (
+    "id" TEXT NOT NULL,
+    "ticketId" TEXT NOT NULL,
+    "filePath" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "diffText" TEXT NOT NULL,
+    "replacementsJson" TEXT NOT NULL,
+    "baseHash" TEXT NOT NULL,
+    "baseLineCount" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'MENUNGGU',
+    "decidedById" TEXT,
+    "decidedByName" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SupportPatchProposal_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "SupportAgentConfig" (
     "id" TEXT NOT NULL,
     "toolsEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "browserEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "patchEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "browserLoginEmail" TEXT,
+    "browserLoginPassEnc" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "SupportAgentConfig_pkey" PRIMARY KEY ("id")
@@ -4966,6 +4991,12 @@ CREATE INDEX "SupportTicket_lastMessageAt_idx" ON "SupportTicket"("lastMessageAt
 -- CreateIndex
 CREATE INDEX "SupportMessage_ticketId_createdAt_idx" ON "SupportMessage"("ticketId", "createdAt");
 
+-- CreateIndex
+CREATE INDEX "SupportPatchProposal_ticketId_idx" ON "SupportPatchProposal"("ticketId");
+
+-- CreateIndex
+CREATE INDEX "SupportPatchProposal_status_idx" ON "SupportPatchProposal"("status");
+
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -5820,4 +5851,7 @@ ALTER TABLE "SalaryBenchmark" ADD CONSTRAINT "SalaryBenchmark_positionId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "SupportMessage" ADD CONSTRAINT "SupportMessage_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "SupportTicket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupportPatchProposal" ADD CONSTRAINT "SupportPatchProposal_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "SupportTicket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

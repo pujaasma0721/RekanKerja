@@ -5484,6 +5484,7 @@ model SupportTicket {
   updatedAt      DateTime  @updatedAt
 
   messages SupportMessage[]
+  patches  SupportPatchProposal[]
 
   @@index([status])
   @@index([createdById])
@@ -5502,6 +5503,45 @@ model SupportMessage {
   ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId, createdAt])
+}
+
+// ============================================================================
+// FEAT-SUPPORT-P4 — agen support LEVEL 4 (usulan patch + approval manusia):
+//   · Tool propose_patch (support/services/support-patch.ts): agen mengajukan
+//     USULAN perbaikan kode (search/replace persis) SETELAH membaca file via
+//     read_file. Server membaca isi file SENDIRI (model tidak dipercaya),
+//     menghitung unified diff + hash basis (deteksi konflik saat apply).
+//   · Usulan TIDAK mengubah file apa pun — status MENUNGGU sampai developer
+//     manusia (pemegang op support:service/manage) menyetujui lewat UI tiket;
+//     barulah patch diterapkan ke file (re-verifikasi hash + whitelist path
+//     yang sama dengan read_file). Keputusan (setuju/tolak) tercatat sebagai
+//     pesan SYSTEM di utas + ActivityLog (audit) — agen melihat hasilnya di
+//     giliran berikutnya (loop umpan balik jujur).
+//   · Kolom SupportAgentConfig.patchEnabled (migrasi scripts/migrate-support-p4.ts,
+//     parity "support4"): sakelar per tenant — baris ABSEN = AKTIF (konsisten
+//     P2/P3; guard sesungguhnya ada di approval manusia + whitelist).
+// ============================================================================
+model SupportPatchProposal {
+  id               String    @id @default(cuid())
+  ticketId         String // tiket asal usulan
+  filePath         String // path relatif root proyek (whitelist sama dgn read_file)
+  description      String // ringkasan perbaikan dari agen (utk reviewer)
+  diffText         String // unified diff — DIHITUNG SERVER saat usulan dibuat
+  replacementsJson String // snapshot [{search,replace}] (audit + re-apply)
+  baseHash         String // sha256 isi file saat usulan (deteksi konflik)
+  baseLineCount    Int       @default(0) // jumlah baris file saat usulan (info)
+  status           String    @default("MENUNGGU") // MENUNGGU|DISETUJUI|DITOLAK|KONFLIK
+  decidedById      String? // AppUser reviewer (plain string, tanpa FK)
+  decidedByName    String? // snapshot nama reviewer
+  decidedAt        DateTime?
+  decisionNote     String? // catatan reviewer (opsional)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([status])
 }
 
 // ============================================================================
@@ -5529,11 +5569,16 @@ model SupportMessage {
 //                            pengguna pelapor)
 //       browserLoginPassEnc — kata sandi akun uji TERENKRIPSI field-crypto
 //                            (enc:v1:t:… — pola AiProviderConfig.apiKey)
+// FEAT-SUPPORT-P4:
+//       patchEnabled        — izinkan agen MENGUSULKAN patch (L4). Usulan
+//                             TIDAK pernah menulis file sebelum developer
+//                             manusia menyetujuinya (op support:service/manage).
 // ============================================================================
 model SupportAgentConfig {
   id                 String   @id @default(cuid())
   toolsEnabled       Boolean  @default(true) // izinkan agen memakai alat baca (mode diagnosis)
   browserEnabled     Boolean  @default(true) // FEAT-SUPPORT-P3: izinkan reproduksi browser headless
+  patchEnabled       Boolean  @default(true) // FEAT-SUPPORT-P4: izinkan usulan patch (approval manusia)
   browserLoginEmail  String? // email akun uji reproduksi (tanpa FK — konten dari admin tenant)
   browserLoginPassEnc String? // kata sandi akun uji — terenkripsi (enc:v1:t:… — field-crypto per-tenant)
   updatedAt          DateTime @updatedAt

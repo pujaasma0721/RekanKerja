@@ -450,6 +450,10 @@ const STEPS: Step[] = [
   // browserEnabled/browserLoginEmail/browserLoginPassEnc (reproduksi browser
   // headless reproduce_browser + analyze_screenshot + akun uji terenkripsi).
   { key: "support3", label: "Online Support P3 — kolom browser SupportAgentConfig (reproduksi browser agen)", run: (s) => import("../../../../scripts/migrate-support-p3").then((m) => m.main(s)) },
+  // FEAT-SUPPORT-P4 — agen support level 4: tabel SupportPatchProposal (usulan
+  // patch agen + keputusan reviewer manusia) + kolom SupportAgentConfig
+  // patchEnabled (sakelar usulan patch — penerapan tetap butuh approval).
+  { key: "support4", label: "Online Support P4 — tabel SupportPatchProposal + patchEnabled (usulan patch + approval manusia)", run: (s) => import("../../../../scripts/migrate-support-p4").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -548,6 +552,16 @@ export async function checkParityGap(): Promise<ParityGap> {
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
        WHERE table_name = 'SupportAgentConfig' AND column_name = 'browserEnabled' AND table_schema = ANY($1::text[])`,
     );
+    // FEAT-SUPPORT-P4 — tabel usulan patch / kolom sakelar belum ada = gap
+    // (tenant pra-P4: usulan patch agen tak bisa diajukan/ditinjau).
+    const supportPatchOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'SupportPatchProposal' AND table_schema = ANY($1::text[])`,
+    );
+    const supportPatchColOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'SupportAgentConfig' AND column_name = 'patchEnabled' AND table_schema = ANY($1::text[])`,
+    );
     // Task 58-b — gap PLATFORM (bukan per-tenant): kolom Tenant.companyCode.
     // Kegagalan koneksi platform TIDAK boleh jadi false positive → anggap OK.
     let companyCodeOk = true;
@@ -602,6 +616,8 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (supportTablesOk < schemas.length) reasons.push(`${schemas.length - supportTablesOk} tenant tanpa tabel Online Support (FEAT-SUPPORT-P1)`);
     if (supportAgentCfgOk < schemas.length) reasons.push(`${schemas.length - supportAgentCfgOk} tenant tanpa tabel SupportAgentConfig (FEAT-SUPPORT-P2)`);
     if (supportBrowserOk < schemas.length) reasons.push(`${schemas.length - supportBrowserOk} tenant tanpa kolom browser SupportAgentConfig (FEAT-SUPPORT-P3)`);
+    if (supportPatchOk < schemas.length) reasons.push(`${schemas.length - supportPatchOk} tenant tanpa tabel SupportPatchProposal (FEAT-SUPPORT-P4)`);
+    if (supportPatchColOk < schemas.length) reasons.push(`${schemas.length - supportPatchColOk} tenant tanpa kolom patchEnabled SupportAgentConfig (FEAT-SUPPORT-P4)`);
     if (!companyCodeOk) reasons.push("platform: kolom Tenant.companyCode belum ada (Task 58-b — registrasi workspace gagal)");
     if (runLogOk < schemas.length) reasons.push(`${schemas.length - runLogOk} tenant tanpa tabel PayrollRunLog (Task 63)`);
     if (wageHistOk < schemas.length) reasons.push(`${schemas.length - wageHistOk} tenant tanpa tabel EmployeeWageTemplateHistory (Task 64)`);
@@ -796,7 +812,7 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (okrColOk < schemas.length)
       reasons.push(`${schemas.length - okrColOk} tenant tanpa kolom PerformanceSetting.okrEnabled (B1 — mode OKR default OFF)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, supportTablesOk, supportAgentCfgOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, dsrEmpOk, perfArchOk, okrTblOk, okrColOk) };
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, supportTablesOk, supportAgentCfgOk, supportBrowserOk, supportPatchOk, supportPatchColOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk, otWorkweekOk, dsrEmpOk, perfArchOk, okrTblOk, okrColOk) };
   } finally {
     await c.end();
   }

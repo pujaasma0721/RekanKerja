@@ -1,5 +1,5 @@
 "use client";
-// RekanKerja — Online Support (FEAT-SUPPORT-P1): menu "Support Service". ======
+// RekanKerja — Online Support (FEAT-SUPPORT-P1..P4): menu "Support Service". ===
 // =====================================================================
 // Chat interaktif pengguna ↔ AI support agent bergaya ticketing:
 //   · Kiri: daftar tiket percakapan (status/prioritas/waktu) + pencarian;
@@ -9,6 +9,9 @@
 //     indikator "mengetik", retry bila provider AI gagal, aksi status
 //     (Selesai / Tutup / Buka Kembali), polling ringan 15 dtk.
 //   · Percakapan baru: dialog judul → tiket SP-<tahun>-NNN + sambutan agen.
+//   · FEAT-SUPPORT-P4 — kartu usulan patch (diff berwarna) inline di timeline
+//     chat; pemegang op manage bisa menyetujui/menolak lewat dialog tinjauan
+//     (approve → file diterapkan; keputusan tercatat sbg pesan SYSTEM).
 // Lampiran diunggah via multipart (apiUpload) — server menyimpan lewat
 // attachment-service generik (entityType "SupportMessage").
 // =====================================================================
@@ -17,7 +20,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   Headset, Plus, Send, Paperclip, X, FileText, Download, ArrowLeft, Search,
-  Loader2, CheckCircle2, RotateCcw, ImageIcon,
+  Loader2, CheckCircle2, RotateCcw, ImageIcon, FileDiff, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -59,6 +62,18 @@ interface MessageRow {
   createdAt: string;
   attachments: AttachmentMeta[];
 }
+// FEAT-SUPPORT-P4 — usulan patch dari agen (menunggu keputusan developer).
+interface PatchRow {
+  id: string;
+  filePath: string;
+  description: string;
+  diffText: string;
+  status: string; // MENUNGGU|DISETUJUI|DITOLAK|KONFLIK
+  decidedByName: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  createdAt: string;
+}
 
 // ---------- label dwibahasa status/kategori/prioritas ----------
 const STATUS_UI: Record<string, { id: string; en: string; cls: string; dot: string }> = {
@@ -88,6 +103,26 @@ const PRIORITY_UI: Record<string, { id: string; en: string; cls: string }> = {
   SEDANG: { id: "Sedang", en: "Medium", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25" },
   TINGGI: { id: "Tinggi", en: "High", cls: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/25" },
   KRITIS: { id: "Kritis", en: "Critical", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25" },
+};
+
+// ---------- label dwibahasa status usulan patch (P4) ----------
+const PATCH_STATUS_UI: Record<string, { id: string; en: string; cls: string }> = {
+  MENUNGGU: {
+    id: "Menunggu Persetujuan", en: "Pending Approval",
+    cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
+  },
+  DISETUJUI: {
+    id: "Disetujui & Diterapkan", en: "Approved & Applied",
+    cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
+  },
+  DITOLAK: {
+    id: "Ditolak", en: "Rejected",
+    cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25",
+  },
+  KONFLIK: {
+    id: "Konflik — file berubah", en: "Conflict — file changed",
+    cls: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25",
+  },
 };
 
 const ACCEPTED_MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
@@ -274,6 +309,125 @@ function ChatBubble({ m, locale, accent }: { m: MessageRow; locale: string; acce
   );
 }
 
+/** Blok render unified diff (warna per jenis baris; gelap utk kontras kode). */
+function DiffBlock({ diff, maxH }: { diff: string; maxH?: string }) {
+  const lines = diff.split("\n");
+  return (
+    <div
+      className={cn("overflow-auto rounded-lg border border-slate-200 bg-slate-950 dark:border-slate-700", maxH ?? "max-h-72")}
+      role="region"
+      aria-label="Perubahan kode yang diusulkan"
+    >
+      <pre className="min-w-max p-2 font-mono text-[10.5px] leading-relaxed">
+        {lines.map((l, i) => {
+          const cls = l.startsWith("+++") || l.startsWith("---")
+            ? "text-slate-500"
+            : l.startsWith("@@")
+              ? "font-semibold text-amber-300"
+              : l.startsWith("+")
+                ? "bg-emerald-500/10 text-emerald-300"
+                : l.startsWith("-")
+                  ? "bg-rose-500/10 text-rose-300"
+                  : "text-slate-400";
+          return (
+            <span key={i} className={cn("block whitespace-pre px-1.5", cls)}>
+              {l.length > 0 ? l : " "}
+            </span>
+          );
+        })}
+      </pre>
+    </div>
+  );
+}
+
+/** Kartu usulan patch (FEAT-SUPPORT-P4) — muncul di timeline chat.
+ *  Pelapor: hanya lihat status/diff. Pemegang op manage: bisa memutuskan. */
+function PatchCard({
+  p, canDecide, onReview, locale,
+}: { p: PatchRow; canDecide: boolean; onReview: (p: PatchRow) => void; locale: string }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const st = PATCH_STATUS_UI[p.status] ?? PATCH_STATUS_UI.MENUNGGU;
+  const added = p.diffText.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++")).length;
+  const removed = p.diffText.split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---")).length;
+  return (
+    <div className="flex w-full justify-start">
+      <div className="w-full rounded-2xl rounded-bl-md border border-brand/30 bg-brand/[0.03] p-3 shadow-sm dark:border-brand/25 dark:bg-brand/[0.06] sm:max-w-[85%]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full border border-brand/30 bg-white text-brand-deep dark:border-brand/25 dark:bg-slate-900 dark:text-brand/85" aria-hidden>
+            <FileDiff className="h-3.5 w-3.5" />
+          </span>
+          <span className="text-[12.5px] font-bold text-slate-800 dark:text-slate-100">
+            {t("Usulan Perbaikan Kode", "Code Patch Proposal")}
+          </span>
+          <span className={cn("inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[10.5px] font-semibold", st.cls)}>
+            {t(st.id, st.en)}
+          </span>
+          <span className="ml-auto text-[10px] text-slate-400">{fmtStamp(p.createdAt, locale)}</span>
+        </div>
+        <p className="mt-1.5 break-all font-mono text-[11px] font-semibold text-brand-deep dark:text-brand/85">{p.filePath}</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-slate-600 dark:text-slate-300">{p.description}</p>
+
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="mt-2 inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-[11px] font-semibold text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+          aria-expanded={open}
+        >
+          {open ? <ChevronDown className="h-3.5 w-3.5" aria-hidden /> : <ChevronRight className="h-3.5 w-3.5" aria-hidden />}
+          {t("Lihat perubahan", "View changes")}
+          <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">+{added}</span>
+          <span className="font-mono text-[10px] text-rose-500 dark:text-rose-400">-{removed}</span>
+        </button>
+        {open && (
+          <div className="mt-1.5">
+            <DiffBlock diff={p.diffText} />
+          </div>
+        )}
+
+        {/* keputusan / aksi */}
+        {p.status === "MENUNGGU" ? (
+          canDecide ? (
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                className="h-7 gap-1.5 bg-emerald-600 text-[11px] text-white hover:bg-emerald-700"
+                onClick={() => onReview(p)}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                {t("Setujui & Terapkan", "Approve & Apply")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1.5 text-[11px] text-rose-600 hover:text-rose-700 dark:text-rose-400"
+                onClick={() => onReview(p)}
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+                {t("Tolak", "Reject")}
+              </Button>
+            </div>
+          ) : (
+            <p className="mt-2 text-[10.5px] text-slate-400 dark:text-slate-500">
+              {t(
+                "Menunggu tinjauan developer — file belum diubah sama sekali.",
+                "Awaiting developer review — the file has not been changed at all.",
+              )}
+            </p>
+          )
+        ) : (
+          <p className="mt-2 text-[10.5px] text-slate-400 dark:text-slate-500">
+            {p.decidedByName
+              ? `${t("Diputuskan oleh", "Decided by")} ${p.decidedByName}${p.decidedAt ? ` · ${fmtStamp(p.decidedAt, locale)}` : ""}`
+              : t("Sudah diputuskan", "Decided")}
+            {p.decisionNote ? ` — “${p.decisionNote}”` : ""}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ---------- entry modul ----------
 export function SupportModule({ view }: { view: string }) {
   // Fase P1: satu-satunya menu adalah "service" (Support Service);
@@ -309,6 +463,11 @@ function SupportServiceView() {
     selectedId ? `/api/rekankerja/support/tickets/${selectedId}/messages` : null,
     [selectedId],
   );
+  // FEAT-SUPPORT-P4 — usulan patch pada tiket terpilih (+ izin memutuskan).
+  const patchesApi = useApi<{ patches: PatchRow[]; canDecide: boolean }>(
+    selectedId ? `/api/rekankerja/support/tickets/${selectedId}/patches` : null,
+    [selectedId],
+  );
 
   // composer
   const [draft, setDraft] = useState("");
@@ -316,6 +475,10 @@ function SupportServiceView() {
   const [sending, setSending] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [agentError, setAgentError] = useState<string | null>(null);
+  // P4 — dialog tinjauan usulan patch (developer)
+  const [review, setReview] = useState<PatchRow | null>(null);
+  const [reviewNote, setReviewNote] = useState("");
+  const [deciding, setDeciding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -332,10 +495,13 @@ function SupportServiceView() {
   useEffect(() => {
     if (!selectedId) return;
     const h = window.setInterval(() => {
-      if (!sending && !aiBusy) void msgApi.refresh();
+      if (!sending && !aiBusy) {
+        void msgApi.refresh();
+        void patchesApi.refresh();
+      }
     }, 15000);
     return () => window.clearInterval(h);
-  }, [selectedId, sending, aiBusy, msgApi]);
+  }, [selectedId, sending, aiBusy, msgApi, patchesApi]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -353,7 +519,8 @@ function SupportServiceView() {
     void ticketsApi.refresh();
     void ticketApi.refresh();
     void msgApi.refresh();
-  }, [ticketsApi, ticketApi, msgApi]);
+    void patchesApi.refresh();
+  }, [ticketsApi, ticketApi, msgApi, patchesApi]);
 
   const createTicket = useCallback(async () => {
     const s = subject.trim();
@@ -455,6 +622,45 @@ function SupportServiceView() {
     },
     [selectedId, refreshAll, t],
   );
+
+  // P4 — keputusan developer atas usulan patch (approve → file diterapkan).
+  const decidePatch = useCallback(
+    async (decision: "approve" | "reject") => {
+      if (!selectedId || !review) return;
+      setDeciding(true);
+      try {
+        await apiSend(`/api/rekankerja/support/tickets/${selectedId}/patches`, "POST", {
+          proposalId: review.id,
+          decision,
+          ...(reviewNote.trim() ? { note: reviewNote.trim() } : {}),
+        });
+        setReview(null);
+        setReviewNote("");
+        void patchesApi.refresh();
+        void msgApi.refresh();
+        toast.success(
+          decision === "approve"
+            ? t("Patch disetujui & diterapkan ke file", "Patch approved & applied to file")
+            : t("Usulan patch ditolak", "Patch proposal rejected"),
+        );
+      } catch (e) {
+        toast.error((e as Error).message);
+      } finally {
+        setDeciding(false);
+      }
+    },
+    [selectedId, review, reviewNote, patchesApi, msgApi, t],
+  );
+
+  // timeline gabungan: pesan + kartu usulan patch, urut waktu.
+  const timeline = useMemo(() => {
+    const msgs = (msgApi.data?.messages ?? []).map((m) => ({ kind: "msg" as const, at: m.createdAt, m }));
+    const pts = (patchesApi.data?.patches ?? []).map((p) => ({ kind: "patch" as const, at: p.createdAt, p }));
+    return [...msgs, ...pts].sort((a, b) =>
+      a.at < b.at ? -1 : a.at > b.at ? 1 : a.kind === "msg" ? -1 : 1,
+    );
+  }, [msgApi.data, patchesApi.data]);
+  const canDecide = patchesApi.data?.canDecide ?? false;
 
   return (
     <div>
@@ -663,11 +869,21 @@ function SupportServiceView() {
                 </div>
               </div>
 
-              {/* pesan */}
+              {/* pesan + kartu usulan patch (timeline gabungan P4) */}
               <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4" role="log" aria-live="polite">
-                {(msgApi.data?.messages ?? []).map((m) => (
-                  <ChatBubble key={m.id} m={m} locale={loc} accent={accent} />
-                ))}
+                {timeline.map((item) =>
+                  item.kind === "msg" ? (
+                    <ChatBubble key={item.m.id} m={item.m} locale={loc} accent={accent} />
+                  ) : (
+                    <PatchCard
+                      key={item.p.id}
+                      p={item.p}
+                      canDecide={canDecide}
+                      onReview={setReview}
+                      locale={loc}
+                    />
+                  ),
+                )}
                 {aiBusy && <TypingDots />}
               </div>
 
@@ -833,6 +1049,68 @@ function SupportServiceView() {
             <Button onClick={() => void createTicket()} disabled={creating} className="gap-1.5 text-white" style={{ background: accent }}>
               {creating && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
               {t("Buat Tiket", "Create Ticket")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============ dialog tinjau usulan patch (P4 — developer) ============ */}
+      <Dialog
+        open={!!review}
+        onOpenChange={(o) => {
+          if (!o) {
+            setReview(null);
+            setReviewNote("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("Tinjau Usulan Patch", "Review Patch Proposal")}</DialogTitle>
+            <DialogDescription>
+              {t(
+                "Menyetujui akan MENERAPKAN perubahan ini langsung ke file aplikasi. Pastikan Anda memahami diff di bawah.",
+                "Approving will APPLY these changes directly to the application file. Make sure you understand the diff below.",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {review && (
+            <div className="space-y-2.5">
+              <p className="break-all rounded-lg bg-slate-50 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-slate-700 dark:bg-slate-800/70 dark:text-slate-200">
+                {review.filePath}
+              </p>
+              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{review.description}</p>
+              <DiffBlock diff={review.diffText} maxH="max-h-60" />
+              <div className="space-y-1.5">
+                <Label htmlFor="sp-patch-note">{t("Catatan keputusan (opsional)", "Decision note (optional)")}</Label>
+                <Textarea
+                  id="sp-patch-note"
+                  rows={2}
+                  maxLength={500}
+                  value={reviewNote}
+                  onChange={(e) => setReviewNote(e.target.value)}
+                  placeholder={t("Mis. Sudah saya verifikasi di lingkungan uji", "E.g. Verified in the test environment")}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              className="gap-1.5 text-rose-600 hover:text-rose-700 dark:text-rose-400"
+              onClick={() => void decidePatch("reject")}
+              disabled={deciding}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+              {t("Tolak Usulan", "Reject Proposal")}
+            </Button>
+            <Button
+              className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={() => void decidePatch("approve")}
+              disabled={deciding}
+            >
+              {deciding ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />}
+              {t("Setujui & Terapkan", "Approve & Apply")}
             </Button>
           </DialogFooter>
         </DialogContent>

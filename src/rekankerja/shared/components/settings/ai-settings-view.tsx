@@ -197,23 +197,26 @@ export function AiProviderView() {
   );
 }
 
-// ================= AGEN SUPPORT (FEAT-SUPPORT-P2 · P3) =================
+// ================= AGEN SUPPORT (FEAT-SUPPORT-P2 · P3 · P4) =================
 
 interface SupportAgentConfig {
   toolsEnabled: boolean;
   browserEnabled: boolean;
+  patchEnabled: boolean;
   browserLoginEmail: string | null;
   hasBrowserLoginPass: boolean;
 }
 
 /** Kartu tata kelola agen Online Support — sakelar alat baca (L2 ⇄ L1),
  *  sakelar reproduksi browser (L3) + akun uji reproduksi (kata sandi
- *  write-only, terenkripsi field-crypto). Tampil di halaman Provider AI. */
+ *  write-only, terenkripsi field-crypto), sakelar usulan patch (L4 — penerapan
+ *  tetap butuh persetujuan developer manusia). Tampil di halaman Provider AI. */
 function SupportAgentCard() {
   const { t } = useI18n();
   const cfg = useApi<{ config: SupportAgentConfig }>("/api/rekankerja/support/agent-config");
   const [enabled, setEnabled] = useState(true);
   const [browser, setBrowser] = useState(true);
+  const [patch, setPatch] = useState(true);
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [hasPass, setHasPass] = useState(false);
@@ -225,6 +228,7 @@ function SupportAgentCard() {
     if (cfg.data?.config && !loaded) {
       setEnabled(cfg.data.config.toolsEnabled);
       setBrowser(cfg.data.config.browserEnabled);
+      setPatch(cfg.data.config.patchEnabled);
       setEmail(cfg.data.config.browserLoginEmail ?? "");
       setHasPass(cfg.data.config.hasBrowserLoginPass);
       setLoaded(true);
@@ -263,6 +267,25 @@ function SupportAgentCard() {
       cfg.refresh();
     } catch (e) {
       setBrowser(!next);
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const togglePatch = async (next: boolean) => {
+    setPatch(next);
+    setSaving(true);
+    try {
+      await apiSend("/api/rekankerja/support/agent-config", "PUT", { patchEnabled: next });
+      toast.success(
+        next
+          ? t("Usulan patch agen diaktifkan — penerapan tetap butuh persetujuan developer", "Agent patch proposals enabled — applying still requires developer approval")
+          : t("Usulan patch agen dimatikan", "Agent patch proposals disabled"),
+      );
+      cfg.refresh();
+    } catch (e) {
+      setPatch(!next);
       toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
     } finally {
       setSaving(false);
@@ -309,7 +332,7 @@ function SupportAgentCard() {
         <CardTitle className="flex items-center gap-2 text-[15px]">
           <Headset className="h-4 w-4 text-brand" aria-hidden />
           {t("Agen Support (Online Support)", "Support Agent (Online Support)")}
-          {loaded && <StatusPill status={enabled || browser ? "Active" : "Inactive"} />}
+          {loaded && <StatusPill status={enabled || browser || patch ? "Active" : "Inactive"} />}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -351,6 +374,27 @@ function SupportAgentCard() {
             onCheckedChange={(v) => void toggleBrowser(v)}
             disabled={saving || cfg.loading}
             aria-label={t("Mode reproduksi browser agen support", "Support agent browser reproduction mode")}
+          />
+        </div>
+
+        {/* FEAT-SUPPORT-P4 — sakelar usulan patch (L4 — approval tetap manusia). */}
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+          <div>
+            <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
+              {t("Usulan patch kode (L4)", "Code patch proposals (L4)")}
+            </p>
+            <p className="text-[11.5px] leading-relaxed text-slate-500">
+              {t(
+                "Izinkan Support AI mengusulkan perbaikan kode (diff) saat akar masalah bug ditemukan. Usulan TIDAK pernah mengubah file — developer manusia harus menyetujui lewat kartu usulan di percakapan sebelum perubahan diterapkan.",
+                "Allow the Support AI to propose code fixes (diffs) once a root cause is found. A proposal never changes any file — a human developer must approve it from the proposal card in the conversation before anything is applied.",
+              )}
+            </p>
+          </div>
+          <Switch
+            checked={patch}
+            onCheckedChange={(v) => void togglePatch(v)}
+            disabled={saving || cfg.loading}
+            aria-label={t("Mode usulan patch agen support", "Support agent patch proposal mode")}
           />
         </div>
 
@@ -404,8 +448,8 @@ function SupportAgentCard() {
 
         <p className="text-[11px] leading-relaxed text-slate-400">
           {t(
-            "Seluruh pemeriksaan bersifat hanya-baca dan diguard berlapis: query tulis ditolak, tabel kredensial/privasi diblokir, nilai gaji & kredensial disensor otomatis, dan jejak pemeriksaan dicatat di tiap percakapan. Browser reproduksi terkurung di aplikasi ini saja (tidak bisa membuka situs lain), dibatasi jumlah aksi/tangkapan layar, dan selalu ditutup otomatis.",
-            "All inspections are read-only and guarded in layers: write queries are rejected, credential/privacy tables are blocked, salary & credential values are masked automatically, and an inspection note is recorded in each conversation. The reproduction browser is confined to this application only (cannot open other sites), capped in actions/screenshots, and always closed automatically.",
+            "Seluruh pemeriksaan bersifat hanya-baca dan diguard berlapis: query tulis ditolak, tabel kredensial/privasi diblokir, nilai gaji & kredensial disensor otomatis, dan jejak pemeriksaan dicatat di tiap percakapan. Browser reproduksi terkurung di aplikasi ini saja (tidak bisa membuka situs lain), dibatasi jumlah aksi/tangkapan layar, dan selalu ditutup otomatis. Usulan patch hanya berupa diff — file tidak pernah berubah sebelum developer menyetujuinya, dan usulan otomatis ditandai konflik bila file berubah sejak usulan dibuat.",
+            "All inspections are read-only and guarded in layers: write queries are rejected, credential/privacy tables are blocked, salary & credential values are masked automatically, and an inspection note is recorded in each conversation. The reproduction browser is confined to this application only (cannot open other sites), capped in actions/screenshots, and always closed automatically. Patch proposals are diffs only — files never change before a developer approves, and proposals are automatically flagged as conflicting if the file changed since the proposal.",
           )}
         </p>
       </CardContent>

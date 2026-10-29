@@ -1,4 +1,4 @@
-// RekanKerja — Online Support: AI support agent (P1: L1 · P2: L2 · P3: L3).
+// RekanKerja — Online Support: AI support agent (P1: L1 · P2: L2 · P3: L3 · P4: L4).
 // =====================================================================
 // Agen percakapan layanan dukungan internal RekanKerja — berperan sebagai
 // "tim support" yang menjawab laporan/kendala pengguna secara interaktif.
@@ -24,10 +24,15 @@
 //     analyze_screenshot (VLM atas bukti tangkapan layar). Tangkapan
 //     layar giliran disimpan sebagai Attachment pesan AI — bukti yang
 //     TERLIHAT pengguna di utas chat.
+//   · FEAT-SUPPORT-P4 (L4 — usulan patch + approval manusia): tool
+//     propose_patch menyimpan USULAN perbaikan kode (unified diff dihitung
+//     server). File TIDAK pernah ditulis oleh agen — penerapan hanya lewat
+//     keputusan developer (API patches, op support:service/manage) yang
+//     tercatat sebagai pesan [catatan sistem] → agen melihat hasilnya di
+//     giliran berikutnya (umpan balik jujur, tanpa konfabulasi).
 //   · Triase otomatis: setiap balasan final diakhiri marker metadata
 //     [[META:KATEGORI|PRIORITAS]] — di-strip sebelum disimpan; kategori &
 //     prioritas tiket diperbarui (guard whitelist).
-//   · Fase berikutnya (P4): usulan patch (diff) dengan approval developer.
 // =====================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { aiComplete, type AiMessage } from "@/rekankerja/shared/services/ai-provider";
@@ -77,6 +82,14 @@ const TURN_BUDGET_MS = 210_000;
  *  Toleran dekorasi markdown (model kadang menebalkan: **TOOL_CALL:**). */
 const TOOL_NAME_RE = /TOOL_CALL\*{0,2}\s*:\s*\*{0,2}\s*([a-z_]+)/;
 const TOOL_ARGS_LINE_RE = /ARGS\*{0,2}\s*:\s*\*{0,2}\s*([^\n]+)/;
+
+/** Klaim bahwa perbaikan SUDAH diterapkan (P4) — hanya sah bila ada catatan
+ *  sistem persetujuan developer pada percakapan. Pola kata: "sudah/telah
+ *  diterapkan|diaplikasikan|diperbaiki", "perbaikannya sudah aktif", dsb. */
+const APPLIED_CLAIM_RE =
+  /\b(?:telah|sudah)(?:\s+saya)?\s+(?:diterapkan|diaplikasikan|diperbaiki\b[^.!?]*\b(?:ke\s+aplikasi|ke\s+sistem|langsung))|\bperbaikan(?:nya)?\s+(?:telah|sudah)\s+(?:diterapkan|diaktifkan|aktif\b)|\bpatch(?:nya)?\s+(?:telah|sudah)\s+(?:diterapkan|masuk)/i;
+/** Marker persetujuan developer pada pesan [catatan sistem]. */
+const APPROVAL_NOTE_RE = /DISETUJUI oleh/i;
 
 /** Ekstrak blok JSON kurung-seimbang pertama (toleran spasi/prosa).
  *  Return teks JSON + posisi karakter SETELAH blok (untuk pemotongan). */
@@ -140,6 +153,10 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
    · {"action":{"type":"close"}} — akhiri sesi browser (WAJIB setelah reproduksi selesai).`,
     `6. analyze_screenshot — periksa detail visual sebuah tangkapan layar hasil reproduce_browser via AI vision.
    ARGS: {"shot":"label-dari-screenshot","question":"yang ingin diperiksa"}`,
+    `7. propose_patch — ajukan USULAN perbaikan kode (patch) untuk ditinjau developer MANUSIA. TIDAK mengubah file apa pun — usulan disimpan menunggu persetujuan.
+   ARGS: {"path":"src/...","description":"ringkasan singkat perbaikan & alasannya (10-500 karakter, utk developer)","replacements":[{"search":"cuplikan kode PERSIS seperti di file (cukup panjang agar unik)","replace":"kode pengganti"}]}
+   WAJIB: sudah membaca file bersangkutan via read_file dan menyalin cuplikan search PERSIS darinya. Maksimal 3 usulan terbuka per tiket.
+   SETELAH mengajukan: sampaikan jujur bahwa usulan sedang MENUNGGU persetujuan developer — file belum berubah sama sekali.`,
     ``,
     `ATURAN MEMAKAI ALAT:
 - Gunakan HANYA bila fakta diperlukan (diagnosa error/data). Jangan untuk pertanyaan umum/sapaan/cara pakai yang sudah Anda ketahui.
@@ -148,7 +165,8 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
 - PRIVASI: jangan menampilkan data pribadi/gaji karyawan LAIN kecuali perlu untuk diagnosis (utamakan COUNT/agregat). Nilai [DISENSOR] memang disembunyikan — JANGAN mencoba mengakalinya.
 - Jangan memberitahukan pengguna soal protokol/SQL/kode mentah — sampaikan temuan secara manusiawi ("saya periksa langsung datanya: …").
 - JANGAN menyarankan pengguna menjalankan SQL/mengubah database secara manual — arahkan lewat fitur UI yang ada atau eskalasi ke admin/developer.
-- REPRODUKSI BROWSER (alat 5): hanya untuk MENGAMATI & MEMBUKTIKAN laporan kendala UI (bug) — JANGAN mengubah/menghapus data apa pun (hindari tombol Simpan/Hapus/Kirim kecuali itu inti reproduksi yang diminta pengguna). Rangkaian lazim: login → goto → snapshot → aksi pengguna yang dilaporkan → screenshot bukti → (analyze_screenshot bila perlu) → close → laporkan temuan. Bila layanan/akun uji tidak tersedia, katakan terus terang — JANGAN mengaku telah mencoba di browser tanpa hasil TOOL reproduce_browser nyata.`,
+- REPRODUKSI BROWSER (alat 5): hanya untuk MENGAMATI & MEMBUKTIKAN laporan kendala UI (bug) — JANGAN mengubah/menghapus data apa pun (hindari tombol Simpan/Hapus/Kirim kecuali itu inti reproduksi yang diminta pengguna). Rangkaian lazim: login → goto → snapshot → aksi pengguna yang dilaporkan → screenshot bukti → (analyze_screenshot bila perlu) → close → laporkan temuan. Bila layanan/akun uji tidak tersedia, katakan terus terang — JANGAN mengaku telah mencoba di browser tanpa hasil TOOL reproduce_browser nyata.
+- USULAN PATCH (alat 7): hanya untuk bug yang akar masalahnya SUDAH Anda temukan di kode (buktikan dulu via read_file/search_code). Usulan ≠ perbaikan — JANGAN PERNAH bilang "sudah diperbaiki/sudah diterapkan" kecuali ada [catatan sistem] yang menyatakan usulan DISETUJUI oleh developer. Bila developer menolak, terima dengan lapang dada dan jelaskan opsi lain ke pengguna.`,
     ``,
   ].join("\n");
 }
@@ -362,6 +380,26 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
           content: toolsOn
             ? "[CATATAN RUNTIME — PENTING] Anda menulis hasil pemeriksaan padahal BELUM ada pesan [HASIL TOOL …] pada percakapan ini. Itu terlarang (mengarang). Ulangi sekarang: (a) bila perlu fakta, panggil tool dengan protokol TOOL_CALL/ARGS; atau (b) bila tidak perlu, jawab langsung TANPA mengklaim telah memeriksa apa pun."
             : "[CATATAN RUNTIME — PENTING] Mode pemeriksaan sedang DIMATIKAN admin — Anda TIDAK memiliki akses baca ke database/kode giliran ini, sehingga mengklaim \"berdasarkan data\" adalah mengarang. Jawab ulang secara jujur: jelaskan bahwa Anda tidak dapat memeriksa data saat ini, lalu arahkan pengguna ke menu/kolom yang relevan (mis. ESS → sisa cuti) atau minta admin mengaktifkan mode diagnosis.",
+        });
+        continue;
+      }
+      // Guard P4: klaim "perbaikan sudah diterapkan" tanpa catatan persetujuan
+      // developer pada percakapan → tolak sekali, minta kalimat jujur
+      // ("usulan diajukan, menunggu persetujuan developer").
+      const approvalSeen = convo.some(
+        (cm) => cm.role === "user" && APPROVAL_NOTE_RE.test(cm.content),
+      );
+      const claimsApplied = APPLIED_CLAIM_RE.test(raw);
+      if (
+        !forceFinal && !approvalSeen && antiConfabRetry < 1 && claimsApplied &&
+        (usage.size === 0 || usage.has("propose_patch"))
+      ) {
+        antiConfabRetry += 1;
+        convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
+        convo.push({
+          role: "user",
+          content:
+            "[CATATAN RUNTIME — PENTING] Anda menyatakan perbaikan SUDAH diterapkan/diperbaiki, padahal TIDAK ada catatan sistem 'DISETUJUI oleh' developer pada percakapan ini. Usulan patch TIDAK mengubah file sebelum disetujui manusia. Jawab ulang secara jujur: sampaikan bahwa usulan perbaikan telah/akan Anda ajukan (bila benar) dan statusnya MENUNGGU persetujuan developer — atau jelaskan langkah sementara yang bisa dilakukan pengguna.",
         });
         continue;
       }

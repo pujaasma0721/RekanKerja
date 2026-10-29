@@ -16,6 +16,11 @@
 //      aplikasi sendiri; login memakai AKUN UJI admin (bukan pelapor).
 //   6. analyze_screenshot (P3) — analisa VLM atas tangkapan layar hasil
 //      reproduce_browser (bukti ephemeral giliran → dilampirkan ke pesan AI).
+//   7. propose_patch (P4) — simpan USULAN perbaikan kode (path + cuplikan
+//      search/replace persis). Server memverifikasi keunikan cuplikan,
+//      menghitung unified diff + hash isi file; TIDAK menulis apa pun —
+//      penerapan hanya terjadi lewat keputusan developer manusia
+//      (support/services/support-patch.ts · API ticket-patches).
 //
 // PRINSIP KEAMANAN (audit-tested):
 //   · Tool 1-4 murni BACA. Path: relative-only, tanpa "..", deny
@@ -38,6 +43,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { runBrowserTool, analyzeScreenshotTool } from "@/rekankerja/support/services/support-browser";
+import { proposePatchTool } from "@/rekankerja/support/services/support-patch";
 
 // ------------------------------ registry ------------------------------
 
@@ -48,7 +54,7 @@ export interface SupportToolResult {
 }
 
 /** Nama tool yang dikenal (dipakai prompt + parser). */
-export const SUPPORT_TOOL_NAMES = ["search_code", "read_file", "query_db", "read_logs", "reproduce_browser", "analyze_screenshot"] as const;
+export const SUPPORT_TOOL_NAMES = ["search_code", "read_file", "query_db", "read_logs", "reproduce_browser", "analyze_screenshot", "propose_patch"] as const;
 export type SupportToolName = (typeof SUPPORT_TOOL_NAMES)[number];
 
 /** Label ramah untuk pill transparansi di UI (SYSTEM). */
@@ -59,6 +65,7 @@ export const TOOL_LABELS: Record<SupportToolName, string> = {
   read_logs: "log server",
   reproduce_browser: "reproduksi browser",
   analyze_screenshot: "analisa tangkapan layar",
+  propose_patch: "usulan patch",
 };
 
 /** Konteks eksekusi tool (P3): identitas tiket — dipakai tool browser
@@ -104,6 +111,11 @@ export async function runSupportTool(
       return ctx
         ? analyzeScreenshotTool(db, ctx.ticketId, args)
         : { ok: false, output: "Tool browser membutuhkan konteks tiket." };
+    case "propose_patch":
+      // P4 — usulan patch butuh identitas tiket (melekat usulan ke utas).
+      return ctx
+        ? proposePatchTool(db, ctx.ticketId, args)
+        : { ok: false, output: "Tool usulan patch membutuhkan konteks tiket." };
     default:
       return { ok: false, output: `Tool "${name}" tidak dikenal. Yang tersedia: ${SUPPORT_TOOL_NAMES.join(", ")}.` };
   }

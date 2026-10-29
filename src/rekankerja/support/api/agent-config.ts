@@ -1,10 +1,13 @@
-// RekanKerja — Online Support P2/P3 (FEAT-SUPPORT-P2 · P3): konfigurasi agen.
+// RekanKerja — Online Support P2/P3/P4 (FEAT-SUPPORT-P2 · P3 · P4): konfig agen.
 // =====================================================================
-//   GET  → { config: { toolsEnabled, browserEnabled, browserLoginEmail,
-//                      hasBrowserLoginPass } }  (baris ABSEN → default true)
+//   GET  → { config: { toolsEnabled, browserEnabled, patchEnabled,
+//                      browserLoginEmail, hasBrowserLoginPass } }  (baris
+//                      ABSEN → default true)
 //   PUT  → salah satu / gabungan field berikut (minimal satu):
 //          · toolsEnabled: boolean      — mode diagnosis L2 (alat baca).
 //          · browserEnabled: boolean   — mode reproduksi browser L3.
+//          · patchEnabled: boolean     — mode usulan patch L4 (approval
+//                                        tetap di tangan developer manusia).
 //          · browserLoginEmail: string|null — akun uji reproduksi browser.
 //          · browserLoginPass: string  — kata sandi akun uji (WRITE-ONLY:
 //            dienkripsi field-crypto lalu disimpan browserLoginPassEnc;
@@ -23,6 +26,7 @@ interface AgentCfgRow {
   id: string;
   toolsEnabled: boolean;
   browserEnabled: boolean;
+  patchEnabled: boolean;
   browserLoginEmail: string | null;
   browserLoginPassEnc: string | null;
 }
@@ -37,6 +41,7 @@ export async function GET(req: NextRequest) {
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
     let toolsEnabled = true;
     let browserEnabled = true;
+    let patchEnabled = true;
     let browserLoginEmail: string | null = null;
     let hasBrowserLoginPass = false;
     try {
@@ -44,11 +49,12 @@ export async function GET(req: NextRequest) {
       if (row) {
         toolsEnabled = row.toolsEnabled !== false;
         browserEnabled = row.browserEnabled !== false;
+        patchEnabled = row.patchEnabled !== false;
         browserLoginEmail = row.browserLoginEmail ?? null;
         hasBrowserLoginPass = Boolean(row.browserLoginPassEnc);
       }
     } catch { /* tabel belum termigrasi → default ON */ }
-    return NextResponse.json({ config: { toolsEnabled, browserEnabled, browserLoginEmail, hasBrowserLoginPass } });
+    return NextResponse.json({ config: { toolsEnabled, browserEnabled, patchEnabled, browserLoginEmail, hasBrowserLoginPass } });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -61,7 +67,7 @@ export async function PUT(req: NextRequest) {
     const db = m.db;
 
     const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const keys = ["toolsEnabled", "browserEnabled", "browserLoginEmail", "browserLoginPass", "clearBrowserLogin"];
+    const keys = ["toolsEnabled", "browserEnabled", "patchEnabled", "browserLoginEmail", "browserLoginPass", "clearBrowserLogin"];
     if (!keys.some((k) => b[k] !== undefined)) {
       return NextResponse.json(
         { error: `Kirim minimal satu field: ${keys.join(" / ")}` },
@@ -72,6 +78,7 @@ export async function PUT(req: NextRequest) {
     // ---- validasi per field ----
     const toolsEnabled = typeof b.toolsEnabled === "boolean" ? b.toolsEnabled : null;
     const browserEnabled = typeof b.browserEnabled === "boolean" ? b.browserEnabled : null;
+    const patchEnabled = typeof b.patchEnabled === "boolean" ? b.patchEnabled : null;
     let browserLoginEmail: string | null | undefined;
     if (b.browserLoginEmail !== undefined) {
       const email = String(b.browserLoginEmail ?? "").trim().slice(0, 120);
@@ -101,6 +108,7 @@ export async function PUT(req: NextRequest) {
     const data: Record<string, unknown> = {};
     if (toolsEnabled !== null) data.toolsEnabled = toolsEnabled;
     if (browserEnabled !== null) data.browserEnabled = browserEnabled;
+    if (patchEnabled !== null) data.patchEnabled = patchEnabled;
     if (browserLoginEmail !== undefined) data.browserLoginEmail = browserLoginEmail;
     if (browserLoginPassEnc !== undefined) data.browserLoginPassEnc = browserLoginPassEnc;
     if (existing) {
@@ -111,6 +119,7 @@ export async function PUT(req: NextRequest) {
         data: {
           ...(toolsEnabled !== null ? { toolsEnabled } : {}),
           ...(browserEnabled !== null ? { browserEnabled } : {}),
+          ...(patchEnabled !== null ? { patchEnabled } : {}),
           ...(browserLoginEmail !== undefined ? { browserLoginEmail } : {}),
           ...(browserLoginPassEnc !== undefined ? { browserLoginPassEnc } : {}),
         },
@@ -122,6 +131,7 @@ export async function PUT(req: NextRequest) {
       config: {
         toolsEnabled: row ? row.toolsEnabled !== false : true,
         browserEnabled: row ? row.browserEnabled !== false : true,
+        patchEnabled: row ? row.patchEnabled !== false : true,
         browserLoginEmail: row?.browserLoginEmail ?? null,
         hasBrowserLoginPass: Boolean(row?.browserLoginPassEnc),
       },
