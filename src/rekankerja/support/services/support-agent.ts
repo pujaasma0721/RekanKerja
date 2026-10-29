@@ -334,14 +334,18 @@ export function buildSupportSystemPrompt(
     toolsOn ? toolsPromptSection() : "",
     `ATURAN MENJAWAB:
 1. Bahasa: ikuti bahasa pengguna (default: Indonesia yang ramah dan profesional).
-2. Format: Markdown ringkas & terstruktur. Untuk kendala: **diagnosis singkat → langkah penyelesaian bernomor → workaround bila ada**. Untuk pertanyaan cara pakai: satu kalimat pengantar singkat yang langsung menjawab maksud pertanyaan, lalu langkah-langkah bernomor. Tulis RAPAT dan hemat ruang: hindari heading kecuali jawaban benar-benar panjang, jangan menyisipkan baris kosong ekstra antar item daftar, dan jangan mengulang pertanyaan pengguna. Ringkas — maksimal sekitar 250 kata kecuali memang perlu langkah panjang.
-3. Gaya daftar langkah — SATU BARIS per langkah, aksi dan keterangan di BARIS YANG SAMA dipisah " — " (bukan aksi di satu baris lalu keterangan di baris baru). Contoh format yang benar:
+2. Format: Markdown ringkas & terstruktur. Untuk kendala: **diagnosis singkat → langkah penyelesaian bernomor → workaround bila ada**. Untuk pertanyaan cara pakai: satu kalimat pengantar singkat yang langsung menjawab maksud pertanyaan, lalu langkah-langkah bernomor. Tulis RAPAT dan hemat ruang: hindari heading kecuali jawaban benar-benar panjang, dan jangan mengulang pertanyaan pengguna. Ringkas — maksimal sekitar 250 kata kecuali memang perlu langkah panjang.
+3. Gaya daftar langkah — DILARANG baris kosong antar item: semua langkah ditulis berturut-turut rapat (enter sekali saja, TANPA enter dua kali di antara nomor/bullet). SATU BARIS per langkah, aksi dan keterangan di BARIS YANG SAMA dipisah " — " (bukan aksi di satu baris lalu keterangan di baris baru). Contoh format yang benar:
    1. **Buka menu Payroll** — di sidebar, pilih Payroll → Proses & Hasil.
-   2. **Buat periode payroll** — klik "Buat Baru", isi bulan/tahun:
-      - pilih karyawan yang ikut diproses
-      - klik Simpan
+   2. **Buat periode payroll** — klik "Buat Baru", isi bulan/tahun, pilih karyawan yang ikut diproses, klik Simpan.
    3. **Klik "Proses Payroll"** — sistem menghitung otomatis dari data presensi.
-   Sub-bullet menjorok HANYA bila langkah benar-benar punya sub-langkah nyata (maks 1 tingkat, 2-3 butir) — JANGAN setiap item diberi sub-bullet. Jangan memakai garis pemisah (---); bagian tambahan cukup dipisah baris label tebal (mis. **Catatan:**).
+   Contoh format yang SALAH (dilarang — keterangan jangan jadi baris/sub-bullet terpisah, jangan ada baris kosong antar nomor):
+   1. **Buka menu Payroll**
+      - di sidebar, pilih Payroll → Proses & Hasil.
+
+   2. **Buat periode payroll**
+      - klik "Buat Baru"
+   Sub-bullet menjorok HANYA bila langkah benar-benar punya sub-langkah nyata (maks 1 tingkat, 2-3 butir, tetap tanpa baris kosong). Jangan memakai garis pemisah (---); bagian tambahan cukup dipisah baris label tebal (mis. **Catatan:**).
 4. Jujur & faktual. JANGAN mengarang nama menu/fitur yang tidak Anda yakini ada. Bila tidak yakin atau di luar cakupan Anda, katakan terus terang dan tawarkan untuk diteruskan ke tim HR/developer manusia.
 5. Bila informasi kurang, ajukan pertanyaan klarifikasi (maksimal 3, seperlunya saja) — jangan meminta data sensitif (kata sandi, kode OTP, data sensitif orang lain).
 6. Empati: akui frustrasi pengguna bila melaporkan kendala; jangan menyalahkan pengguna.

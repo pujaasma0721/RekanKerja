@@ -29,12 +29,20 @@
 //     artefak spasi-akhir-baris (hard break liar) di luar blok kode fenced.
 //   · P4.5 — compactMd juga membuang garis pemisah (---/***/___) yang berdiri
 //     sendiri di tengah pesan (gaya chat ala WhatsApp Web, bukan dokumen).
+//   · P4.6 — RAPAT TOTAL ala WhatsApp Web: (a) bubble AI whitespace-normal
+//     (pre-wrap menghasilkan baris kosong "hantu" dari \n antar blok markdown),
+//     + plugin remark-breaks agar \n tunggal tetap jadi pindah baris; (b) semua
+//     margin blok markdown NOL & line-height tunggal (leading-snug); (c) daftar
+//     "loose" dirapatkan (baris kosong antar item dibuang) & sub-bullet tunggal
+//     dilebur ke baris langkahnya ("1. **Judul** — keterangan") — satu baris
+//     per langkah, tanpa celah antar baris.
 // Lampiran diunggah via multipart (apiUpload) — server menyimpan lewat
 // attachment-service generik (entityType "SupportMessage").
 // =====================================================================
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import {
   Headset, Plus, Send, Paperclip, X, FileText, Download, ArrowLeft, Search,
   Loader2, CheckCircle2, RotateCcw, ImageIcon, FileDiff, ChevronDown, ChevronRight, ImagePlus,
@@ -203,27 +211,27 @@ function fmtStamp(iso: string, locale: string): string {
   return `${d.toLocaleDateString(locale, { day: "numeric", month: "short" })} ${time}`;
 }
 
-// ---------- render markdown balasan AI (pola ai-chat-widget; P4.2: rapat) ----------
+// ---------- render markdown balasan AI (gaya WhatsApp Web: RAPAT total) ----------
 // useLayoutEffect di client (efek sinkron PRA-PAINT — sticky-scroll presisi:
 // keputusan "user di dasar?" dibaca SEBELUM browser sempat menembakkan event
 // scroll akibat konten bertambah), useEffect di SSR (hindari warning React).
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
+// P4.6 — SEMUA margin blok NOL & line-height tunggal (leading-snug ≈ 1,375):
+// seperti WhatsApp Web — tiap baris berhimpitan tanpa celah; satu-satunya
+// pemisah adalah baris (\n) itu sendiri, bukan margin antar blok.
 const MD_COMPONENTS: Components = {
-  // P4.3: margin heading kini SERAGAM dgn paragraf (my-0.5) & ukuran seragam
-  // 13px — heading lama (### **Judul:**) tampil sebagai baris label tebal
-  // rapat ala "Langkah-langkah penyelesaian:" + list, tanpa ruang ekstra.
-  h1: ({ node, ...p }) => <h3 className="my-0.5 text-[13px] font-bold first:mt-0" {...p} />,
-  h2: ({ node, ...p }) => <h3 className="my-0.5 text-[13px] font-bold first:mt-0" {...p} />,
-  h3: ({ node, ...p }) => <h4 className="my-0.5 text-[13px] font-semibold first:mt-0" {...p} />,
-  h4: ({ node, ...p }) => <h4 className="my-0.5 text-[13px] font-semibold first:mt-0" {...p} />,
-  p: ({ node, ...p }) => <p className="my-0.5 first:my-0 last:my-0" {...p} />,
-  ul: ({ node, ...p }) => <ul className="my-0.5 list-disc space-y-0 pl-4" {...p} />,
-  ol: ({ node, ...p }) => <ol className="my-0.5 list-decimal space-y-0 pl-4" {...p} />,
-  // [&>p]:my-0 — daftar "loose" (markdown berbaris-kosong antar item) tidak
-  // boleh mendapat margin ganda dari <p> di dalam tiap <li>.
-  li: ({ node, ...p }) => <li className="leading-snug [&>p]:my-0" {...p} />,
+  h1: ({ node, ...p }) => <h3 className="my-0 text-[13px] font-bold leading-snug first:mt-0" {...p} />,
+  h2: ({ node, ...p }) => <h3 className="my-0 text-[13px] font-bold leading-snug first:mt-0" {...p} />,
+  h3: ({ node, ...p }) => <h4 className="my-0 text-[13px] font-semibold leading-snug first:mt-0" {...p} />,
+  h4: ({ node, ...p }) => <h4 className="my-0 text-[13px] font-semibold leading-snug first:mt-0" {...p} />,
+  p: ({ node, ...p }) => <p className="my-0 leading-snug" {...p} />,
+  ul: ({ node, ...p }) => <ul className="my-0 list-disc pl-4" {...p} />,
+  ol: ({ node, ...p }) => <ol className="my-0 list-decimal pl-4" {...p} />,
+  // [&>p]:my-0 — jaring pengaman bila daftar "loose" lolos normalisasi: <p>
+  // di dalam <li> tidak boleh menambah margin ganda.
+  li: ({ node, ...p }) => <li className="my-0 leading-snug [&>p]:my-0" {...p} />,
   table: ({ node, ...p }) => (
     <div className="my-1 overflow-x-auto">
       <table className="w-full border-collapse text-[11.5px]" {...p} />
@@ -234,18 +242,58 @@ const MD_COMPONENTS: Components = {
   strong: ({ node, ...p }) => <strong className="font-semibold" {...p} />,
   a: ({ node, ...p }) => <a className="text-brand underline underline-offset-2" target="_blank" rel="noreferrer" {...p} />,
   code: ({ node, ...p }) => <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] dark:bg-slate-900" {...p} />,
-  pre: ({ node, ...p }) => <pre className="my-1 overflow-x-auto rounded-lg bg-slate-900 p-2 text-[11px] text-slate-100" {...p} />,
-  blockquote: ({ node, ...p }) => <blockquote className="my-0.5 border-l-2 border-slate-300 pl-2 text-slate-500 dark:border-slate-600 dark:text-slate-400" {...p} />,
-  hr: () => <hr className="my-1.5 border-slate-200 dark:border-slate-700" />,
+  pre: ({ node, ...p }) => <pre className="my-1 overflow-x-auto rounded-lg bg-slate-900 p-2 text-[11px] leading-relaxed" {...p} />,
+  blockquote: ({ node, ...p }) => <blockquote className="my-0 border-l-2 border-slate-300 pl-2 text-slate-500 dark:border-slate-600 dark:text-slate-400" {...p} />,
+  hr: () => <hr className="my-1 border-slate-200 dark:border-slate-700" />,
 };
 
-/** P4.3/P4.5 — normalisasi markdown balasan AI supaya RAPAT saat dirender:
+/** P4.6 — lebur sub-bullet TUNGGAL ke baris langkah induknya. Model sering
+ *  menulis "1. **Judul**\n   - keterangan." — dua baris utk satu langkah.
+ *  Digabung jadi SATU baris format wajib "1. **Judul** — keterangan."
+ *  (persis gaya yang dipreskripsikan system prompt agen). Sub-bullet ganda
+ *  (2+) tetap dipertahankan (menjorok, rapat). Baris indented tanpa marker
+ *  (teks sambungan) tidak tersentuh. */
+function flattenSingleSubBullets(src: string): string {
+  const lines = src.split("\n");
+  const out: string[] = [];
+  const ITEM_RE = /^([ \t]*)([-*+]|\d+[.)])[ \t]+(.*)$/;
+  for (let i = 0; i < lines.length; i++) {
+    const m = ITEM_RE.exec(lines[i]);
+    if (m) {
+      const [, indent, marker, content] = m;
+      // kumpulkan baris sub-item menjorok berikutnya (punya marker sendiri)
+      const subs: string[] = [];
+      let j = i + 1;
+      while (j < lines.length) {
+        const sm = ITEM_RE.exec(lines[j]);
+        if (!sm || sm[1].length <= indent.length) break;
+        subs.push(sm[3]);
+        j++;
+      }
+      if (subs.length === 1) {
+        out.push(`${indent}${marker} ${content} — ${subs[0]}`);
+        i = j - 1;
+        continue;
+      }
+    }
+    out.push(lines[i]);
+  }
+  return out.join("\n");
+}
+
+/** P4.3–P4.6 — normalisasi markdown balasan AI supaya RAPAT saat dirender
+ *  (target: satu-baris-per-langkah ala WhatsApp Web):
  *  · spasi/tab di AKHIR baris dibuang — artefak "hard break" markdown
  *    (dua spasi + enter) yang meninggalkan <br> liar di tengah paragraf/
  *    item daftar sehingga tiap baris tampak punya ruang kosong di bawahnya;
  *  · garis pemisah (--- / *** / ___) yang berdiri sendiri DI TENGAH pesan
  *    dibuang — gaya chat (ala WhatsApp Web), bukan dokumen; setext heading
  *    (Teks lalu --- TANPA baris kosong di antaranya) aman tak tersentuh;
+ *  · P4.6: baris kosong DI ANTARA item daftar dibuang — daftar "loose"
+ *    (blank line antar nomor) membuat tiap item dibungkus <p> ekstra yang
+ *    menumpuk tinggi baris; setelah dirapatkan daftar menjadi "tight";
+ *  · P4.6: sub-bullet tunggal di bawah langkah bernomor dilebur ke baris
+ *    langkah ("1. **Judul** — keterangan") — satu baris per langkah.
  *  · blok kode fenced (```…```) DILINDUNGI — karakter/indentasi kode tak
  *    tersentuh (pemisahan via split capture-group: ganjil = di dalam fence).
  *  Berlaku utk semua pesan — termasuk riwayat lama ber-format longgar —
@@ -253,13 +301,17 @@ const MD_COMPONENTS: Components = {
 function compactMd(md: string): string {
   return md
     .split(/(```[\s\S]*?```)/g)
-    .map((part, i) =>
-      i % 2 === 1
-        ? part
-        : part
-            .replace(/[ \t]+$/gm, "")
-            .replace(/\n[ \t]*\n[ \t]*(?:-{3,}|\*{3,}|_{3,})[ \t]*(?=\n)/g, "\n"),
-    )
+    .map((part, i) => (i % 2 === 1 ? part : flattenSingleSubBullets(
+      part
+        .replace(/[ \t]+$/gm, "")
+        .replace(/\n[ \t]*\n[ \t]*(?:-{3,}|\*{3,}|_{3,})[ \t]*(?=\n)/g, "\n")
+        // baris kosong antar item daftar (marker -,*,+,N.,N)) → dibuang; item
+        // berikutnya boleh menjorok (sub-bullet) — tetap bagian utas daftar.
+        .replace(
+          /^([ \t]*(?:[-*+] |\d+[.)] ).*)\n(?:[ \t]*\n)+(?=[ \t]*(?:[-*+] |\d+[.)] ))/gm,
+          "$1\n",
+        ),
+    )))
     .join("");
 }
 
@@ -385,14 +437,18 @@ function ChatBubble({ m, locale, accent }: { m: MessageRow; locale: string; acce
         {m.body && (
           <div
             className={cn(
-              "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[13px] leading-normal shadow-sm",
+              "break-words rounded-2xl px-3.5 py-2 text-[13px] leading-snug shadow-sm",
               mine
-                ? "rounded-br-md text-white"
-                : "rounded-bl-md border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+                ? "whitespace-pre-wrap rounded-br-md text-white"
+                : // P4.6: bubble AI TIDAK pre-wrap — react-markdown menyisakan
+                  // teks \n antar blok; dgn pre-wrap tiap \n itu jadi baris kosong
+                  // hantu ±20px. Normal + remark-breaks → newline tetap pindah
+                  // baris (gaya WhatsApp) tanpa celah hantu.
+                  "whitespace-normal rounded-bl-md border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
             )}
             style={mine ? { background: accent } : undefined}
           >
-            {mine ? m.body : <ReactMarkdown components={MD_COMPONENTS} remarkPlugins={[remarkGfm]}>{compactMd(m.body)}</ReactMarkdown>}
+            {mine ? m.body : <ReactMarkdown components={MD_COMPONENTS} remarkPlugins={[remarkGfm, remarkBreaks]}>{compactMd(m.body)}</ReactMarkdown>}
           </div>
         )}
         {m.attachments.length > 0 && (
