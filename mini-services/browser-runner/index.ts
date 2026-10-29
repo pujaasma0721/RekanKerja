@@ -129,8 +129,6 @@ async function getBrowser() {
     args: [
       "--no-sandbox",
       "--disable-dev-shm-usage",
-      "--no-zygote",
-      "--single-process",
       "--disable-gpu",
       "--disable-software-rasterizer",
     ],
