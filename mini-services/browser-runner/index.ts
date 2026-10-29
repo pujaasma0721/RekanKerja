@@ -119,7 +119,17 @@ async function safeUrl(s: Session): Promise<string> {
 async function getBrowser() {
   if (browser) return browser;
   const { chromium } = await playwright();
-  browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  browser = await chromium.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-dev-shm-usage",
+      "--no-zygote",
+      "--single-process",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+    ],
+  });
   lastBrowserUse = Date.now();
   return browser;
 }
