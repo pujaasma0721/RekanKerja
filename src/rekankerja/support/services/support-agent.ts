@@ -62,6 +62,12 @@
 //     memuat arahan "hubungi tim IT/administrator …" — REDIRECT_IT_RE,
 //     dikalibrasi dari jawaban buruk nyata tiket SP-2026-001: "Hubungi
 //     administrator tenant Anda… laporkan ke tim HR/IT internal Anda").
+//   · GROUNDING-KODE/DB — "faham kode & struktur database" = SELALU via
+//     hasil tool, bukan ingatan model: prompt menunjuk SUMBER KEBENARAN
+//     struktur DB (katalog information_schema + prisma/schema-tenant.prisma
+//     sebagai definisi resmi) + larangan mutlak menebak nama tabel/kolom;
+//     guard verifikasi-dulu kini berjalan selama alat baca aktif — browser
+//     opsional (bila mati, nudge mengarahkan ke read_logs/query_db saja).
 // =====================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
@@ -321,7 +327,7 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
    ARGS: {"path":"src/...","startLine":1,"endLine":120}
 3. query_db — SATU pernyataan SELECT read-only ke basis data perusahaan Anda (maks 200 baris; kolom rahasia/otomatis disensor [DISENSOR]; tabel rahasia ditolak).
    ARGS: {"sql":"SELECT ..."}
-   PENTING: nama tabel & kolom PascalCase WAJIB kutip ganda: FROM "Employee" WHERE "fullName" ILIKE '%budi%'. Tabel yang sering relevan: Employee, EmployeeAssignment, OrgUnit, Position, LeaveRequest, LeaveBalance, AttendanceDaily, AttendanceClockLog, OvertimeOrder, PayrollRun, PayrollRunLine, PayrollRunItem, TravelRequest, TravelClaim, BenefitClaim, Onboarding, Offboarding, PersonnelAction, ApprovalStep, ActivityLog, EmailLog, Notification, Applicant, JobOpening. Daftar lengkap kolom: information_schema.columns.`,
+   PENTING: nama tabel & kolom PascalCase WAJIB kutip ganda: FROM "Employee" WHERE "fullName" ILIKE '%budi%'. Tabel yang sering relevan: Employee, EmployeeAssignment, OrgUnit, Position, LeaveRequest, LeaveBalance, AttendanceDaily, AttendanceClockLog, OvertimeOrder, PayrollRun, PayrollRunLine, PayrollRunItem, TravelRequest, TravelClaim, BenefitClaim, Onboarding, Offboarding, PersonnelAction, ApprovalStep, ActivityLog, EmailLog, Notification, Applicant, JobOpening. Daftar itu hanya contekan cepat — BUKAN jaminan. Bila ragu nama tabel/kolom ada, atau query gagal "does not exist": PERIKSA struktur ASLINYA dulu, jangan menebak — (a) query katalog: SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_name='Employee' ORDER BY ordinal_position; (b) definisi resmi seluruh tabel/kolom/relasi ada di file prisma/schema-tenant.prisma — cari lewat search_code (query nama model/tabel, glob "schema-tenant") lalu baca jendela barisnya via read_file.`,
     `4. read_logs — baca baris terakhir log server aplikasi (opsional: filter kata kunci).
    ARGS: {"filter":"kata kunci","lines":100}`,
     `5. reproduce_browser — jalankan SATU AKSI browser headless untuk ME-REPRODUKSI laporan pengguna di aplikasi (bukti nyata, bukan tebakan). Sesi browser bertahan ANTAR PANGGILAN (beberapa menit) — selesaikan rangkaian langkah lalu tutup. Aksi yang tersedia (kirim SATU saja per TOOL_CALL, di field "action"):
@@ -341,10 +347,10 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
    SETELAH mengajukan: sampaikan jujur bahwa usulan sedang MENUNGGU persetujuan developer — file belum berubah sama sekali.`,
     ``,
     `ATURAN MEMAKAI ALAT:
-- Gunakan HANYA bila fakta diperlukan (diagnosa error/data). Jangan untuk pertanyaan umum/sapaan/cara pakai yang sudah Anda ketahui.
+- Gunakan HANYA bila fakta diperlukan (diagnosa error, kondisi data terkini, struktur database, perilaku internal aplikasi). Jangan untuk pertanyaan umum/sapaan/cara pakai yang memang sudah Anda ketahui.
 - WAJIB VERIFIKASI DULU: saat pengguna MELAPORKAN error/kendala nyata yang bisa diamati di aplikasi (gagal login, gagal simpan, pesan error muncul, halaman error/blank), Anda WAJIB mencoba MEREPRODUKSI-nya lewat reproduce_browser SEBELUM menulis diagnosis — APA PUN isi teks errornya, sekali pun penyebabnya tampak sudah jelas bagi Anda. Pertanyaan yang harus dijawab bukan "apa arti error ini" tapi "BENARKAH error itu masih terjadi sekarang?": login akun uji → ulangi aksi pelapor → amati hasilnya → screenshot bukti bila relevan. Bila reproduksi menunjukkan TIDAK ada error (aksi berhasil), laporkan jujur — kendala kemungkinan spesifik akun/perangkat/jaringan pelapor. Error yang TIDAK teramati di UI (mis. email tak terkirim, job latar belakang) → verifikasi lewat read_logs / query_db.
 - Satu TOOL_CALL per giliran; berhenti begitu informasi cukup (maks ${MAX_TOOL_CALLS} panggilan) — jangan menebak-nebak iseng.
-- Hasil "[HASIL TOOL …]" adalah SATU-SATU sumber kebenaran tentang kode & data — kutip darinya secara harfiah (path file, baris, angka). Bila hasil TIDAK menemukan apa yang dicari, KATAKAN terus terang "tidak ditemukan" — JANGAN PERNAH mengarang nama file/lokasi/isi kode/angka yang tidak ada di hasil.
+- Hasil "[HASIL TOOL …]" adalah SATU-SATU sumber kebenaran tentang kode & data — termasuk struktur database: jangan pernah mendeskripsikan tabel/kolom/relasi yang belum Anda lihat pada hasil giliran ini. Kutip darinya secara harfiah (path file, baris, angka). Bila hasil TIDAK menemukan apa yang dicari, KATAKAN terus terang "tidak ditemukan" — JANGAN PERNAH mengarang nama file/lokasi/isi kode/angka yang tidak ada di hasil.
 - PRIVASI: jangan menampilkan data pribadi/gaji karyawan LAIN kecuali perlu untuk diagnosis (utamakan COUNT/agregat). Nilai [DISENSOR] memang disembunyikan — JANGAN mencoba mengakalinya.
 - Jangan memberitahukan pengguna soal protokol/SQL/kode mentah — sampaikan temuan secara manusiawi ("saya periksa langsung datanya: …").
 - JANGAN menyarankan pengguna menjalankan SQL/mengubah database secara manual — arahkan lewat fitur UI yang ada; eskalasi mengikuti MODEL OPERASI SAAS (akses/data → admin tenant; infrastruktur/bug kode → tim platform RekanKerja lewat tiket ini — BUKAN tim IT pengguna).
@@ -664,21 +670,25 @@ async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentT
           continue;
         }
         // P4.7 — guard VERIFIKASI DULU: pengguna melaporkan error nyata,
-        // tools aktif, tetapi model menjawab final TANPA menjalankan alat
+        // alat baca aktif, tetapi model menjawab final TANPA menjalankan alat
         // apa pun (kecenderungan provider tertentu: diagnosis langsung dari
-        // teks error) → dorong SEKALI untuk verifikasi nyata sebelum menjawab;
-        // bila model tetap tidak memanggil tool setelah dorongan, jawabannya
-        // diterima apa adanya (tidak di-loop selamanya).
+        // teks error) → dorong SEKALI untuk verifikasi nyata sebelum menjawab.
+        // GROUNDING-KODE/DB: berjalan selama toolsOn — reproduce_browser
+        // opsional (browserOn hanya menentukan apakah nudge menawarkannya;
+        // bila mati, arahkan read_logs/query_db). Bila model tetap tidak
+        // memanggil tool setelah dorongan, jawabannya diterima apa adanya
+        // (tidak di-loop selamanya).
         if (
-          !forceFinal && browserOn && usage.size === 0 && verifyNudgeRetry < 1 &&
+          !forceFinal && toolsOn && usage.size === 0 && verifyNudgeRetry < 1 &&
           ERROR_REPORT_RE.test(lastUserBody)
         ) {
           verifyNudgeRetry += 1;
           convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
           convo.push({
             role: "user",
-            content:
-              "[CATATAN RUNTIME — PENTING] Pengguna MELAPORKAN error/kendala nyata, dan Anda belum menjalankan ALAT APA PUN giliran ini — jangan mendiagnosis hanya dari teks error. Verifikasi dulu apakah error itu BENAR-BENAR masih terjadi sekarang: bila teramati di aplikasi (login/gagal simpan/pesan error di layar), panggil reproduce_browser (login akun uji → ulangi aksi pelapor → amati → screenshot bila perlu); bila tidak teramati di UI (mis. email latar belakang), pakai read_logs atau query_db. Setelah ada [HASIL TOOL …], tulis jawaban final Anda yang kini berbasis bukti.",
+            content: browserOn
+              ? "[CATATAN RUNTIME — PENTING] Pengguna MELAPORKAN error/kendala nyata, dan Anda belum menjalankan ALAT APA PUN giliran ini — jangan mendiagnosis hanya dari teks error. Verifikasi dulu apakah error itu BENAR-BENAR masih terjadi sekarang: bila teramati di aplikasi (login/gagal simpan/pesan error di layar), panggil reproduce_browser (login akun uji → ulangi aksi pelapor → amati → screenshot bila perlu); bila tidak teramati di UI (mis. email latar belakang), pakai read_logs atau query_db. Setelah ada [HASIL TOOL …], tulis jawaban final Anda yang kini berbasis bukti."
+              : "[CATATAN RUNTIME — PENTING] Pengguna MELAPORKAN error/kendala nyata, dan Anda belum menjalankan ALAT APA PUN giliran ini — jangan mendiagnosis hanya dari teks error. Verifikasi dulu lewat alat yang tersedia: read_logs (jejak error server — sering memuat pesan persis yang dilaporkan beserta waktu kejadiannya) atau query_db (kondisi data terkini). Setelah ada [HASIL TOOL …], tulis jawaban final Anda yang kini berbasis bukti.",
           });
           continue;
         }
