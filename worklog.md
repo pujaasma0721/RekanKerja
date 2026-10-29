@@ -9002,3 +9002,31 @@ Task: dua permintaan user atas percakapan "haloo apa" (SP-2026-003): (1) "cek ja
 
 Stage Summary:
 - P4.5 SELESAI: balasan AI kini bergaya chat WhatsApp Web (rapat, tanpa pemisah/heading, langkah satu-baris) — berlaku retroaktif ke seluruh riwayat; dan agen HANYA menjawab pertanyaan fitur sesuai HAK AKSES menu si penanya — di luar akses → ditolak sopan tanpa membocorkan isi menu (contoh: user tanpa akses Payroll tidak bisa meminta cara memproses payroll), sementara super admin bebas bertanya apa pun.
+
+---
+
+## 2026-10-29 — FEAT-SUPPORT-P4.6 (Online Support): rollback instruksi format agresif P4.5 → gaya terstruktur klasik + poles
+
+Task: umpan balik user atas P4.5: "anda memperbaiki ini tadi … tapi setelah saya test makin parah, masih lumayan yang sebelumnya, cuma butuh sedikit rapi lagi agar sempurna, tapi anda membuat semua berantakan".
+
+### Diagnosis (tes user = "coba ulangi" di SP-2026-003, 03:33 UTC, pasca-push P4.5)
+- Instruksi "GAYA CHAT ala WhatsApp Web" P4.5 (TANPA pembuka, langkah satu-baris ekstrem) membuat model: (a) membuang kalimat pengantar — jawaban langsung mulai dgn "1." (terkesan dingin/robotik), (b) memberi sub-bullet di SETIAP item bernomor — terfragmentasi, mata harus lompat-lompat, (c) gap antar item melebar karena tiap klaster sub-bullet. VLM konfirmasi: "fragmented/exploded view, jarring robotic transition" vs jawaban lama yang justru lebih rapi.
+- Kesimpulan: format TERSTRUKTUR klasik (pengantar singkat + langkah bersih) memang yang dimaui user sejak awal — keluhan asli hanya (1) garis pemisah --- dgn gap dan (2) baris kosong ekstra antar item.
+
+### Perubahan (support-agent.ts — ATURAN MENJAWAB #2/#3)
+- REVERT ke gaya terstruktur klasik: "satu kalimat pengantar singkat yang langsung menjawab maksud pertanyaan, lalu langkah-langkah bernomor" + "diagnosis singkat → langkah → workaround" (teks P4.2) — intro kembali diizinkan.
+- FEW-SHOT contoh format (paling efektif utk model): aksi + keterangan SATU BARIS dipisah " — " (bukan aksi di baris tersendiri lalu keterangan di baris baru — kebiasaan lama model yang bikin item tinggi); sub-bullet hanya bila ada sub-langkah nyata (maks 2-3 butir), JANGAN setiap item; tanpa ---; bagian tambahan = baris label tebal (**Catatan:**).
+- DIPERTAHANKAN dari P4.5 (tidak terdampak): sanitizer & compactMd buang --- tengah (retroaktif), scope HAK AKSES penanya (blok terpisah dari ATURAN MENJAWAB), struktur prompt akses adaptif.
+
+### Verifikasi
+- GATES: tsc -p tsconfig.p45check.json EXIT 0 · bun run lint 0 error (12 warning pre-existing) · dev.log bersih.
+- E2E BROWSER (agent-browser, hrd@mii.co.id, tiket segar "Uji P4.6 format v2" — hindari anchor riwayat):
+  1. "bagaimana cara process payroll" → pengantar + 4 langkah SATU BARIS (36px/item, aksi — keterangan), sub-bullet HANYA di item 2 (2 butir), **Catatan:** inline; 0 hr/heading/br. VLM: "tidy, professional, easy to read, fits WhatsApp/web chat style" ✓ (screenshot 01).
+  2. "bagaimana cara mengajukan cuti tahunan" → konsisten: 3 langkah satu-baris + 1 item form 4 sub-butir (memang layak multi-field), Catatan inline, 0 hr/heading ✓.
+  3. Thread lama "haloo apa" (7 balasan AI, termasuk 2 jawaban format lama & tes user): 0 hr · 0 heading · render aman (retroaktif compactMd) ✓ (screenshot 02).
+  4. 0 page error · 0 console error.
+- PEMULIHAN DATA UJI: SP-2026-004/005 ("Uji P4.6%") dihapus; orphan attachment 0. Tiket user tak tersentuh.
+- Artefak: audit/support-p4.6/ (3 screenshot: 00-tes-user-berantakan, 01-format-benar, 02-haloo-retroaktif).
+
+Stage Summary:
+- P4.6 SELESAI: format jawaban AI dikembalikan ke gaya terstruktur klasik yang user anggap lumayan — kini dgn poles yang tepat sasaran (sesuai contoh yang user berikan sendiri): pengantar singkat, tiap langkah SATU baris "aksi — keterangan", sub-bullet hemat (hanya bila perlu), tanpa garis pemisah, tanpa heading, label tebal utk catatan. Fitur hak akses penanya tetap berjalan.

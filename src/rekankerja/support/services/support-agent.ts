@@ -33,12 +33,16 @@
 //   · Triase otomatis: setiap balasan final diakhiri marker metadata
 //     [[META:KATEGORI|PRIORITAS]] — di-strip sebelum disimpan; kategori &
 //     prioritas tiket diperbarui (guard whitelist).
-//   · FEAT-SUPPORT-P4.5 — GAYA CHAT ala WhatsApp Web (rapat, tanpa pemisah
-//     dokumen) + SCOPE HAK AKSES: jawaban AI dibatasi pada menu yang memang
-//     diakses PENANYA (pembuat tiket) — pertanyaan soal menu di luar aksesnya
-//     ditolak sopan tanpa membocorkan isi fiturnya (pola resolveAiActor
-//     ai-chat-service, dilihat dari sisi tiket: AppUser → UserMenuAccess,
-//     super admin AppUser/platform terverifikasi silang per-schema).
+//   · FEAT-SUPPORT-P4.5/P4.6 — FORMAT RAPAT (tanpa garis pemisah --- di tengah
+//     jawaban; langkah bernomor satu-baris; sub-bullet hemat) + SCOPE HAK
+//     AKSES: jawaban AI dibatasi pada menu yang memang diakses PENANYA
+//     (pembuat tiket) — pertanyaan soal menu di luar aksesnya ditolak sopan
+//     tanpa membocorkan isi fiturnya (pola resolveAiActor ai-chat-service,
+//     dilihat dari sisi tiket: AppUser → UserMenuAccess, super admin
+//     AppUser/platform terverifikasi silang per-schema). P4.6: instruksi
+//     format dikembalikan ke gaya terstruktur klasik (pengantar singkat +
+//     langkah bersih) — versi "gaya WhatsApp" P4.5 ternyata membuat model
+//     membuang pengantar & memberi sub-bullet di tiap item (berantakan).
 // =====================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
@@ -330,16 +334,19 @@ export function buildSupportSystemPrompt(
     toolsOn ? toolsPromptSection() : "",
     `ATURAN MENJAWAB:
 1. Bahasa: ikuti bahasa pengguna (default: Indonesia yang ramah dan profesional).
-2. GAYA CHAT ala WhatsApp Web — RINGKAS & RAPAT (WAJIB):
-   - Balasan adalah PESAN CHAT, bukan dokumen/artikel: TANPA heading (###), TANPA garis pemisah (---), TANPA "judul seksi" yang berdiri sendiri (mis. baris "**Catatan:**" terpisah dari isinya).
-   - Langsung ke isi: tanpa kalimat pembuka basi ("berikut langkah-langkahnya:", "tentu, saya bantu") dan tanpa penutup basi ("semoga membantu", "butuh bantuan lagi?").
-   - Langkah = daftar bernomor SATU BARIS per langkah, format: 1. **Aksi** — keterangan singkat. DILARANG menyisipkan baris kosong antar item daftar; sub-bullet menjorok hanya bila sungguh perlu (maks 1 tingkat).
-   - Ringkas: ±150 kata kecuali langkah teknis yang memang panjang.
-3. Jujur & faktual. JANGAN mengarang nama menu/fitur yang tidak Anda yakini ada. Bila tidak yakin atau di luar cakupan Anda, katakan terus terang dan tawarkan untuk diteruskan ke tim HR/developer manusia.
-4. Bila informasi kurang, ajukan pertanyaan klarifikasi (maksimal 3, seperlunya saja) — jangan meminta data sensitif (kata sandi, kode OTP, data sensitif orang lain).
-5. Empati: akui frustrasi pengguna bila melaporkan kendala; jangan menyalahkan pengguna.
-6. Bila masalah tampak selesai, sarankan pengguna menandai percakapan "Selesai" (tombol di atas chat).
-7. Pesan berisi hanya lampiran (tangkapan layar, tanpa teks) — konteks "[Konteks lampiran gambar yang dianalisa AI vision]" otomatis menyertainya: tanggapi isinya secara natural (mis. pesan error yang terlihat, halaman mana), lalu lanjuti layaknya laporan biasa.`,
+2. Format: Markdown ringkas & terstruktur. Untuk kendala: **diagnosis singkat → langkah penyelesaian bernomor → workaround bila ada**. Untuk pertanyaan cara pakai: satu kalimat pengantar singkat yang langsung menjawab maksud pertanyaan, lalu langkah-langkah bernomor. Tulis RAPAT dan hemat ruang: hindari heading kecuali jawaban benar-benar panjang, jangan menyisipkan baris kosong ekstra antar item daftar, dan jangan mengulang pertanyaan pengguna. Ringkas — maksimal sekitar 250 kata kecuali memang perlu langkah panjang.
+3. Gaya daftar langkah — SATU BARIS per langkah, aksi dan keterangan di BARIS YANG SAMA dipisah " — " (bukan aksi di satu baris lalu keterangan di baris baru). Contoh format yang benar:
+   1. **Buka menu Payroll** — di sidebar, pilih Payroll → Proses & Hasil.
+   2. **Buat periode payroll** — klik "Buat Baru", isi bulan/tahun:
+      - pilih karyawan yang ikut diproses
+      - klik Simpan
+   3. **Klik "Proses Payroll"** — sistem menghitung otomatis dari data presensi.
+   Sub-bullet menjorok HANYA bila langkah benar-benar punya sub-langkah nyata (maks 1 tingkat, 2-3 butir) — JANGAN setiap item diberi sub-bullet. Jangan memakai garis pemisah (---); bagian tambahan cukup dipisah baris label tebal (mis. **Catatan:**).
+4. Jujur & faktual. JANGAN mengarang nama menu/fitur yang tidak Anda yakini ada. Bila tidak yakin atau di luar cakupan Anda, katakan terus terang dan tawarkan untuk diteruskan ke tim HR/developer manusia.
+5. Bila informasi kurang, ajukan pertanyaan klarifikasi (maksimal 3, seperlunya saja) — jangan meminta data sensitif (kata sandi, kode OTP, data sensitif orang lain).
+6. Empati: akui frustrasi pengguna bila melaporkan kendala; jangan menyalahkan pengguna.
+7. Bila masalah tampak selesai, sarankan pengguna menandai percakapan "Selesai" (tombol di atas chat).
+8. Pesan berisi hanya lampiran (tangkapan layar, tanpa teks) — konteks "[Konteks lampiran gambar yang dianalisa AI vision]" otomatis menyertainya: tanggapi isinya secara natural (mis. pesan error yang terlihat, halaman mana), lalu lanjuti layaknya laporan biasa.`,
     ``,
     `FORMAT WAJIB DI AKHIR BALASAN (triase internal — TIDAK boleh dijelaskan ke pengguna, TIDAK ditulis di tempat lain):
 Akhiri SETIAP balasan dengan tepat satu baris metadata pola:
