@@ -13,9 +13,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 import {
-  resolveSupportActor, supportActorDenied, ticketAccess,
+  resolveSupportActor, supportActorDenied, supportServiceDenied, ticketAccess,
 } from "@/rekankerja/support/api/support-auth";
 import { agentRespond, AgentTurnInProgressError } from "@/rekankerja/support/services/support-agent";
+import { supportQuotaLeft, logSupportTurn } from "@/rekankerja/support/services/support-entitlement";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -23,6 +24,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const a = await resolveSupportActor(req);
     const denied = supportActorDenied(a);
     if (denied || !a) return denied ?? NextResponse.json({ error: "unknown" }, { status: 500 });
+    const svc = await supportServiceDenied(a); // P5 — gate layanan berbayar
+    if (svc) return svc;
     const ticket = await a.db.supportTicket.findUnique({ where: { id } });
     const access = await ticketAccess(req, a, ticket);
     if (!access.ok) return access.res;
@@ -62,7 +65,33 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       );
     }
 
+    // P5 — KUOTA LAYANAN BERBAYAR: jumlah giliran AI per bulan kalender dibatasi
+    // entitlement tenant (0 = tanpa batas). Kuota habis → 402-friendly: pesan
+    // user TIDAK hilang (sudah tersimpan), giliran ditolak sampai kuota bulan
+    // berikutnya / pemilik aplikasi menaikkannya.
+    if (a.tenantId) {
+      const left = await supportQuotaLeft(a.tenantId);
+      if (left !== null && left <= 0) {
+        return NextResponse.json(
+          {
+            error:
+              "Kuota balasan AI layanan support bulan ini sudah habis untuk workspace Anda. " +
+              "Pesan Anda tetap tersimpan dan akan bisa dibalas setelah kuota bulan berikutnya diaktifkan (atau ditingkatkan pemilik aplikasi).",
+            code: "SUPPORT_QUOTA_EXHAUSTED",
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     const result = await agentRespond(a.db, t);
+
+    // P5 — atribusi pemakaian per giliran ke tenant (dasar kuota bulanan &
+    // penagihan layanan berbayar). Pesan AI sudah tersimpan — kegagalan log
+    // tidak boleh mengubah respons sukses (logSupportTurn best-effort).
+    if (a.tenantId) {
+      await logSupportTurn(a.tenantId, t.ticketNo, result.usage);
+    }
     return NextResponse.json(
       { message: result.message, category: result.category, priority: result.priority },
       { status: 201 },

@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 import {
-  resolveSupportActor, supportActorDenied, ticketAccess,
+  resolveSupportActor, supportActorDenied, supportServiceDenied, ticketAccess,
 } from "@/rekankerja/support/api/support-auth";
 import {
   saveAttachment, attachmentsByEntityIds, MAX_ATTACHMENT_BYTES,
@@ -40,6 +40,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const a = await resolveSupportActor(req);
     const denied = supportActorDenied(a);
     if (denied || !a) return denied ?? NextResponse.json({ error: "unknown" }, { status: 500 });
+    const svc = await supportServiceDenied(a); // P5 — gate layanan berbayar
+    if (svc) return svc;
     const ticket = await a.db.supportTicket.findUnique({ where: { id } });
     const access = await ticketAccess(req, a, ticket);
     if (!access.ok) return access.res;
@@ -69,6 +71,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const a = await resolveSupportActor(req);
     const denied = supportActorDenied(a);
     if (denied || !a) return denied ?? NextResponse.json({ error: "unknown" }, { status: 500 });
+    const svc = await supportServiceDenied(a); // P5 — gate layanan berbayar
+    if (svc) return svc;
     const ticket = await a.db.supportTicket.findUnique({ where: { id } });
     const access = await ticketAccess(req, a, ticket);
     if (!access.ok) return access.res;

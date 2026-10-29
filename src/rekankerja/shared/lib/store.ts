@@ -13,7 +13,8 @@ export type ModuleId =
   | "whistleblowing"
   | "recruitment"
   | "performance"
-  | "support";
+  | "support"
+  | "platform"; // P5 — konsol pemilik aplikasi (isSuperadmin saja)
 
 export type SectionId =
   | "dashboard"
@@ -31,7 +32,8 @@ export type SectionId =
   | "whistleblowing"
   | "recruitment"
   | "performance"
-  | "support";
+  | "support"
+  | "platform";
 
 export interface NavState {
   module: ModuleId;
@@ -44,8 +46,8 @@ export interface NavState {
   syncFromUrl: () => void;
 }
 
-const VALID_MODULES: ModuleId[] = ["hr", "payroll", "attendance", "leave", "travel", "medical", "whistleblowing", "recruitment", "performance", "support"];
-const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "reports", "payroll", "settings", "attendance", "leave", "travel", "medical", "whistleblowing", "recruitment", "performance", "support"];
+const VALID_MODULES: ModuleId[] = ["hr", "payroll", "attendance", "leave", "travel", "medical", "whistleblowing", "recruitment", "performance", "support", "platform"];
+const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "reports", "payroll", "settings", "attendance", "leave", "travel", "medical", "whistleblowing", "recruitment", "performance", "support", "platform"];
 
 export const MODULE_LABEL: Record<ModuleId, string> = {
   hr: "Human Resource Base",
@@ -58,6 +60,7 @@ export const MODULE_LABEL: Record<ModuleId, string> = {
   recruitment: "Recruitment",
   performance: "Performance",
   support: "Online Support",
+  platform: "Platform Admin",
 };
 
 export function moduleOfSection(section: SectionId): ModuleId {
@@ -80,6 +83,8 @@ export function moduleOfSection(section: SectionId): ModuleId {
       return "performance";
     case "support":
       return "support";
+    case "platform":
+      return "platform";
     default:
       return "hr"; // dashboard, org, position, employee, actions, settings
   }
@@ -105,6 +110,8 @@ export function defaultSectionOfModule(m: ModuleId): SectionId {
       return "performance";
     case "support":
       return "support";
+    case "platform":
+      return "platform";
     default:
       return "dashboard";
   }
@@ -127,6 +134,7 @@ export function defaultView(section: SectionId): string {
     case "recruitment": return "overview";
     case "performance": return "overview";
     case "support": return "service";
+    case "platform": return "admin";
     default: return "overview";
   }
 }

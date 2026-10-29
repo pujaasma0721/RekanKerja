@@ -7,7 +7,7 @@
 // =====================================================================
 import { NextRequest, NextResponse } from "next/server";
 import {
-  resolveSupportActor, supportActorDenied, ticketAccess,
+  resolveSupportActor, supportActorDenied, supportServiceDenied, ticketAccess,
 } from "@/rekankerja/support/api/support-auth";
 import { getAttachmentById, readAttachmentFile } from "@/rekankerja/shared/services/attachment-service";
 
@@ -17,6 +17,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const a = await resolveSupportActor(req);
     const denied = supportActorDenied(a);
     if (denied || !a) return denied ?? NextResponse.json({ error: "unknown" }, { status: 500 });
+    const svc = await supportServiceDenied(a); // P5 — gate layanan berbayar
+    if (svc) return svc;
 
     const row = await getAttachmentById(a.db, id);
     if (!row || row.entityType !== "SupportMessage") {

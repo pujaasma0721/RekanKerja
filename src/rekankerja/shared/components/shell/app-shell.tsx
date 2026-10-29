@@ -99,6 +99,11 @@ export const MODULES: ModuleMeta[] = [
   // Service — chat interaktif + lampiran, ditangani AI support agent; akses
   // menu diatur peran lewat Pengaturan → Keamanan & Akses → Hak Akses).
   { id: "support", label: "Online Support", short: "Support", desc: "Bantuan & penanganan masalah pengguna (AI)", icon: Headset, ready: true, hex: "#65a30d" },
+  // FEAT-SUPPORT-P5 — konsol PEMILIK APLIKASI (User.isSuperadmin): kelola
+  // seluruh tenant + aktivasi layanan support berbayar + provider AI support
+  // platform. Visibilitas di-filter allowedModules (isAppOwner) — tenant admin
+  // tidak pernah melihat modul ini; API-nya juga diguard requirePlatformAdmin.
+  { id: "platform", label: "Platform Admin", short: "Platform", desc: "Konsol pemilik aplikasi: tenant & layanan support", icon: ShieldCheck, ready: true, hex: "#0f766e" },
 ];
 
 export const SETTINGS_META = {
@@ -314,6 +319,15 @@ const SUPPORT_NAV: NavGroup[] = [
   ] },
 ];
 
+// FEAT-SUPPORT-P5 — konsol pemilik aplikasi: modul pertama yang scope-nya
+// PLATFORM (bukan tenant). Satu pintu: kelola tenant + aktivasi layanan
+// support + provider AI support platform + pemakaian/biaya.
+const PLATFORM_NAV: NavGroup[] = [
+  { section: "platform", children: [
+    { id: "admin", label: "Layanan Support", icon: Headset },
+  ] },
+];
+
 // F0-REC — modul Rekrutmen (DEVELOPMENT-PLAN-RECRUITMENT.md §7.1): navigasi
 // tumbuh per fase. F0: Ringkasan + Master Rekrutmen (10 master + katalog
 // tahap seleksi). F1: pr (permintaan karyawan) + pr-approval. F2: openings
@@ -447,6 +461,7 @@ export function navOfModule(m: ModuleId): NavGroup[] {
     case "recruitment": return RECRUITMENT_NAV;
     case "performance": return PERFORMANCE_NAV;
     case "support": return SUPPORT_NAV;
+    case "platform": return PLATFORM_NAV;
     default: return HR_NAV;
   }
 }
@@ -654,7 +669,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [module, inSettings]);
 
   // ===== hak aksi MENU per pengguna (Task 31 + 32) =====
-  const meMenu = useApi<{ all: boolean; menus: string[]; perms?: MenusMap; isSuperAdmin: boolean }>("/api/rekankerja/user-menu-access?action=me");
+  const meMenu = useApi<{ all: boolean; menus: string[]; perms?: MenusMap; isSuperAdmin: boolean; supportDeactivated?: boolean }>("/api/rekankerja/user-menu-access?action=me");
   const menuAll = meMenu.data ? meMenu.data.all : true;
   const allowedKeys = useMemo(() => (menuAll ? null : new Set(meMenu.data?.menus ?? [])), [menuAll, meMenu.data]);
   const permsApi = useMemo(
@@ -726,12 +741,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       .filter((g) => g.children.length > 0);
   }, [inSettings, nav, settingsGroups, allowedKeys, menuAllowed]);
 
-  // modul yang punya ≥1 menu diizinkan (rail + tab mobile + sheet)
+  // modul yang punya ≥1 menu diizinkan (rail + tab mobile + sheet).
+  // P5: (a) modul Platform Admin HANYA utk pemilik aplikasi (User.isSuperadmin
+  // dari sesi — bukan super admin tenant!); (b) modul Online Support disembunyikan
+  // bila layanan belum diaktifkan pemilik aplikasi (flag supportDeactivated
+  // dari API me utk mode all; utk mode CUSTOM sudah difilter server-side).
+  const isAppOwner = sessionUser?.isSuperadmin === true;
+  const supportOff = meMenu.data?.supportDeactivated === true;
   const allowedModules = useMemo(() => {
-    if (allowedKeys == null) return MODULES;
-    const vis = MODULES.filter((m) => navOfModule(m.id).some((g) => g.children.some((c) => itemAllowed(m.id, c.id))));
-    return vis.length > 0 ? vis : MODULES; // safety fallback — hindari lockout
-  }, [allowedKeys, itemAllowed]);
+    const base = allowedKeys == null
+      ? MODULES
+      : MODULES.filter((m) => navOfModule(m.id).some((g) => g.children.some((c) => itemAllowed(m.id, c.id))));
+    const vis = base.length > 0 ? base : MODULES; // safety fallback — hindari lockout
+    return vis.filter((m) => (m.id === "platform" ? isAppOwner : m.id === "support" ? !supportOff : true));
+  }, [allowedKeys, itemAllowed, isAppOwner, supportOff]);
 
   // menu pertama yang diizinkan pada suatu modul (untuk home & switch modul)
   const firstAllowedOfModule = useCallback(

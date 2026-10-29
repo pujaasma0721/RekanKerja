@@ -7,6 +7,7 @@ import { db as platformDb } from "@/lib/db";
 import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES, ESS_ONLY_APP_ROLES } from "@/rekankerja/shared/services/access-scope";
 import { publicMenuPerms, warnNoMenuConfig } from "@/rekankerja/shared/services/menu-access";
 import { normalizeMenusJson, sanitizeMenusInput, viewListOf, type MenusMap } from "@/rekankerja/shared/lib/menu-perms";
+import { supportActivated } from "@/rekankerja/support/services/support-entitlement";
 
 // ============ HAK AKSI MENU PER PENGGUNA (Task 31 + 32) =================
 // =====================================================================
@@ -29,6 +30,7 @@ import { normalizeMenusJson, sanitizeMenusInput, viewListOf, type MenusMap } fro
 
 interface MeResolution {
   db: TenantDb;
+  tenantId: string;
   appUserId: string | null;
   appUserRole: string | null;
   appUsername: string | null;
@@ -66,7 +68,7 @@ async function resolveMe(req: Request): Promise<MeResolution | null> {
     (appUser != null && SUPER_ADMIN_APP_ROLES.includes(appUser.role)) ||
     SUPER_ADMIN_PLATFORM_ROLES.includes(membership.role);
 
-  return { db, appUserId: appUser?.id ?? null, appUserRole: appUser?.role ?? null, appUsername: appUser?.username ?? null, isSuperAdmin };
+  return { db, tenantId: tid, appUserId: appUser?.id ?? null, appUserRole: appUser?.role ?? null, appUsername: appUser?.username ?? null, isSuperAdmin };
 }
 
 /** Baca menusJson aman → MenusMap (legacy string[] → izin penuh). */
@@ -83,9 +85,14 @@ export async function GET(req: NextRequest) {
       const me = await resolveMe(req);
       if (!me) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
 
+      // P5 — layanan support berbayar: bila tenant belum diaktifkan pemilik
+      // aplikasi, menu support disembunyikan total (super admin mode ALL via
+      // flag supportDeactivated — shell memfilter modul dgn flag itu).
+      const supportOff = !(await supportActivated(me.tenantId));
+
       if (me.isSuperAdmin) {
         // Super admin otomatis semua menu & aksi.
-        return NextResponse.json({ all: true, menus: [], perms: {}, isSuperAdmin: true });
+        return NextResponse.json({ all: true, menus: [], perms: {}, isSuperAdmin: true, ...(supportOff ? { supportDeactivated: true } : {}) });
       }
       // Role ESS — portal-only (mirror clamp resolveMenuPerms di
       // services/menu-access.ts): tanpa menu admin apa pun → auto-deteksi
@@ -110,7 +117,7 @@ export async function GET(req: NextRequest) {
       }
       // Mode ALL EKSPLISIT (dipilih admin di editor Hak Akses) → semua menu.
       if (row?.mode === "ALL") {
-        return NextResponse.json({ all: true, menus: [], perms: {}, isSuperAdmin: false });
+        return NextResponse.json({ all: true, menus: [], perms: {}, isSuperAdmin: false, ...(supportOff ? { supportDeactivated: true } : {}) });
       }
       // M-7 (audit 42) — default DENY (mirror resolveMenuPerms di
       // services/menu-access.ts): tanpa konfigurasi hanya menu publik
@@ -119,10 +126,12 @@ export async function GET(req: NextRequest) {
       if (!row) {
         warnNoMenuConfig(me.appUserId, me.appUsername, tableMissing);
         const perms = publicMenuPerms();
-        return NextResponse.json({ all: false, menus: viewListOf(perms), perms, isSuperAdmin: false });
+        const menus = viewListOf(perms).filter((k) => !supportOff || k !== "support:service");
+        return NextResponse.json({ all: false, menus, perms, isSuperAdmin: false });
       }
       const perms = parseMenusMap(row.menusJson);
-      return NextResponse.json({ all: false, menus: viewListOf(perms), perms, isSuperAdmin: false });
+      const menus = viewListOf(perms).filter((k) => !supportOff || k !== "support:service");
+      return NextResponse.json({ all: false, menus, perms, isSuperAdmin: false });
     }
 
     // ---- daftar pengguna + konfigurasi (untuk editor Hak Akses) ----

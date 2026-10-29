@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 import {
-  resolveSupportActor, supportActorDenied, canManageAllTickets, type SupportActor,
+  resolveSupportActor, supportActorDenied, supportServiceDenied, canManageAllTickets, type SupportActor,
 } from "@/rekankerja/support/api/support-auth";
 import { greetingBody, SUPPORT_AI_NAME } from "@/rekankerja/support/services/support-agent";
 
@@ -59,6 +59,8 @@ export async function GET(req: NextRequest) {
     const a = await resolveSupportActor(req);
     const denied = supportActorDenied(a);
     if (denied || !a) return denied ?? NextResponse.json({ error: "unknown" }, { status: 500 });
+    const svc = await supportServiceDenied(a); // P5 — gate layanan berbayar
+    if (svc) return svc;
 
     const scope = req.nextUrl.searchParams.get("scope");
     if (scope === "all") {
@@ -88,6 +90,8 @@ export async function POST(req: NextRequest) {
     const a = await resolveSupportActor(req);
     const denied = supportActorDenied(a);
     if (denied || !a) return denied ?? NextResponse.json({ error: "unknown" }, { status: 500 });
+    const svc = await supportServiceDenied(a); // P5 — gate layanan berbayar
+    if (svc) return svc;
 
     // rate limit per sesi — cegah banjir tiket baru (pola whistleblow).
     const cookie = req.headers.get("cookie") ?? "anon";

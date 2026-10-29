@@ -45,7 +45,7 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import {
   Headset, Plus, Send, Paperclip, X, FileText, Download, ArrowLeft, Search,
-  Loader2, CheckCircle2, RotateCcw, ImageIcon, FileDiff, ChevronDown, ChevronRight, ImagePlus,
+  Loader2, CheckCircle2, RotateCcw, ImageIcon, FileDiff, ChevronDown, ChevronRight, ImagePlus, Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -1028,6 +1028,16 @@ function SupportServiceView() {
           <div className="flex-1 space-y-1 overflow-y-auto p-2">
             {ticketsApi.loading && !ticketsApi.data ? (
               <LoadingRows rows={4} />
+            ) : ticketsApi.error && /belum diaktifkan/i.test(ticketsApi.error) ? (
+              // P5 — layanan berbayar belum diaktifkan pemilik aplikasi utk tenant ini
+              <EmptyState
+                icon={Lock}
+                title={t("Layanan Online Support belum diaktifkan", "Online Support service is not activated")}
+                description={t(
+                  "Layanan ini belum diaktifkan untuk workspace Anda. Silakan hubungi tim RekanKerja untuk mengaktifkannya.",
+                  "This service has not been activated for your workspace. Please contact the RekanKerja team to activate it.",
+                )}
+              />
             ) : ticketsApi.error ? (
               <EmptyState title={t("Gagal memuat", "Failed to load")} description={ticketsApi.error} />
             ) : filtered.length === 0 ? (

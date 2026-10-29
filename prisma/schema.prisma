@@ -69,3 +69,60 @@ model UserTenant {
 
   @@unique([userId, tenantId])
 }
+
+// ============ SUPPORT SERVICE — LAYANAN BERBAYAR (FEAT-SUPPORT-P5) ============
+// Ketentuan layanan: Online Support adalah layanan ADD-ON berbayar yang
+// diaktifkan per-tenant OLEH PEMILIK APLIKASI (User.isSuperadmin) lewat
+// modul Platform Admin. TIDAK ADA API tenant yang bisa mengubah tabel ini —
+// tenant admin (OWNER/ADMIN membership) pun tidak bisa menyentuhnya.
+
+/// Status aktivasi layanan support per tenant — sumber kebenaran gate.
+model SupportEntitlement {
+  id               String    @id @default(cuid())
+  tenantId         String    @unique // → Tenant.id (tanpa relasi FK — biar simpel)
+  /// INACTIVE (belum aktif/default) | TRIAL (uji coba) | ACTIVE (berlangganan) | SUSPENDED (ditangguhkan — tunggakan/denda)
+  status           String    @default("INACTIVE")
+  /// Kuota giliran AI per bulan kalender (0 = tanpa batas — kontrak enterprise)
+  monthlyTurnQuota Int       @default(0)
+  /// Catatan komersial pemilik aplikasi (nomor PO, tanggal invois, dsb.)
+  notes            String?
+  activatedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+/// Provider AI KHUSUS layanan support — milik platform, melayani SEMUA tenant
+/// yang layanannya aktif. TERPISAH TOTAL dari provider AI per-tenant
+/// (AiProviderConfig di schema tenant): kredensial tenant tidak pernah dipakai
+/// untuk support, dan biaya support terpusat di platform ( satu tagihan).
+/// Satu baris (findFirst) — konfigurasi global.
+model SupportProviderConfig {
+  id        String   @id @default(cuid())
+  /// builtin (LLM bawaan RekanKerja — default) | openai (endpoint OpenAI-compatible milik platform)
+  provider  String   @default("builtin")
+  /// API key TERENKRIPSI at-rest AES-256-GCM (kunci dari SESSION_SECRET — pola TOTP auth.ts); format "v1:iv:tag:ct"
+  apiKey    String?
+  baseUrl   String?
+  model     String?
+  enabled   Boolean  @default(true)
+  /// Harga provider utk estimasi biaya (USD per 1 juta token) — diisi pemilik aplikasi
+  priceInPerM  Float  @default(0)
+  priceOutPerM Float  @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+/// Log pemakaian SATU GILIRAN agent support (atribusi biaya & penagihan per
+/// tenant). Satu baris per balasan AI yang selesai (bukan per panggilan LLM
+/// internal — langkah ReAct diringkas llmSteps).
+model SupportUsageLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  ticketNo  String
+  llmSteps  Int      @default(0) // jumlah panggilan LLM dalam giliran (1-14)
+  tokensIn  Int      @default(0) // total token masuk (estimasi bila provider tak melaporkan)
+  tokensOut Int      @default(0) // total token keluar
+  provider  String   @default("builtin")
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}

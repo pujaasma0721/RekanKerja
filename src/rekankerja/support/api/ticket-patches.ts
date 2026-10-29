@@ -15,7 +15,7 @@
 // =====================================================================
 import { NextRequest, NextResponse } from "next/server";
 import {
-  resolveSupportActor, supportActorDenied, ticketAccess, canManageAllTickets,
+  resolveSupportActor, supportActorDenied, supportServiceDenied, ticketAccess, canManageAllTickets,
 } from "@/rekankerja/support/api/support-auth";
 import { decidePatchProposal } from "@/rekankerja/support/services/support-patch";
 
@@ -37,6 +37,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const a = await resolveSupportActor(req);
     const denied = supportActorDenied(a);
     if (denied || !a) return denied ?? NextResponse.json({ error: "unknown" }, { status: 500 });
+    const svc = await supportServiceDenied(a); // P5 — gate layanan berbayar
+    if (svc) return svc;
     const ticket = await a.db.supportTicket.findUnique({ where: { id }, select: { id: true, createdById: true } });
     const access = await ticketAccess(req, a, ticket);
     if (!access.ok) return access.res;
@@ -63,6 +65,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const a = await resolveSupportActor(req);
     const denied = supportActorDenied(a);
     if (denied || !a) return denied ?? NextResponse.json({ error: "unknown" }, { status: 500 });
+    const svc = await supportServiceDenied(a); // P5 — gate layanan berbayar
+    if (svc) return svc;
     // Keputusan HANYA utk pemegang op manage (developer/admin) — pelapor
     // tiket TIDAK boleh menyetujui usulan atas tiketnya sendiri.
     if (!(await canManageAllTickets(req))) {

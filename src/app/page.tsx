@@ -49,6 +49,11 @@ const WhistleblowModule = dynamic(() => import("@/rekankerja/whistleblow/compone
 // FEAT-SUPPORT-P1 — modul Online Support (Support Service): chat bantuan
 // interaktif + lampiran, ditangani AI support agent (bergaya ticketing).
 const SupportModule = dynamic(() => import("@/rekankerja/support/components/support-module").then((m) => ({ default: m.SupportModule })), { ssr: false, loading: ModuleLoading });
+// FEAT-SUPPORT-P5 — konsol pemilik aplikasi (User.isSuperadmin): kelola semua
+// tenant, aktivasi layanan support berbayar, provider AI support platform,
+// dan pemakaian/biaya. Guard berlapis: rail hanya tampil utk pemilik aplikasi;
+// komponen cek sesi; API diguard requirePlatformAdmin.
+const PlatformAdminModule = dynamic(() => import("@/rekankerja/platform/components/platform-admin-module").then((m) => ({ default: m.PlatformAdminModule })), { ssr: false, loading: ModuleLoading });
 // F0-REC — modul Rekrutmen (DEVELOPMENT-PLAN-RECRUITMENT.md): F0 fondasi
 // (ringkasan + 10 master + katalog tahap seleksi); F1+ tumbuh per fase.
 const RecruitmentModule = dynamic(() => import("@/rekankerja/recruitment/components/recruitment-module").then((m) => ({ default: m.RecruitmentModule })), { ssr: false, loading: ModuleLoading });
@@ -174,6 +179,7 @@ function PageInner() {
             {section === "recruitment" && <RecruitmentModule view={view} />}
             {section === "performance" && <PerformanceModule view={view} />}
             {section === "support" && <SupportModule view={view} />}
+            {section === "platform" && <PlatformAdminModule view={view} />}
           </motion.div>
         </AnimatePresence>
       </AppShell>
