@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import {
   ShieldCheck, Building2, RefreshCw, Loader2, KeyRound, PlugZap, Coins,
   Activity, ShieldOff, FileText, Save, ChevronRight, LogOut, Lock,
+  Bug, FileDiff, CheckCheck, Check, X, Inbox,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -75,6 +78,34 @@ interface UsageDetail {
   month: string;
   summary: { turns: number; llmSteps: number; tokensIn: number; tokensOut: number };
   logs: UsageLogRow[];
+}
+
+// P7.2 — bentuk JSON dari /api/rekankerja/platform/admin/support-queue
+interface QueueAlert {
+  id: string;
+  type: "BUG_CONFIRMED" | "PATCH_PROPOSED";
+  tenantName: string;
+  ticketNo: string;
+  subject: string;
+  priority: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
+interface QueueBug {
+  tenantId: string; tenantName: string; id: string; ticketNo: string; subject: string;
+  priority: string; createdByName: string | null; lastMessageAt: string; messages: number;
+}
+interface QueuePatch {
+  tenantId: string; tenantName: string; id: string; ticketId: string; ticketNo: string;
+  ticketSubject: string; filePath: string; description: string; diffText: string;
+  createdAt: string;
+}
+interface SupportQueueData {
+  alerts: QueueAlert[];
+  unreadCount: number;
+  bugs: QueueBug[];
+  patches: QueuePatch[];
 }
 interface PlatformAdminSession {
   admin: { email: string; name: string; lastLoginAt: string | null } | null;
@@ -542,6 +573,347 @@ function PlatformLogoutButton({ onDone }: { onDone: () => void }) {
   );
 }
 
+// ---------------------------------------------------------------------------//
+// P7.2 — TAB "BUG & PATCH": feed alert + antrean usulan patch + antrean bug. //
+// ---------------------------------------------------------------------------//
+
+const PRIORITY_META: Record<string, { label: string; cls: string }> = {
+  KRITIS: { label: "KRITIS", cls: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300" },
+  TINGGI: { label: "TINGGI", cls: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300" },
+  SEDANG: { label: "SEDANG", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
+  RENDAH: { label: "RENDAH", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+};
+
+/** Feed notifikasi ke pemilik aplikasi (P7.1) — badge belum dibaca + aksi baca. */
+function AlertFeed({ alerts, unreadCount, onChanged }: { alerts: QueueAlert[]; unreadCount: number; onChanged: () => void }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+
+  const markRead = async (ids: string[] | null) => {
+    setBusy(true);
+    try {
+      await apiSend("/api/rekankerja/platform/admin/support-queue", "POST", {
+        action: "read-alerts",
+        ...(ids ? { alertIds: ids } : {}),
+      });
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (alerts.length === 0) {
+    return (
+      <EmptyState
+        icon={Inbox}
+        title={t("Belum ada notifikasi", "No notifications yet")}
+        description={t(
+          "Bug terkonfirmasi prioritas tinggi/kritis dan usulan patch agent akan muncul di sini.",
+          "High/critical confirmed bugs and agent patch proposals will appear here.",
+        )}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[12px] text-slate-500 dark:text-slate-400">
+          {unreadCount > 0
+            ? t(`${unreadCount} belum dibaca`, `${unreadCount} unread`)
+            : t("Semua sudah dibaca", "All read")}
+        </p>
+        {unreadCount > 0 && (
+          <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" disabled={busy} onClick={() => void markRead(null)}>
+            <CheckCheck className="h-3.5 w-3.5" aria-hidden />
+            {t("Tandai semua dibaca", "Mark all as read")}
+          </Button>
+        )}
+      </div>
+      <div className="max-h-96 space-y-2 overflow-y-auto pr-1 [scrollbar-width:thin]">
+        {alerts.map((a) => {
+          const isBug = a.type === "BUG_CONFIRMED";
+          const pm = PRIORITY_META[a.priority] ?? null;
+          return (
+            <div
+              key={a.id}
+              className={cn(
+                "flex items-start gap-3 rounded-xl border p-3",
+                a.read
+                  ? "border-slate-200/60 bg-white dark:border-slate-800 dark:bg-slate-900"
+                  : "border-teal-300/70 bg-teal-50/50 dark:border-teal-900 dark:bg-teal-950/30",
+              )}
+            >
+              <span className={cn("mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg", a.read ? "bg-slate-100 dark:bg-slate-800" : "bg-teal-100 dark:bg-teal-900/60")}>
+                {isBug ? <Bug className="h-4 w-4 text-teal-700 dark:text-teal-400" aria-hidden /> : <FileDiff className="h-4 w-4 text-teal-700 dark:text-teal-400" aria-hidden />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[12px] font-semibold text-slate-900 dark:text-slate-100">
+                    {isBug ? t("Bug terkonfirmasi", "Bug confirmed") : t("Usulan patch", "Patch proposal")}
+                  </span>
+                  <span className="text-[11px] text-slate-400">·</span>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{a.tenantName}</span>
+                  <span className="font-mono text-[10.5px] text-slate-400">{a.ticketNo}</span>
+                  {pm && <Badge variant="outline" className={cn("border-0 px-1.5 text-[10px]", pm.cls)}>{pm.label}</Badge>}
+                  {!a.read && <span className="h-2 w-2 rounded-full bg-teal-500" aria-label={t("belum dibaca", "unread")} />}
+                </div>
+                <p className="mt-1 text-[12px] leading-relaxed text-slate-600 dark:text-slate-300">{a.message}</p>
+                <p className="mt-0.5 text-[10.5px] text-slate-400">{fmtDateTime(a.createdAt)}</p>
+              </div>
+              {!a.read && (
+                <Button
+                  variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px]" disabled={busy}
+                  onClick={() => void markRead([a.id])}
+                  aria-label={t("Tandai dibaca", "Mark as read")}
+                >
+                  <Check className="h-3.5 w-3.5" aria-hidden />
+                </Button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Satu kartu usulan patch: diff bisa dibentangkan + catatan + keputusan. */
+function PatchCard({ patch, onDecide }: { patch: QueuePatch; onDecide: (p: QueuePatch, decision: "approve" | "reject") => void }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[12px] font-semibold text-slate-900 dark:text-slate-100">{patch.tenantName}</span>
+            <span className="text-[11px] text-slate-400">·</span>
+            <span className="font-mono text-[10.5px] text-slate-400">{patch.ticketNo}</span>
+            <Badge variant="outline" className="border-amber-200 bg-amber-100 px-1.5 text-[10px] text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+              {t("MENUNGGU", "PENDING")}
+            </Badge>
+          </div>
+          <p className="mt-1 font-mono text-[11.5px] text-slate-700 dark:text-slate-200">{patch.filePath}</p>
+          <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">{patch.description}</p>
+          <p className="mt-0.5 text-[10.5px] text-slate-400">
+            {t("diajukan", "proposed")} {fmtDateTime(patch.createdAt)} · {t("tiket", "ticket")}: {patch.ticketSubject}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+          <FileDiff className="h-3.5 w-3.5" aria-hidden />
+          {open ? t("Sembunyikan diff", "Hide diff") : t("Lihat diff", "View diff")}
+        </Button>
+      </div>
+      {open && (
+        <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] leading-relaxed text-slate-200 [scrollbar-width:thin]">
+          <code>{patch.diffText}</code>
+        </pre>
+      )}
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+        <Button variant="outline" size="sm" className="h-8 gap-1 text-[12px]" onClick={() => onDecide(patch, "reject")}>
+          <X className="h-3.5 w-3.5" aria-hidden />
+          {t("Tolak", "Reject")}
+        </Button>
+        <Button size="sm" className="h-8 gap-1 bg-teal-700 text-[12px] text-white hover:bg-teal-800" onClick={() => onDecide(patch, "approve")}>
+          <Check className="h-3.5 w-3.5" aria-hidden />
+          {t("Setujui & Terapkan", "Approve & Apply")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Tab "Bug & Patch" lengkap (P7.2). */
+function BugPatchTab({ q, onRefresh }: { q: SupportQueueData | null; loading: boolean; onRefresh: () => void }) {
+  const { t } = useI18n();
+  const [decide, setDecide] = useState<{ patch: QueuePatch; decision: "approve" | "reject" } | null>(null);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submitDecision = async () => {
+    if (!decide) return;
+    setBusy(true);
+    try {
+      await apiSend("/api/rekankerja/platform/admin/support-queue", "POST", {
+        action: "decide-patch",
+        tenantId: decide.patch.tenantId,
+        ticketId: decide.patch.ticketId,
+        proposalId: decide.patch.id,
+        decision: decide.decision,
+        note: note.trim() || null,
+      });
+      toast.success(
+        decide.decision === "approve"
+          ? t(`Patch DITERAPKAN — verifikasi otomatis sedang berjalan di tiket ${decide.patch.ticketNo}.`, `Patch APPLIED — automatic verification is now running in ticket ${decide.patch.ticketNo}.`)
+          : t(`Usulan patch DITOLAK (${decide.patch.ticketNo}).`, `Patch proposal REJECTED (${decide.patch.ticketNo}).`),
+      );
+      setDecide(null);
+      setNote("");
+      onRefresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* ---- feed notifikasi (P7.1) ---- */}
+      <section className="rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p7-alerts-title">
+        <h2 id="p7-alerts-title" className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+          <Bug className="h-4 w-4" aria-hidden />
+          {t("Notifikasi Eskalasi", "Escalation Notifications")}
+        </h2>
+        <p className="mb-3 text-[12px] text-slate-500 dark:text-slate-400">
+          {t(
+            "Agent support mengeskalasi dua hal ke Anda: bug terkonfirmasi prioritas TINGGI/KRITIS, dan usulan patch yang menunggu keputusan.",
+            "The support agent escalates two things to you: confirmed HIGH/CRITICAL bugs, and patch proposals awaiting a decision.",
+          )}
+        </p>
+        <AlertFeed alerts={q?.alerts ?? []} unreadCount={q?.unreadCount ?? 0} onChanged={onRefresh} />
+      </section>
+
+      {/* ---- usulan patch menunggu ---- */}
+      <section className="rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p7-patches-title">
+        <h2 id="p7-patches-title" className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+          <FileDiff className="h-4 w-4" aria-hidden />
+          {t("Usulan Patch Menunggu Keputusan", "Patch Proposals Awaiting Decision")}
+        </h2>
+        <p className="mb-3 text-[12px] text-slate-500 dark:text-slate-400">
+          {t(
+            "Menyetujui akan MENULIS file aplikasi langsung (kode yang dipakai semua tenant), lalu agent otomatis memverifikasi hasilnya di tiket. Menolak hanya menolak.",
+            "Approving will WRITE the application file directly (code shared by all tenants), then the agent automatically verifies the result in the ticket. Rejecting only rejects.",
+          )}
+        </p>
+        {(q?.patches ?? []).length === 0 ? (
+          <EmptyState
+            icon={FileDiff}
+            title={t("Tidak ada usulan menunggu", "No proposals waiting")}
+            description={t("Usulan patch agent dari semua tenant akan muncul di sini.", "Agent patch proposals from all tenants will appear here.")}
+          />
+        ) : (
+          <div className="space-y-3">
+            {(q?.patches ?? []).map((p) => (
+              <PatchCard key={p.id} patch={p} onDecide={(patch, decision) => { setNote(""); setDecide({ patch, decision }); }} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ---- tiket bug aktif lintas tenant ---- */}
+      <section className="rounded-xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" aria-labelledby="p7-bugs-title">
+        <h2 id="p7-bugs-title" className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+          <Bug className="h-4 w-4" aria-hidden />
+          {t("Tiket Bug Aktif (Semua Tenant)", "Active Bug Tickets (All Tenants)")}
+        </h2>
+        <p className="mb-3 text-[12px] text-slate-500 dark:text-slate-400">
+          {t("Tiket kategori BUG yang masih AKTIF — urut dari prioritas tertinggi.", "BUG-category tickets still ACTIVE — sorted by highest priority.")}
+        </p>
+        {(q?.bugs ?? []).length === 0 ? (
+          <EmptyState
+            icon={Bug}
+            title={t("Tidak ada bug aktif", "No active bugs")}
+            description={t("Tidak ada tiket bug terbuka di tenant mana pun.", "No open bug tickets in any tenant.")}
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 [scrollbar-width:thin]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-[11px]">{t("Tenant", "Tenant")}</TableHead>
+                  <TableHead className="text-[11px]">{t("Tiket", "Ticket")}</TableHead>
+                  <TableHead className="text-[11px]">{t("Prioritas", "Priority")}</TableHead>
+                  <TableHead className="text-[11px]">{t("Pelapor", "Reporter")}</TableHead>
+                  <TableHead className="text-[11px]">{t("Aktivitas", "Activity")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(q?.bugs ?? []).map((b) => {
+                  const pm = PRIORITY_META[b.priority] ?? PRIORITY_META.SEDANG!;
+                  return (
+                    <TableRow key={b.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+                          <span className="text-[12px] font-medium text-slate-900 dark:text-slate-100">{b.tenantName}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="font-mono text-[11px] text-slate-400">{b.ticketNo}</p>
+                        <p className="max-w-[260px] truncate text-[12px] text-slate-700 dark:text-slate-200">{b.subject}</p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn("border-0 text-[10px]", pm.cls)}>{pm.label}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-[12px] text-slate-600 dark:text-slate-300">{b.createdByName ?? "—"}</p>
+                        <p className="text-[10.5px] text-slate-400">{b.messages} {t("pesan", "messages")}</p>
+                      </TableCell>
+                      <TableCell className="text-[11px] text-slate-500 dark:text-slate-400">{fmtDateTime(b.lastMessageAt)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </section>
+
+      {/* ---- dialog konfirmasi keputusan ---- */}
+      <Dialog open={!!decide} onOpenChange={(o) => { if (!o) { setDecide(null); setNote(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {decide?.decision === "approve"
+                ? t("Setujui & Terapkan Patch?", "Approve & Apply Patch?")
+                : t("Tolak Usulan Patch?", "Reject Patch Proposal?")}
+            </DialogTitle>
+            <DialogDescription>
+              {decide?.decision === "approve"
+                ? t(
+                    `File "${decide?.patch.filePath}" akan DITULIS langsung ke aplikasi (kode bersama semua tenant). Setelah diterapkan, agent menjalankan verifikasi otomatis di tiket ${decide?.patch.ticketNo}.`,
+                    `File "${decide?.patch.filePath}" will be WRITTEN directly to the application (code shared by all tenants). After applying, the agent runs automatic verification in ticket ${decide?.patch.ticketNo}.`,
+                  )
+                : t(
+                    `Usulan patch "${decide?.patch.filePath}" pada tiket ${decide?.patch.ticketNo} akan ditolak dan dicatat di utas.`,
+                    `The patch proposal "${decide?.patch.filePath}" in ticket ${decide?.patch.ticketNo} will be rejected and recorded in the thread.`,
+                  )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="p7-decide-note">{t("Catatan (opsional)", "Note (optional)")}</Label>
+            <Textarea
+              id="p7-decide-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={500}
+              className="min-h-[70px] text-[12.5px]"
+              placeholder={t("Maks 500 karakter — tercatat di utas tiket.", "Max 500 characters — recorded in the ticket thread.")}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setDecide(null); setNote(""); }} disabled={busy}>
+              {t("Batal", "Cancel")}
+            </Button>
+            <Button
+              onClick={() => void submitDecision()}
+              disabled={busy}
+              className={cn("gap-1.5 text-white", decide?.decision === "approve" ? "bg-teal-700 hover:bg-teal-800" : "bg-rose-700 hover:bg-rose-800")}
+            >
+              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+              {decide?.decision === "approve" ? t("Setujui & Terapkan", "Approve & Apply") : t("Tolak Usulan", "Reject Proposal")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export function PlatformAdminModule(_props: { view?: string }) {
   const { t } = useI18n();
   // P5-SEC — realm sesi MANDIRI: whoami lewat cookie platform (path-scoped,
@@ -550,6 +922,18 @@ export function PlatformAdminModule(_props: { view?: string }) {
   const ps = useApi<PlatformAdminSession>("/api/rekankerja/platform/admin/session");
   const admin = ps.data?.admin ?? null;
   const api = useApi<AdminOverview>(admin ? "/api/rekankerja/platform/admin/support" : null, [!!admin]);
+  // P7.2 — antrean Bug & Patch lintas tenant (badge belum-dibaca di tab).
+  const qApi = useApi<SupportQueueData>(admin ? "/api/rekankerja/platform/admin/support-queue" : null, [!!admin]);
+  const [tab, setTab] = useState<"service" | "queue">("service");
+
+  // P7.1 — poll ringan utk badge notifikasi (45 dtk; antrean lintas-tenant
+  // murah pada jumlah tenant wajar, dan tab aktif apapun tetap ter-update).
+  const qRefresh = qApi.refresh;
+  useEffect(() => {
+    if (!admin) return;
+    const h = window.setInterval(() => { void qRefresh(); }, 45_000);
+    return () => window.clearInterval(h);
+  }, [admin, qRefresh]);
 
   if (ps.loading && !ps.data) {
     return <LoadingRows rows={6} />;
@@ -559,6 +943,13 @@ export function PlatformAdminModule(_props: { view?: string }) {
   }
 
   const d = api.data;
+  const q = qApi.data;
+  const unread = q?.unreadCount ?? 0;
+
+  const refreshAll = () => {
+    void api.refresh();
+    void qApi.refresh();
+  };
 
   return (
     <div>
@@ -566,13 +957,13 @@ export function PlatformAdminModule(_props: { view?: string }) {
         eyebrow="PLATFORM ADMIN"
         title={t("Layanan Support", "Support Service")}
         description={t(
-          "Kelola layanan Online Support berbayar: aktivasi per tenant, kuota giliran AI, provider AI platform, serta pemakaian & estimasi biaya.",
-          "Manage the paid Online Support service: per-tenant activation, AI turn quotas, the platform AI provider, and usage & cost estimates.",
+          "Kelola layanan Online Support berbayar: aktivasi per tenant, kuota giliran AI, provider AI platform, pemakaian & estimasi biaya, serta antrean bug & usulan patch lintas tenant.",
+          "Manage the paid Online Support service: per-tenant activation, AI turn quotas, the platform AI provider, usage & cost estimates, plus the cross-tenant bug & patch queue.",
         )}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => api.refresh()} disabled={api.loading}>
-              {api.loading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden /> : <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />}
+            <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={refreshAll} disabled={api.loading || qApi.loading}>
+              {api.loading || qApi.loading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden /> : <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />}
               {t("Muat ulang", "Refresh")}
             </Button>
             <PlatformLogoutButton onDone={() => ps.refresh()} />
@@ -580,7 +971,34 @@ export function PlatformAdminModule(_props: { view?: string }) {
         }
       />
 
-      {api.loading && !d ? (
+      {/* P7.2 — tab konsol: layanan/tenant vs bug/patch */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "service" | "queue")}>
+        <TabsList className="mb-4 h-9">
+          <TabsTrigger value="service" className="gap-1.5 px-3 text-[12px]">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
+            {t("Layanan & Tenant", "Service & Tenants")}
+          </TabsTrigger>
+          <TabsTrigger value="queue" className="gap-1.5 px-3 text-[12px]">
+            <Bug className="h-3.5 w-3.5" aria-hidden />
+            {t("Bug & Patch", "Bug & Patch")}
+            {unread > 0 && (
+              <span className="ml-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white" aria-label={`${unread} unread`}>
+                {unread}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {tab === "queue" ? (
+        qApi.loading && !q ? (
+          <LoadingRows rows={6} />
+        ) : qApi.error ? (
+          <EmptyState icon={ShieldOff} title={t("Gagal memuat antrean", "Failed to load queue")} description={qApi.error} />
+        ) : (
+          <BugPatchTab q={q} loading={qApi.loading} onRefresh={() => void qApi.refresh()} />
+        )
+      ) : api.loading && !d ? (
         <LoadingRows rows={6} />
       ) : api.error ? (
         <EmptyState icon={ShieldOff} title={t("Gagal memuat data", "Failed to load data")} description={api.error} />

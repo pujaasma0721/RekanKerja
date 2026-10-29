@@ -574,12 +574,15 @@ function redactSecrets(text: string): string {
 }
 
 /** Hasil satu giliran agen: pesan AI + triase (null = tidak berubah) +
- *  pemakaian giliran (P5 — atribusi biaya/kuota per tenant). */
+ *  pemakaian giliran (P5 — atribusi biaya/kuota per tenant) + tool terpakai
+ *  (P7.1 — dasar eskalasi alert usulan patch ke pemilik aplikasi). */
 export interface AgentTurnResult {
   message: SupportMessage;
   category: string | null;
   priority: string | null;
   usage: { llmSteps: number; tokensIn: number; tokensOut: number; provider: string };
+  /** nama tool yang benar-benar dieksekusi giliran ini (unik) */
+  toolsUsed: string[];
 }
 
 /** Susun teks pill transparansi dari penggunaan tool giliran ini. */
@@ -654,6 +657,7 @@ async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentT
     let antiConfabRetry = 0;
     let verifyNudgeRetry = 0; // P4.7 — dorongan verifikasi-dulu (maks 1×)
     let saasNudgeRetry = 0; // P4.8 — dorongan model eskalasi SaaS (maks 1×)
+    let metaNudgeRetry = 0; // P7.1 — dorongan baris triase [[META:…]] (maks 1×)
     // P5 — pemakaian giliran (dilaporkan route → SupportUsageLog per tenant).
     let turnSteps = 0;
     let turnTokensIn = 0;
@@ -765,6 +769,21 @@ async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentT
             role: "user",
             content:
               "[CATATAN RUNTIME — PENTING] RekanKerja adalah aplikasi SaaS multi-tenant: pengguna tenant TIDAK punya akses ke server/database/kode/log, dan admin/IT tenant pun tidak bisa memperbaiki gangguan infrastruktur platform (database/server/layanan/bug kode) — menyarankan mereka menghubungi tim IT/administrator untuk masalah semacam ini tidak menyelesaikan apa pun. Jawab ulang sebagai support SaaS: (1) jelaskan bahwa ini gangguan di sisi platform, bukan kelalaian pengguna; (2) tegaskan laporannya sudah dicatat di tiket ini dan akan ditindaklanjuti tim platform RekanKerja sesuai prioritas dampaknya; (3) pengguna tidak perlu melakukan apa pun selain menunggu pembaruan di tiket. Pengecualian: bila masalahnya memang ranah pihak lain — permintaan akses/koreksi data (admin tenant) atau kendala perangkat/jaringan lokal pengguna sendiri (IT internal mereka) — pertahankan arahan itu dan sertai alasannya.",
+          });
+          continue;
+        }
+        // P7.1 — GUARD TRIASE: jawaban final TANPA baris [[META:…]] (model kadang
+        // melupakannya, terutama setelah rantai tool panjang / final dipaksa)
+        // → dorong SEKALI agar menulis ulang jawaban + menambah baris triase.
+        // Tanpa marker, kategori/prioritas tiket & eskalasi alert ke pemilik
+        // aplikasi tidak pernah terpicu.
+        if (!forceFinal && metaNudgeRetry < 1 && !META_RE.test(stripToolSyntax(raw).trim())) {
+          metaNudgeRetry += 1;
+          convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
+          convo.push({
+            role: "user",
+            content:
+              "[CATATAN RUNTIME — PENTING] Balasan Anda TIDAK diakhiri baris triase yang DIWAJIBKAN format balasan. Tulis ulang jawaban Anda yang sama (isi tidak perlu diubah), lalu tambahkan TEPAT SATU baris terakhir:\n[[META:<kategori>|<prioritas>]]\ndengan <kategori> salah satu: BUG | PENGGUNAAN | DATA | AKUN | FITUR | LAINNYA, dan <prioritas> salah satu: RENDAH | SEDANG | TINGGI | KRITIS.",
           });
           continue;
         }
@@ -920,7 +939,7 @@ async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentT
         ...(priority ? { priority } : {}),
       },
     });
-    return { message, category, priority, usage: { llmSteps: turnSteps, tokensIn: turnTokensIn, tokensOut: turnTokensOut, provider: turnProvider } };
+    return { message, category, priority, usage: { llmSteps: turnSteps, tokensIn: turnTokensIn, tokensOut: turnTokensOut, provider: turnProvider }, toolsUsed: [...usage.keys()] };
   } catch (e) {
     // AUDIT-SUPPORT: giliran gagal (mis. provider 502) → bukti tangkapan
     // layar yang sudah terkumpul dibuang — tidak menetap di memori server
@@ -941,4 +960,97 @@ export function greetingBody(userName: string | null): string {
     `- 🔐 *masalah akun/login*\n\n` +
     `Anda juga bisa melampirkan **tangkapan layar** atau dokumen (JPG/PNG/WEBP/PDF, maks 5 MB) — saya akan membacanya langsung. Bila perlu, saya juga dapat memeriksa data & kondisi sistem secara langsung untuk mendiagnosa masalah Anda.`
   );
+}
+
+// ---------------------------------------------------------------------------
+// FEAT-SUPPORT-P7.3 — VERIFIKASI PASCA-PATCH (loop bukti, bukan janji).
+// ---------------------------------------------------------------------------
+// Setelah usulan patch DISETUJUI & diterapkan (decidePatchProposal), jalankan
+// SATU giliran agent verifikasi: agent mereproduksi ulang langkah pelapor
+// (reproduce_browser) untuk membuktikan error benar-benar tidak lagi muncul,
+// lalu hasilnya ditulis ke utas — menutup gap "patch diterapkan tapi tidak
+// pernah dibuktikan memperbaiki".
+// Dipanggil route keputusan (ticket-patches / konsol platform) secara
+// FIRE-AND-FORGET — request HTTP keputusan tetap instan; verifikasi berjalan
+// di latar (browser bisa 30-120 dtk).
+// Syarat: tools + reproduksi browser aktif utk tenant (tanpa itu, verifikasi
+// nyata tidak mungkin — jangan sampai agent "mengarang hasil verifikasi").
+// Giliran verifikasi TIDAK mengonsumsi kuota tenant (initiator platform,
+// logSupportTurn hanya dipanggil route pesan user).
+// ---------------------------------------------------------------------------
+export async function runPatchVerificationTurn(db: TenantDb, ticketId: string): Promise<void> {
+  const attempt = async () => {
+    // guard 1: tools + browser aktif — tanpa reproduksi nyata, tolak jalan
+    const toolsOn = await toolsEnabledFor(db);
+    if (!toolsOn || !(await browserEnabledFor(db))) {
+      console.log(`[support-agent] verifikasi pasca-patch tiket ${ticketId}: DILEWATI — tools/browser reproduksi tidak aktif`);
+      return;
+    }
+    // guard 2: tiket masih ada & belum ditutup
+    const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
+    if (!ticket || ticket.status === "DITUTUP") return;
+    // guard 3: patch terakhir yang DISETUJUI pada tiket ini (memastikan masih relevan)
+    const patch = await db.supportPatchProposal.findFirst({
+      where: { ticketId, status: "DISETUJUI" },
+      orderBy: { decidedAt: "desc" },
+      select: { filePath: true, description: true, decidedByName: true },
+    });
+    if (!patch) return;
+
+    await db.supportMessage.create({
+      data: {
+        ticketId,
+        senderRole: "SYSTEM",
+        senderName: "Sistem",
+        body:
+          `[VERIFIKASI PATCH] Perbaikan "${patch.filePath}" (diajukan agen, disetujui ${patch.decidedByName ?? "developer"}) barusan DITERAPKAN ke aplikasi. ` +
+          `${SUPPORT_AI_NAME} kini menjalankan verifikasi otomatis: mereproduksi ulang langkah pelapor untuk membuktikan error tidak lagi terjadi. Hasil pengujian akan menyusul di utas ini.`,
+      },
+    });
+    // instruksi tugas verifikasi — jadi pesan terakhir utas (dibaca agent sbg perintah)
+    await db.supportMessage.create({
+      data: {
+        ticketId,
+        senderRole: "SYSTEM",
+        senderName: "Sistem",
+        body:
+          `[TUGAS VERIFIKASI — khusus giliran ini] Patch "${patch.filePath}" baru saja diterapkan (perbaikan: ${patch.description.slice(0, 300)}). ` +
+          `Tugas Anda SEKARANG: (1) reproduksi ulang langkah pelapor yang sebelumnya memicu error lewat reproduce_browser (login akun uji → ulangi aksi pelapor → amati hasil, screenshot sebagai bukti bila membantu); ` +
+          `(2) laporkan hasil verifikasi ke pengguna secara singkat & jujur (±100 kata): perbaikan telah diterapkan + hasil pengujian ulang Anda. ` +
+          `Bila error MASIH muncul: sampaikan terus terang bahwa verifikasi menemukan sisa masalah dan laporan diteruskan ke tim platform. ` +
+          `DILARANG mengarang hasil — hanya laporkan yang benar-benar Anda amati dari [HASIL TOOL …].`,
+      },
+    });
+    const r = await agentRespond(db, ticket);
+    console.log(
+      `[support-agent] verifikasi pasca-patch ${ticket.ticketNo}: selesai — langkah=${r.usage.llmSteps}, tool=[${r.toolsUsed.join(", ")}]`,
+    );
+  };
+  try {
+    try {
+      await attempt();
+    } catch (e) {
+      // giliran tiket sedang berjalan (user aktif bersamaan) → tunggu & coba sekali lagi
+      if (e instanceof AgentTurnInProgressError) {
+        await new Promise((r) => setTimeout(r, 8000));
+        await attempt();
+        return;
+      }
+      throw e;
+    }
+  } catch (e) {
+    console.warn("[support-agent] verifikasi pasca-patch gagal:", e instanceof Error ? e.message : e);
+    try {
+      await db.supportMessage.create({
+        data: {
+          ticketId,
+          senderRole: "SYSTEM",
+          senderName: "Sistem",
+          body: "[VERIFIKASI] Verifikasi otomatis pasca-patch tidak dapat dijalankan (kendala teknis). Perbaikan tetap sudah diterapkan — pemilik aplikasi dapat meminta pemeriksaan ulang lewat percakapan ini.",
+        },
+      });
+    } catch {
+      /* abaikan — sudah best-effort */
+    }
+  }
 }

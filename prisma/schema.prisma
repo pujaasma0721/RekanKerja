@@ -151,3 +151,26 @@ model SupportUsageLog {
 
   @@index([tenantId, createdAt])
 }
+
+/// FEAT-SUPPORT-P7.1 — notifikasi ke konsol pemilik aplikasi (feed "Bug &
+/// Patch"). Pemicu: agent mengonfirmasi BUG prioritas TINGGI/KRITIS, atau
+/// agent mengajukan usulan patch (MENUNGGU keputusan). Ditulis best-effort
+/// dari giliran agent (kegagalan TIDAK boleh menggagalkan balasan AI).
+model PlatformAlert {
+  id         String    @id @default(cuid())
+  /// BUG_CONFIRMED | PATCH_PROPOSED
+  type       String
+  tenantId   String
+  tenantName String
+  ticketNo   String
+  /// "<tenantId>:<ticketId>" — kunci dedup alert yang belum dibaca
+  ticketRef  String
+  subject    String
+  priority   String    @default("")
+  message    String
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([readAt])
+  @@index([ticketRef])
+}

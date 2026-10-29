@@ -18,6 +18,7 @@ import {
   resolveSupportActor, supportActorDenied, supportServiceDenied, ticketAccess, canManageAllTickets,
 } from "@/rekankerja/support/api/support-auth";
 import { decidePatchProposal } from "@/rekankerja/support/services/support-patch";
+import { runPatchVerificationTurn } from "@/rekankerja/support/services/support-agent";
 
 const PATCH_SELECT = {
   id: true,
@@ -89,6 +90,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const reviewer = { id: a.appUserId, name: a.appUserName ?? a.email ?? "developer" };
     const result = await decidePatchProposal(a.db, id, proposalId, decision, reviewer, note);
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.httpStatus });
+
+    // P7.3 — verifikasi pasca-patch (fire-and-forget): setelah patch DITERAPKAN,
+    // agent mereproduksi ulang langkah pelapor utk membuktikan error hilang;
+    // hasilnya ditulis ke utas. Request keputusan tetap instan (verifikasi
+    // berjalan di latar, browser bisa 30-120 dtk) & tidak memakai kuota tenant.
+    if (result.status === "DISETUJUI") {
+      void runPatchVerificationTurn(a.db, id).catch(() => { /* best-effort */ });
+    }
     return NextResponse.json({ proposal: { id: proposalId, status: result.status } });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

@@ -11,12 +11,14 @@
 //   menampilkan indikator "mengetik".
 // =====================================================================
 import { NextRequest, NextResponse } from "next/server";
+import { db as platformDb } from "@/lib/db";
 import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 import {
   resolveSupportActor, supportActorDenied, supportServiceDenied, ticketAccess,
 } from "@/rekankerja/support/api/support-auth";
 import { agentRespond, AgentTurnInProgressError } from "@/rekankerja/support/services/support-agent";
 import { supportQuotaLeft, logSupportTurn } from "@/rekankerja/support/services/support-entitlement";
+import { raisePlatformAlert } from "@/rekankerja/support/services/support-alerts";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -91,6 +93,60 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     // tidak boleh mengubah respons sukses (logSupportTurn best-effort).
     if (a.tenantId) {
       await logSupportTurn(a.tenantId, t.ticketNo, result.usage);
+    }
+
+    // P7.1 — ESKALASI KE PEMILIK APLIKASI (best-effort, tidak pernah gagalkan
+    // giliran): (a) bug terkonfirmasi agent dengan prioritas TINGGI/KRITIS;
+    // (b) agent mengajukan usulan patch MENUNGGU keputusan. Sebelumnya dua
+    // kondisi ini hanya "duduk" di tiket tenant tanpa ada yang memberi tahu
+    // pemilik aplikasi.
+    if (a.tenantId) {
+      try {
+        const highBug =
+          result.category === "BUG" && (result.priority === "TINGGI" || result.priority === "KRITIS");
+        const proposedPatch = result.toolsUsed.includes("propose_patch");
+        if (highBug || proposedPatch) {
+          const ten = await platformDb.tenant.findUnique({
+            where: { id: a.tenantId },
+            select: { id: true, name: true },
+          });
+          if (ten) {
+            if (highBug) {
+              await raisePlatformAlert({
+                type: "BUG_CONFIRMED",
+                tenantId: ten.id,
+                tenantName: ten.name,
+                ticketNo: t.ticketNo,
+                ticketId: t.id,
+                subject: t.subject,
+                priority: result.priority ?? "",
+                message: `Agent mengonfirmasi bug prioritas ${result.priority} pada tiket "${t.subject}" — menunggu penanganan tim platform.`,
+              });
+            }
+            if (proposedPatch) {
+              const waiting = await a.db.supportPatchProposal.findFirst({
+                where: { ticketId: t.id, status: "MENUNGGU" },
+                orderBy: { createdAt: "desc" },
+                select: { filePath: true, description: true },
+              });
+              if (waiting) {
+                await raisePlatformAlert({
+                  type: "PATCH_PROPOSED",
+                  tenantId: ten.id,
+                  tenantName: ten.name,
+                  ticketNo: t.ticketNo,
+                  ticketId: t.id,
+                  subject: t.subject,
+                  priority: result.priority ?? "",
+                  message: `Agent mengajukan usulan patch "${waiting.filePath}": ${waiting.description.slice(0, 300)} — menunggu keputusan (setujui/tolak).`,
+                });
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[support-agent] eskalasi alert ke konsol platform gagal (diabaikan):", e instanceof Error ? e.message : e);
+      }
     }
     return NextResponse.json(
       { message: result.message, category: result.category, priority: result.priority },
