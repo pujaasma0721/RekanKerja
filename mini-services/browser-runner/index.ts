@@ -40,7 +40,10 @@ type Any = any;
 // ---- playwright — resolusi PORTABEL (env → node_modules lokal → global sandbox).
 //    Deploy di server baru: `cd mini-services/browser-runner && bun add playwright
 //    && bunx playwright install chromium`, ATAU set SUPPORT_PLAYWRIGHT_PATH ke
-//    instalasi playwright yang sudah ada (mis. global npm). ----
+//    instalasi playwright yang sudah ada (mis. global npm).
+//    Opsional: SUPPORT_CHROMIUM_PATH → path executable chrome penuh
+//    (chrome-linux64/chrome) — wajib di server yang headless-shell-nya crash
+//    (mis: CPU QEMU emulated tua). ----
 const PW_PATH_CANDIDATES = [
   process.env.SUPPORT_PLAYWRIGHT_PATH,
   new URL("./node_modules/playwright/index.mjs", import.meta.url).pathname,
@@ -51,6 +54,7 @@ const PW_INSTALL_HINT =
   "(cd mini-services/browser-runner && bun add playwright && bunx playwright install chromium) " +
   "atau set env SUPPORT_PLAYWRIGHT_PATH ke path index.mjs instalasi playwright yang sudah ada";
 
+const PW_EXEC = process.env.SUPPORT_CHROMIUM_PATH || undefined;
 let pwMod: { chromium: { launch(opts?: Record<string, unknown>): Promise<Any> } } | null = null;
 async function playwright() {
   if (!pwMod) {
@@ -121,6 +125,7 @@ async function getBrowser() {
   const { chromium } = await playwright();
   browser = await chromium.launch({
     headless: true,
+    executablePath: PW_EXEC,
     args: [
       "--no-sandbox",
       "--disable-dev-shm-usage",
