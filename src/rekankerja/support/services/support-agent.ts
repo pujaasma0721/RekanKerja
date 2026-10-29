@@ -189,7 +189,7 @@ export function buildSupportSystemPrompt(ticket: SupportTicket, toolsOn: boolean
     toolsOn ? toolsPromptSection() : "",
     `ATURAN MENJAWAB:
 1. Bahasa: ikuti bahasa pengguna (default: Indonesia yang ramah dan profesional).
-2. Format: Markdown ringkas & terstruktur. Untuk kendala: **diagnosis singkat → langkah penyelesaian bernomor → workaround bila ada**. Untuk pertanyaan cara pakai: langkah-langkah bernomor singkat.
+2. Format: Markdown ringkas & terstruktur. Untuk kendala: **diagnosis singkat → langkah penyelesaian bernomor → workaround bila ada**. Untuk pertanyaan cara pakai: langkah-langkah bernomor singkat. Tulis RAPAT dan hemat ruang: hindari heading kecuali jawaban benar-benar panjang, jangan menyisipkan baris kosong ekstra antar item daftar, dan jangan mengulang pertanyaan pengguna.
 3. Jujur & faktual. JANGAN mengarang nama menu/fitur yang tidak Anda yakini ada. Bila tidak yakin atau di luar cakupan Anda, katakan terus terang dan tawarkan untuk diteruskan ke tim HR/developer manusia.
 4. Bila informasi kurang, ajukan pertanyaan klarifikasi (maksimal 3, seperlunya saja) — jangan meminta data sensitif (kata sandi, kode OTP, data sensitif orang lain).
 5. Empati: akui frustrasi pengguna bila melaporkan kendala; jangan menyalahkan pengguna.

@@ -17,10 +17,16 @@
 //     dari file manager lalu menempelnya di chat, atau menyeret-lepas (drag
 //     & drop) file ke area utas. Pesan boleh berupa lampiran saja (tanpa teks)
 //     — tangkapan layar dari clipboard otomatis dinamai "tangkapan-layar-…".
+//   · UX P4.2 — scroll halus & rapat: poling 15 dtk kini TIDAK lagi (a) meng-
+//     ganti utas dgn skeleton sesaat (skeleton hanya saat belum ada data) dan
+//     (b) menarik posisi baca ke dasar chat (autoscroll kini hanya saat ada
+//     pesan BARU dan user memang sedang di dekat dasar — bila user sedang
+//     membaca riwayat, muncul pill "Pesan baru" yang bisa diklik utk turun).
+//     Balasan AI juga dirender lebih rapat (margin markdown & leading diciut).
 // Lampiran diunggah via multipart (apiUpload) — server menyimpan lewat
 // attachment-service generik (entityType "SupportMessage").
 // =====================================================================
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -191,29 +197,37 @@ function fmtStamp(iso: string, locale: string): string {
   return `${d.toLocaleDateString(locale, { day: "numeric", month: "short" })} ${time}`;
 }
 
-// ---------- render markdown balasan AI (pola ai-chat-widget) ----------
+// ---------- render markdown balasan AI (pola ai-chat-widget; P4.2: rapat) ----------
+// useLayoutEffect di client (efek sinkron PRA-PAINT — sticky-scroll presisi:
+// keputusan "user di dasar?" dibaca SEBELUM browser sempat menembakkan event
+// scroll akibat konten bertambah), useEffect di SSR (hindari warning React).
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 const MD_COMPONENTS: Components = {
-  h1: ({ node, ...p }) => <h3 className="mt-2 mb-1 text-[13px] font-bold first:mt-0" {...p} />,
-  h2: ({ node, ...p }) => <h3 className="mt-2 mb-1 text-[13px] font-bold first:mt-0" {...p} />,
-  h3: ({ node, ...p }) => <h4 className="mt-2 mb-1 text-[12.5px] font-semibold first:mt-0" {...p} />,
-  h4: ({ node, ...p }) => <h4 className="mt-1.5 mb-1 text-[12.5px] font-semibold first:mt-0" {...p} />,
-  p: ({ node, ...p }) => <p className="my-1 first:my-0" {...p} />,
-  ul: ({ node, ...p }) => <ul className="my-1 list-disc space-y-0.5 pl-4" {...p} />,
-  ol: ({ node, ...p }) => <ol className="my-1 list-decimal space-y-0.5 pl-4" {...p} />,
-  li: ({ node, ...p }) => <li className="leading-snug" {...p} />,
+  h1: ({ node, ...p }) => <h3 className="mt-1.5 mb-0.5 text-[13px] font-bold first:mt-0" {...p} />,
+  h2: ({ node, ...p }) => <h3 className="mt-1.5 mb-0.5 text-[13px] font-bold first:mt-0" {...p} />,
+  h3: ({ node, ...p }) => <h4 className="mt-1.5 mb-0.5 text-[12.5px] font-semibold first:mt-0" {...p} />,
+  h4: ({ node, ...p }) => <h4 className="mt-1 mb-0.5 text-[12.5px] font-semibold first:mt-0" {...p} />,
+  p: ({ node, ...p }) => <p className="my-0.5 first:my-0 last:my-0" {...p} />,
+  ul: ({ node, ...p }) => <ul className="my-0.5 list-disc space-y-0 pl-4" {...p} />,
+  ol: ({ node, ...p }) => <ol className="my-0.5 list-decimal space-y-0 pl-4" {...p} />,
+  // [&>p]:my-0 — daftar "loose" (markdown berbaris-kosong antar item) tidak
+  // boleh mendapat margin ganda dari <p> di dalam tiap <li>.
+  li: ({ node, ...p }) => <li className="leading-snug [&>p]:my-0" {...p} />,
   table: ({ node, ...p }) => (
-    <div className="my-1.5 overflow-x-auto">
+    <div className="my-1 overflow-x-auto">
       <table className="w-full border-collapse text-[11.5px]" {...p} />
     </div>
   ),
-  th: ({ node, ...p }) => <th className="border border-slate-300 px-1.5 py-1 text-left font-semibold dark:border-slate-600" {...p} />,
-  td: ({ node, ...p }) => <td className="border border-slate-200 px-1.5 py-1 align-top dark:border-slate-700" {...p} />,
+  th: ({ node, ...p }) => <th className="border border-slate-300 px-1.5 py-0.5 text-left font-semibold dark:border-slate-600" {...p} />,
+  td: ({ node, ...p }) => <td className="border border-slate-200 px-1.5 py-0.5 align-top dark:border-slate-700" {...p} />,
   strong: ({ node, ...p }) => <strong className="font-semibold" {...p} />,
   a: ({ node, ...p }) => <a className="text-brand underline underline-offset-2" target="_blank" rel="noreferrer" {...p} />,
   code: ({ node, ...p }) => <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] dark:bg-slate-900" {...p} />,
-  pre: ({ node, ...p }) => <pre className="my-1.5 overflow-x-auto rounded-lg bg-slate-900 p-2 text-[11px] text-slate-100" {...p} />,
-  blockquote: ({ node, ...p }) => <blockquote className="my-1 border-l-2 border-slate-300 pl-2 text-slate-500 dark:border-slate-600 dark:text-slate-400" {...p} />,
-  hr: () => <hr className="my-2 border-slate-200 dark:border-slate-700" />,
+  pre: ({ node, ...p }) => <pre className="my-1 overflow-x-auto rounded-lg bg-slate-900 p-2 text-[11px] text-slate-100" {...p} />,
+  blockquote: ({ node, ...p }) => <blockquote className="my-0.5 border-l-2 border-slate-300 pl-2 text-slate-500 dark:border-slate-600 dark:text-slate-400" {...p} />,
+  hr: () => <hr className="my-1.5 border-slate-200 dark:border-slate-700" />,
 };
 
 // ---------- subkomponen kecil ----------
@@ -338,7 +352,7 @@ function ChatBubble({ m, locale, accent }: { m: MessageRow; locale: string; acce
         {m.body && (
           <div
             className={cn(
-              "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm",
+              "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[13px] leading-normal shadow-sm",
               mine
                 ? "rounded-br-md text-white"
                 : "rounded-bl-md border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
@@ -539,23 +553,108 @@ function SupportServiceView() {
   // kursor melintasi elemen anak di dalam area utas chat.
   const dragDepth = useRef(0);
   const [dragOverChat, setDragOverChat] = useState(false);
+  // P4.2 — scroll cerdas "rekat-di-dasar": poling tanpa pesan baru TIDAK boleh
+  // menyentuh posisi baca; autoscroll hanya bila ada pesan BARU dan user
+  // memang sedang di dekat dasar. Bila user membaca riwayat, pesan baru
+  // ditandai pill "Pesan baru" (klik → lompat halus ke dasar).
+  const lastMsgIdRef = useRef<string | null>(null); // pesan terakhir yang terpantau
+  const nearBottomRef = useRef(true); // user dalam ~140px dari dasar chat?
+  const lastTopRef = useRef(0); // scrollTop terakhir (deteksi event bukan-aksi-user)
+  const [newBelow, setNewBelow] = useState(false);
+  const prevSelRef = useRef<string | null>(null);
 
   const ticket = ticketApi.data?.ticket ?? null;
   const busy = sending || aiBusy;
   // composer aktif = tiket terbuka & belum DITUTUP (area paste/drop lampiran).
   const canCompose = !!ticket && ticket.status !== "DITUTUP";
 
-  // autoscroll ke pesan terbaru
-  useEffect(() => {
+  // ---------- P4.2: scroll cerdas (rekat-di-dasar, tanpa sentakan poling) ----------
+  // Autoscroll HANYA saat id pesan terakhir berubah (pesan baru nyata) DAN
+  // user sedang dekat dasar. Dijalankan sebagai LAYOUT EFFECT (pra-paint):
+  // saat konten baru dimasukkan, browser menembakkan event scroll (scroll
+  // anchoring) SEBELUM efek pasif React — dulu event itu "meracuni" status
+  // dekat-dasar sehingga pill muncul padahal user di dasar. Layout effect
+  // membaca status pra-mutasi dan menempelkan scroll secara instan — user
+  // tidak pernah melihat konten "melompat". Poling tanpa pesan baru tidak
+  // menyentuh scroll sama sekali.
+  useIsomorphicLayoutEffect(() => {
+    const msgs = msgApi.data?.messages;
+    const lastId = msgs && msgs.length > 0 ? msgs[msgs.length - 1].id : null;
+    const prev = lastMsgIdRef.current;
+    lastMsgIdRef.current = lastId;
     const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight });
-  }, [msgApi.data, aiBusy]);
+    if (!el) return;
+    if (!msgs || msgs.length === 0) {
+      setNewBelow(false);
+      return;
+    }
+    if (prev === null) {
+      // utas baru dibuka/dimasuki → langsung tampilkan pesan terbaru
+      el.scrollTop = el.scrollHeight;
+      setNewBelow(false);
+      return;
+    }
+    if (lastId === prev) return; // poling tanpa pesan baru → jangan ganggu posisi baca
+    if (nearBottomRef.current) {
+      el.scrollTop = el.scrollHeight; // instan, sinkron dgn mutasi DOM → mulus
+    } else {
+      setNewBelow(true); // user sedang membaca riwayat → pill "Pesan baru"
+    }
+  }, [msgApi.data]);
 
-  // polling ringan (15 dtk) — hanya saat chat terbuka & tidak sedang sibuk
+  // indikator "mengetik" muncul → ikut turun hanya bila user di dasar chat
+  useEffect(() => {
+    if (!aiBusy) return;
+    const el = scrollRef.current;
+    if (el && nearBottomRef.current) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [aiBusy]);
+
+  // ganti tiket → reset konteks scroll + buang data stale (skeleton tiket baru)
+  useEffect(() => {
+    if (prevSelRef.current === selectedId) return;
+    prevSelRef.current = selectedId;
+    lastMsgIdRef.current = null;
+    nearBottomRef.current = true;
+    setNewBelow(false);
+    if (selectedId) {
+      msgApi.setData(null);
+      ticketApi.setData(null);
+      patchesApi.setData(null);
+    }
+    // setData = setState React (stabil antar render) — cukup selectedId sbg pemicu.
+  }, [selectedId, msgApi.setData, ticketApi.setData, patchesApi.setData]);
+
+  // pelacakan posisi baca: "dekat dasar" = dalam ~140px dari bawah.
+  // Event scroll dgn scrollTop yang TIDAK bergerak diabaikan — itu bukan
+  // aksi user melainkan efek konten bertambah/penjangkaran anchor browser.
+  const onThreadScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const moved = Math.abs(el.scrollTop - lastTopRef.current);
+    lastTopRef.current = el.scrollTop;
+    if (moved < 1) return;
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+    if (nearBottomRef.current !== near) {
+      nearBottomRef.current = near;
+      if (near) setNewBelow(false); // sampai dasar → pill hilang
+    }
+  }, []);
+
+  const jumpToLatest = useCallback(() => {
+    nearBottomRef.current = true;
+    setNewBelow(false);
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, []);
+
+  // polling ringan (15 dtk) — hanya saat chat terbuka, tab terlihat, dan tidak
+  // sedang sibuk; tujuannya menghadirkan balasan AI (bisa makan waktu saat agen
+  // memeriksa kode/data/browser), keputusan patch, dan perubahan status TANPA
+  // reload — kini tanpa sentakan karena scroll & skeleton dikelola P4.2.
   useEffect(() => {
     if (!selectedId) return;
     const h = window.setInterval(() => {
-      if (!sending && !aiBusy) {
+      if (!sending && !aiBusy && document.visibilityState === "visible") {
         void msgApi.refresh();
         void patchesApi.refresh();
       }
@@ -687,6 +786,8 @@ function SupportServiceView() {
     const body = draft.trim();
     // pesan boleh berupa lampiran saja (tempel tangkapan layar → Enter)
     if (!body && files.length === 0) return;
+    nearBottomRef.current = true; // pesan sendiri → fokuskan ke dasar chat
+    setNewBelow(false);
     const form = new FormData();
     form.set("body", body);
     for (const f of files) form.append("files", f);
@@ -836,7 +937,7 @@ function SupportServiceView() {
           </div>
 
           <div className="flex-1 space-y-1 overflow-y-auto p-2">
-            {ticketsApi.loading ? (
+            {ticketsApi.loading && !ticketsApi.data ? (
               <LoadingRows rows={4} />
             ) : ticketsApi.error ? (
               <EmptyState title={t("Gagal memuat", "Failed to load")} description={ticketsApi.error} />
@@ -948,7 +1049,9 @@ function SupportServiceView() {
               </div>
             </div>
           )}
-          {ticketApi.loading || msgApi.loading ? (
+          {/* skeleton HANYA saat belum ada data (buka/ganti tiket) — poling
+              15 dtk TIDAK lagi mengganti utas dgn skeleton sesaat */}
+          {(!ticket && ticketApi.loading) || (msgApi.loading && !msgApi.data) ? (
             <div className="flex-1 p-4"><LoadingRows rows={6} /></div>
           ) : !ticket ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
@@ -1021,22 +1124,44 @@ function SupportServiceView() {
                 </div>
               </div>
 
-              {/* pesan + kartu usulan patch (timeline gabungan P4) */}
-              <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4" role="log" aria-live="polite">
-                {timeline.map((item) =>
-                  item.kind === "msg" ? (
-                    <ChatBubble key={item.m.id} m={item.m} locale={loc} accent={accent} />
-                  ) : (
-                    <PatchCard
-                      key={item.p.id}
-                      p={item.p}
-                      canDecide={canDecide}
-                      onReview={setReview}
-                      locale={loc}
-                    />
-                  ),
+              {/* pesan + kartu usulan patch (timeline gabungan P4) — wrapper
+                  relative menampung pill "Pesan baru" (P4.2) */}
+              <div className="relative min-h-0 flex-1">
+                <div
+                  ref={scrollRef}
+                  onScroll={onThreadScroll}
+                  className="h-full space-y-3 overflow-y-auto p-4"
+                  role="log"
+                  aria-live="polite"
+                >
+                  {timeline.map((item) =>
+                    item.kind === "msg" ? (
+                      <ChatBubble key={item.m.id} m={item.m} locale={loc} accent={accent} />
+                    ) : (
+                      <PatchCard
+                        key={item.p.id}
+                        p={item.p}
+                        canDecide={canDecide}
+                        onReview={setReview}
+                        locale={loc}
+                      />
+                    ),
+                  )}
+                  {aiBusy && <TypingDots />}
+                </div>
+                {/* pill lompat ke pesan baru — muncul saat user sedang membaca
+                    riwayat (di atas dasar chat) dan ada pesan baru masuk */}
+                {newBelow && (
+                  <button
+                    type="button"
+                    onClick={jumpToLatest}
+                    className="absolute bottom-3 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-[11.5px] font-semibold shadow-lg transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+                    style={{ color: accent }}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                    {t("Pesan baru", "New messages")}
+                  </button>
                 )}
-                {aiBusy && <TypingDots />}
               </div>
 
               {/* kegagalan agent + retry */}
