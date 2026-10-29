@@ -33,11 +33,24 @@
 //   · Triase otomatis: setiap balasan final diakhiri marker metadata
 //     [[META:KATEGORI|PRIORITAS]] — di-strip sebelum disimpan; kategori &
 //     prioritas tiket diperbarui (guard whitelist).
+//   · FEAT-SUPPORT-P4.5 — GAYA CHAT ala WhatsApp Web (rapat, tanpa pemisah
+//     dokumen) + SCOPE HAK AKSES: jawaban AI dibatasi pada menu yang memang
+//     diakses PENANYA (pembuat tiket) — pertanyaan soal menu di luar aksesnya
+//     ditolak sopan tanpa membocorkan isi fiturnya (pola resolveAiActor
+//     ai-chat-service, dilihat dari sisi tiket: AppUser → UserMenuAccess,
+//     super admin AppUser/platform terverifikasi silang per-schema).
 // =====================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 import { aiComplete, type AiMessage } from "@/rekankerja/shared/services/ai-provider";
 import { createZaiClient } from "@/rekankerja/shared/services/zai-client";
 import { readAttachmentFile } from "@/rekankerja/shared/services/attachment-service";
+import { MENU_MAP_ALL, prettyMenuKey } from "@/rekankerja/shared/services/ai-chat-service";
+import {
+  SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES, ESS_ONLY_APP_ROLES,
+} from "@/rekankerja/shared/services/access-scope";
+import { PUBLIC_MENU_KEYS } from "@/rekankerja/shared/lib/public-menus";
+import { db as platformDb } from "@/lib/db";
 import type { SupportTicket, SupportMessage } from "@/generated/tenant";
 import {
   runSupportTool, toolsEnabledFor, TOOL_LABELS,
@@ -112,6 +125,108 @@ function who(ticket: SupportTicket): string {
   return ticket.createdByName?.trim() || "pengguna";
 }
 
+// ---------- P4.5: resolusi HAK AKSES MENU PENANYA (scope jawaban) ----------
+
+/** Teks scope utk pengguna portal ESS murni (tanpa menu admin). */
+const ESS_ONLY_SCOPE =
+  "(tidak ada menu admin — pengguna portal ESS mandiri: dashboard, cuti, presensi, slip gaji, klaim, pengajuan, surat, pengumuman, tukar shift, aset, pelaporan pelanggaran, profil)";
+
+/** Cari label menu publik default (bwh:report dkk). */
+function publicMenuList(): string[] {
+  return [...PUBLIC_MENU_KEYS];
+}
+
+/**
+ * P4.5 — daftar menu yang DAPAT DIAKSES pembuat tiket (penanya), sebagai
+ * scope jawaban agen. Sumber kebenaran sama dgn guard menu-access /
+ * ai-chat-service (resolveAiActor), tapi dilihat dari sisi TIKET (tanpa sesi):
+ *   1. AppUser tiket (by createdById) → role; role ESS → portal ESS murni.
+ *   2. Super admin AppUser.role "Admin" → semua menu (peta lengkap).
+ *   3. Super admin platform (membership OWNER/ADMIN dgn email sama) → verifikasi
+ *      silang: AppUser dgn id SAMA harus hidup di schema tenant membership itu
+ *      (menutup salah-grant lintas tenant — email sama orang beda).
+ *   4. UserMenuAccess: mode ALL → semua; CUSTOM → daftar key; TANPA baris →
+ *      default-DENY M-7 (hanya menu publik).
+ * Selalu ditambah: portal ESS mandiri + menu Support Service (percakapan ini).
+ */
+async function resolveAskerMenuSection(db: TenantDb, ticket: SupportTicket): Promise<{ text: string; all: boolean }> {
+  const mapAll = `${MENU_MAP_ALL}\n- Online Support: Support Service (percakapan ini)`;
+  try {
+    const appUser = ticket.createdById
+      ? await db.appUser.findUnique({
+          where: { id: ticket.createdById },
+          select: { id: true, role: true, email: true },
+        })
+      : null;
+
+    if (appUser && ESS_ONLY_APP_ROLES.includes(appUser.role)) {
+      return { text: ESS_ONLY_SCOPE, all: false };
+    }
+
+    let allMenus = appUser != null && SUPER_ADMIN_APP_ROLES.includes(appUser.role);
+    if (!allMenus && appUser?.email) {
+      // membership platform OWNER/ADMIN dgn email sama + AppUser id sama hidup
+      // di schema tenant membership tsb → super admin tenant INI.
+      const adminMemberships = await platformDb.userTenant.findMany({
+        where: { user: { email: appUser.email }, role: { in: SUPER_ADMIN_PLATFORM_ROLES } },
+        select: { tenant: { select: { schemaName: true } } },
+        take: 5,
+      });
+      for (const m of adminMemberships) {
+        const sameUser = await getTenantClient(m.tenant.schemaName).appUser
+          .findUnique({ where: { id: ticket.createdById! }, select: { id: true } })
+          .catch(() => null);
+        if (sameUser) {
+          allMenus = true;
+          break;
+        }
+      }
+    }
+    if (allMenus) {
+      return { text: mapAll, all: true };
+    }
+
+    if (!appUser) {
+      return { text: "(profil pengguna tidak ditemukan — anggap TANPA menu admin: hanya portal ESS mandiri + percakapan support ini)", all: false };
+    }
+
+    const row = await db.userMenuAccess.findUnique({
+      where: { appUserId: appUser.id },
+      select: { mode: true, menusJson: true },
+    });
+    if (row?.mode === "ALL") {
+      return { text: mapAll, all: true };
+    }
+    if (!row) {
+      // M-7 default-DENY: hanya menu publik + ESS + support.
+      const pubs = publicMenuList();
+      return {
+        text: [
+          ...pubs.map((k) => `- ${prettyMenuKey(k)}`),
+          "- Portal ESS mandiri (data diri sendiri)",
+          "- Online Support: Support Service (percakapan ini)",
+        ].join("\n"),
+        all: false,
+      };
+    }
+    const keys = Object.keys(JSON.parse(row.menusJson || "{}") as Record<string, unknown>);
+    if (keys.length === 0) {
+      return { text: "(tidak ada menu admin — portal ESS mandiri + percakapan support ini saja)", all: false };
+    }
+    return {
+      text: [
+        ...keys.map((k) => `- ${prettyMenuKey(k)}`),
+        "- Portal ESS mandiri (data diri sendiri)",
+        "- Online Support: Support Service (percakapan ini)",
+      ].join("\n"),
+      all: false,
+    };
+  } catch (e) {
+    console.warn("[support-agent] resolusi hak akses menu penanya gagal:", e instanceof Error ? e.message : e);
+    return { text: "(daftar menu tidak dapat dibaca — jawab konservatif: hanya hal umum & data diri, tanpa detail menu admin)", all: false };
+  }
+}
+
 /** Bagian prompt ALAT BACA (P2/L2) — hanya bila tools aktif utk tenant. */
 function toolsPromptSection(): string {
   return [
@@ -171,8 +286,32 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
   ].join("\n");
 }
 
-/** System prompt persona tim support (L1 + opsional L2 tools). */
-export function buildSupportSystemPrompt(ticket: SupportTicket, toolsOn: boolean): string {
+/** System prompt persona tim support (L1 + opsional L2 tools).
+ *  P4.5: menuScope — { text, all } hasil resolveAskerMenuSection utk scope. */
+export function buildSupportSystemPrompt(
+  ticket: SupportTicket,
+  toolsOn: boolean,
+  menuScope: { text: string; all: boolean },
+): string {
+  // Blok akses ADAPTIF: super admin (akses penuh) TIDAK diberi aturan
+  // penolakan — model lemah mudah ter-anchor pada contoh penolakan dalam
+  // aturan (menolak padahal daftar penuh). Pengguna terbatas mendapat
+  // aturan keras + contoh konkret.
+  const accessBlock = menuScope.all
+    ? [
+        `HAK AKSES PENANYA: PENUH (super admin / pemilik akses semua menu).\n${menuScope.text}`,
+        ``,
+        `Karena penanya berhak atas SEMUA menu di atas, pertanyaan fitur/data menu mana pun boleh dijawab normal.`,
+      ].join("\n")
+    : [
+        `HAK AKSES MENU PENANYA (${who(ticket)} — satu-satunya sumber kebenaran hak aksesnya):\n${menuScope.text}`,
+        ``,
+        `ATURAN HAK AKSES (WAJIB — pelanggaran = jawaban salah):
+- Pertanyaan cara pakai fitur/menu/data yang TIDAK tercantum dalam HAK AKSES MENU PENANYA di atas (contoh: menanyakan cara memproses payroll padahal Payroll tidak ada di daftarnya) → TOLAK dalam 1-2 kalimat sopan: sampaikan bahwa menu/fitur itu di luar hak aksesnya saat ini, lalu sarankan menghubungi admin/HR untuk meminta akses.
+- DILARANG membocorkan cara pakai, alur, isi, angka, atau detail fitur menu yang TIDAK diakses penanya — sama sekali.
+- Laporan kendala/error umum (aplikasi error, gagal login, layar putih) tetap ditanggap: dengarkan & bantu diagnosis umum, tanpa menuntunkan langkah mendalam di menu yang tak diaksesnya.
+- Alat pemeriksaan internal (query_db, reproduce_browser, dll.) juga tunduk pada aturan ini — jangan memakainya untuk melayani pertanyaan di luar hak akses penanya.`,
+      ].join("\n");
   return [
     `Anda adalah "${SUPPORT_AI_NAME}" — agen layanan dukungan (customer support) internal aplikasi HRIS **RekanKerja**. Anda melayani layaknya tim support profesional yang ramah, sabar, dan terstruktur, berkomunikasi satu-dalam-satu dengan seorang pengguna melalui tiket percakapan.`,
     ``,
@@ -182,20 +321,25 @@ export function buildSupportSystemPrompt(ticket: SupportTicket, toolsOn: boolean
 - Pengguna: ${who(ticket)}
 - Status saat ini: ${ticket.status}`,
     ``,
+    accessBlock,
+    ``,
     `CAKUPAN LAYANAN:
-- Pertanyaan cara pakai fitur RekanKerja (modul: Human Resource — perusahaan/unit organisasi/posisi/karyawan/onboarding/surat; Payroll; Attendance/absensi; Leave/cuti; Travel/perjalanan dinas; Medical; Recruitment/rekrutmen; Performance/kinerja; Whistleblowing; ESS mandiri karyawan; Pengaturan).
+- Pertanyaan cara pakai fitur RekanKerja — hanya menu yang tercantum di HAK AKSES PENANYA di atas (ditambah portal ESS mandiri, akun/login sendiri, dan percakapan support ini).
 - Laporan kendala/bug/error pada aplikasi (diagnosa awal, langkah mengatasi, workaround sementara).
-- Pertanyaan seputar data & akun pengguna sendiri (jika perlu data spesifik yang tidak Anda miliki, minta pengguna menyalin teks error/mengirim tangkay layar — jangan menebak).`,
+- Pertanyaan seputar data & akun pengguna sendiri (jika perlu data spesifik yang tidak Anda miliki, minta pengguna menyalin teks error/mengirim tangkapan layar — jangan menebak).`,
     toolsOn ? toolsPromptSection() : "",
     `ATURAN MENJAWAB:
 1. Bahasa: ikuti bahasa pengguna (default: Indonesia yang ramah dan profesional).
-2. Format: Markdown ringkas & terstruktur. Untuk kendala: **diagnosis singkat → langkah penyelesaian bernomor → workaround bila ada**. Untuk pertanyaan cara pakai: langkah-langkah bernomor singkat. Tulis RAPAT dan hemat ruang: hindari heading kecuali jawaban benar-benar panjang, jangan menyisipkan baris kosong ekstra antar item daftar, dan jangan mengulang pertanyaan pengguna.
+2. GAYA CHAT ala WhatsApp Web — RINGKAS & RAPAT (WAJIB):
+   - Balasan adalah PESAN CHAT, bukan dokumen/artikel: TANPA heading (###), TANPA garis pemisah (---), TANPA "judul seksi" yang berdiri sendiri (mis. baris "**Catatan:**" terpisah dari isinya).
+   - Langsung ke isi: tanpa kalimat pembuka basi ("berikut langkah-langkahnya:", "tentu, saya bantu") dan tanpa penutup basi ("semoga membantu", "butuh bantuan lagi?").
+   - Langkah = daftar bernomor SATU BARIS per langkah, format: 1. **Aksi** — keterangan singkat. DILARANG menyisipkan baris kosong antar item daftar; sub-bullet menjorok hanya bila sungguh perlu (maks 1 tingkat).
+   - Ringkas: ±150 kata kecuali langkah teknis yang memang panjang.
 3. Jujur & faktual. JANGAN mengarang nama menu/fitur yang tidak Anda yakini ada. Bila tidak yakin atau di luar cakupan Anda, katakan terus terang dan tawarkan untuk diteruskan ke tim HR/developer manusia.
 4. Bila informasi kurang, ajukan pertanyaan klarifikasi (maksimal 3, seperlunya saja) — jangan meminta data sensitif (kata sandi, kode OTP, data sensitif orang lain).
 5. Empati: akui frustrasi pengguna bila melaporkan kendala; jangan menyalahkan pengguna.
-6. Ringkas — maksimal sekitar 250 kata kecuali memang perlu langkah panjang.
-7. Bila masalah tampak selesai, sarankan pengguna menandai percakapan "Selesai" (tombol di atas chat).
-8. Pesan berisi hanya lampiran (tangkapan layar, tanpa teks) — konteks "[Konteks lampiran gambar yang dianalisa AI vision]" otomatis menyertainya: tanggapi isinya secara natural (mis. pesan error yang terlihat, halaman mana), lalu lanjuti layaknya laporan biasa.`,
+6. Bila masalah tampak selesai, sarankan pengguna menandai percakapan "Selesai" (tombol di atas chat).
+7. Pesan berisi hanya lampiran (tangkapan layar, tanpa teks) — konteks "[Konteks lampiran gambar yang dianalisa AI vision]" otomatis menyertainya: tanggapi isinya secara natural (mis. pesan error yang terlihat, halaman mana), lalu lanjuti layaknya laporan biasa.`,
     ``,
     `FORMAT WAJIB DI AKHIR BALASAN (triase internal — TIDAK boleh dijelaskan ke pengguna, TIDAK ditulis di tempat lain):
 Akhiri SETIAP balasan dengan tepat satu baris metadata pola:
@@ -341,7 +485,10 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
   });
   const base = toLlmMessages(messages, imageContext);
   const toolsOn = await toolsEnabledFor(db);
-  const system = buildSupportSystemPrompt(ticket, toolsOn);
+  // P4.5 — scope jawaban: daftar menu yang bisa diakses PENANYA (pembuat tiket).
+  const menuScope = await resolveAskerMenuSection(db, ticket);
+  console.log(`[support-agent] tiket ${ticket.ticketNo} scope penanya: ${menuScope.all ? "AKSES PENUH (super admin)" : "TERBATAS"} — ${menuScope.text.slice(0, 120).replace(/\n/g, " ¶ ")}`);
+  const system = buildSupportSystemPrompt(ticket, toolsOn, menuScope);
 
   // ---------- loop ReAct (P2) ----------
   const convo: AiMessage[] = [...base];
@@ -500,9 +647,19 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
   // P4.3: buang spasi/tab di AKHIR baris (di luar blok kode fenced) — artefak
   // "hard break" markdown (dua spasi + enter) yang menambah baris kosong liar
   // saat dirender rapat di chat. Blok kode dilindungi (capture-group ganjil).
+  // P4.5: garis pemisah ---/***/___ yang berdiri sendiri DI TENGAH jawaban
+  // juga dibuang (gaya chat ala WhatsApp — bukan dokumen berseksi). Yang
+  // didahului baris kosong saja (thematic break); setext heading (Teks lalu
+  // --- tanpa baris kosong) tidak tersentuh.
   body = body
     .split(/(```[\s\S]*?```)/g)
-    .map((part, i) => (i % 2 === 1 ? part : part.replace(/[ \t]+$/gm, "")))
+    .map((part, i) =>
+      i % 2 === 1
+        ? part
+        : part
+            .replace(/[ \t]+$/gm, "")
+            .replace(/\n[ \t]*\n[ \t]*(?:-{3,}|\*{3,}|_{3,})[ \t]*(?=\n)/g, "\n"),
+    )
     .join("");
   // P3: bukti tangkapan layar hanya sah sebagai LAMPIRAN file (dilampirkan
   // otomatis oleh runtime). Model kadang mengarang link gambar markdown

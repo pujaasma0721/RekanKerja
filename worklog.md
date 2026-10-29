@@ -8967,3 +8967,38 @@ Task: permintaan user — "hide bubble chat ketika menu support service chat akt
 
 Stage Summary:
 - P4.4 SELESAI: bubble asisten AI kini otomatis menghilang ketika pengguna berada di modul Support Service (tempat chat dukungan penuh berada) dan muncul kembali — lengkap dengan kondisi terakhirnya — begitu pengguna berpindah ke menu lain; mode ESS tidak terpengaruh.
+
+---
+
+## 2026-10-29 — FEAT-SUPPORT-P4.5 (Online Support): gaya chat WhatsApp + scope HAK AKSES menu penanya
+
+Task: dua permintaan user atas percakapan "haloo apa" (SP-2026-003): (1) "cek jawaban terakhir AI agent, cek kerapian jawaban secara susunan text, belum rapi dan masih ada ruang2 kosong disana, harusnya model conversation mirip seperti whatsapp web, rapi dan mudah dibaca"; (2) "pastikan ai agent menjawab hanya sesuai hak akses si user/penanya jika pertanyaan berkaitan dengan menu2 aplikasi lain — contoh user yang hanya akses menu medical tidak boleh menanyakan perihal menu payroll".
+
+### Diagnosis
+- Jawaban terakhir SP-2026-003 ("bagaimana cara process payroll") ternyata SAH utk penanyanya (Tri = platform OWNER MII → super admin akses penuh) — masalahnya murni FORMAT: DOM terukur `<hr>` di tengah pesan (mt+mb 6px + garis) dari `---` markdown + gaya dokumen (intro basi "berikut langkah-langkahnya:", item bernomor berjudul tebal per item, seksi "**Catatan Penting:**", penutup basi). VLM: "formal document, ~45-50% whitespace".
+- Scope hak akses belum ada sama sekali di support agent (system prompt lama menyebut SEMUA modul tanpa batasan penanya).
+
+### Perubahan
+- GAYA WHATSAPP (support-agent.ts ATURAN MENJAWAB #2 baru): balasan = pesan chat — TANPA heading/garis pemisah/judul seksi berdiri sendiri, tanpa pembuka/penutup basi, langkah bernomor SATU BARIS per item ("1. **Aksi** — detail"), tanpa baris kosong antar item, ±150 kata.
+- SANITIZER + compactMd: garis pemisah ---/***/___ yang berdiri sendiri DI TENGAH jawaban dibuang (server utk pesan baru; FE retroaktif utk semua riwayat — SP-2026-003 lama langsung rapat). Setext heading (Teks\n--- tanpa baris kosong) dan blok kode fenced aman tak tersentuh.
+- SCOPE HAK AKSES (support-agent.ts): resolveAskerMenuSection(db, ticket) membaca menu PENANYA (pembuat tiket — tanpa sesi): AppUser role → ESS clamp / super admin AppUser; super admin platform diverifikasi SILANG (membership OWNER/ADMIN dgn email sama + AppUser id sama hidup di schema tenant itu — menutup salah-grant lintas tenant); UserMenuAccess ALL/CUSTOM/default-DENY M-7 (publik saja). Selalu + portal ESS mandiri + Support Service. prettyMenuKey & MENU_MAP_ALL diekspor dari ai-chat-service (sumber label sama dgn chat widget).
+- BLOK AKSES ADAPTIF di system prompt: super admin → "AKSES PENUH — semua menu boleh" TANPA aturan penolakan (temuan E2E: model lemah ter-ANCHOR pada contoh penolakan dalam aturan hingga menolak padahal daftar penuh + riwayat penolakan lama ikut meracuni giliran baru — makanya blok penolakan hanya utk pengguna terbatas, dan pengujian wajib tiket segar); pengguna terbatas → aturan keras TOLAK 1-2 kalimat sopan + arahkan admin/HR, DILARANG bocorkan cara pakai/isi menu tak diakses, error umum tetap ditanggap diagnosis umum, alat pemeriksaan (query_db/reproduce_browser) tunduk scope.
+- Log server ringan baru: `[support-agent] tiket X scope penanya: PENUH/TERBATAS — <daftar>` (audit).
+
+### Bug ditemukan & diperbaiki saat E2E
+- select AppUser tanpa `id` → appUser.id undefined → prisma throw → fallback konservatif (penolakan benar tapi daftar salah) — fixed: id ikut diselect.
+
+### Verifikasi
+- GATES: bun run lint 0 error (12 warning pre-existing) · tsc -p tsconfig.p45check.json EXIT 0 · dev.log bersih pasca E2E.
+- UNIT regex compactMd: --- tengah hilang, setext heading tak tersentuh, fence terlindungi, *** / ___ juga dibersihkan.
+- E2E BROWSER (agent-browser):
+  1. SP-2026-003 "haloo apa" lama: hrCount 0 (dulu 1) — retroaktif ✓ (screenshot 01).
+  2. Tiket segar super admin tanya "bagaimana cara process payroll" → DIJAWAB langkah bernomor; DOM: 0 hr / 0 heading / 0 br; VLM: "compact, no separators, no gaps" ✓ (screenshot 02).
+  3. Agus (Viewer, menu: HR overview+directory, Leave×3 — TANPA payroll) diberi support:service via API: tanya "bagaimana cara process payroll" → DITOLAK sopan ("tidak termasuk hak akses Anda… hubungi admin/HR"), TANPA bocor langkah payroll ✓ (screenshot 03; scope log menampilkan daftar menunya benar).
+  4. Agus tanya "bagaimana cara mengajukan cuti" (menu miliknya) → DIJAWAB lengkap dgn nama menu persis dari daftarnya ("Leave (Cuti) — Permintaan Cuti") ✓.
+  5. 0 page error · 0 console error · overflowX 0.
+- PEMULIHAN DATA UJI: menu Agus dipulihkan ke 5 menu asli; tiket uji SP-2026-004/005/006 dihapus (cascade pesan); orphan attachment 0.
+- Artefak: audit/support-p4.5/ (4 screenshot: 00-before + 3 after) + tsconfig.p45check.json.
+
+Stage Summary:
+- P4.5 SELESAI: balasan AI kini bergaya chat WhatsApp Web (rapat, tanpa pemisah/heading, langkah satu-baris) — berlaku retroaktif ke seluruh riwayat; dan agen HANYA menjawab pertanyaan fitur sesuai HAK AKSES menu si penanya — di luar akses → ditolak sopan tanpa membocorkan isi menu (contoh: user tanpa akses Payroll tidak bisa meminta cara memproses payroll), sementara super admin bebas bertanya apa pun.

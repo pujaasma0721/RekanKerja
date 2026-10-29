@@ -27,6 +27,8 @@
 //     heading ###): margin heading diseragamkan dgn paragraf (my-0.5, 13px —
 //     tampil sbg baris label tebal langsung di atas list) + compactMd() buang
 //     artefak spasi-akhir-baris (hard break liar) di luar blok kode fenced.
+//   · P4.5 — compactMd juga membuang garis pemisah (---/***/___) yang berdiri
+//     sendiri di tengah pesan (gaya chat ala WhatsApp Web, bukan dokumen).
 // Lampiran diunggah via multipart (apiUpload) — server menyimpan lewat
 // attachment-service generik (entityType "SupportMessage").
 // =====================================================================
@@ -237,10 +239,13 @@ const MD_COMPONENTS: Components = {
   hr: () => <hr className="my-1.5 border-slate-200 dark:border-slate-700" />,
 };
 
-/** P4.3 — normalisasi markdown balasan AI supaya RAPAT saat dirender:
+/** P4.3/P4.5 — normalisasi markdown balasan AI supaya RAPAT saat dirender:
  *  · spasi/tab di AKHIR baris dibuang — artefak "hard break" markdown
  *    (dua spasi + enter) yang meninggalkan <br> liar di tengah paragraf/
  *    item daftar sehingga tiap baris tampak punya ruang kosong di bawahnya;
+ *  · garis pemisah (--- / *** / ___) yang berdiri sendiri DI TENGAH pesan
+ *    dibuang — gaya chat (ala WhatsApp Web), bukan dokumen; setext heading
+ *    (Teks lalu --- TANPA baris kosong di antaranya) aman tak tersentuh;
  *  · blok kode fenced (```…```) DILINDUNGI — karakter/indentasi kode tak
  *    tersentuh (pemisahan via split capture-group: ganjil = di dalam fence).
  *  Berlaku utk semua pesan — termasuk riwayat lama ber-format longgar —
@@ -248,7 +253,13 @@ const MD_COMPONENTS: Components = {
 function compactMd(md: string): string {
   return md
     .split(/(```[\s\S]*?```)/g)
-    .map((part, i) => (i % 2 === 1 ? part : part.replace(/[ \t]+$/gm, "")))
+    .map((part, i) =>
+      i % 2 === 1
+        ? part
+        : part
+            .replace(/[ \t]+$/gm, "")
+            .replace(/\n[ \t]*\n[ \t]*(?:-{3,}|\*{3,}|_{3,})[ \t]*(?=\n)/g, "\n"),
+    )
     .join("");
 }
 

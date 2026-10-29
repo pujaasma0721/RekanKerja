@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/support/components/support-module.tsx",
+    "src/rekankerja/support/services/support-agent.ts",
+    "src/rekankerja/support/services/support-tools.ts",
+    "src/rekankerja/support/services/support-browser.ts",
+    "src/rekankerja/support/services/support-patch.ts",
+    "src/rekankerja/support/api/support-auth.ts",
+    "src/rekankerja/support/api/tickets.ts",
+    "src/rekankerja/support/api/ticket-messages.ts",
+    "src/rekankerja/support/api/ticket-id.ts",
+    "src/rekankerja/support/api/ticket-agent.ts",
+    "src/rekankerja/support/api/ticket-patches.ts",
+    "src/rekankerja/support/api/attachment-id.ts",
+    "src/rekankerja/shared/services/ai-chat-service.ts",
+    "src/rekankerja/shared/api/user-menu-access.ts"
+  ]
+}

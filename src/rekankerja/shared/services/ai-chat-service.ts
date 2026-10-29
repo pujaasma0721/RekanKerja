@@ -153,8 +153,9 @@ const VIEW_LABELS: Record<string, string> = {
   "ai-provider": "Provider AI", "ai-knowledge": "Basis Pengetahuan AI",
 };
 
-/** "hr:directory" → "Human Resource Base · Direktori Karyawan". */
-function prettyMenuKey(key: string): string {
+/** "hr:directory" → "Human Resource Base · Direktori Karyawan".
+ *  P4.5: diekspor — dipakai juga support-agent (daftar menu hak akses penanya). */
+export function prettyMenuKey(key: string): string {
   const [mod, ...rest] = key.split(":");
   const view = rest.join(":");
   const m = MODULE_LABELS[mod] ?? mod;
@@ -511,7 +512,8 @@ CATATAN REGULASI LEMBUR (mode Ahli HR — pakai bila relevan, sarankan verifikas
 // PETA MENU (anti halusinasi navigasi): tanpa daftar ini LLM menebak jalur
 // gaya HRIS generik (mis. "Karyawan → Data Karyawan") yang TIDAK ada di
 // RekanKerja. Nama menu harus PERSIS seperti sidebar app-shell.
-const MENU_MAP_ALL = `PETA MENU REKANKERJA (akses penuh admin — sebut jalur menu PERSIS dari daftar ini):
+// P4.5: diekspor — dipakai juga support-agent (scope menu penanya super admin).
+export const MENU_MAP_ALL = `PETA MENU REKANKERJA (akses penuh admin — sebut jalur menu PERSIS dari daftar ini):
 Human Resource Base:
 - Perusahaan & Organisasi: Perusahaan, Kantor & Lokasi Kerja, Unit Organisasi, Peta Organisasi
 - Posisi & Jabatan: Daftar Posisi, Katalog Jabatan, Grade & Level, Level Jabatan
