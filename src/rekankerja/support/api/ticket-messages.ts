@@ -4,7 +4,8 @@
 //      (+ metadata lampiran per pesan; pemilik tiket / op manage).
 // POST /api/rekankerja/support/tickets/[id]/messages — kirim pesan user
 //      (multipart/form-data: body + files[] 0–5 — JPG/PNG/WEBP/PDF ≤5MB;
-//      lampiran via attachment-service generik, entityType "SupportMessage").
+//      body boleh kosong bila ada lampiran — kirim tangkapan layar saja.
+//      Lampiran via attachment-service generik, entityType "SupportMessage").
 //      Pesan tersimpan TANPA memanggil LLM — giliran AI dipicu endpoint
 //      terpisah (ticket-agent) supaya kegagalan provider tidak membuang
 //      pesan pengguna dan bisa di-retry.
@@ -89,11 +90,18 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       );
     }
     const body = String(form.get("body") ?? "").trim();
-    if (!body) return NextResponse.json({ error: "Pesan tidak boleh kosong" }, { status: 400 });
     if (body.length > 4000) {
       return NextResponse.json({ error: "Pesan maksimum 4.000 karakter" }, { status: 400 });
     }
     const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+    // Pesan boleh berupa lampiran saja (tempel tangkapan layar → kirim) —
+    // minimal salah satu: teks atau lampiran.
+    if (!body && files.length === 0) {
+      return NextResponse.json(
+        { error: "Pesan tidak boleh kosong — tulis pesan atau lampirkan file" },
+        { status: 400 },
+      );
+    }
     if (files.length > MAX_FILES) {
       return NextResponse.json({ error: `Jumlah lampiran maksimum ${MAX_FILES} file per pesan` }, { status: 400 });
     }

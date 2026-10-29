@@ -12,6 +12,11 @@
 //   · FEAT-SUPPORT-P4 — kartu usulan patch (diff berwarna) inline di timeline
 //     chat; pemegang op manage bisa menyetujui/menolak lewat dialog tinjauan
 //     (approve → file diterapkan; keputusan tercatat sbg pesan SYSTEM).
+//   · Lampiran cepat (P4.1): pengguna bisa LANGSUNG menempel gambar/tangkapan
+//     layar dari clipboard (Ctrl/Cmd+V — tanpa tombol lampiran), menyalin file
+//     dari file manager lalu menempelnya di chat, atau menyeret-lepas (drag
+//     & drop) file ke area utas. Pesan boleh berupa lampiran saja (tanpa teks)
+//     — tangkapan layar dari clipboard otomatis dinamai "tangkapan-layar-…".
 // Lampiran diunggah via multipart (apiUpload) — server menyimpan lewat
 // attachment-service generik (entityType "SupportMessage").
 // =====================================================================
@@ -20,7 +25,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   Headset, Plus, Send, Paperclip, X, FileText, Download, ArrowLeft, Search,
-  Loader2, CheckCircle2, RotateCcw, ImageIcon, FileDiff, ChevronDown, ChevronRight,
+  Loader2, CheckCircle2, RotateCcw, ImageIcon, FileDiff, ChevronDown, ChevronRight, ImagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -131,6 +136,51 @@ const MAX_BYTES = 5 * 1024 * 1024;
 
 function fmtSize(n: number): string {
   return n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+}
+
+// ---------- lampiran cepat: tempel (clipboard) & seret-lepas ----------
+/** Infer MIME dari ekstensi (fallback bila clipboard tidak mengirim file.type). */
+function inferMimeOf(f: File): string {
+  if (f.type) return f.type;
+  const ext = f.name.toLowerCase().split(".").pop() ?? "";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  if (ext === "pdf") return "application/pdf";
+  return "";
+}
+
+/** Ambil File dari clipboard — dt.files dulu, fallback dt.items (beberapa
+ *  browser hanya mengisi items, mis. salin gambar dari web). */
+function clipboardFiles(dt: DataTransfer | null): File[] {
+  if (!dt) return [];
+  const direct = Array.from(dt.files ?? []);
+  if (direct.length > 0) return direct;
+  const out: File[] = [];
+  for (const it of Array.from(dt.items ?? [])) {
+    if (it.kind !== "file") continue;
+    const f = it.getAsFile();
+    if (f) out.push(f);
+  }
+  return out;
+}
+
+/** Bernama generik? ("image.png" dari PrintScreen / tanpa nama) → beri nama
+ *  ramah: tangkapan-layar-YYYYMMDD-HHmmss.png (id) / screenshot-… (en). */
+function renameClipboardFile(f: File, locale: string): File {
+  const bare = f.name.replace(/\.[^.]+$/, "");
+  const generic = !f.name || /^(image|screenshot|unknown|untitled)$/i.test(bare);
+  if (!generic) return f;
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  const extFromName = (f.name.toLowerCase().split(".").pop() ?? "").replace(/[^a-z0-9]/g, "");
+  const ext = extFromName || (inferMimeOf(f).split("/")[1] ?? "png").replace("jpeg", "jpg");
+  const base = locale.startsWith("id") ? "tangkapan-layar" : "screenshot";
+  return new File([f], `${base}-${stamp}.${ext || "png"}`, {
+    type: f.type || inferMimeOf(f),
+    lastModified: f.lastModified,
+  });
 }
 
 function fmtStamp(iso: string, locale: string): string {
@@ -283,17 +333,21 @@ function ChatBubble({ m, locale, accent }: { m: MessageRow; locale: string; acce
         </div>
       )}
       <div className={cn("flex max-w-[85%] flex-col sm:max-w-[75%]", mine && "items-end")}>
-        <div
-          className={cn(
-            "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm",
-            mine
-              ? "rounded-br-md text-white"
-              : "rounded-bl-md border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
-          )}
-          style={mine ? { background: accent } : undefined}
-        >
-          {mine ? m.body : <ReactMarkdown components={MD_COMPONENTS} remarkPlugins={[remarkGfm]}>{m.body}</ReactMarkdown>}
-        </div>
+        {/* pesan hanya-lampiran (tanpa teks) → bubble teks dilewati; lampiran +
+            meta tetap tampil — seperti kirim tangkapan layar polos. */}
+        {m.body && (
+          <div
+            className={cn(
+              "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm",
+              mine
+                ? "rounded-br-md text-white"
+                : "rounded-bl-md border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+            )}
+            style={mine ? { background: accent } : undefined}
+          >
+            {mine ? m.body : <ReactMarkdown components={MD_COMPONENTS} remarkPlugins={[remarkGfm]}>{m.body}</ReactMarkdown>}
+          </div>
+        )}
         {m.attachments.length > 0 && (
           <div className={cn("max-w-full", mine ? "self-end" : "self-start")}>
             <div className="rounded-2xl px-1 pt-1">
@@ -481,9 +535,15 @@ function SupportServiceView() {
   const [deciding, setDeciding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // seret-lepas: penghitung kedalaman drag supaya overlay tidak berkedip saat
+  // kursor melintasi elemen anak di dalam area utas chat.
+  const dragDepth = useRef(0);
+  const [dragOverChat, setDragOverChat] = useState(false);
 
   const ticket = ticketApi.data?.ticket ?? null;
   const busy = sending || aiBusy;
+  // composer aktif = tiket terbuka & belum DITUTUP (area paste/drop lampiran).
+  const canCompose = !!ticket && ticket.status !== "DITUTUP";
 
   // autoscroll ke pesan terbaru
   useEffect(() => {
@@ -543,16 +603,19 @@ function SupportServiceView() {
     }
   }, [subject, t, refreshAll]);
 
+  /** Validasi + tambah lampiran ke antrian composer. Mengembalikan jumlah file
+   *  yang diterima (dipakai utk umpan balik tempel/seret-lepas). */
   const pickFiles = useCallback(
-    (list: FileList | null) => {
-      if (!list) return;
+    (list: FileList | File[] | null): number => {
+      if (!list) return 0;
       const next = [...files];
+      let added = 0;
       for (const f of Array.from(list)) {
         if (next.length >= MAX_FILES) {
           toast.error(t("Jumlah lampiran maksimum 5 file per pesan", "Maximum 5 attachments per message"));
           break;
         }
-        const mime = f.type || "";
+        const mime = inferMimeOf(f);
         if (!ACCEPTED_MIME.includes(mime)) {
           toast.error(
             t(`Jenis file tidak didukung (${f.name}) — hanya JPG/PNG/WEBP/PDF`, `Unsupported file type (${f.name}) — only JPG/PNG/WEBP/PDF`),
@@ -566,11 +629,44 @@ function SupportServiceView() {
           continue;
         }
         next.push(f);
+        added += 1;
       }
       setFiles(next);
+      return added;
     },
     [files, t],
   );
+
+  // ---------- lampiran cepat: tempel langsung (Ctrl/Cmd+V) tanpa tombol ----------
+  // Listener level dokumen — aktif hanya saat composer tersedia. Paste TEKS
+  // tidak diintervensi; paste file/tangkapan layar (dari PrintScreen, salin
+  // gambar, atau salin file dari file manager) langsung masuk antrian lampiran.
+  useEffect(() => {
+    if (!selectedId || !canCompose) return;
+    const onDocPaste = (ev: ClipboardEvent) => {
+      const el = ev.target instanceof Element ? ev.target : null;
+      // dialog (tiket baru / tinjauan patch) mengelola paste-nya sendiri
+      if (el?.closest('[role="dialog"]')) return;
+      // kolom isian di luar composer (mis. pencarian) berperilaku normal
+      const inComposer = !!el?.closest("[data-support-composer]");
+      const inField = !!el?.closest('input, textarea, [contenteditable="true"]');
+      if (inField && !inComposer) return;
+      const pasted = clipboardFiles(ev.clipboardData);
+      if (pasted.length === 0) return; // paste teks biasa — biarkan default
+      ev.preventDefault();
+      const n = pickFiles(pasted.map((f) => renameClipboardFile(f, loc)));
+      if (n > 0) {
+        toast.success(
+          t(
+            `${n} lampiran siap dikirim — tulis pesan atau langsung tekan Enter`,
+            `${n} attachment(s) ready to send — write a message or just press Enter`,
+          ),
+        );
+      }
+    };
+    document.addEventListener("paste", onDocPaste);
+    return () => document.removeEventListener("paste", onDocPaste);
+  }, [selectedId, canCompose, pickFiles, loc, t]);
 
   const runAgent = useCallback(async () => {
     if (!selectedId) return;
@@ -589,7 +685,8 @@ function SupportServiceView() {
   const send = useCallback(async () => {
     if (!selectedId || busy) return;
     const body = draft.trim();
-    if (!body) return; // aturan server: pesan wajib berisi teks
+    // pesan boleh berupa lampiran saja (tempel tangkapan layar → Enter)
+    if (!body && files.length === 0) return;
     const form = new FormData();
     form.set("body", body);
     for (const f of files) form.append("files", f);
@@ -792,10 +889,65 @@ function SupportServiceView() {
         {/* ============ utas chat ============ */}
         <section
           className={cn(
-            "flex max-h-[calc(100vh-230px)] min-h-[420px] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900",
+            "relative flex max-h-[calc(100vh-230px)] min-h-[420px] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900",
             !selectedId && "hidden lg:flex",
           )}
+          onDragEnter={(e) => {
+            if (!e.dataTransfer.types.includes("Files")) return;
+            e.preventDefault();
+            if (!canCompose || busy) return;
+            dragDepth.current += 1;
+            setDragOverChat(true);
+          }}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes("Files")) return;
+            // wajib preventDefault agar drop diizinkan (sekaligus mencegah
+            // browser membuka file bila composer sedang tidak aktif)
+            e.preventDefault();
+          }}
+          onDragLeave={() => {
+            dragDepth.current = Math.max(0, dragDepth.current - 1);
+            if (dragDepth.current === 0) setDragOverChat(false);
+          }}
+          onDrop={(e) => {
+            if (!e.dataTransfer.types.includes("Files")) return;
+            e.preventDefault();
+            dragDepth.current = 0;
+            setDragOverChat(false);
+            if (!canCompose || busy) return;
+            const n = pickFiles(e.dataTransfer.files);
+            if (n > 0) {
+              toast.success(
+                t(
+                  `${n} lampiran siap dikirim — tulis pesan atau langsung tekan Enter`,
+                  `${n} attachment(s) ready to send — write a message or just press Enter`,
+                ),
+              );
+            }
+          }}
         >
+          {/* overlay seret-lepas file (pointer-events-none agar drop tetap
+              diterima elemen di bawahnya) */}
+          {dragOverChat && (
+            <div
+              className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-2xl bg-white/85 p-6 backdrop-blur-[2px] dark:bg-slate-900/85"
+              role="status"
+              aria-label={t("Lepaskan file untuk dilampirkan", "Drop files to attach")}
+            >
+              <div
+                className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-10 py-8"
+                style={{ borderColor: accent }}
+              >
+                <ImagePlus className="h-8 w-8" style={{ color: accent }} aria-hidden />
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  {t("Lepaskan file untuk dilampirkan", "Drop files to attach")}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {t("JPG/PNG/WEBP/PDF · maks 5 MB · 5 file", "JPG/PNG/WEBP/PDF · max 5 MB · 5 files")}
+                </p>
+              </div>
+            </div>
+          )}
           {ticketApi.loading || msgApi.loading ? (
             <div className="flex-1 p-4"><LoadingRows rows={6} /></div>
           ) : !ticket ? (
@@ -912,7 +1064,7 @@ function SupportServiceView() {
                   </Button>
                 </div>
               ) : (
-                <div className="border-t border-slate-200/70 p-3 dark:border-slate-800/70">
+                <div className="border-t border-slate-200/70 p-3 dark:border-slate-800/70" data-support-composer>
                   {files.length > 0 && (
                     <div className="mb-2 flex flex-wrap gap-1.5">
                       {files.map((f, i) => (
@@ -982,7 +1134,7 @@ function SupportServiceView() {
                       }}
                       rows={2}
                       maxLength={4000}
-                      placeholder={t("Tulis pesan Anda… (Enter kirim, Shift+Enter baris baru)", "Write your message… (Enter to send, Shift+Enter for a new line)")}
+                      placeholder={t("Tulis pesan atau tempel tangkapan layar (Ctrl+V)…", "Write a message or paste a screenshot (Ctrl+V)…")}
                       className="max-h-32 min-h-[44px] resize-none text-[13px]"
                       disabled={busy}
                       aria-label={t("Pesan", "Message")}
@@ -992,7 +1144,7 @@ function SupportServiceView() {
                       size="icon"
                       className="h-10 w-10 shrink-0 text-white shadow-sm"
                       style={{ background: accent }}
-                      disabled={busy || !draft.trim()}
+                      disabled={busy || (!draft.trim() && files.length === 0)}
                       aria-label={t("Kirim", "Send")}
                     >
                       {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
@@ -1000,8 +1152,8 @@ function SupportServiceView() {
                   </form>
                   <p className="mt-1.5 text-[10.5px] text-slate-400 dark:text-slate-500">
                     {t(
-                      "Lampiran: JPG/PNG/WEBP/PDF, maks 5 MB per file, 5 file per pesan.",
-                      "Attachments: JPG/PNG/WEBP/PDF, max 5 MB per file, 5 files per message.",
+                      "Enter kirim · Shift+Enter baris baru — tempel gambar (Ctrl+V) atau seret file langsung ke chat. Lampiran: JPG/PNG/WEBP/PDF, maks 5 MB, 5 file.",
+                      "Enter to send · Shift+Enter new line — paste an image (Ctrl+V) or drag files straight into the chat. Attachments: JPG/PNG/WEBP/PDF, max 5 MB, 5 files.",
                     )}
                   </p>
                 </div>

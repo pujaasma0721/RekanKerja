@@ -194,7 +194,8 @@ export function buildSupportSystemPrompt(ticket: SupportTicket, toolsOn: boolean
 4. Bila informasi kurang, ajukan pertanyaan klarifikasi (maksimal 3, seperlunya saja) — jangan meminta data sensitif (kata sandi, kode OTP, data sensitif orang lain).
 5. Empati: akui frustrasi pengguna bila melaporkan kendala; jangan menyalahkan pengguna.
 6. Ringkas — maksimal sekitar 250 kata kecuali memang perlu langkah panjang.
-7. Bila masalah tampak selesai, sarankan pengguna menandai percakapan "Selesai" (tombol di atas chat).`,
+7. Bila masalah tampak selesai, sarankan pengguna menandai percakapan "Selesai" (tombol di atas chat).
+8. Pesan berisi hanya lampiran (tangkapan layar, tanpa teks) — konteks "[Konteks lampiran gambar yang dianalisa AI vision]" otomatis menyertainya: tanggapi isinya secara natural (mis. pesan error yang terlihat, halaman mana), lalu lanjuti layaknya laporan biasa.`,
     ``,
     `FORMAT WAJIB DI AKHIR BALASAN (triase internal — TIDAK boleh dijelaskan ke pengguna, TIDAK ditulis di tempat lain):
 Akhiri SETIAP balasan dengan tepat satu baris metadata pola:
@@ -281,7 +282,10 @@ function toLlmMessages(messages: SupportMessage[], imageContext: string | null):
   const recent = messages.slice(-HISTORY_LIMIT);
   const out: AiMessage[] = recent.map((m) => ({
     role: m.senderRole === "AI" ? ("assistant" as const) : ("user" as const),
-    content: m.senderRole === "SYSTEM" ? `[catatan sistem] ${m.body}` : m.body,
+    content:
+      m.senderRole === "SYSTEM"
+        ? `[catatan sistem] ${m.body}`
+        : m.body || "[pengguna mengirim lampiran tanpa teks — konteks analisa lampiran menyertainya di bawah]",
   }));
   if (imageContext && out.length > 0) {
     const last = out[out.length - 1];
