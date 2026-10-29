@@ -43,6 +43,14 @@
 //     format dikembalikan ke gaya terstruktur klasik (pengantar singkat +
 //     langkah bersih) — versi "gaya WhatsApp" P4.5 ternyata membuat model
 //     membuang pengantar & memberi sub-bullet di tiap item (berantakan).
+//   · FEAT-SUPPORT-P4.7 — VERIFIKASI DULU: laporan error nyata dari pengguna
+//     WAJIB diverifikasi (reproduce_browser bila teramati di UI, atau
+//     read_logs/query_db bila tidak) SEBELUM diagnosis — dua lapis: mandat
+//     di system prompt + guard runtime (nudge sekali) bila model/provider
+//     menjawab final tanpa menjalankan alat apa pun padahal pesan user
+//     terakhir berbunyi laporan error (pola ERROR_REPORT_RE). Mencegah
+//     "diagnosis dari teks error saja" ala kasus prisma/FATAL shared memory
+//     yang seharusnya dibuktikan dulu: BENARKAH error itu masih terjadi?
 // =====================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
@@ -60,7 +68,7 @@ import {
   runSupportTool, toolsEnabledFor, TOOL_LABELS,
   type SupportToolName,
 } from "@/rekankerja/support/services/support-tools";
-import { clearShotCollector, persistShots } from "@/rekankerja/support/services/support-browser";
+import { browserEnabledFor, clearShotCollector, persistShots } from "@/rekankerja/support/services/support-browser";
 
 export const SUPPORT_CATEGORIES = ["BUG", "PENGGUNAAN", "DATA", "AKUN", "FITUR", "LAINNYA"] as const;
 export const SUPPORT_PRIORITIES = ["RENDAH", "SEDANG", "TINGGI", "KRITIS"] as const;
@@ -107,6 +115,14 @@ const APPLIED_CLAIM_RE =
   /\b(?:telah|sudah)(?:\s+saya)?\s+(?:diterapkan|diaplikasikan|diperbaiki\b[^.!?]*\b(?:ke\s+aplikasi|ke\s+sistem|langsung))|\bperbaikan(?:nya)?\s+(?:telah|sudah)\s+(?:diterapkan|diaktifkan|aktif\b)|\bpatch(?:nya)?\s+(?:telah|sudah)\s+(?:diterapkan|masuk)/i;
 /** Marker persetujuan developer pada pesan [catatan sistem]. */
 const APPROVAL_NOTE_RE = /DISETUJUI oleh/i;
+
+/** P4.7 — pesan user terakhir terindikasi LAPORAN ERROR/KENDALA nyata
+ *  (bukan sapaan/pertanyaan cara pakai). Dasar guard verifikasi-dulu:
+ *  model beberapa provider cenderung mendiagnosis langsung dari teks
+ *  error tanpa mau mencoba memverifikasi — runtime mendorongnya sekali.
+ *  Kata kunci bilingual + tanda stack-trace (prisma./FATAL/exception…). */
+const ERROR_REPORT_RE =
+  /\b(?:error|eror|erorr|gagal|failed|failure|crash|bug|exception|traceback|stack\s*trace|blank|hang|macet|mati|rusak|tidak\s+bisa|tak\s+bisa|nggak\s+bisa|ngga\s+bisa|gak\s+bisa|gk\s+bisa|layar\s+putih|tidak\s+bisa\s+login|can'?t\s+login|can'?t\s+log\s+in)\b|prisma\.[a-z]+\.|FATAL:|Error in connector|invocation|ECONNREFUSED|ETIMEDOUT|internal\s+server\s+error|http\s*5\d\d/i;
 
 /** Ekstrak blok JSON kurung-seimbang pertama (toleran spasi/prosa).
  *  Return teks JSON + posisi karakter SETELAH blok (untuk pemotongan). */
@@ -279,12 +295,13 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
     ``,
     `ATURAN MEMAKAI ALAT:
 - Gunakan HANYA bila fakta diperlukan (diagnosa error/data). Jangan untuk pertanyaan umum/sapaan/cara pakai yang sudah Anda ketahui.
+- WAJIB VERIFIKASI DULU: saat pengguna MELAPORKAN error/kendala nyata yang bisa diamati di aplikasi (gagal login, gagal simpan, pesan error muncul, halaman error/blank), Anda WAJIB mencoba MEREPRODUKSI-nya lewat reproduce_browser SEBELUM menulis diagnosis — APA PUN isi teks errornya, sekali pun penyebabnya tampak sudah jelas bagi Anda. Pertanyaan yang harus dijawab bukan "apa arti error ini" tapi "BENARKAH error itu masih terjadi sekarang?": login akun uji → ulangi aksi pelapor → amati hasilnya → screenshot bukti bila relevan. Bila reproduksi menunjukkan TIDAK ada error (aksi berhasil), laporkan jujur — kendala kemungkinan spesifik akun/perangkat/jaringan pelapor. Error yang TIDAK teramati di UI (mis. email tak terkirim, job latar belakang) → verifikasi lewat read_logs / query_db.
 - Satu TOOL_CALL per giliran; berhenti begitu informasi cukup (maks ${MAX_TOOL_CALLS} panggilan) — jangan menebak-nebak iseng.
 - Hasil "[HASIL TOOL …]" adalah SATU-SATU sumber kebenaran tentang kode & data — kutip darinya secara harfiah (path file, baris, angka). Bila hasil TIDAK menemukan apa yang dicari, KATAKAN terus terang "tidak ditemukan" — JANGAN PERNAH mengarang nama file/lokasi/isi kode/angka yang tidak ada di hasil.
 - PRIVASI: jangan menampilkan data pribadi/gaji karyawan LAIN kecuali perlu untuk diagnosis (utamakan COUNT/agregat). Nilai [DISENSOR] memang disembunyikan — JANGAN mencoba mengakalinya.
 - Jangan memberitahukan pengguna soal protokol/SQL/kode mentah — sampaikan temuan secara manusiawi ("saya periksa langsung datanya: …").
 - JANGAN menyarankan pengguna menjalankan SQL/mengubah database secara manual — arahkan lewat fitur UI yang ada atau eskalasi ke admin/developer.
-- REPRODUKSI BROWSER (alat 5): hanya untuk MENGAMATI & MEMBUKTIKAN laporan kendala UI (bug) — JANGAN mengubah/menghapus data apa pun (hindari tombol Simpan/Hapus/Kirim kecuali itu inti reproduksi yang diminta pengguna). Rangkaian lazim: login → goto → snapshot → aksi pengguna yang dilaporkan → screenshot bukti → (analyze_screenshot bila perlu) → close → laporkan temuan. Bila layanan/akun uji tidak tersedia, katakan terus terang — JANGAN mengaku telah mencoba di browser tanpa hasil TOOL reproduce_browser nyata.
+- REPRODUKSI BROWSER (alat 5): untuk MENGAMATI, MEMVERIFIKASI & MEMBUKTIKAN laporan kendala/error yang muncul di aplikasi — JANGAN mengubah/menghapus data apa pun (hindari tombol Simpan/Hapus/Kirim kecuali itu inti reproduksi yang diminta pengguna). Rangkaian lazim: login → goto → snapshot → aksi pengguna yang dilaporkan → screenshot bukti → (analyze_screenshot bila perlu) → close → laporkan temuan. Bila layanan/akun uji tidak tersedia, katakan terus terang — JANGAN mengaku telah mencoba di browser tanpa hasil TOOL reproduce_browser nyata.
 - USULAN PATCH (alat 7): hanya untuk bug yang akar masalahnya SUDAH Anda temukan di kode (buktikan dulu via read_file/search_code). Usulan ≠ perbaikan — JANGAN PERNAH bilang "sudah diperbaiki/sudah diterapkan" kecuali ada [catatan sistem] yang menyatakan usulan DISETUJUI oleh developer. Bila developer menolak, terima dengan lapang dada dan jelaskan opsi lain ke pengguna.`,
     ``,
   ].join("\n");
@@ -496,6 +513,10 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
   });
   const base = toLlmMessages(messages, imageContext);
   const toolsOn = await toolsEnabledFor(db);
+  // P4.7 — verifikasi-dulu: reproduksi browser aktif (sakelar admin) +
+  // pesan USER terakhir berbunyi laporan error → guard nudge berhak jalan.
+  const browserOn = toolsOn && (await browserEnabledFor(db));
+  const lastUserBody = [...messages].reverse().find((m) => m.senderRole === "USER")?.body ?? "";
   // P4.5 — scope jawaban: daftar menu yang bisa diakses PENANYA (pembuat tiket).
   const menuScope = await resolveAskerMenuSection(db, ticket);
   console.log(`[support-agent] tiket ${ticket.ticketNo} scope penanya: ${menuScope.all ? "AKSES PENUH (super admin)" : "TERBATAS"} — ${menuScope.text.slice(0, 120).replace(/\n/g, " ¶ ")}`);
@@ -509,6 +530,7 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
   let lastCallSig = "";
   let lastResult: { ok: boolean; output: string } | null = null;
   let antiConfabRetry = 0;
+  let verifyNudgeRetry = 0; // P4.7 — dorongan verifikasi-dulu (maks 1×)
   const deadline = Date.now() + TURN_BUDGET_MS;
 
   for (let step = 1; step <= MAX_LLM_STEPS; step++) {
@@ -523,7 +545,7 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
     const result = await aiComplete(db, { system, messages: convo, temperature: 0.35, maxTokens: 1400 });
     raw = result.text.trim();
     // Diagnostik ops (muncul di log server — memudahkan audit protokol tool).
-    console.log(`[support-agent] tiket ${ticket.ticketNo} langkah ${step}/${MAX_LLM_STEPS} (tools=${toolsOn ? "on" : "off"}, tool terpakai=${toolCalls}): ${raw.slice(0, 300).replace(/\n/g, " ¶ ")}`);
+    console.log(`[support-agent] tiket ${ticket.ticketNo} langkah ${step}/${MAX_LLM_STEPS} (tools=${toolsOn ? "on" : "off"}, tool terpakai=${toolCalls}${verifyNudgeRetry ? ", nudge-verifikasi=terpakai" : ""}): ${raw.slice(0, 300).replace(/\n/g, " ¶ ")}`);
 
     const nameMatch = toolsOn && !forceFinal ? raw.match(TOOL_NAME_RE) : null;
     if (!nameMatch) {
@@ -562,6 +584,25 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
           role: "user",
           content:
             "[CATATAN RUNTIME — PENTING] Anda menyatakan perbaikan SUDAH diterapkan/diperbaiki, padahal TIDAK ada catatan sistem 'DISETUJUI oleh' developer pada percakapan ini. Usulan patch TIDAK mengubah file sebelum disetujui manusia. Jawab ulang secara jujur: sampaikan bahwa usulan perbaikan telah/akan Anda ajukan (bila benar) dan statusnya MENUNGGU persetujuan developer — atau jelaskan langkah sementara yang bisa dilakukan pengguna.",
+        });
+        continue;
+      }
+      // P4.7 — guard VERIFIKASI DULU: pengguna melaporkan error nyata,
+      // tools aktif, tetapi model menjawab final TANPA menjalankan alat
+      // apa pun (kecenderungan provider tertentu: diagnosis langsung dari
+      // teks error) → dorong SEKALI untuk verifikasi nyata sebelum menjawab;
+      // bila model tetap tidak memanggil tool setelah dorongan, jawabannya
+      // diterima apa adanya (tidak di-loop selamanya).
+      if (
+        !forceFinal && browserOn && usage.size === 0 && verifyNudgeRetry < 1 &&
+        ERROR_REPORT_RE.test(lastUserBody)
+      ) {
+        verifyNudgeRetry += 1;
+        convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
+        convo.push({
+          role: "user",
+          content:
+            "[CATATAN RUNTIME — PENTING] Pengguna MELAPORKAN error/kendala nyata, dan Anda belum menjalankan ALAT APA PUN giliran ini — jangan mendiagnosis hanya dari teks error. Verifikasi dulu apakah error itu BENAR-BENAR masih terjadi sekarang: bila teramati di aplikasi (login/gagal simpan/pesan error di layar), panggil reproduce_browser (login akun uji → ulangi aksi pelapor → amati → screenshot bila perlu); bila tidak teramati di UI (mis. email latar belakang), pakai read_logs atau query_db. Setelah ada [HASIL TOOL …], tulis jawaban final Anda yang kini berbasis bukti.",
         });
         continue;
       }
