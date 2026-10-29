@@ -23,6 +23,10 @@
 //     pesan BARU dan user memang sedang di dekat dasar — bila user sedang
 //     membaca riwayat, muncul pill "Pesan baru" yang bisa diklik utk turun).
 //     Balasan AI juga dirender lebih rapat (margin markdown & leading diciut).
+//   · P4.3 — rapat MERATA utk semua pesan (termasuk riwayat lama ber-format
+//     heading ###): margin heading diseragamkan dgn paragraf (my-0.5, 13px —
+//     tampil sbg baris label tebal langsung di atas list) + compactMd() buang
+//     artefak spasi-akhir-baris (hard break liar) di luar blok kode fenced.
 // Lampiran diunggah via multipart (apiUpload) — server menyimpan lewat
 // attachment-service generik (entityType "SupportMessage").
 // =====================================================================
@@ -205,10 +209,13 @@ const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 const MD_COMPONENTS: Components = {
-  h1: ({ node, ...p }) => <h3 className="mt-1.5 mb-0.5 text-[13px] font-bold first:mt-0" {...p} />,
-  h2: ({ node, ...p }) => <h3 className="mt-1.5 mb-0.5 text-[13px] font-bold first:mt-0" {...p} />,
-  h3: ({ node, ...p }) => <h4 className="mt-1.5 mb-0.5 text-[12.5px] font-semibold first:mt-0" {...p} />,
-  h4: ({ node, ...p }) => <h4 className="mt-1 mb-0.5 text-[12.5px] font-semibold first:mt-0" {...p} />,
+  // P4.3: margin heading kini SERAGAM dgn paragraf (my-0.5) & ukuran seragam
+  // 13px — heading lama (### **Judul:**) tampil sebagai baris label tebal
+  // rapat ala "Langkah-langkah penyelesaian:" + list, tanpa ruang ekstra.
+  h1: ({ node, ...p }) => <h3 className="my-0.5 text-[13px] font-bold first:mt-0" {...p} />,
+  h2: ({ node, ...p }) => <h3 className="my-0.5 text-[13px] font-bold first:mt-0" {...p} />,
+  h3: ({ node, ...p }) => <h4 className="my-0.5 text-[13px] font-semibold first:mt-0" {...p} />,
+  h4: ({ node, ...p }) => <h4 className="my-0.5 text-[13px] font-semibold first:mt-0" {...p} />,
   p: ({ node, ...p }) => <p className="my-0.5 first:my-0 last:my-0" {...p} />,
   ul: ({ node, ...p }) => <ul className="my-0.5 list-disc space-y-0 pl-4" {...p} />,
   ol: ({ node, ...p }) => <ol className="my-0.5 list-decimal space-y-0 pl-4" {...p} />,
@@ -229,6 +236,21 @@ const MD_COMPONENTS: Components = {
   blockquote: ({ node, ...p }) => <blockquote className="my-0.5 border-l-2 border-slate-300 pl-2 text-slate-500 dark:border-slate-600 dark:text-slate-400" {...p} />,
   hr: () => <hr className="my-1.5 border-slate-200 dark:border-slate-700" />,
 };
+
+/** P4.3 — normalisasi markdown balasan AI supaya RAPAT saat dirender:
+ *  · spasi/tab di AKHIR baris dibuang — artefak "hard break" markdown
+ *    (dua spasi + enter) yang meninggalkan <br> liar di tengah paragraf/
+ *    item daftar sehingga tiap baris tampak punya ruang kosong di bawahnya;
+ *  · blok kode fenced (```…```) DILINDUNGI — karakter/indentasi kode tak
+ *    tersentuh (pemisahan via split capture-group: ganjil = di dalam fence).
+ *  Berlaku utk semua pesan — termasuk riwayat lama ber-format longgar —
+ *  sehingga seluruh utas tampil seragam rapat. */
+function compactMd(md: string): string {
+  return md
+    .split(/(```[\s\S]*?```)/g)
+    .map((part, i) => (i % 2 === 1 ? part : part.replace(/[ \t]+$/gm, "")))
+    .join("");
+}
 
 // ---------- subkomponen kecil ----------
 function TypingDots() {
@@ -359,7 +381,7 @@ function ChatBubble({ m, locale, accent }: { m: MessageRow; locale: string; acce
             )}
             style={mine ? { background: accent } : undefined}
           >
-            {mine ? m.body : <ReactMarkdown components={MD_COMPONENTS} remarkPlugins={[remarkGfm]}>{m.body}</ReactMarkdown>}
+            {mine ? m.body : <ReactMarkdown components={MD_COMPONENTS} remarkPlugins={[remarkGfm]}>{compactMd(m.body)}</ReactMarkdown>}
           </div>
         )}
         {m.attachments.length > 0 && (

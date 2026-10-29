@@ -8914,3 +8914,32 @@ Rilis: d97f56e (push origin/main).
 Stage Summary:
 - P4.2 SELESAI & TERPUSH: polling tetap ada (fungsinya menjawab real-time tanpa reload) tapi kini BISU secara visual — tanpa kedipan skeleton dan tanpa menarik posisi baca; autoscroll hanya terjadi saat memang ada pesan baru dan user sedang berada di dasar chat, sementara user yang sedang membaca riwayat mendapat pill "Pesan baru" ala WhatsApp. Balasan AI kini rapat/padat (CSS diciut + loose-list fix + instruksi format hemat ruang pada agent).
 
+
+---
+
+## 2026-10-29 — FEAT-SUPPORT-P4.3 (Online Support): rapat MERATA utk semua pesan chat
+
+Task: umpan balik user (dgn tangkapan layar bertanda merah): "bagian ini yang saya tandai merah, tidak perlu ada space/lebar ke bawah, dibuat rapat saja semua asal rapi" + contoh format idaman (baris label "Langkah-langkah penyelesaian:" langsung di atas daftar bernomor, sub-bullet menjorok di bawah itemnya, antar-item tanpa baris kosong).
+
+### Diagnosis
+- Tangkapan layar user (epoch nama file ≈ 02:00 UTC) diambil ~20 mnt SEBELUM rilis P4.2 (02:20 UTC) — gap 28-32px yg ditandai merah adalah render LAMA (p my-1, heading mt-2 mb-1, list space-y-0.5). Verifikasi DB: pesan itu = SP-2026-001 (jawaban agen ttg error PostgreSQL), dan contoh user = teks polos pesan terbaru SP-2026-002.
+- Namun pesan-pesan LAMA (format `### **Langkah Penyelesaian:**` + spasi ganda akhir baris) masih menyisakan ruang lebih dari contoh idaman: heading punya margin khusus (mt-1.5 mb-0.5) & ukuran beda (12.5px) — terlihat sbg "judul" terpisah, bukan baris label rapat.
+- Artefak "dua spasi + enter" (hard break markdown) pada pesan lama berpotensi menyisakan <br> liar di tengah paragraf/item (render test membuktikan react-markdown membuangnya di batas blok, tapi tetap berisiko di dalam paragraf utk jawaban masa depan).
+
+### Perubahan
+- support-module.tsx (FE):
+  - MD_COMPONENTS heading diseragamkan dgn paragraf: h1-h4 kini `my-0.5 first:mt-0` + ukuran seragam 13px (h1/h2 bold, h3/h4 semibold) — heading lama "### **Judul:**" kini tampil sebagai baris LABEL TEBAL rapat persis ala contoh user, langsung di atas list-nya (gap total ≈ 4px), bukan lagi "judul seksi" bermargin.
+  - compactMd(md) — normalizer display sebelum ReactMarkdown: buang spasi/tab AKHIR baris (pembunuh artefak hard-break) DI LUAR blok kode fenced (split capture-group: segmen ganjil = dalam fence, tak tersentuh). Berlaku utk SEMUA pesan termasuk riwayat lama → seluruh utas seragam rapat.
+- support-agent.ts (BE): sanitizer jawaban final ikut membuang spasi-akhir-baris (fence tetap dilindungi) → data tersimpan bersih; notifikasi/pemakai ulang body lain tak mewarisi artefak.
+
+### Verifikasi
+- GATES: bun run lint 0 error (12 warning pre-existing) · tsc -p tsconfig.p41check.json EXIT 0 · dev.log bersih.
+- UNIT logika strip: trailing-space hilang di luar fence, KODE dalam fence utuh ("SELECT 1;   " tak tersentuh).
+- E2E BROWSER (agent-browser, login hrd@mii.co.id):
+  1. SP-2026-001 (pesan format LAMA `###`): DOM terukur — p/h4/ol/ul SEMUA margin 2px (gap heading→item = 4px), 0 <br> dalam list, li leading 17.9px; VLM: "vertical spacing COMPACT, items back-to-back, no excessive whitespace" (screenshot 01).
+  2. SP-2026-002 (pesan baru, persis contoh user): struktur = P label 20px → OL 4 item + nested UL sub-bullet di bawah item 2 → P → UL; 0 <br>; VLM konfirmasi format sesuai contoh (screenshot 02).
+  3. Mobile 390px: overflowX = 0 (screenshot 03) · 0 page error · 0 console error.
+- Artefak: audit/support-p4.3/ (3 screenshot). Tanpa data uji baru — hanya membaca tiket existing (SP-2026-001/002 milik user), tak ada yang perlu dipulihkan.
+
+Stage Summary:
+- P4.3 SELESAI: seluruh balasan AI — baru maupun riwayat lama — kini tampil seragam RAPAT ala contoh user: baris label tebal langsung di atas daftar, item antar-baris tanpa ruang kosong, sub-bullet menjorok rapi; artefak spasi-akhir-baris dibersihkan di display (retroaktif semua pesan) sekaligus di penyimpanan (jawaban baru).

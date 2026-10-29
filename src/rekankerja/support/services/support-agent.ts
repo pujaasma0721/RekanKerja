@@ -497,6 +497,13 @@ export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise
     .replace(/^\s*(?:-{3,}|\*{3,}|_{3,}|={3,})[^\S\n]*\n?/, "")
     .replace(/\n?[^\S\n]*(?:-{3,}|\*{3,}|_{3,}|={3,})\s*$/, "")
     .trim();
+  // P4.3: buang spasi/tab di AKHIR baris (di luar blok kode fenced) — artefak
+  // "hard break" markdown (dua spasi + enter) yang menambah baris kosong liar
+  // saat dirender rapat di chat. Blok kode dilindungi (capture-group ganjil).
+  body = body
+    .split(/(```[\s\S]*?```)/g)
+    .map((part, i) => (i % 2 === 1 ? part : part.replace(/[ \t]+$/gm, "")))
+    .join("");
   // P3: bukti tangkapan layar hanya sah sebagai LAMPIRAN file (dilampirkan
   // otomatis oleh runtime). Model kadang mengarang link gambar markdown
   // (mis. ![](https://example.com/…)) atas nama bukti — gambar markdown
