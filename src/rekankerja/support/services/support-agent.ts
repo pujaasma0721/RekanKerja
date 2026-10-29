@@ -92,6 +92,26 @@ const META_RE = /\s*\[\[META:([A-Z_]+)\|([A-Z]+)\]\]\s*$/;
 /** Batas riwayat yang dikirim ke LLM (pesan lama dipangkas). */
 const HISTORY_LIMIT = 16;
 
+/** AUDIT-SUPPORT — batas baris pesan yang DIMUAT dari DB per giliran (desc
+ *  + reverse): utas sangat panjang (ribuan pesan) tidak lagi dimuat semua
+ *  ke memori hanya untuk dipangkas ke 16 terakhir. 80 baris terakhir lebih
+ *  dari cukup utk konteks LLM + analisa lampiran sejak balasan AI terakhir. */
+const MESSAGES_LOAD_CAP = 80;
+
+/** AUDIT-SUPPORT — kunci giliran sedang-berjalan per tiket (race anti
+ *  jawaban-ganda: dua POST /agent paralel sama-sama lolos cek "pesan
+ *  terakhir USER" sebelum salah satunya menulis balasan → dua balasan AI
+ *  utk satu pesan). Lock per-proses — best-effort di deploy multi-instance. */
+const turnsInFlight = new Set<string>();
+
+/** AUDIT-SUPPORT — dipakai route utk membedakan 409 (masih berjalan) dari 502. */
+export class AgentTurnInProgressError extends Error {
+  constructor() {
+    super("Giliran pemeriksaan AI untuk percakapan ini masih berjalan — mohon tunggu balasannya selesai (atau muat ulang halaman)");
+    this.name = "AgentTurnInProgressError";
+  }
+}
+
 /** Maksimum gambar yang dianalisa VLM per giliran (batas waktu/kuota). */
 const MAX_IMAGES_PER_TURN = 3;
 
@@ -527,293 +547,322 @@ function toolUsagePill(usage: Map<string, number>): string | null {
  *   analisa gambar → (loop ReAct bila tools aktif) → jawaban final → parse
  *   META → simpan pesan AI (+ pill SYSTEM bila memakai tool) + perbarui
  *   triase/lastMessageAt tiket.
- * Melempar Error bila provider gagal (route → 502, pesan user TERSIMPAN).
+ * Melempar AgentTurnInProgressError bila giliran tiket ini masih berjalan
+ * (→ 409 di route). Melempar Error lain bila provider gagal (route → 502,
+ * pesan user TERSIMPAN).
  */
 export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise<AgentTurnResult> {
-  const messages = await db.supportMessage.findMany({
+  if (turnsInFlight.has(ticket.id)) throw new AgentTurnInProgressError();
+  turnsInFlight.add(ticket.id);
+  try {
+    return await runAgentTurn(db, ticket);
+  } finally {
+    turnsInFlight.delete(ticket.id);
+  }
+}
+
+async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentTurnResult> {
+  // AUDIT-SUPPORT: muat HANYA ekor utas (desc + reverse) — bukan seluruh
+  // riwayat — lalu proses seperti biasa (asc).
+  const loaded = await db.supportMessage.findMany({
     where: { ticketId: ticket.id },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
+    take: MESSAGES_LOAD_CAP,
   });
+  const messages = loaded.reverse();
   if (messages.length === 0) throw new Error("Tiket tanpa pesan");
 
   // P3: bukti tangkapan layar giliran LAMA telah dipindahkan ke Attachment
   // saat balasannya disimpan — mulai giliran baru dgn kolektor bersih.
   clearShotCollector(ticket.id);
 
-  const imageContext = await describeRecentImages(db, messages).catch((e) => {
-    console.warn("[support-agent] analisa lampiran gambar gagal:", e instanceof Error ? e.message : e);
-    return null;
-  });
-  const base = toLlmMessages(messages, imageContext);
-  const toolsOn = await toolsEnabledFor(db);
-  // P4.7 — verifikasi-dulu: reproduksi browser aktif (sakelar admin) +
-  // pesan USER terakhir berbunyi laporan error → guard nudge berhak jalan.
-  const browserOn = toolsOn && (await browserEnabledFor(db));
-  const lastUserBody = [...messages].reverse().find((m) => m.senderRole === "USER")?.body ?? "";
-  // P4.5 — scope jawaban: daftar menu yang bisa diakses PENANYA (pembuat tiket).
-  const menuScope = await resolveAskerMenuSection(db, ticket);
-  console.log(`[support-agent] tiket ${ticket.ticketNo} scope penanya: ${menuScope.all ? "AKSES PENUH (super admin)" : "TERBATAS"} — ${menuScope.text.slice(0, 120).replace(/\n/g, " ¶ ")}`);
-  const system = buildSupportSystemPrompt(ticket, toolsOn, menuScope);
-
-  // ---------- loop ReAct (P2) ----------
-  const convo: AiMessage[] = [...base];
-  const usage = new Map<string, number>();
-  let toolCalls = 0;
-  let raw = "";
-  let lastCallSig = "";
-  let lastResult: { ok: boolean; output: string } | null = null;
-  let antiConfabRetry = 0;
-  let verifyNudgeRetry = 0; // P4.7 — dorongan verifikasi-dulu (maks 1×)
-  let saasNudgeRetry = 0; // P4.8 — dorongan model eskalasi SaaS (maks 1×)
-  const deadline = Date.now() + TURN_BUDGET_MS;
-
-  for (let step = 1; step <= MAX_LLM_STEPS; step++) {
-    const forceFinal = step === MAX_LLM_STEPS || Date.now() > deadline;
-    if (forceFinal && step > 1) {
-      convo.push({
-        role: "user",
-        content: "[CATATAN RUNTIME: batas langkah/waktu pemeriksaan tercapai — jawab pengguna SEKARANG dengan informasi yang sudah Anda kumpulkan, tanpa TOOL_CALL.]",
-      });
-    }
-
-    const result = await aiComplete(db, { system, messages: convo, temperature: 0.35, maxTokens: 1400 });
-    raw = result.text.trim();
-    // Diagnostik ops (muncul di log server — memudahkan audit protokol tool).
-    console.log(`[support-agent] tiket ${ticket.ticketNo} langkah ${step}/${MAX_LLM_STEPS} (tools=${toolsOn ? "on" : "off"}, tool terpakai=${toolCalls}${verifyNudgeRetry ? ", nudge-verifikasi=terpakai" : ""}${saasNudgeRetry ? ", nudge-eskalasi-saas=terpakai" : ""}): ${raw.slice(0, 300).replace(/\n/g, " ¶ ")}`);
-
-    const nameMatch = toolsOn && !forceFinal ? raw.match(TOOL_NAME_RE) : null;
-    if (!nameMatch) {
-      // Guard anti-konfabulasi: jawaban "final" mengklaim telah memeriksa
-      // kode/data padahal tool belum dijalankan giliran ini (atau mode
-      // diagnosis dimatikan admin) → tolak sekali, minta jujur.
-      if (
-        !forceFinal && antiConfabRetry < 1 &&
-        (toolsOn ? usage.size === 0 : true) &&
-        /hasil pemeriksaan|berdasarkan (hasil )?(pemeriksaan|query|kode|data (terkini|di database|di sistem))|sudah (saya )?(periksa|cek) (langsung|ke )|telah (saya )?periksa|saya (periksa|cek) (langsung|ke (database|sistem|data))|hasil reproduksi|saya (reproduksi|mencoba) (langsung|di (browser|aplikasi))|tangkapan layar (hasil|dari) reproduksi/i.test(raw)
-      ) {
-        antiConfabRetry += 1;
-        convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
-        convo.push({
-          role: "user",
-          content: toolsOn
-            ? "[CATATAN RUNTIME — PENTING] Anda menulis hasil pemeriksaan padahal BELUM ada pesan [HASIL TOOL …] pada percakapan ini. Itu terlarang (mengarang). Ulangi sekarang: (a) bila perlu fakta, panggil tool dengan protokol TOOL_CALL/ARGS; atau (b) bila tidak perlu, jawab langsung TANPA mengklaim telah memeriksa apa pun."
-            : "[CATATAN RUNTIME — PENTING] Mode pemeriksaan sedang DIMATIKAN admin — Anda TIDAK memiliki akses baca ke database/kode giliran ini, sehingga mengklaim \"berdasarkan data\" adalah mengarang. Jawab ulang secara jujur: jelaskan bahwa Anda tidak dapat memeriksa data saat ini, lalu arahkan pengguna ke menu/kolom yang relevan (mis. ESS → sisa cuti) atau minta admin mengaktifkan mode diagnosis.",
-        });
-        continue;
-      }
-      // Guard P4: klaim "perbaikan sudah diterapkan" tanpa catatan persetujuan
-      // developer pada percakapan → tolak sekali, minta kalimat jujur
-      // ("usulan diajukan, menunggu persetujuan developer").
-      const approvalSeen = convo.some(
-        (cm) => cm.role === "user" && APPROVAL_NOTE_RE.test(cm.content),
-      );
-      const claimsApplied = APPLIED_CLAIM_RE.test(raw);
-      if (
-        !forceFinal && !approvalSeen && antiConfabRetry < 1 && claimsApplied &&
-        (usage.size === 0 || usage.has("propose_patch"))
-      ) {
-        antiConfabRetry += 1;
-        convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
-        convo.push({
-          role: "user",
-          content:
-            "[CATATAN RUNTIME — PENTING] Anda menyatakan perbaikan SUDAH diterapkan/diperbaiki, padahal TIDAK ada catatan sistem 'DISETUJUI oleh' developer pada percakapan ini. Usulan patch TIDAK mengubah file sebelum disetujui manusia. Jawab ulang secara jujur: sampaikan bahwa usulan perbaikan telah/akan Anda ajukan (bila benar) dan statusnya MENUNGGU persetujuan developer — atau jelaskan langkah sementara yang bisa dilakukan pengguna.",
-        });
-        continue;
-      }
-      // P4.7 — guard VERIFIKASI DULU: pengguna melaporkan error nyata,
-      // tools aktif, tetapi model menjawab final TANPA menjalankan alat
-      // apa pun (kecenderungan provider tertentu: diagnosis langsung dari
-      // teks error) → dorong SEKALI untuk verifikasi nyata sebelum menjawab;
-      // bila model tetap tidak memanggil tool setelah dorongan, jawabannya
-      // diterima apa adanya (tidak di-loop selamanya).
-      if (
-        !forceFinal && browserOn && usage.size === 0 && verifyNudgeRetry < 1 &&
-        ERROR_REPORT_RE.test(lastUserBody)
-      ) {
-        verifyNudgeRetry += 1;
-        convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
-        convo.push({
-          role: "user",
-          content:
-            "[CATATAN RUNTIME — PENTING] Pengguna MELAPORKAN error/kendala nyata, dan Anda belum menjalankan ALAT APA PUN giliran ini — jangan mendiagnosis hanya dari teks error. Verifikasi dulu apakah error itu BENAR-BENAR masih terjadi sekarang: bila teramati di aplikasi (login/gagal simpan/pesan error di layar), panggil reproduce_browser (login akun uji → ulangi aksi pelapor → amati → screenshot bila perlu); bila tidak teramati di UI (mis. email latar belakang), pakai read_logs atau query_db. Setelah ada [HASIL TOOL …], tulis jawaban final Anda yang kini berbasis bukti.",
-        });
-        continue;
-      }
-      // P4.8 — guard MODEL SAAS: pengguna melaporkan error/kendala nyata
-      // (pola ERROR_REPORT_RE) namun jawaban final justru mengarahkan
-      // pengguna ke "tim IT / administrator tenant mereka" (pola
-      // REDIRECT_IT_RE) — tenant tidak punya akses infrastruktur, arahan
-      // itu tidak menyelesaikan apa pun. Dorong SEKALI agar menjawab
-      // sebagai support SaaS (akui sisi platform + catat & tindak lanjut
-      // di tiket + tanpa tindakan pengguna). Pengecualian disertakan utk
-      // ranah yang memang milik pihak lain (akses → admin tenant; lokal →
-      // IT pengguna). Berlaku juga saat tools dimatikan (arahan salah
-      // tetap salah); bila model tetap mempertahankannya setelah dorongan,
-      // jawaban diterima apa adanya (tidak di-loop selamanya).
-      if (
-        !forceFinal && saasNudgeRetry < 1 &&
-        ERROR_REPORT_RE.test(lastUserBody) && REDIRECT_IT_RE.test(raw)
-      ) {
-        saasNudgeRetry += 1;
-        convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
-        convo.push({
-          role: "user",
-          content:
-            "[CATATAN RUNTIME — PENTING] RekanKerja adalah aplikasi SaaS multi-tenant: pengguna tenant TIDAK punya akses ke server/database/kode/log, dan admin/IT tenant pun tidak bisa memperbaiki gangguan infrastruktur platform (database/server/layanan/bug kode) — menyarankan mereka menghubungi tim IT/administrator untuk masalah semacam ini tidak menyelesaikan apa pun. Jawab ulang sebagai support SaaS: (1) jelaskan bahwa ini gangguan di sisi platform, bukan kelalaian pengguna; (2) tegaskan laporannya sudah dicatat di tiket ini dan akan ditindaklanjuti tim platform RekanKerja sesuai prioritas dampaknya; (3) pengguna tidak perlu melakukan apa pun selain menunggu pembaruan di tiket. Pengecualian: bila masalahnya memang ranah pihak lain — permintaan akses/koreksi data (admin tenant) atau kendala perangkat/jaringan lokal pengguna sendiri (IT internal mereka) — pertahankan arahan itu dan sertai alasannya.",
-        });
-        continue;
-      }
-      break; // jawaban final
-    }
-
-    // ---- eksekusi satu tool ----
-    const name = nameMatch[1];
-    // ARGS: baris "ARGS: …" bila ada; kalau tak ada, coba blok JSON seimbang
-    // pertama di seluruh keluaran (model kadang menaruh JSON tanpa label).
-    const argsLine = raw.match(TOOL_ARGS_LINE_RE);
-    const balanced = extractArgsJson(raw);
-    const argsRaw = argsLine ? argsLine[1].trim() : balanced?.json ?? null;
-    // POTONG giliran assistant TEPAT di akhir blok TOOL_CALL/ARGS — model
-    // kadang melanjutkan menulis "hasil" khayalan setelah protokol; bagian
-    // itu TIDAK boleh masuk konteks (satu-satunya hasil yang sah adalah
-    // [HASIL TOOL …] yang disuntikkan runtime pada giliran berikutnya).
-    const callEnd =
-      (argsLine?.index != null ? argsLine.index + argsLine[0].length : 0) ||
-      (balanced?.end ?? 0) ||
-      ((nameMatch.index ?? 0) + nameMatch[0].length);
-    const assistantTurn = raw.slice(0, callEnd).trim();
-    let args: Record<string, unknown> = {};
-    let argError: string | null = null;
-    if (argsRaw) {
-      try {
-        const parsed = JSON.parse(argsRaw);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) args = parsed as Record<string, unknown>;
-        else argError = "ARGS harus objek JSON.";
-      } catch {
-        argError = "ARGS bukan JSON valid.";
-      }
-    }
-    convo.push({ role: "assistant", content: assistantTurn });
-    if (argError) {
-      convo.push({ role: "user", content: `[HASIL TOOL ${name}] GAGAL: ${argError} Ulangi dengan format benar (ARGS: {json satu baris}) atau jawab langsung.` });
-      continue; // format salah tidak dihitung sbg eksekusi tool
-    }
-    if (toolCalls >= MAX_TOOL_CALLS) {
-      convo.push({ role: "user", content: "[HASIL TOOL] DITOLAK: kuota pemeriksaan giliran ini habis — jawab pengguna sekarang dengan informasi yang ada." });
-      continue;
-    }
-
-    // dedup: panggilan identik berturut-turut → jangan eksekusi ulang.
-    const sig = `${name}|${argsRaw ?? ""}`;
-    if (sig === lastCallSig && lastResult) {
-      convo.push({
-        role: "user",
-        content: `[CATATAN RUNTIME] Panggilan ${name} identik dengan langkah sebelumnya — hasilnya sama. Jangan ulangi panggilan yang sama; gunakan informasi yang sudah ada atau jawab pengguna sekarang.`,
-      });
-      continue;
-    }
-
-    toolCalls += 1;
-    let toolResult;
-    try {
-      // P3: tool browser membutuhkan konteks tiket (key sesi runner +
-      // kolektor bukti tangkapan layar per tiket).
-      toolResult = await runSupportTool(db, name, args, { ticketId: ticket.id });
-    } catch (e) {
-      toolResult = { ok: false, output: `Tool error: ${e instanceof Error ? e.message : "unknown"}` };
-    }
-    lastCallSig = sig;
-    lastResult = toolResult;
-    usage.set(name, (usage.get(name) ?? 0) + 1);
-    if (!toolResult.ok) {
-      console.warn(`[support-agent] tool ${name} gagal (tiket ${ticket.ticketNo}): ${toolResult.output.slice(0, 300)}`);
-    }
-    convo.push({
-      role: "user",
-      content: `[HASIL TOOL ${name} — ${toolResult.ok ? "OK" : "DITOLAK/GAGAL"}]\n${toolResult.output}`,
-    });
-  }
-
-  // ---------- parse + strip marker triase ----------
-  let body = stripToolSyntax(raw).trim();
-  let category: string | null = null;
-  let priority: string | null = null;
-  const m = body.match(META_RE);
-  if (m?.index != null) {
-    const rawBody = body.slice(0, m.index).trimEnd();
-    if (rawBody.length > 0) {
-      if ((SUPPORT_CATEGORIES as readonly string[]).includes(m[1])) category = m[1];
-      if ((SUPPORT_PRIORITIES as readonly string[]).includes(m[2])) priority = m[2];
-      body = rawBody;
-    }
-  }
-  // buang baris pemisah horizontal (--- / *** / ===) di awal & akhir — sisa
-  // narasi model; hati-hati JANGAN sentuh heading/bold konten.
-  body = body
-    .replace(/^\s*(?:-{3,}|\*{3,}|_{3,}|={3,})[^\S\n]*\n?/, "")
-    .replace(/\n?[^\S\n]*(?:-{3,}|\*{3,}|_{3,}|={3,})\s*$/, "")
-    .trim();
-  // P4.3: buang spasi/tab di AKHIR baris (di luar blok kode fenced) — artefak
-  // "hard break" markdown (dua spasi + enter) yang menambah baris kosong liar
-  // saat dirender rapat di chat. Blok kode dilindungi (capture-group ganjil).
-  // P4.5: garis pemisah ---/***/___ yang berdiri sendiri DI TENGAH jawaban
-  // juga dibuang (gaya chat ala WhatsApp — bukan dokumen berseksi). Yang
-  // didahului baris kosong saja (thematic break); setext heading (Teks lalu
-  // --- tanpa baris kosong) tidak tersentuh.
-  body = body
-    .split(/(```[\s\S]*?```)/g)
-    .map((part, i) =>
-      i % 2 === 1
-        ? part
-        : part
-            .replace(/[ \t]+$/gm, "")
-            .replace(/\n[ \t]*\n[ \t]*(?:-{3,}|\*{3,}|_{3,})[ \t]*(?=\n)/g, "\n"),
-    )
-    .join("");
-  // P3: bukti tangkapan layar hanya sah sebagai LAMPIRAN file (dilampirkan
-  // otomatis oleh runtime). Model kadang mengarang link gambar markdown
-  // (mis. ![](https://example.com/…)) atas nama bukti — gambar markdown
-  // eksternal tidak pernah valid di balasan agen → ganti rujukan teks.
-  body = body.replace(/!\[([^\]]*)\]\([^)\s]+\)/g, (_m, alt: string) =>
-    alt.trim() ? `*${alt.trim()} — bukti terlampir di bawah*` : "*bukti tangkapan layar terlampir di bawah*");
-  if (!body) throw new Error("AI mengembalikan jawaban kosong — coba ulangi");
-
-  // ---------- persistensi ----------
-  const pill = toolUsagePill(usage);
-  if (pill) {
-    await db.supportMessage.create({
-      data: { ticketId: ticket.id, senderRole: "SYSTEM", senderName: SUPPORT_AI_NAME, body: pill },
-    });
-  }
-  const now = new Date();
-  const message = await db.supportMessage.create({
-    data: {
-      ticketId: ticket.id,
-      senderRole: "AI",
-      senderName: SUPPORT_AI_NAME,
-      body,
-    },
-  });
-  // P3: pindahkan bukti tangkapan layar giliran ini → lampiran pesan AI
-  // (muncul sebagai thumbnail di utas chat — bukti reproduksi utk pengguna).
+  let imageContext: string | null = null;
   try {
-    const shots = await persistShots(db, ticket.id, message.id);
-    if (shots > 0) {
-      console.log(`[support-agent] tiket ${ticket.ticketNo}: ${shots} bukti tangkapan layar dilampirkan ke pesan AI`);
+    // AUDIT-SUPPORT: seluruh badan giliran dijaga — kegagalan (provider 502,
+    // dsb.) tidak boleh meninggalkan bukti tangkapan layar giliran ini menetap
+    // di memori (shotCollector hanya dibersihkan di awal giliran BERIKUTNYA;
+    // bila tiket tak pernah dilanjutkan, bukti itu bocor selamanya).
+    imageContext = await describeRecentImages(db, messages).catch((e) => {
+      console.warn("[support-agent] analisa lampiran gambar gagal:", e instanceof Error ? e.message : e);
+      return null;
+    });
+    const base = toLlmMessages(messages, imageContext);
+    const toolsOn = await toolsEnabledFor(db);
+    // P4.7 — verifikasi-dulu: reproduksi browser aktif (sakelar admin) +
+    // pesan USER terakhir berbunyi laporan error → guard nudge berhak jalan.
+    const browserOn = toolsOn && (await browserEnabledFor(db));
+    const lastUserBody = [...messages].reverse().find((m) => m.senderRole === "USER")?.body ?? "";
+    // P4.5 — scope jawaban: daftar menu yang bisa diakses PENANYA (pembuat tiket).
+    const menuScope = await resolveAskerMenuSection(db, ticket);
+    console.log(`[support-agent] tiket ${ticket.ticketNo} scope penanya: ${menuScope.all ? "AKSES PENUH (super admin)" : "TERBATAS"} — ${menuScope.text.slice(0, 120).replace(/\n/g, " ¶ ")}`);
+    const system = buildSupportSystemPrompt(ticket, toolsOn, menuScope);
+
+    // ---------- loop ReAct (P2) ----------
+    const convo: AiMessage[] = [...base];
+    const usage = new Map<string, number>();
+    let toolCalls = 0;
+    let raw = "";
+    let lastCallSig = "";
+    let lastResult: { ok: boolean; output: string } | null = null;
+    let antiConfabRetry = 0;
+    let verifyNudgeRetry = 0; // P4.7 — dorongan verifikasi-dulu (maks 1×)
+    let saasNudgeRetry = 0; // P4.8 — dorongan model eskalasi SaaS (maks 1×)
+    const deadline = Date.now() + TURN_BUDGET_MS;
+
+    for (let step = 1; step <= MAX_LLM_STEPS; step++) {
+      const forceFinal = step === MAX_LLM_STEPS || Date.now() > deadline;
+      if (forceFinal && step > 1) {
+        convo.push({
+          role: "user",
+          content: "[CATATAN RUNTIME: batas langkah/waktu pemeriksaan tercapai — jawab pengguna SEKARANG dengan informasi yang sudah Anda kumpulkan, tanpa TOOL_CALL.]",
+        });
+      }
+
+      const result = await aiComplete(db, { system, messages: convo, temperature: 0.35, maxTokens: 1400 });
+      raw = result.text.trim();
+      // Diagnostik ops (muncul di log server — memudahkan audit protokol tool).
+      console.log(`[support-agent] tiket ${ticket.ticketNo} langkah ${step}/${MAX_LLM_STEPS} (tools=${toolsOn ? "on" : "off"}, tool terpakai=${toolCalls}${verifyNudgeRetry ? ", nudge-verifikasi=terpakai" : ""}${saasNudgeRetry ? ", nudge-eskalasi-saas=terpakai" : ""}): ${raw.slice(0, 300).replace(/\n/g, " ¶ ")}`);
+
+      const nameMatch = toolsOn && !forceFinal ? raw.match(TOOL_NAME_RE) : null;
+      if (!nameMatch) {
+        // Guard anti-konfabulasi: jawaban "final" mengklaim telah memeriksa
+        // kode/data padahal tool belum dijalankan giliran ini (atau mode
+        // diagnosis dimatikan admin) → tolak sekali, minta jujur.
+        if (
+          !forceFinal && antiConfabRetry < 1 &&
+          (toolsOn ? usage.size === 0 : true) &&
+          /hasil pemeriksaan|berdasarkan (hasil )?(pemeriksaan|query|kode|data (terkini|di database|di sistem))|sudah (saya )?(periksa|cek) (langsung|ke )|telah (saya )?periksa|saya (periksa|cek) (langsung|ke (database|sistem|data))|hasil reproduksi|saya (reproduksi|mencoba) (langsung|di (browser|aplikasi))|tangkapan layar (hasil|dari) reproduksi/i.test(raw)
+        ) {
+          antiConfabRetry += 1;
+          convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
+          convo.push({
+            role: "user",
+            content: toolsOn
+              ? "[CATATAN RUNTIME — PENTING] Anda menulis hasil pemeriksaan padahal BELUM ada pesan [HASIL TOOL …] pada percakapan ini. Itu terlarang (mengarang). Ulangi sekarang: (a) bila perlu fakta, panggil tool dengan protokol TOOL_CALL/ARGS; atau (b) bila tidak perlu, jawab langsung TANPA mengklaim telah memeriksa apa pun."
+              : "[CATATAN RUNTIME — PENTING] Mode pemeriksaan sedang DIMATIKAN admin — Anda TIDAK memiliki akses baca ke database/kode giliran ini, sehingga mengklaim \"berdasarkan data\" adalah mengarang. Jawab ulang secara jujur: jelaskan bahwa Anda tidak dapat memeriksa data saat ini, lalu arahkan pengguna ke menu/kolom yang relevan (mis. ESS → sisa cuti) atau minta admin mengaktifkan mode diagnosis.",
+          });
+          continue;
+        }
+        // Guard P4: klaim "perbaikan sudah diterapkan" tanpa catatan persetujuan
+        // developer pada percakapan → tolak sekali, minta kalimat jujur
+        // ("usulan diajukan, menunggu persetujuan developer").
+        const approvalSeen = convo.some(
+          (cm) => cm.role === "user" && APPROVAL_NOTE_RE.test(cm.content),
+        );
+        const claimsApplied = APPLIED_CLAIM_RE.test(raw);
+        if (
+          !forceFinal && !approvalSeen && antiConfabRetry < 1 && claimsApplied &&
+          (usage.size === 0 || usage.has("propose_patch"))
+        ) {
+          antiConfabRetry += 1;
+          convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
+          convo.push({
+            role: "user",
+            content:
+              "[CATATAN RUNTIME — PENTING] Anda menyatakan perbaikan SUDAH diterapkan/diperbaiki, padahal TIDAK ada catatan sistem 'DISETUJUI oleh' developer pada percakapan ini. Usulan patch TIDAK mengubah file sebelum disetujui manusia. Jawab ulang secara jujur: sampaikan bahwa usulan perbaikan telah/akan Anda ajukan (bila benar) dan statusnya MENUNGGU persetujuan developer — atau jelaskan langkah sementara yang bisa dilakukan pengguna.",
+          });
+          continue;
+        }
+        // P4.7 — guard VERIFIKASI DULU: pengguna melaporkan error nyata,
+        // tools aktif, tetapi model menjawab final TANPA menjalankan alat
+        // apa pun (kecenderungan provider tertentu: diagnosis langsung dari
+        // teks error) → dorong SEKALI untuk verifikasi nyata sebelum menjawab;
+        // bila model tetap tidak memanggil tool setelah dorongan, jawabannya
+        // diterima apa adanya (tidak di-loop selamanya).
+        if (
+          !forceFinal && browserOn && usage.size === 0 && verifyNudgeRetry < 1 &&
+          ERROR_REPORT_RE.test(lastUserBody)
+        ) {
+          verifyNudgeRetry += 1;
+          convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
+          convo.push({
+            role: "user",
+            content:
+              "[CATATAN RUNTIME — PENTING] Pengguna MELAPORKAN error/kendala nyata, dan Anda belum menjalankan ALAT APA PUN giliran ini — jangan mendiagnosis hanya dari teks error. Verifikasi dulu apakah error itu BENAR-BENAR masih terjadi sekarang: bila teramati di aplikasi (login/gagal simpan/pesan error di layar), panggil reproduce_browser (login akun uji → ulangi aksi pelapor → amati → screenshot bila perlu); bila tidak teramati di UI (mis. email latar belakang), pakai read_logs atau query_db. Setelah ada [HASIL TOOL …], tulis jawaban final Anda yang kini berbasis bukti.",
+          });
+          continue;
+        }
+        // P4.8 — guard MODEL SAAS: pengguna melaporkan error/kendala nyata
+        // (pola ERROR_REPORT_RE) namun jawaban final justru mengarahkan
+        // pengguna ke "tim IT / administrator tenant mereka" (pola
+        // REDIRECT_IT_RE) — tenant tidak punya akses infrastruktur, arahan
+        // itu tidak menyelesaikan apa pun. Dorong SEKALI agar menjawab
+        // sebagai support SaaS (akui sisi platform + catat & tindak lanjut
+        // di tiket + tanpa tindakan pengguna). Pengecualian disertakan utk
+        // ranah yang memang milik pihak lain (akses → admin tenant; lokal →
+        // IT pengguna). Berlaku juga saat tools dimatikan (arahan salah
+        // tetap salah); bila model tetap mempertahankannya setelah dorongan,
+        // jawaban diterima apa adanya (tidak di-loop selamanya).
+        if (
+          !forceFinal && saasNudgeRetry < 1 &&
+          ERROR_REPORT_RE.test(lastUserBody) && REDIRECT_IT_RE.test(raw)
+        ) {
+          saasNudgeRetry += 1;
+          convo.push({ role: "assistant", content: stripToolSyntax(raw).slice(0, 2000) });
+          convo.push({
+            role: "user",
+            content:
+              "[CATATAN RUNTIME — PENTING] RekanKerja adalah aplikasi SaaS multi-tenant: pengguna tenant TIDAK punya akses ke server/database/kode/log, dan admin/IT tenant pun tidak bisa memperbaiki gangguan infrastruktur platform (database/server/layanan/bug kode) — menyarankan mereka menghubungi tim IT/administrator untuk masalah semacam ini tidak menyelesaikan apa pun. Jawab ulang sebagai support SaaS: (1) jelaskan bahwa ini gangguan di sisi platform, bukan kelalaian pengguna; (2) tegaskan laporannya sudah dicatat di tiket ini dan akan ditindaklanjuti tim platform RekanKerja sesuai prioritas dampaknya; (3) pengguna tidak perlu melakukan apa pun selain menunggu pembaruan di tiket. Pengecualian: bila masalahnya memang ranah pihak lain — permintaan akses/koreksi data (admin tenant) atau kendala perangkat/jaringan lokal pengguna sendiri (IT internal mereka) — pertahankan arahan itu dan sertai alasannya.",
+          });
+          continue;
+        }
+        break; // jawaban final
+      }
+
+      // ---- eksekusi satu tool ----
+      const name = nameMatch[1];
+      // ARGS: baris "ARGS: …" bila ada; kalau tak ada, coba blok JSON seimbang
+      // pertama di seluruh keluaran (model kadang menaruh JSON tanpa label).
+      const argsLine = raw.match(TOOL_ARGS_LINE_RE);
+      const balanced = extractArgsJson(raw);
+      const argsRaw = argsLine ? argsLine[1].trim() : balanced?.json ?? null;
+      // POTONG giliran assistant TEPAT di akhir blok TOOL_CALL/ARGS — model
+      // kadang melanjutkan menulis "hasil" khayalan setelah protokol; bagian
+      // itu TIDAK boleh masuk konteks (satu-satunya hasil yang sah adalah
+      // [HASIL TOOL …] yang disuntikkan runtime pada giliran berikutnya).
+      const callEnd =
+        (argsLine?.index != null ? argsLine.index + argsLine[0].length : 0) ||
+        (balanced?.end ?? 0) ||
+        ((nameMatch.index ?? 0) + nameMatch[0].length);
+      const assistantTurn = raw.slice(0, callEnd).trim();
+      let args: Record<string, unknown> = {};
+      let argError: string | null = null;
+      if (argsRaw) {
+        try {
+          const parsed = JSON.parse(argsRaw);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) args = parsed as Record<string, unknown>;
+          else argError = "ARGS harus objek JSON.";
+        } catch {
+          argError = "ARGS bukan JSON valid.";
+        }
+      }
+      convo.push({ role: "assistant", content: assistantTurn });
+      if (argError) {
+        convo.push({ role: "user", content: `[HASIL TOOL ${name}] GAGAL: ${argError} Ulangi dengan format benar (ARGS: {json satu baris}) atau jawab langsung.` });
+        continue; // format salah tidak dihitung sbg eksekusi tool
+      }
+      if (toolCalls >= MAX_TOOL_CALLS) {
+        convo.push({ role: "user", content: "[HASIL TOOL] DITOLAK: kuota pemeriksaan giliran ini habis — jawab pengguna sekarang dengan informasi yang ada." });
+        continue;
+      }
+
+      // dedup: panggilan identik berturut-turut → jangan eksekusi ulang.
+      const sig = `${name}|${argsRaw ?? ""}`;
+      if (sig === lastCallSig && lastResult) {
+        convo.push({
+          role: "user",
+          content: `[CATATAN RUNTIME] Panggilan ${name} identik dengan langkah sebelumnya — hasilnya sama. Jangan ulangi panggilan yang sama; gunakan informasi yang sudah ada atau jawab pengguna sekarang.`,
+        });
+        continue;
+      }
+
+      toolCalls += 1;
+      let toolResult;
+      try {
+        // P3: tool browser membutuhkan konteks tiket (key sesi runner +
+        // kolektor bukti tangkapan layar per tiket).
+        toolResult = await runSupportTool(db, name, args, { ticketId: ticket.id });
+      } catch (e) {
+        toolResult = { ok: false, output: `Tool error: ${e instanceof Error ? e.message : "unknown"}` };
+      }
+      lastCallSig = sig;
+      lastResult = toolResult;
+      usage.set(name, (usage.get(name) ?? 0) + 1);
+      if (!toolResult.ok) {
+        console.warn(`[support-agent] tool ${name} gagal (tiket ${ticket.ticketNo}): ${toolResult.output.slice(0, 300)}`);
+      }
+      convo.push({
+        role: "user",
+        content: `[HASIL TOOL ${name} — ${toolResult.ok ? "OK" : "DITOLAK/GAGAL"}]\n${toolResult.output}`,
+      });
     }
+
+    // ---------- parse + strip marker triase ----------
+    let body = stripToolSyntax(raw).trim();
+    let category: string | null = null;
+    let priority: string | null = null;
+    const m = body.match(META_RE);
+    if (m?.index != null) {
+      const rawBody = body.slice(0, m.index).trimEnd();
+      if (rawBody.length > 0) {
+        if ((SUPPORT_CATEGORIES as readonly string[]).includes(m[1])) category = m[1];
+        if ((SUPPORT_PRIORITIES as readonly string[]).includes(m[2])) priority = m[2];
+        body = rawBody;
+      }
+    }
+    // buang baris pemisah horizontal (--- / *** / ===) di awal & akhir — sisa
+    // narasi model; hati-hati JANGAN sentuh heading/bold konten.
+    body = body
+      .replace(/^\s*(?:-{3,}|\*{3,}|_{3,}|={3,})[^\S\n]*\n?/, "")
+      .replace(/\n?[^\S\n]*(?:-{3,}|\*{3,}|_{3,}|={3,})\s*$/, "")
+      .trim();
+    // P4.3: buang spasi/tab di AKHIR baris (di luar blok kode fenced) — artefak
+    // "hard break" markdown (dua spasi + enter) yang menambah baris kosong liar
+    // saat dirender rapat di chat. Blok kode dilindungi (capture-group ganjil).
+    // P4.5: garis pemisah ---/***/___ yang berdiri sendiri DI TENGAH jawaban
+    // juga dibuang (gaya chat ala WhatsApp — bukan dokumen berseksi). Yang
+    // didahului baris kosong saja (thematic break); setext heading (Teks lalu
+    // --- tanpa baris kosong) tidak tersentuh.
+    body = body
+      .split(/(```[\s\S]*?```)/g)
+      .map((part, i) =>
+        i % 2 === 1
+          ? part
+          : part
+              .replace(/[ \t]+$/gm, "")
+              .replace(/\n[ \t]*\n[ \t]*(?:-{3,}|\*{3,}|_{3,})[ \t]*(?=\n)/g, "\n"),
+      )
+      .join("");
+    // P3: bukti tangkapan layar hanya sah sebagai LAMPIRAN file (dilampirkan
+    // otomatis oleh runtime). Model kadang mengarang link gambar markdown
+    // (mis. ![](https://example.com/…)) atas nama bukti — gambar markdown
+    // eksternal tidak pernah valid di balasan agen → ganti rujukan teks.
+    body = body.replace(/!\[([^\]]*)\]\([^)\s]+\)/g, (_m, alt: string) =>
+      alt.trim() ? `*${alt.trim()} — bukti terlampir di bawah*` : "*bukti tangkapan layar terlampir di bawah*");
+    if (!body) throw new Error("AI mengembalikan jawaban kosong — coba ulangi");
+
+    // ---------- persistensi ----------
+    const pill = toolUsagePill(usage);
+    if (pill) {
+      await db.supportMessage.create({
+        data: { ticketId: ticket.id, senderRole: "SYSTEM", senderName: SUPPORT_AI_NAME, body: pill },
+      });
+    }
+    const now = new Date();
+    const message = await db.supportMessage.create({
+      data: {
+        ticketId: ticket.id,
+        senderRole: "AI",
+        senderName: SUPPORT_AI_NAME,
+        body,
+      },
+    });
+    // P3: pindahkan bukti tangkapan layar giliran ini → lampiran pesan AI
+    // (muncul sebagai thumbnail di utas chat — bukti reproduksi utk pengguna).
+    try {
+      const shots = await persistShots(db, ticket.id, message.id);
+      if (shots > 0) {
+        console.log(`[support-agent] tiket ${ticket.ticketNo}: ${shots} bukti tangkapan layar dilampirkan ke pesan AI`);
+      }
+    } catch (e) {
+      console.warn("[support-agent] lampiran bukti tangkapan layar gagal:", e instanceof Error ? e.message : e);
+    }
+    await db.supportTicket.update({
+      where: { id: ticket.id },
+      data: {
+        lastMessageAt: now,
+        ...(category ? { category } : {}),
+        ...(priority ? { priority } : {}),
+      },
+    });
+    return { message, category, priority };
   } catch (e) {
-    console.warn("[support-agent] lampiran bukti tangkapan layar gagal:", e instanceof Error ? e.message : e);
+    // AUDIT-SUPPORT: giliran gagal (mis. provider 502) → bukti tangkapan
+    // layar yang sudah terkumpul dibuang — tidak menetap di memori server
+    // menunggu giliran berikutnya yang mungkin tak pernah datang.
+    clearShotCollector(ticket.id);
+    throw e;
   }
-  await db.supportTicket.update({
-    where: { id: ticket.id },
-    data: {
-      lastMessageAt: now,
-      ...(category ? { category } : {}),
-      ...(priority ? { priority } : {}),
-    },
-  });
-  return { message, category, priority };
 }
 
 /** Pesan sambutan tetap saat tiket dibuat (tanpa panggilan LLM — murah & instan). */

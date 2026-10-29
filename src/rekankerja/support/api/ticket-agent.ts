@@ -11,10 +11,11 @@
 //   menampilkan indikator "mengetik".
 // =====================================================================
 import { NextRequest, NextResponse } from "next/server";
+import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 import {
   resolveSupportActor, supportActorDenied, ticketAccess,
 } from "@/rekankerja/support/api/support-auth";
-import { agentRespond } from "@/rekankerja/support/services/support-agent";
+import { agentRespond, AgentTurnInProgressError } from "@/rekankerja/support/services/support-agent";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -31,6 +32,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json(
         { error: "Percakapan sudah ditutup — buka kembali untuk melanjutkan" },
         { status: 409 },
+      );
+    }
+
+    // AUDIT-SUPPORT — rate-limit per sesi (pola tickets.ts): 20 giliran /
+    // 10 menit. Satu giliran bisa memakan hingga 14 panggilan LLM + aksi
+    // browser (kuota biaya nyata) — UI memicu tepat satu giliran per pesan;
+    // 20 cukup longgar utk pengguna normal, cukup ketat utk spam biaya LLM.
+    const cookie = req.headers.get("cookie") ?? "anon";
+    const rlKey = `support:agent-turn:${cookie.length}:${Buffer.from(cookie).toString("base64").slice(-24)}`;
+    const rl = hitRateLimit(rlKey, 20, 10 * 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Terlalu banyak permintaan AI dalam waktu singkat — coba lagi beberapa saat lagi" },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
       );
     }
 
@@ -53,6 +68,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       { status: 201 },
     );
   } catch (e) {
+    // AUDIT-SUPPORT: giliran tiket ini masih berjalan (POST paralel) → 409,
+    // bukan kegagalan provider — UI menampilkan pesan ramah tanpa retry ganda.
+    if (e instanceof AgentTurnInProgressError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
+    }
     // provider AI gagal (key salah, timeout, kuota) → 502 ramah — pesan user
     // sudah tersimpan; UI menawarkan tombol coba lagi (POST ulang endpoint ini).
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 502 });

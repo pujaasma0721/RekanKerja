@@ -41,6 +41,19 @@ async function nextTicketNo(a: SupportActor): Promise<string> {
   return `${start}${String(max + 1).padStart(3, "0")}`;
 }
 
+/** AUDIT-SUPPORT — pisahkan create utk retry pelanggaran UNIQUE ticketNo. */
+async function createTicketRow(a: SupportActor, ticketNo: string, subject: string) {
+  return a.db.supportTicket.create({
+    data: {
+      ticketNo,
+      subject,
+      createdById: a.appUserId,
+      createdByName: a.appUserName,
+    },
+    select: { ...TICKET_SELECT, _count: true },
+  });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const a = await resolveSupportActor(req);
@@ -96,16 +109,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Judul percakapan maksimum 120 karakter" }, { status: 400 });
     }
 
-    const ticketNo = await nextTicketNo(a);
-    const ticket = await a.db.supportTicket.create({
-      data: {
-        ticketNo,
-        subject,
-        createdById: a.appUserId,
-        createdByName: a.appUserName,
-      },
-      select: { ...TICKET_SELECT, _count: true },
-    });
+    // AUDIT-SUPPORT — nomor tiket dihitung max+1 (bukan sequence DB): dua
+    // pembuatan tiket PARALEL bisa menghitung nomor sama → pelanggaran UNIQUE
+    // ticketNo. Coba ulang hitung+simpan hingga 3× sebelum menyerah (rate-limit
+    // 5 tiket/30 menit membuat tabrakan nyata sangat jarang).
+    let ticket: Awaited<ReturnType<typeof createTicketRow>> | null = null;
+    for (let attempt = 0; attempt < 3 && !ticket; attempt++) {
+      const ticketNo = await nextTicketNo(a);
+      try {
+        ticket = await createTicketRow(a, ticketNo, subject);
+      } catch (e) {
+        const conflict = /unique constraint|duplicate key|P2002/i.test(e instanceof Error ? e.message : "");
+        if (!conflict || attempt === 2) throw e;
+      }
+    }
 
     // sambutan agen — teks tetap (tanpa LLM): tiket langsung siap dipakai.
     await a.db.supportMessage.create({

@@ -13,6 +13,7 @@
 //      tiket DITUTUP → 409 (buka kembali dulu lewat PATCH).
 // =====================================================================
 import { NextRequest, NextResponse } from "next/server";
+import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 import {
   resolveSupportActor, supportActorDenied, ticketAccess,
 } from "@/rekankerja/support/api/support-auth";
@@ -77,6 +78,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json(
         { error: "Percakapan sudah ditutup — buka kembali untuk melanjutkan" },
         { status: 409 },
+      );
+    }
+
+    // AUDIT-SUPPORT — rate-limit per sesi (pola tickets.ts): 30 pesan /
+    // 10 menit — tiap pesan memicu giliran AI (biaya LLM); tanpa batas ini
+    // klien nakal bisa membanjiri utas & kuota provider.
+    const cookie = req.headers.get("cookie") ?? "anon";
+    const rlKey = `support:msg:${cookie.length}:${Buffer.from(cookie).toString("base64").slice(-24)}`;
+    const rl = hitRateLimit(rlKey, 30, 10 * 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Terlalu banyak pesan dalam waktu singkat — coba lagi beberapa saat lagi" },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
       );
     }
 
