@@ -20,6 +20,11 @@
 //      dibanding giliran agent penuh (system prompt besar + hingga 14
 //      langkah LLM + loop tool + VLM lampiran: puluhan ribu token).
 //
+// P10.1 — SADAR-ALUR PERCAKAPAN: klasifikasi LLM menerima riwayat ringkas
+// utas (lihat classifySupportIntentLlm); pemanggil memutuskan kapan aturan
+// cukup vs kapan riwayat wajib (utas aktif — pesan lanjutan penanganan
+// masalah yang sedang berjalan tidak boleh salah blokir).
+//
 // Pesan UMUM yang terblokir → balasan REDIRECT tetap (tanpa LLM agent):
 // jelaskan fungsi layanan support + arahkan ke Asisten AI. Gagal klasifikasi
 // LLM → fail-open MASALAH (laporan masalah nyata TIDAK BOLEH tertahan
@@ -135,30 +140,48 @@ export function classifySupportIntentRules(body: string): SupportIntentVerdict |
 
 // ---------------------------------------------------------------------------
 // LAPIS 2 — klasifikasi LLM murah utk pesan ambigu (HANYA satu panggilan
-// kecil; tanpa tool, tanpa riwayat, tanpa system prompt besar).
+// kecil; tanpa tool, tanpa system prompt besar). P10.1 (analisa tiket
+// SP-2026-005 "tanya lagi"): klasifikator kini menerima RIWAYAT RINGKAS
+// utas — pesan lanjutan penanganan masalah yang sedang berjalan (koreksi
+// atas diagnosis, info tambahan, jawaban atas pertanyaan support) sering
+// tampak seperti pertanyaan umum bila dibaca SENDIRIAN (mis. "cuti itu sudah
+// ada : CT-LAHIR") dan tanpa riwayat salah diblokir → agent tampak tidak
+// tahu alur percakapan. Riwayat membuat klasifikator membedakan "lanjutan
+// masalah" vs "pertanyaan umum sungguhan".
 // ---------------------------------------------------------------------------
 const INTENT_SYSTEM = [
   "Kamu filter pesan layanan support aplikasi HRIS RekanKerja.",
-  "Layanan support HANYA untuk: laporan masalah/bug/error aplikasi, gangguan akun/login, permintaan fitur, atau lanjutan penanganan masalah yang sedang berjalan.",
+  "Layanan support HANYA untuk: laporan masalah/bug/error aplikasi, gangguan akun/login, permintaan fitur, atau lanjutan penanganan masalah yang sedang berjalan di tiket yang sama.",
   "Pertanyaan UMUM — data/info aplikasi (jumlah karyawan, gaji, sisa cuti, jumlah kantor, data pegawai), cara pakai fitur, sapaan/obrolan, atau topik di luar aplikasi — BUKAN ranah support (sudah ada chat Asisten AI yang menanganinya).",
-  "Klasifikasikan maksud PESAKHIR pengguna memakai konteks judul percakapan.",
+  "PENTING: bila PESAN TERAKHIR adalah lanjutan dari percakapan masalah pada riwayat — koreksi atas temuan/diagnosis support, info tambahan utk masalah yang sedang ditangani, atau jawaban atas pertanyaan support — klasifikasikan MASALAH, WALAU kalimatnya sendiri tampak seperti pertanyaan umum atau sapaan.",
+  "Klasifikasikan maksud PESAN TERAKHIR pengguna memakai konteks judul percakapan dan riwayat.",
   "Balas TEPAT SATU kata tanpa tanda baca: MASALAH atau UMUM.",
 ].join(" ");
 
 /**
  * Klasifikasi LLM (murah) atas pesan ambigu. FAIL-OPEN: pemanggil menangkap
  * error → perlakukan sebagai MASALAH (jangan pernah menahan laporan masalah).
+ * P10.1 — `history` (opsional): transkrip ringkas pesan-pesan terakhir utas
+ * (sebelum pesan yang diklasifikasikan), format "PENGGUNA: …" / "SUPPORT: …".
+ * Kosong/null = utas baru tanpa percakapan sebelumnya.
  */
 export async function classifySupportIntentLlm(
   ticketSubject: string,
   body: string,
+  history?: string | null,
 ): Promise<{ verdict: "MASALAH" | "UMUM"; usage: SupportIntentUsage }> {
   const r = await aiCompleteSupport({
     system: INTENT_SYSTEM,
     messages: [
       {
         role: "user",
-        content: `Judul percakapan: ${ticketSubject.slice(0, 120)}\nPesan terakhir pengguna: ${body.slice(0, 1000)}`,
+        content: [
+          `Judul percakapan: ${ticketSubject.slice(0, 120)}`,
+          ...(history
+            ? [`Riwayat percakapan sebelum pesan ini (terlama di atas):\n${history}`]
+            : []),
+          `Pesan terakhir pengguna: ${body.slice(0, 1000)}`,
+        ].join("\n\n"),
       },
     ],
     temperature: 0,

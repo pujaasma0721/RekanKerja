@@ -103,6 +103,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     //     maxTokens 8) — jauh lebih murah daripada salah melayani giliran
     //     penuh. Gagal klasifikasi → fail-open MASALAH (laporan masalah nyata
     //     tidak boleh tertahan).
+    //   · P10.1 — SADAR-ALUR: pada utas yang SUDAH berjalan, klasifikasi
+    //     membawa riwayat ringkas (6 pesan terakhir) sehingga pesan LANJUTAN
+    //     penanganan (koreksi diagnosis, info tambahan, jawaban atas pertanyaan
+    //     agent) tidak salah diblokir cuma karena kalimatnya tampak umum —
+    //     akar masalah "agent tidak tahu alur percakapan" (SP-2026-005).
     // Pesan dengan LAMPIRAN selalu lolos (bukti layar umumnya error) — VLM
     // tetap menganalisa. Log HANYA metadata — isi pesan tidak pernah ditulis
     // ke log server bersama (H1 audit-2).
@@ -118,10 +123,62 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           where: { entityType: "SupportMessage", entityId: last.id },
         })) > 0;
       if (!hasAttachment) {
+        // P10.1 — riwayat ringkas utas utk klasifikasi: pesan LANJUTAN
+        // penanganan masalah yang sedang berjalan (koreksi diagnosis, info
+        // tambahan, jawaban atas pertanyaan agent) sering tampak umum bila
+        // dibaca sendirian ("cuti itu sudah ada : CT-LAHIR") dan tanpa
+        // riwayat salah diblokir → agent tampak tidak tahu alur percakapan
+        // (temuan analisa tiket SP-2026-005 "tanya lagi"). Maks 6 pesan
+        // non-SYSTEM sebelum pesan ini, @160 karakter — klasifikasi tetap
+        // murah (±ratusan token), jauh di bawah giliran agent penuh.
+        const priorRows = await a.db.supportMessage.findMany({
+          where: {
+            ticketId: t.id,
+            senderRole: { in: ["USER", "AI"] },
+            id: { not: last.id },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 6,
+          select: { senderRole: true, body: true },
+        });
+        const gateHistory = priorRows
+          .reverse()
+          .map(
+            (m) =>
+              `${m.senderRole === "AI" ? "SUPPORT" : "PENGGUNA"}: ${(m.body ?? "")
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 160)}`,
+          )
+          .join("\n");
+        // Utas "aktif" = sudah ada pesan PENGGUNA sebelumnya (bukan hanya
+        // pill sapaan awal AI — pill itu template tetap, bukan percakapan):
+        // hanya utas aktif yang berhak klasifikasi ber-riwayat; tiket baru
+        // tetap memakai jalur aturan nol-biaya / LLM tanpa riwayat.
+        const threadActive = priorRows.some((m) => m.senderRole === "USER");
         const rules = classifySupportIntentRules(gateBody);
         let blockedKind: "greeting" | "umum" | null =
           rules === "UMUM_GREETING" ? "greeting" : rules === "UMUM" ? "umum" : null;
-        if (!blockedKind && rules === null) {
+        if (rules === "MASALAH") {
+          // sinyal masalah jelas → langsung lolos, tanpa panggilan LLM (biaya nol).
+        } else if (threadActive) {
+          // Utas SUDAH berjalan + pesan ambigu/sapaan/umum-menurut-aturan →
+          // putusan aturan TIDAK final (aturan tak melihat konteks: "iya"/"ok"
+          // bisa justru jawaban atas pertanyaan agent; koreksi bisa tampak umum).
+          // Klasifikasi LLM ber-riwayat yang menentukan; gagal → fail-open MASALAH.
+          try {
+            const c = await classifySupportIntentLlm(t.subject, gateBody, gateHistory);
+            gateTokensIn = c.usage.tokensIn;
+            gateTokensOut = c.usage.tokensOut;
+            gateSteps = c.usage.llmSteps;
+            gateProvider = c.usage.provider;
+            blockedKind = c.verdict === "UMUM" ? "umum" : null;
+          } catch (e) {
+            blockedKind = null; // fail-open → layani sbg. MASALAH
+            console.warn("[support-intent] klasifikasi LLM gagal (fail-open → MASALAH):", e instanceof Error ? e.message : e);
+          }
+        } else if (rules === null) {
+          // Utas BARU (tanpa riwayat) + ambigu → klasifikasi LLM ringan (perilaku lama).
           try {
             const c = await classifySupportIntentLlm(t.subject, gateBody);
             gateTokensIn = c.usage.tokensIn;
