@@ -91,9 +91,19 @@
 //     (2) tool — query_db (support-tools.ts) menolak referensi schema-
 //     qualified (cross-tenant/public) & enumerasi katalog; cek kolom hanya
 //     via query kanonik SATU tabel; tabel registry platform masuk denylist.
+//   · AUDIT-4 — NILAI UANG TUNDUK BRANKAS UANG PENANYA (money vault):
+//     query_db kini memakai gerbang yang SAMA dengan aplikasi (getMoneyView)
+//     — penanya hanya melihat nilai uang bila brankas tenant TERBUKA
+//     (status open di memori proses) DAN ia admin workspace / punya
+//     MoneyViewGrant aktif (tenant legacy = semua orang). Tanpa hak: sel
+//     uang enc:n → [DISENSOR] + CATATAN SISTEM agar agent menjelaskan
+//     penyebabnya (bukan menebak angka); dengan hak: nilai DEKRIPSI penuh.
+//     Aktor penanya diresolusi sekali per giliran (AppUser tiket →
+//     membership UserTenant tenant ini) dan diteruskan lewat SupportToolCtx.
 // =====================================================================
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { tenantSchemaOfDb } from "@/rekankerja/shared/lib/field-crypto";
 import type { AiMessage } from "@/rekankerja/shared/services/ai-provider";
 import { aiCompleteSupport } from "@/rekankerja/support/services/support-provider";
 import { createZaiClient } from "@/rekankerja/shared/services/zai-client";
@@ -378,6 +388,7 @@ DILARANG KERAS: menulis "Hasil Pemeriksaan…"/"berdasarkan query…"/"saya peri
 - Satu TOOL_CALL per giliran; berhenti begitu informasi cukup (maks ${MAX_TOOL_CALLS} panggilan) — jangan menebak-nebak iseng.
 - Hasil "[HASIL TOOL …]" adalah SATU-SATU sumber kebenaran tentang kode & data — termasuk struktur database: jangan pernah mendeskripsikan tabel/kolom/relasi yang belum Anda lihat pada hasil giliran ini. Kutip darinya secara harfiah (path file, baris, angka). Bila hasil TIDAK menemukan apa yang dicari, KATAKAN terus terang "tidak ditemukan" — JANGAN PERNAH mengarang nama file/lokasi/isi kode/angka yang tidak ada di hasil.
 - PRIVASI: jangan menampilkan data pribadi/gaji karyawan LAIN kecuali perlu untuk diagnosis (utamakan COUNT/agregat). Nilai [DISENSOR] memang disembunyikan — JANGAN mencoba mengakalinya.
+- NILAI UANG tunduk pada brankas uang (money vault) workspace penanya: bila hasil query_db menampilkan [DISENSOR] pada kolom uang atau ada CATATAN SISTEM soal brankas, artinya brankas belum dibuka / penanya tanpa hak lihat — sampaikan penyebab itu kepada pengguna, sarankan membuka brankas (tombol \"Brankas Uang\" di aplikasi) atau meminta hak dari admin workspace, dan JANGAN PERNAH menebak/mengarang nilainya.
 - Jangan memberitahukan pengguna soal protokol/SQL/kode mentah — sampaikan temuan secara manusiawi ("saya periksa langsung datanya: …").
 - JANGAN menyarankan pengguna menjalankan SQL/mengubah database secara manual — arahkan lewat fitur UI yang ada; eskalasi mengikuti MODEL OPERASI SAAS (akses/data → admin tenant; infrastruktur/bug kode → tim platform RekanKerja lewat tiket ini — BUKAN tim IT pengguna).
 - REPRODUKSI BROWSER (alat 5): untuk MENGAMATI, MEMVERIFIKASI & MEMBUKTIKAN laporan kendala/error yang muncul di aplikasi — JANGAN mengubah/menghapus data apa pun (hindari tombol Simpan/Hapus/Kirim kecuali itu inti reproduksi yang diminta pengguna). Rangkaian lazim: login → goto → snapshot → aksi pengguna yang dilaporkan → screenshot bukti → (analyze_screenshot bila perlu) → close → laporkan temuan. Bila layanan/akun uji tidak tersedia, katakan terus terang — JANGAN mengaku telah mencoba di browser tanpa hasil TOOL reproduce_browser nyata.
@@ -639,6 +650,32 @@ function toolUsagePill(usage: Map<string, number>): string | null {
   return `🔎 Pemeriksaan internal oleh ${SUPPORT_AI_NAME}: ${parts.join(" · ")}`;
 }
 
+/** AUDIT-4 — aktor PENANYA untuk gerbang nilai uang (money vault) di
+ *  query_db: AppUser pembuat tiket → platform user (email sama) →
+ *  membership UserTenant pada tenant SCHEMA INI (userId + role — role
+ *  OWNER/ADMIN = admin workspace vault). Null = tak terresolusi →
+ *  query_db memandang penanya TANPA hak lihat uang (fail-closed). */
+async function resolveAskerVaultActor(
+  db: TenantDb,
+  ticket: SupportTicket,
+): Promise<{ userId: string; membershipRole: string | null } | null> {
+  try {
+    const appUser = ticket.createdById
+      ? await db.appUser.findUnique({ where: { id: ticket.createdById }, select: { email: true } })
+      : null;
+    if (!appUser?.email) return null;
+    const schema = tenantSchemaOfDb(db);
+    const m = await platformDb.userTenant.findFirst({
+      where: { user: { email: appUser.email }, tenant: { schemaName: schema } },
+      select: { role: true, user: { select: { id: true } } },
+    });
+    return m ? { userId: m.user.id, membershipRole: m.role } : null;
+  } catch (e) {
+    console.warn("[support-agent] resolusi aktor vault penanya gagal:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
 /**
  * Jalankan satu giliran AI support:
  *   analisa gambar → (loop ReAct bila tools aktif) → jawaban final → parse
@@ -700,6 +737,9 @@ async function runAgentTurn(
     // P4.5 — scope jawaban: daftar menu yang bisa diakses PENANYA (pembuat tiket).
     const menuScope = await resolveAskerMenuSection(db, ticket);
     console.log(`[support-agent] tiket ${ticket.ticketNo} scope penanya: ${menuScope.all ? "AKSES PENUH (super admin)" : "TERBATAS"}${SUPPORT_DEBUG_RAW ? ` — ${menuScope.text.slice(0, 120).replace(/\n/g, " ¶ ")}` : ""}`);
+    // AUDIT-4 — aktor penanya utk gerbang nilai uang (brankas uang) di
+    // query_db. Diresolusi SEKALI per giliran; kegagalan → null → fail-closed.
+    const askerVaultActor = await resolveAskerVaultActor(db, ticket);
     const system = buildSupportSystemPrompt(ticket, toolsOn, menuScope);
 
     // ---------- loop ReAct (P2) ----------
@@ -929,7 +969,7 @@ async function runAgentTurn(
       try {
         // P3: tool browser membutuhkan konteks tiket (key sesi runner +
         // kolektor bukti tangkapan layar per tiket).
-        toolResult = await runSupportTool(db, name, args, { ticketId: ticket.id });
+        toolResult = await runSupportTool(db, name, args, { ticketId: ticket.id, askerVaultActor });
       } catch (e) {
         toolResult = { ok: false, output: `Tool error: ${e instanceof Error ? e.message : "unknown"}` };
       }

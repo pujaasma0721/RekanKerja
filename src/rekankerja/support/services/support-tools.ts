@@ -47,6 +47,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { isEncrypted, tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
+import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { runBrowserTool, analyzeScreenshotTool } from "@/rekankerja/support/services/support-browser";
 import { proposePatchTool } from "@/rekankerja/support/services/support-patch";
 
@@ -77,6 +79,12 @@ export const TOOL_LABELS: Record<SupportToolName, string> = {
  *  untuk key sesi runner + kolektor bukti tangkapan layar per tiket. */
 export interface SupportToolCtx {
   ticketId: string;
+  /** AUDIT-4 — aktor PENANYA (platform) untuk gerbang nilai uang (brankas
+   *  uang / money vault) di query_db: { userId, membershipRole } hasil
+   *  resolusi support-agent (AppUser tiket → membership UserTenant tenant
+   *  ini). Null/tidak ada = tak terresolusi → query_db memandang penanya
+   *  TANPA hak lihat uang (fail-closed). */
+  askerVaultActor?: { userId: string; membershipRole: string | null } | null;
 }
 
 /** Apakah tools read-only diaktifkan utk tenant ini? (SupportAgentConfig;
@@ -105,7 +113,7 @@ export async function runSupportTool(
     case "read_file":
       return readFileTool(args);
     case "query_db":
-      return queryDb(db, args);
+      return queryDb(db, args, ctx);
     case "read_logs":
       return readLogs(args);
     case "reproduce_browser":
@@ -353,19 +361,55 @@ function cellToString(v: unknown): string {
   return String(v);
 }
 
-/** Redaksi nilai kolom sensitif + potong sel. */
-function sanitizeRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
-  return rows.map((row) => {
-    const out: Record<string, unknown> = {};
+/** Redaksi nilai kolom sensitif + potong sel.
+ *  AUDIT-4 — gerbang NILAI UANG (brankas uang / money vault), paritas
+ *  penuh dengan gerbang serializer aplikasi (getMoneyView):
+ *  · sel terenkripsi enc:n (UANG): penanya boleh lihat (vault terbuka +
+ *    admin/grant, atau tenant legacy) → DEKRIPSI ke angka asli; selain itu
+ *    → "[DISENSOR]" + catatan brankas (bukan 0 — 0 akan dipercaya LLM
+ *    sebagai nilai nyata, beda dgn UI admin Task 56 yang memang 0).
+ *  · sel terenkripsi enc:t (PII): tetap DIDEKRIPSI — paritas aturan PII
+ *    aplikasi (tidak digerbangi vault; lihat money-view.ts).
+ *  · kolom bernama uang PLAINTEXT: boleh lihat → nilai apa adanya;
+ *    tanpa hak → "[DISENSOR]" + catatan (menutup bypass alias/agregat di
+ *    tenant legacy pra-vault yang uangnya belum terenkripsi).
+ *  · kolom rahasia (kredensial) → selalu "[DISENSOR]".
+ *  Dekripsi per sel di-try/catch — kunci tak termuat/kind salah →
+ *  "[DISENSOR]" (tak pernah melempar seluruh query). */
+function sanitizeRows(
+  rows: Record<string, unknown>[],
+  tc: ReturnType<typeof tenantCryptoForDb>,
+  canSeeMoney: boolean,
+): { rows: Record<string, unknown>[]; moneyMasked: boolean } {
+  let moneyMasked = false;
+  const out = rows.map((row) => {
+    const o: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(row)) {
-      if (v == null) { out[k] = null; continue; }
-      out[k] = COL_SECRET_RE.test(k) || COL_MONEY_RE.test(k) ? "[DISENSOR]" : cellToString(v).slice(0, DB_CELL_TRUNC);
+      if (v == null) { o[k] = null; continue; }
+      if (typeof v === "string" && isEncrypted(v)) {
+        const kind = v.split(":")[2];
+        if (kind === "n") {
+          if (!canSeeMoney) { o[k] = "[DISENSOR]"; moneyMasked = true; continue; }
+          try { o[k] = tc.decryptMoney(v) ?? "[DISENSOR]"; } catch { o[k] = "[DISENSOR]"; }
+        } else {
+          try { o[k] = (tc.decryptText(v) ?? "[DISENSOR]").slice(0, DB_CELL_TRUNC); } catch { o[k] = "[DISENSOR]"; }
+        }
+        continue;
+      }
+      if (COL_SECRET_RE.test(k)) { o[k] = "[DISENSOR]"; continue; }
+      if (COL_MONEY_RE.test(k)) {
+        if (!canSeeMoney) { o[k] = "[DISENSOR]"; moneyMasked = true; continue; }
+        o[k] = cellToString(v).slice(0, DB_CELL_TRUNC);
+        continue;
+      }
+      o[k] = cellToString(v).slice(0, DB_CELL_TRUNC);
     }
-    return out;
+    return o;
   });
+  return { rows: out, moneyMasked };
 }
 
-async function queryDb(db: TenantDb, args: Record<string, unknown>): Promise<SupportToolResult> {
+async function queryDb(db: TenantDb, args: Record<string, unknown>, ctx?: SupportToolCtx): Promise<SupportToolResult> {
   const raw = String(args.sql ?? "").trim();
   if (!raw) return { ok: false, output: "Parameter 'sql' wajib diisi." };
   let sql = raw.replace(/;\s*$/, "");
@@ -481,6 +525,21 @@ async function queryDb(db: TenantDb, args: Record<string, unknown>): Promise<Sup
     return { ok: false, output: `DITOLAK: tabel berisi data rahasia/privasi tidak dapat dibaca (${[...new Set(denied)].join(", ")}). Gunakan tabel lain yang relevan.` };
   }
 
+  // AUDIT-4 — gerbang NILAI UANG (brankas uang / money vault): paritas
+  // penuh dengan gerbang serializer aplikasi (getMoneyView) — penanya
+  // hanya melihat nilai uang bila (a) tenant belum punya vault (legacy:
+  // semua orang), atau (b) vault tenant TERBUKA (status open di memori
+  // proses ini) DAN penanya admin workspace / punya MoneyViewGrant aktif.
+  // Aktor tak terresolusi / kegagalan resolusi → TANPA hak (fail-closed).
+  let canSeeMoney = false;
+  try {
+    const actor = ctx?.askerVaultActor ?? { userId: "", membershipRole: null };
+    canSeeMoney = (await getMoneyView(db, actor)).canSee;
+  } catch {
+    canSeeMoney = false;
+  }
+  const tc = tenantCryptoForDb(db);
+
   const wrapped = `SELECT * FROM (${sql}) AS _agent_q LIMIT ${DB_ROW_CAP}`;
   let rows: Record<string, unknown>[];
   try {
@@ -497,12 +556,20 @@ async function queryDb(db: TenantDb, args: Record<string, unknown>): Promise<Sup
       output: `Query gagal: ${msg.slice(0, 400)}\nPETUNJUK PERBAIKAN: nama tabel & kolom di schema ini CASE-SENSITIVE dan PascalCase — selalu kutip ganda, mis. FROM "Employee" WHERE "fullName" ILIKE '%budi%'. Perbaiki lalu coba lagi.`,
     };
   }
-  const clean = sanitizeRows(rows ?? []);
+  const san = sanitizeRows(rows ?? [], tc, canSeeMoney);
+  const clean = san.rows;
   if (clean.length === 0) return { ok: true, output: "0 baris." };
   const header = Object.keys(clean[0]).join(" | ");
   const body = clean.map((r) => Object.values(r).map((v) => (v == null ? "∅" : String(v))).join(" | ")).join("\n");
   let out = `${header}\n${body}`;
   if (out.length > DB_OUTPUT_CAP) out = out.slice(0, DB_OUTPUT_CAP) + "\n… (output dipotong)";
+  // AUDIT-4 — alasan eksplisit ke LLM: tanpa ini model bisa menganggap
+  // [DISENSOR] sebagai error/menebak angka; dengan ini ia bisa menjelaskan
+  // ke pengguna APA yang harus dilakukan (buka brankas / minta hak admin).
+  if (san.moneyMasked) {
+    out +=
+      "\nCATATAN SISTEM: nilai uang di atas disensor karena brankas uang (money vault) workspace penanya belum dibuka, atau penanya tidak punya hak lihat uang. Sampaikan hal ini kepada pengguna dan sarankan membuka brankas (tombol \"Brankas Uang\" di aplikasi) atau meminta hak dari admin workspace — JANGAN menebak/mengarang nilainya.";
+  }
   return { ok: true, output: `${clean.length} baris (maks ${DB_ROW_CAP}):\n${out}` };
 }
 
