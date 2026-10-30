@@ -147,6 +147,10 @@ model SupportUsageLog {
   tokensIn  Int      @default(0) // total token masuk (estimasi bila provider tak melaporkan)
   tokensOut Int      @default(0) // total token keluar
   provider  String   @default("builtin")
+  /// R4 (audit-2) — giliran yang GAGAL di tengah (502) tetap dicatat demi
+  /// atribusi biaya (token sudah terbakar), tetapi TIDAK memakan kuota
+  /// tenant (bukan salah pengguna). Kuota hanya menghitung baris true.
+  billable  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   @@index([tenantId, createdAt])

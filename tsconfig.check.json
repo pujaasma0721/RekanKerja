@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "skills",
+    "agent-ctx",
+    "repo",
+    "prisma/dump-job-data.ts",
+    "prisma/restore-assignments.ts",
+    "scripts/migrate-to-postgres.ts"
+  ]
+}

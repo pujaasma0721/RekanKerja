@@ -75,7 +75,7 @@ interface AdminOverview {
   totals: { tenants: number; activeSupport: number; turns: number; tokensIn: number; tokensOut: number; estCostUsd: number };
 }
 interface UsageLogRow {
-  id: string; ticketNo: string; llmSteps: number; tokensIn: number; tokensOut: number; provider: string; createdAt: string;
+  id: string; ticketNo: string; llmSteps: number; tokensIn: number; tokensOut: number; provider: string; billable: boolean; createdAt: string;
 }
 interface UsageDetail {
   tenant: { id: string; name: string; slug: string };
@@ -383,7 +383,17 @@ function UsageDialog({ open, onOpenChange, tenant }: { open: boolean; onOpenChan
               <TableBody>
                 {api.data.logs.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="text-[12px] font-medium">{l.ticketNo}</TableCell>
+                    <TableCell className="text-[12px] font-medium">
+                      {l.ticketNo}
+                      {!l.billable && (
+                        <span
+                          className="ml-1 rounded bg-amber-100 px-1 py-px text-[9px] font-bold uppercase text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                          title={t("giliran gagal — token tercatat untuk biaya, tidak memakan kuota", "failed turn — tokens recorded for cost, quota not consumed")}
+                        >
+                          gagal
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-[11px] text-slate-400">{fmtDateTime(l.createdAt)}</TableCell>
                     <TableCell className="text-right text-[12px] tabular-nums">{l.llmSteps}</TableCell>
                     <TableCell className="text-right text-[12px] tabular-nums">{fmtNum(l.tokensIn)} / {fmtNum(l.tokensOut)}</TableCell>

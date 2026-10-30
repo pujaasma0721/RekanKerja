@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
         where: { tenantId, createdAt: { gte: monthStart } },
         orderBy: { createdAt: "desc" },
         take: 200,
-        select: { id: true, ticketNo: true, llmSteps: true, tokensIn: true, tokensOut: true, provider: true, createdAt: true },
+        select: { id: true, ticketNo: true, llmSteps: true, tokensIn: true, tokensOut: true, provider: true, billable: true, createdAt: true },
       }),
       supportUsageOfMonth(tenantId),
     ]);

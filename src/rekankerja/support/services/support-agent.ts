@@ -565,8 +565,16 @@ function stripToolSyntax(text: string): string {
  *  nama variabel environment sensitif diganti [DISENSOR]. Dilindungi blok
  *  kode fenced (cuplikan kode user tak tersentuh). */
 function redactSecrets(text: string): string {
+  // L1 (audit-2) — path file kode sumber yang sah dipertahankan apa adanya:
+  // `src/…`/`prisma/…`/`scripts/…`/`mini-services/…` bukan rahasia, justru
+  // informasi diagnosis yang harus sampai ke pengguna. Sebelumnya pola
+  // "blob panjang" (\b[A-Za-z0-9+/]{40,}\b) ikut menelan path ≥40 karakter
+  // — jawaban agent menyensor nama file-nya sendiri (kasus nyata audit
+  // 2026-10-30: "[DISENSOR]-design-lab.tsx"). Path dipisahkan dulu dari sisa
+  // teks (bersama blok kode fenced), lalu pola rahasia hanya diterapkan pada
+  // segmen non-path/non-code.
   return text
-    .split(/(```[\s\S]*?```)/g)
+    .split(/(```[\s\S]*?```|\b(?:src|prisma|scripts|mini-services)\/[A-Za-z0-9._\/-]+)/g)
     .map((part, i) =>
       i % 2 === 1
         ? part
@@ -595,6 +603,24 @@ export interface AgentTurnResult {
   toolsUsed: string[];
 }
 
+/** R4 (audit-2) — akumulator pemakaian giliran. Dimutasi SETIAP langkah LLM
+ *  oleh runAgentTurn supaya route tetap bisa mengatribusikan token yang
+ *  sudah terpakai ketika giliran GAGAL di tengah jalan (→ SupportUsageLog
+ *  billable=false: biaya tercatat, kuota tenant tidak terpakai). */
+export interface SupportTurnUsageAcc {
+  llmSteps: number;
+  tokensIn: number;
+  tokensOut: number;
+  provider: string;
+}
+
+/** H1 (audit-2) — konten mentah percakapan/langkah LLM/output tool TIDAK
+ *  ditulis ke log server secara default: file log yang sama dibaca agent
+ *  lintas-tenant lewat tool read_logs — cuplikan isi tiket tenant lain
+ *  tidak boleh sampai ke sana. Set SUPPORT_DEBUG=1 hanya utk debugging
+ *  single-tenant (instansi dev pribadi). */
+const SUPPORT_DEBUG_RAW = process.env.SUPPORT_DEBUG === "1";
+
 /** Susun teks pill transparansi dari penggunaan tool giliran ini. */
 function toolUsagePill(usage: Map<string, number>): string | null {
   if (usage.size === 0) return null;
@@ -611,17 +637,25 @@ function toolUsagePill(usage: Map<string, number>): string | null {
  * (→ 409 di route). Melempar Error lain bila provider gagal (route → 502,
  * pesan user TERSIMPAN).
  */
-export async function agentRespond(db: TenantDb, ticket: SupportTicket): Promise<AgentTurnResult> {
+export async function agentRespond(
+  db: TenantDb,
+  ticket: SupportTicket,
+  usageAcc?: SupportTurnUsageAcc,
+): Promise<AgentTurnResult> {
   if (turnsInFlight.has(ticket.id)) throw new AgentTurnInProgressError();
   turnsInFlight.add(ticket.id);
   try {
-    return await runAgentTurn(db, ticket);
+    return await runAgentTurn(db, ticket, usageAcc);
   } finally {
     turnsInFlight.delete(ticket.id);
   }
 }
 
-async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentTurnResult> {
+async function runAgentTurn(
+  db: TenantDb,
+  ticket: SupportTicket,
+  usageAcc?: SupportTurnUsageAcc,
+): Promise<AgentTurnResult> {
   // AUDIT-SUPPORT: muat HANYA ekor utas (desc + reverse) — bukan seluruh
   // riwayat — lalu proses seperti biasa (asc).
   const loaded = await db.supportMessage.findMany({
@@ -654,7 +688,7 @@ async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentT
     const lastUserBody = [...messages].reverse().find((m) => m.senderRole === "USER")?.body ?? "";
     // P4.5 — scope jawaban: daftar menu yang bisa diakses PENANYA (pembuat tiket).
     const menuScope = await resolveAskerMenuSection(db, ticket);
-    console.log(`[support-agent] tiket ${ticket.ticketNo} scope penanya: ${menuScope.all ? "AKSES PENUH (super admin)" : "TERBATAS"} — ${menuScope.text.slice(0, 120).replace(/\n/g, " ¶ ")}`);
+    console.log(`[support-agent] tiket ${ticket.ticketNo} scope penanya: ${menuScope.all ? "AKSES PENUH (super admin)" : "TERBATAS"}${SUPPORT_DEBUG_RAW ? ` — ${menuScope.text.slice(0, 120).replace(/\n/g, " ¶ ")}` : ""}`);
     const system = buildSupportSystemPrompt(ticket, toolsOn, menuScope);
 
     // ---------- loop ReAct (P2) ----------
@@ -692,9 +726,18 @@ async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentT
       turnTokensIn += result.tokensIn;
       turnTokensOut += result.tokensOut;
       turnProvider = result.provider;
+      // R4 — sinkronkan akumulator setiap langkah (baca deskripsi interface).
+      if (usageAcc) {
+        usageAcc.llmSteps = turnSteps;
+        usageAcc.tokensIn = turnTokensIn;
+        usageAcc.tokensOut = turnTokensOut;
+        usageAcc.provider = turnProvider;
+      }
       raw = result.text.trim();
-      // Diagnostik ops (muncul di log server — memudahkan audit protokol tool).
-      console.log(`[support-agent] tiket ${ticket.ticketNo} langkah ${step}/${MAX_LLM_STEPS} (tools=${toolsOn ? "on" : "off"}, tool terpakai=${toolCalls}${verifyNudgeRetry ? ", nudge-verifikasi=terpakai" : ""}${saasNudgeRetry ? ", nudge-eskalasi-saas=terpakai" : ""}${patchNudgeRetry ? ", nudge-usulan-patch=terpakai" : ""}): ${raw.slice(0, 300).replace(/\n/g, " ¶ ")}`);
+      // Diagnostik ops — HANYA metadata. Konten mentah langkah (percakapan
+      // pengguna + hasil tool) tidak ditulis ke log bersama (H1 audit-2),
+      // kecuali SUPPORT_DEBUG=1 (debugging single-tenant).
+      console.log(`[support-agent] tiket ${ticket.ticketNo} langkah ${step}/${MAX_LLM_STEPS} (tools=${toolsOn ? "on" : "off"}, tool terpakai=${toolCalls}${verifyNudgeRetry ? ", nudge-verifikasi=terpakai" : ""}${saasNudgeRetry ? ", nudge-eskalasi-saas=terpakai" : ""}${patchNudgeRetry ? ", nudge-usulan-patch=terpakai" : ""})${SUPPORT_DEBUG_RAW ? ` :: ${raw.slice(0, 300).replace(/\n/g, " ¶ ")}` : ""}`);
 
       const nameMatch = toolsOn && !forceFinal ? raw.match(TOOL_NAME_RE) : null;
       if (!nameMatch) {
@@ -883,7 +926,9 @@ async function runAgentTurn(db: TenantDb, ticket: SupportTicket): Promise<AgentT
       lastResult = toolResult;
       usage.set(name, (usage.get(name) ?? 0) + 1);
       if (!toolResult.ok) {
-        console.warn(`[support-agent] tool ${name} gagal (tiket ${ticket.ticketNo}): ${toolResult.output.slice(0, 300)}`);
+        // H1 — detail output tool gagal TIDAK ditulis ke log bersama (bisa
+        // memuat cuplikan percakapan/argumen); cukup nama tool + tiket.
+        console.warn(`[support-agent] tool ${name} gagal (tiket ${ticket.ticketNo})${SUPPORT_DEBUG_RAW ? `: ${toolResult.output.slice(0, 300)}` : " — detail dibuang (privasi lintas-tenant)"}`);
       }
       convo.push({
         role: "user",

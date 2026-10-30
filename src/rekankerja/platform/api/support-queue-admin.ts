@@ -176,7 +176,13 @@ export async function POST(req: NextRequest) {
       // jelas berasal dari realm konsol (bukan developer tenant).
       const reviewer = { id: null, name: "Pemilik Aplikasi (Konsol Platform)" };
       const result = await decidePatchProposal(db, ticketId, proposalId, decision, reviewer, note);
-      if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.httpStatus });
+      if (!result.ok) {
+        // R3 — sertakan rincian error typecheck (bila ada) utk UI reviewer.
+        return NextResponse.json(
+          { error: result.error, ...(result.typecheckErrors ? { typecheckErrors: result.typecheckErrors } : {}) },
+          { status: result.httpStatus },
+        );
+      }
 
       // P7.3 — verifikasi pasca-patch (fire-and-forget; hanya saat diterapkan)
       if (result.status === "DISETUJUI") {

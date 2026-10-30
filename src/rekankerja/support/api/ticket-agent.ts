@@ -16,7 +16,7 @@ import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 import {
   resolveSupportActor, supportActorDenied, supportServiceDenied, ticketAccess,
 } from "@/rekankerja/support/api/support-auth";
-import { agentRespond, AgentTurnInProgressError } from "@/rekankerja/support/services/support-agent";
+import { agentRespond, AgentTurnInProgressError, type SupportTurnUsageAcc } from "@/rekankerja/support/services/support-agent";
 import { supportQuotaLeft, logSupportTurn } from "@/rekankerja/support/services/support-entitlement";
 import { raisePlatformAlert } from "@/rekankerja/support/services/support-alerts";
 
@@ -86,13 +86,28 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       }
     }
 
-    const result = await agentRespond(a.db, t);
+    // R4 (audit-2) — akumulator pemakaian giliran: dimutasi agentRespond per
+    // langkah LLM, sehingga giliran yang GAGAL di tengah jalan (→ 502) tetap
+    // mencatat token yang sudah terpakai ke SupportUsageLog (billable=false —
+    // biaya teratribusi, TANPA memakan kuota tenant: bukan salah pengguna).
+    // Sebelumnya giliran gagal tidak tercatat sama sekali → tagihan kurang
+    // hitung padahal token LLM (hingga 14 langkah) sudah terbakar.
+    const usageAcc: SupportTurnUsageAcc = { llmSteps: 0, tokensIn: 0, tokensOut: 0, provider: "builtin" };
+    let result: Awaited<ReturnType<typeof agentRespond>>;
+    try {
+      result = await agentRespond(a.db, t, usageAcc);
+    } catch (e) {
+      if (a.tenantId && usageAcc.llmSteps > 0) {
+        await logSupportTurn(a.tenantId, t.ticketNo, { ...usageAcc, billable: false });
+      }
+      throw e;
+    }
 
     // P5 — atribusi pemakaian per giliran ke tenant (dasar kuota bulanan &
     // penagihan layanan berbayar). Pesan AI sudah tersimpan — kegagalan log
     // tidak boleh mengubah respons sukses (logSupportTurn best-effort).
     if (a.tenantId) {
-      await logSupportTurn(a.tenantId, t.ticketNo, result.usage);
+      await logSupportTurn(a.tenantId, t.ticketNo, { ...result.usage, billable: true });
     }
 
     // P7.1 — ESKALASI KE PEMILIK APLIKASI (best-effort, tidak pernah gagalkan
