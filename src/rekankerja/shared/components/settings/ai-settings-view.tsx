@@ -197,7 +197,7 @@ export function AiProviderView() {
   );
 }
 
-// ================= AGEN SUPPORT (FEAT-SUPPORT-P2 · P3 · P4) =================
+// ================= AGEN SUPPORT (FEAT-SUPPORT-P2 · P3 · P4 · P10) =================
 
 interface SupportAgentConfig {
   toolsEnabled: boolean;
@@ -207,90 +207,28 @@ interface SupportAgentConfig {
   hasBrowserLoginPass: boolean;
 }
 
-/** Kartu tata kelola agen Online Support — sakelar alat baca (L2 ⇄ L1),
- *  sakelar reproduksi browser (L3) + akun uji reproduksi (kata sandi
- *  write-only, terenkripsi field-crypto), sakelar usulan patch (L4 — penerapan
- *  tetap butuh persetujuan developer manusia). Tampil di halaman Provider AI. */
+/** Kartu agen Online Support di pengaturan TENANT (P10): kini HANYA akun
+ *  uji browser. Sakelar alat agen (mode diagnosis L2, reproduksi browser
+ *  L3, usulan patch L4) adalah kewenangan PEMILIK APLIKASI dan dikelola
+ *  lewat konsol Platform Admin — di sini hanya ditampilkan status efektif
+ *  (read-only) agar admin tenant tahu kemampuan agennya. Tampil di
+ *  halaman Provider AI. */
 function SupportAgentCard() {
   const { t } = useI18n();
   const cfg = useApi<{ config: SupportAgentConfig }>("/api/rekankerja/support/agent-config");
-  const [enabled, setEnabled] = useState(true);
-  const [browser, setBrowser] = useState(true);
-  const [patch, setPatch] = useState(true);
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [hasPass, setHasPass] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [savingAcc, setSavingAcc] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (cfg.data?.config && !loaded) {
-      setEnabled(cfg.data.config.toolsEnabled);
-      setBrowser(cfg.data.config.browserEnabled);
-      setPatch(cfg.data.config.patchEnabled);
       setEmail(cfg.data.config.browserLoginEmail ?? "");
       setHasPass(cfg.data.config.hasBrowserLoginPass);
       setLoaded(true);
     }
   }, [cfg.data, loaded]);
-
-  const toggle = async (next: boolean) => {
-    setEnabled(next);
-    setSaving(true);
-    try {
-      await apiSend("/api/rekankerja/support/agent-config", "PUT", { toolsEnabled: next });
-      toast.success(
-        next
-          ? t("Mode diagnosis agen diaktifkan", "Agent diagnosis mode enabled")
-          : t("Agen kembali ke mode percakapan murni", "Agent back to pure conversation mode"),
-      );
-      cfg.refresh();
-    } catch (e) {
-      setEnabled(!next);
-      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const toggleBrowser = async (next: boolean) => {
-    setBrowser(next);
-    setSaving(true);
-    try {
-      await apiSend("/api/rekankerja/support/agent-config", "PUT", { browserEnabled: next });
-      toast.success(
-        next
-          ? t("Reproduksi browser otomatis diaktifkan", "Automatic browser reproduction enabled")
-          : t("Reproduksi browser dimatikan", "Browser reproduction disabled"),
-      );
-      cfg.refresh();
-    } catch (e) {
-      setBrowser(!next);
-      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const togglePatch = async (next: boolean) => {
-    setPatch(next);
-    setSaving(true);
-    try {
-      await apiSend("/api/rekankerja/support/agent-config", "PUT", { patchEnabled: next });
-      toast.success(
-        next
-          ? t("Usulan patch agen diaktifkan — penerapan tetap butuh persetujuan developer", "Agent patch proposals enabled — applying still requires developer approval")
-          : t("Usulan patch agen dimatikan", "Agent patch proposals disabled"),
-      );
-      cfg.refresh();
-    } catch (e) {
-      setPatch(!next);
-      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const saveAccount = async () => {
     setSavingAcc(true);
@@ -326,76 +264,55 @@ function SupportAgentCard() {
     }
   };
 
+  const c = cfg.data?.config;
+  // status alat efektif (read-only) — dikendalikan pemilik aplikasi.
+  const toolBadges = loaded && c
+    ? [
+        { on: c.toolsEnabled, label: t("Diagnosis (L2)", "Diagnosis (L2)") },
+        { on: c.browserEnabled, label: t("Browser (L3)", "Browser (L3)") },
+        { on: c.patchEnabled, label: t("Patch (L4)", "Patch (L4)") },
+      ]
+    : [];
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-[15px]">
           <Headset className="h-4 w-4 text-brand" aria-hidden />
           {t("Agen Support (Online Support)", "Support Agent (Online Support)")}
-          {loaded && <StatusPill status={enabled || browser || patch ? "Active" : "Inactive"} />}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
-          <div>
-            <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
-              {t("Mode diagnosis (alat baca read-only)", "Diagnosis mode (read-only tools)")}
-            </p>
-            <p className="text-[11.5px] leading-relaxed text-slate-500">
-              {t(
-                "Izinkan Support AI memeriksa kode sumber, basis data perusahaan (dengan penyensoran data sensitif), dan log server saat mendiagnosa laporan pengguna. Tanpa ini, agen hanya menjawab dari pengetahuan umum.",
-                "Allow the Support AI to inspect source code, company database (with sensitive data masking), and server logs while diagnosing user reports. Without this, the agent answers from general knowledge only.",
-              )}
-            </p>
+        {/* P10 — alat agen = kewenangan pemilik aplikasi: tampil status
+            efektif read-only, pengaturannya ada di konsol Platform Admin. */}
+        <div className="rounded-xl border border-dashed border-slate-300 px-4 py-3 dark:border-slate-700">
+          <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
+            {t("Otorisasi alat agen", "Agent tool authorization")}
+          </p>
+          <p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-500">
+            {t(
+              "Kemampuan agen support Anda (pemeriksaan kode & data, reproduksi browser, usulan patch) diotorisasi pemilik aplikasi RekanKerja lewat konsol Platform Admin — bukan pengaturan tenant. Status efektif saat ini:",
+              "Your support agent's capabilities (code & data inspection, browser reproduction, patch proposals) are authorized by the RekanKerja app owner from the Platform Admin console — not tenant settings. Current effective status:",
+            )}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {toolBadges.length === 0 ? (
+              <span className="text-[11px] text-slate-400">{cfg.loading ? "…" : "—"}</span>
+            ) : (
+              toolBadges.map((b) => (
+                <span
+                  key={b.label}
+                  className={
+                    b.on
+                      ? "rounded-full bg-emerald-100 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                      : "rounded-full bg-slate-100 px-2 py-0.5 text-[10.5px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                  }
+                >
+                  {b.label} · {b.on ? t("AKTIF", "ON") : t("NONAKTIF", "OFF")}
+                </span>
+              ))
+            )}
           </div>
-          <Switch
-            checked={enabled}
-            onCheckedChange={(v) => void toggle(v)}
-            disabled={saving || cfg.loading}
-            aria-label={t("Mode diagnosis agen support", "Support agent diagnosis mode")}
-          />
-        </div>
-
-        {/* FEAT-SUPPORT-P3 — sakelar reproduksi browser headless (L3). */}
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
-          <div>
-            <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
-              {t("Reproduksi browser otomatis (L3)", "Automatic browser reproduction (L3)")}
-            </p>
-            <p className="text-[11.5px] leading-relaxed text-slate-500">
-              {t(
-                "Izinkan Support AI menjalankan browser internal (headless) untuk membuktikan laporan bug secara langsung: masuk dengan akun uji, membuka halaman terkait, dan mengambil tangkapan layar bukti yang dilampirkan ke percakapan.",
-                "Allow the Support AI to drive an internal headless browser to verify bug reports first-hand: sign in with a test account, open the relevant page, and capture screenshot evidence attached to the conversation.",
-              )}
-            </p>
-          </div>
-          <Switch
-            checked={browser}
-            onCheckedChange={(v) => void toggleBrowser(v)}
-            disabled={saving || cfg.loading}
-            aria-label={t("Mode reproduksi browser agen support", "Support agent browser reproduction mode")}
-          />
-        </div>
-
-        {/* FEAT-SUPPORT-P4 — sakelar usulan patch (L4 — approval tetap manusia). */}
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
-          <div>
-            <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
-              {t("Usulan patch kode (L4)", "Code patch proposals (L4)")}
-            </p>
-            <p className="text-[11.5px] leading-relaxed text-slate-500">
-              {t(
-                "Izinkan Support AI mengusulkan perbaikan kode (diff) saat akar masalah bug ditemukan. Usulan TIDAK pernah mengubah file — developer manusia harus menyetujui lewat kartu usulan di percakapan sebelum perubahan diterapkan.",
-                "Allow the Support AI to propose code fixes (diffs) once a root cause is found. A proposal never changes any file — a human developer must approve it from the proposal card in the conversation before anything is applied.",
-              )}
-            </p>
-          </div>
-          <Switch
-            checked={patch}
-            onCheckedChange={(v) => void togglePatch(v)}
-            disabled={saving || cfg.loading}
-            aria-label={t("Mode usulan patch agen support", "Support agent patch proposal mode")}
-          />
         </div>
 
         {/* FEAT-SUPPORT-P3 — akun uji reproduksi (browser bertindak sebagai akun ini). */}
@@ -434,12 +351,12 @@ function SupportAgentCard() {
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={() => void saveAccount()} disabled={savingAcc || saving || cfg.loading}>
+            <Button size="sm" onClick={() => void saveAccount()} disabled={savingAcc || cfg.loading}>
               {savingAcc && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />}
               {t("Simpan Akun Uji", "Save Test Account")}
             </Button>
             {(hasPass || email) && (
-              <Button size="sm" variant="outline" onClick={() => void clearAccount()} disabled={savingAcc || saving}>
+              <Button size="sm" variant="outline" onClick={() => void clearAccount()} disabled={savingAcc}>
                 {t("Hapus Akun Uji", "Remove Test Account")}
               </Button>
             )}
@@ -448,8 +365,8 @@ function SupportAgentCard() {
 
         <p className="text-[11px] leading-relaxed text-slate-400">
           {t(
-            "Seluruh pemeriksaan bersifat hanya-baca dan diguard berlapis: query tulis ditolak, tabel kredensial/privasi diblokir, nilai gaji & kredensial disensor otomatis, dan jejak pemeriksaan dicatat di tiap percakapan. Browser reproduksi terkurung di aplikasi ini saja (tidak bisa membuka situs lain), dibatasi jumlah aksi/tangkapan layar, dan selalu ditutup otomatis. Usulan patch hanya berupa diff — file tidak pernah berubah sebelum developer menyetujuinya, dan usulan otomatis ditandai konflik bila file berubah sejak usulan dibuat.",
-            "All inspections are read-only and guarded in layers: write queries are rejected, credential/privacy tables are blocked, salary & credential values are masked automatically, and an inspection note is recorded in each conversation. The reproduction browser is confined to this application only (cannot open other sites), capped in actions/screenshots, and always closed automatically. Patch proposals are diffs only — files never change before a developer approves, and proposals are automatically flagged as conflicting if the file changed since the proposal.",
+            "Browser reproduksi terkurung di aplikasi ini saja (tidak bisa membuka situs lain), dibatasi jumlah aksi/tangkapan layar, dan selalu ditutup otomatis. Alat diagnosis (kode/database/log) bersifat hanya-baca dengan penyensoran data sensitif — dan hanya aktif bila pemilik aplikasi mengotorisasinya dari konsol platform.",
+            "The reproduction browser is confined to this application only (cannot open other sites), capped in actions/screenshots, and always closed automatically. Diagnosis tools (code/database/logs) are read-only with sensitive data masking — and only active when the app owner authorizes them from the platform console.",
           )}
         </p>
       </CardContent>

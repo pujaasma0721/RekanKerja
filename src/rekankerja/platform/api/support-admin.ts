@@ -8,6 +8,12 @@
 //   monthlyTurnQuota?, notes? }
 //   Aktifkan/ubah layanan support untuk satu tenant — SATU-SATUNYA jalur
 //   perubahan entitlement di seluruh sistem (tidak ada API tenant utk ini).
+// PUT /api/rekankerja/platform/admin/support { tenantId, agentTools:
+//   { toolsEnabled?, browserEnabled?, patchEnabled? } }   (P10)
+//   Sakelar ALAT AGEN support per tenant (mode diagnosis L2, reproduksi
+//   browser L3, usulan patch L4) — kewenangan PEMILIK aplikasi (alat
+//   tersebut menyentuh kode aplikasi & infrastruktur platform, bukan ranah
+//   tenant). Tenant hanya mengelola akun uji browsernya sendiri.
 import { NextRequest, NextResponse } from "next/server";
 import { db as platformDb } from "@/lib/db";
 import { requirePlatformAdmin } from "@/rekankerja/platform/api/platform-admin-auth";
@@ -16,6 +22,7 @@ import {
   monthStartUtc, invalidateEntitlementCache,
 } from "@/rekankerja/support/services/support-entitlement";
 import { getSupportProviderPublic } from "@/rekankerja/support/services/support-provider";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,7 +32,7 @@ export async function GET(req: NextRequest) {
     const monthStart = monthStartUtc();
     const [tenants, entitlements, usageRows, provider] = await Promise.all([
       platformDb.tenant.findMany({
-        select: { id: true, name: true, slug: true, plan: true, status: true, createdAt: true },
+        select: { id: true, name: true, slug: true, plan: true, status: true, createdAt: true, schemaName: true },
         orderBy: { name: "asc" },
       }),
       platformDb.supportEntitlement.findMany(),
@@ -49,6 +56,32 @@ export async function GET(req: NextRequest) {
       }]),
     );
 
+    // P10 — sakelar alat agen per tenant (toolsEnabled L2 / browserEnabled L3 /
+    // patchEnabled L4) dibaca dari schema tenant masing-masing; schema lama
+    // tanpa tabel supportAgentConfig → default semua ON.
+    const AGENT_DEFAULT = { toolsEnabled: true, browserEnabled: true, patchEnabled: true };
+    const agentByTenant = new Map<string, typeof AGENT_DEFAULT>();
+    await Promise.all(
+      tenants.map(async (ten) => {
+        try {
+          const tdb = getTenantClient(ten.schemaName);
+          const row = await tdb.supportAgentConfig.findFirst();
+          agentByTenant.set(
+            ten.id,
+            row
+              ? {
+                  toolsEnabled: row.toolsEnabled !== false,
+                  browserEnabled: row.browserEnabled !== false,
+                  patchEnabled: row.patchEnabled !== false,
+                }
+              : { ...AGENT_DEFAULT },
+          );
+        } catch {
+          agentByTenant.set(ten.id, { ...AGENT_DEFAULT });
+        }
+      }),
+    );
+
     const out = tenants.map((t) => {
       const e = entByTenant.get(t.id);
       const u = usageByTenant.get(t.id);
@@ -65,6 +98,7 @@ export async function GET(req: NextRequest) {
           notes: e?.notes ?? null,
           activatedAt: e?.activatedAt?.toISOString() ?? null,
         },
+        agent: agentByTenant.get(t.id) ?? { ...AGENT_DEFAULT },
         usage: {
           turns: u?.turns ?? 0,
           llmSteps: u?.llmSteps ?? 0,
@@ -108,8 +142,49 @@ export async function PUT(req: NextRequest) {
 
     const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const tenantId = typeof b.tenantId === "string" ? b.tenantId.trim() : "";
-    const status = typeof b.status === "string" ? b.status.trim().toUpperCase() : "";
     if (!tenantId) return NextResponse.json({ error: "tenantId wajib diisi" }, { status: 400 });
+
+    const tenant = await platformDb.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, name: true, schemaName: true },
+    });
+    if (!tenant) return NextResponse.json({ error: "Tenant tidak ditemukan" }, { status: 404 });
+
+    // ---- P10 — sakelar alat agen (L2/L3/L4): kewenangan pemilik aplikasi ----
+    if (b.agentTools !== undefined) {
+      const at = (b.agentTools ?? {}) as Record<string, unknown>;
+      const data: Record<string, unknown> = {};
+      if (typeof at.toolsEnabled === "boolean") data.toolsEnabled = at.toolsEnabled;
+      if (typeof at.browserEnabled === "boolean") data.browserEnabled = at.browserEnabled;
+      if (typeof at.patchEnabled === "boolean") data.patchEnabled = at.patchEnabled;
+      if (Object.keys(data).length === 0) {
+        return NextResponse.json(
+          { error: "agentTools harus memuat minimal satu sakelar: toolsEnabled / browserEnabled / patchEnabled" },
+          { status: 400 },
+        );
+      }
+      const tdb = getTenantClient(tenant.schemaName);
+      const existing = await tdb.supportAgentConfig.findFirst();
+      if (existing) {
+        await tdb.supportAgentConfig.update({ where: { id: existing.id }, data });
+      } else {
+        await tdb.supportAgentConfig.create({ data });
+      }
+      const row = await tdb.supportAgentConfig.findFirst();
+      console.log(
+        `[platform-admin] ${g.actor.email} mengubah alat agen support tenant ${tenant.name}: ${JSON.stringify(data)}`,
+      );
+      return NextResponse.json({
+        agent: {
+          toolsEnabled: row ? row.toolsEnabled !== false : true,
+          browserEnabled: row ? row.browserEnabled !== false : true,
+          patchEnabled: row ? row.patchEnabled !== false : true,
+        },
+      });
+    }
+
+    // ---- aktivasi layanan (alur P5 yang sudah ada) ----
+    const status = typeof b.status === "string" ? b.status.trim().toUpperCase() : "";
     if (!(SUPPORT_ENTITLEMENT_STATUSES as readonly string[]).includes(status)) {
       return NextResponse.json(
         { error: `status harus salah satu: ${SUPPORT_ENTITLEMENT_STATUSES.join(" | ")}` },
@@ -119,9 +194,6 @@ export async function PUT(req: NextRequest) {
     const monthlyTurnQuota = Math.max(0, Math.floor(Number(b.monthlyTurnQuota) || 0));
     const notesRaw = typeof b.notes === "string" ? b.notes.trim() : null;
     const notes = notesRaw && notesRaw.length > 0 ? notesRaw.slice(0, 500) : null;
-
-    const tenant = await platformDb.tenant.findUnique({ where: { id: tenantId }, select: { id: true, name: true } });
-    if (!tenant) return NextResponse.json({ error: "Tenant tidak ditemukan" }, { status: 404 });
 
     const now = new Date();
     const prev = await supportEntitlementOf(tenantId);

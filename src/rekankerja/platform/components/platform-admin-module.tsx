@@ -20,6 +20,7 @@ import {
   Activity, ShieldOff, FileText, Save, ChevronRight, LogOut, Lock,
   Bug, FileDiff, CheckCheck, Check, X, Inbox,
   Github, GitBranch, ArrowUpToLine, ArrowDownToLine, History, AlertTriangle, Zap,
+  Headset, Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,8 @@ interface AdminTenantRow {
   plan: string;
   status: string;
   support: { status: string; monthlyTurnQuota: number; notes: string | null; activatedAt: string | null };
+  // P10 — sakelar alat agen (kewenangan pemilik aplikasi, per tenant).
+  agent: { toolsEnabled: boolean; browserEnabled: boolean; patchEnabled: boolean };
   usage: { turns: number; llmSteps: number; tokensIn: number; tokensOut: number; quotaLeft: number | null };
 }
 interface AdminProvider {
@@ -197,6 +200,7 @@ function TenantRow({ row, onSaved }: { row: AdminTenantRow; onSaved: () => void 
   const [notes, setNotes] = useState(row.support.notes ?? "");
   const [busy, setBusy] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
 
   // reset editor saat data server berubah (mis. setelah simpan)
   useEffect(() => {
@@ -234,6 +238,8 @@ function TenantRow({ row, onSaved }: { row: AdminTenantRow; onSaved: () => void 
   const quotaPct = row.support.monthlyTurnQuota > 0
     ? Math.min(100, Math.round((row.usage.turns / row.support.monthlyTurnQuota) * 100))
     : 0;
+  // P10 — indikator ringkas alat agen aktif utk tenant ini (L2/L3/L4).
+  const agentOn = Number(row.agent.toolsEnabled) + Number(row.agent.browserEnabled) + Number(row.agent.patchEnabled);
 
   return (
     <TableRow>
@@ -297,7 +303,24 @@ function TenantRow({ row, onSaved }: { row: AdminTenantRow; onSaved: () => void 
         </div>
       </TableCell>
       <TableCell className="text-right">
-        <div className="flex justify-end gap-1.5">
+        <div className="flex flex-wrap justify-end gap-1.5">
+          <Button
+            variant="outline" size="sm" className="h-8 px-2.5 text-[12px]"
+            onClick={() => setToolsOpen(true)}
+            aria-label={t(`Alat agen ${row.name}`, `${row.name} agent tools`)}
+          >
+            <Wrench className="mr-1 h-3.5 w-3.5" aria-hidden />
+            {t("Alat Agen", "Agent Tools")}
+            <Badge
+              variant="outline"
+              className={cn(
+                "ml-1.5 h-4 min-w-4 border-0 px-1 text-[9.5px] tabular-nums",
+                agentOn === 3 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : agentOn === 0 ? "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400" : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+              )}
+            >
+              {agentOn}/3
+            </Badge>
+          </Button>
           <Button
             variant="outline" size="sm" className="h-8 px-2.5 text-[12px]"
             onClick={() => setUsageOpen(true)}
@@ -316,6 +339,7 @@ function TenantRow({ row, onSaved }: { row: AdminTenantRow; onSaved: () => void 
         </div>
       </TableCell>
       <UsageDialog open={usageOpen} onOpenChange={setUsageOpen} tenant={row} />
+      <AgentToolsDialog open={toolsOpen} onOpenChange={setToolsOpen} tenant={row} onSaved={onSaved} />
     </TableRow>
   );
 }
@@ -371,6 +395,119 @@ function UsageDialog({ open, onOpenChange, tenant }: { open: boolean; onOpenChan
           )}
         </div>
         {api.error && <p className="text-[12px] text-rose-600">{api.error}</p>}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * P10 — Dialog sakelar ALAT AGEN support untuk satu tenant (L2/L3/L4).
+ * Kewenangan pemilik aplikasi: alat agen menyentuh kode aplikasi &
+ * infrastruktur platform (bukan ranah tenant). Perubahan langsung
+ * menulis supportAgentConfig pada schema tenant terkait.
+ */
+function AgentToolsDialog({
+  open, onOpenChange, tenant, onSaved,
+}: {
+  open: boolean; onOpenChange: (v: boolean) => void; tenant: AdminTenantRow; onSaved: () => void;
+}) {
+  const { t } = useI18n();
+  const [tools, setTools] = useState(tenant.agent.toolsEnabled);
+  const [browser, setBrowser] = useState(tenant.agent.browserEnabled);
+  const [patch, setPatch] = useState(tenant.agent.patchEnabled);
+  const [busy, setBusy] = useState(false);
+
+  // sinkronkan editor tiap dialog dibuka / data server berubah.
+  useEffect(() => {
+    setTools(tenant.agent.toolsEnabled);
+    setBrowser(tenant.agent.browserEnabled);
+    setPatch(tenant.agent.patchEnabled);
+  }, [open, tenant.agent.toolsEnabled, tenant.agent.browserEnabled, tenant.agent.patchEnabled]);
+
+  const dirty =
+    tools !== tenant.agent.toolsEnabled ||
+    browser !== tenant.agent.browserEnabled ||
+    patch !== tenant.agent.patchEnabled;
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await apiSend("/api/rekankerja/platform/admin/support", "PUT", {
+        tenantId: tenant.id,
+        agentTools: { toolsEnabled: tools, browserEnabled: browser, patchEnabled: patch },
+      });
+      toast.success(t(`Alat agen ${tenant.name} disimpan`, `Agent tools for ${tenant.name} saved`));
+      onSaved();
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const rows: Array<{ key: "tools" | "browser" | "patch"; on: boolean; set: (v: boolean) => void; title: string; titleEn: string; desc: string; descEn: string }> = [
+    {
+      key: "tools", on: tools, set: setTools,
+      title: "Mode diagnosis — alat baca read-only (L2)",
+      titleEn: "Diagnosis mode — read-only tools (L2)",
+      desc: "Izinkan agen support tenant ini memeriksa kode sumber, basis data tenant (dengan penyensoran data sensitif), dan log server saat mendiagnosa laporan pengguna.",
+      descEn: "Allow this tenant's support agent to inspect source code, tenant database (with sensitive data masking), and server logs while diagnosing user reports.",
+    },
+    {
+      key: "browser", on: browser, set: setBrowser,
+      title: "Reproduksi browser otomatis (L3)",
+      titleEn: "Automatic browser reproduction (L3)",
+      desc: "Izinkan agen menjalankan browser headless untuk membuktikan laporan bug: masuk dengan akun uji milik tenant, membuka halaman terkait, dan mengambil tangkapan layar bukti.",
+      descEn: "Allow the agent to drive a headless browser to verify bug reports: sign in with the tenant's test account, open the relevant page, and capture screenshot evidence.",
+    },
+    {
+      key: "patch", on: patch, set: setPatch,
+      title: "Usulan patch kode (L4)",
+      titleEn: "Code patch proposals (L4)",
+      desc: "Izinkan agen mengusulkan perbaikan kode (diff) saat akar masalah ditemukan. Usulan tidak pernah mengubah file — pemilik aplikasi menyetujui lewat tab Bug & Patch.",
+      descEn: "Allow the agent to propose code fixes (diffs) once a root cause is found. A proposal never changes any file — the app owner approves it from the Bug & Patch tab.",
+    },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Headset className="h-4 w-4" aria-hidden />
+            {t(`Alat Agen Support — ${tenant.name}`, `Support Agent Tools — ${tenant.name}`)}
+          </DialogTitle>
+          <DialogDescription>
+            {t(
+              "Otorisasi alat agen untuk tenant ini — kewenangan pemilik aplikasi (admin tenant hanya mengelola akun uji browsernya sendiri). Efek langsung tanpa restart.",
+              "Agent tool authorization for this tenant — app owner authority (tenant admins only manage their own browser test account). Takes effect immediately without restart.",
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2.5">
+          {rows.map((r) => (
+            <div key={r.key} className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">{t(r.title, r.titleEn)}</p>
+                <p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-500">{t(r.desc, r.descEn)}</p>
+              </div>
+              <Switch
+                checked={r.on}
+                onCheckedChange={r.set}
+                disabled={busy}
+                aria-label={t(r.title, r.titleEn)}
+              />
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("Batal", "Cancel")}</Button>
+          <Button onClick={() => void save()} disabled={!dirty || busy}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="mr-1 h-4 w-4" aria-hidden />}
+            {t("Simpan Alat Agen", "Save Agent Tools")}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -1,18 +1,20 @@
-// RekanKerja — Online Support P2/P3/P4 (FEAT-SUPPORT-P2 · P3 · P4): konfig agen.
+// RekanKerja — Online Support P2/P3/P4/P10 (FEAT-SUPPORT-P2 · P3 · P4): konfig agen.
 // =====================================================================
 //   GET  → { config: { toolsEnabled, browserEnabled, patchEnabled,
 //                      browserLoginEmail, hasBrowserLoginPass } }  (baris
-//                      ABSEN → default true)
+//                      ABSEN → default true; hanya utk INFO tenant —
+//                      sakelar alat TIDAK lagi bisa diubah dari sisi tenant)
 //   PUT  → salah satu / gabungan field berikut (minimal satu):
-//          · toolsEnabled: boolean      — mode diagnosis L2 (alat baca).
-//          · browserEnabled: boolean   — mode reproduksi browser L3.
-//          · patchEnabled: boolean     — mode usulan patch L4 (approval
-//                                        tetap di tangan developer manusia).
 //          · browserLoginEmail: string|null — akun uji reproduksi browser.
 //          · browserLoginPass: string  — kata sandi akun uji (WRITE-ONLY:
 //            dienkripsi field-crypto lalu disimpan browserLoginPassEnc;
 //            tidak pernah dikirim balik ke client — hanya hasBrowserLoginPass).
 //          · clearBrowserLogin: true   — hapus akun uji (email + sandi).
+//   (P10) toolsEnabled/browserEnabled/patchEnabled — sakelar ALAT AGEN
+//          (mode diagnosis L2, reproduksi browser L3, usulan patch L4) —
+//          kini KEWENANGAN PEMILIK APLIKASI lewat konsol Platform Admin
+//          (alat menyentuh kode aplikasi & infrastruktur platform, bukan
+//          ranah tenant). Kirim field tersebut dari tenant → 403.
 // Guard: sesi tenant valid utk GET; PUT memakai op settings:ai-provider
 //          update (admin) — kartu ini tampil di halaman Pengaturan → AI.
 // =====================================================================
@@ -67,7 +69,20 @@ export async function PUT(req: NextRequest) {
     const db = m.db;
 
     const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const keys = ["toolsEnabled", "browserEnabled", "patchEnabled", "browserLoginEmail", "browserLoginPass", "clearBrowserLogin"];
+
+    // P10 — sakelar alat agen adalah kewenangan pemilik aplikasi (konsol
+    // Platform Admin); dari sisi tenant ditolak eksplisit dengan pesan jelas.
+    if (b.toolsEnabled !== undefined || b.browserEnabled !== undefined || b.patchEnabled !== undefined) {
+      return NextResponse.json(
+        {
+          error:
+            "Sakelar alat agen support (mode diagnosis, reproduksi browser, usulan patch) dikelola pemilik aplikasi lewat konsol Platform Admin — bukan pengaturan tenant. Yang dapat Anda kelola di sini hanya akun uji browser.",
+        },
+        { status: 403 },
+      );
+    }
+
+    const keys = ["browserLoginEmail", "browserLoginPass", "clearBrowserLogin"];
     if (!keys.some((k) => b[k] !== undefined)) {
       return NextResponse.json(
         { error: `Kirim minimal satu field: ${keys.join(" / ")}` },
@@ -76,9 +91,6 @@ export async function PUT(req: NextRequest) {
     }
 
     // ---- validasi per field ----
-    const toolsEnabled = typeof b.toolsEnabled === "boolean" ? b.toolsEnabled : null;
-    const browserEnabled = typeof b.browserEnabled === "boolean" ? b.browserEnabled : null;
-    const patchEnabled = typeof b.patchEnabled === "boolean" ? b.patchEnabled : null;
     let browserLoginEmail: string | null | undefined;
     if (b.browserLoginEmail !== undefined) {
       const email = String(b.browserLoginEmail ?? "").trim().slice(0, 120);
@@ -106,9 +118,6 @@ export async function PUT(req: NextRequest) {
 
     const existing = await readConfig(db);
     const data: Record<string, unknown> = {};
-    if (toolsEnabled !== null) data.toolsEnabled = toolsEnabled;
-    if (browserEnabled !== null) data.browserEnabled = browserEnabled;
-    if (patchEnabled !== null) data.patchEnabled = patchEnabled;
     if (browserLoginEmail !== undefined) data.browserLoginEmail = browserLoginEmail;
     if (browserLoginPassEnc !== undefined) data.browserLoginPassEnc = browserLoginPassEnc;
     if (existing) {
@@ -117,9 +126,6 @@ export async function PUT(req: NextRequest) {
       // singleton — id default cuid; kolom wajib lain memakai nilai kirim/default
       await db.supportAgentConfig.create({
         data: {
-          ...(toolsEnabled !== null ? { toolsEnabled } : {}),
-          ...(browserEnabled !== null ? { browserEnabled } : {}),
-          ...(patchEnabled !== null ? { patchEnabled } : {}),
           ...(browserLoginEmail !== undefined ? { browserLoginEmail } : {}),
           ...(browserLoginPassEnc !== undefined ? { browserLoginPassEnc } : {}),
         },
