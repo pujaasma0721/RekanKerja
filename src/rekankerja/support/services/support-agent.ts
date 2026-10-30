@@ -412,7 +412,7 @@ export function buildSupportSystemPrompt(
     ? [
         `HAK AKSES PENANYA: PENUH (super admin / pemilik akses semua menu).\n${menuScope.text}`,
         ``,
-        `Karena penanya berhak atas SEMUA menu di atas, pertanyaan fitur/data menu mana pun boleh dijawab normal.`,
+        `Karena penanya berhak atas SEMUA menu di atas, laporan kendala/bug pada menu mana pun boleh Anda tangani normal — tetap dalam CAKUPAN LAYANAN di bawah (hanya masalah aplikasi; pertanyaan umum tetap dialihkan ke Asisten AI).`,
       ].join("\n")
     : [
         `HAK AKSES MENU PENANYA (${who(ticket)} — satu-satunya sumber kebenaran hak aksesnya):\n${menuScope.text}`,
@@ -449,11 +449,14 @@ Temuan alat pemeriksaan (search_code/read_file/query_db) sampaikan sebagai KESIM
     ``,
     accessBlock,
     ``,
-    `CAKUPAN LAYANAN:
-- Pertanyaan cara pakai fitur RekanKerja — hanya menu yang tercantum di HAK AKSES PENANYA di atas (ditambah portal ESS mandiri, akun/login sendiri, dan percakapan support ini).
-- Laporan kendala/bug/error pada aplikasi (diagnosa awal, langkah mengatasi, workaround sementara).
-- Pertanyaan seputar data & akun pengguna sendiri (jika perlu data spesifik yang tidak Anda miliki, minta pengguna menyalin teks error/mengirim tangkapan layar — jangan menebak).
-- Permintaan menjelajahi/mengungkap internal sistem (daftar tabel/skema database, konfigurasi, teknologi & keamanan platform) → DI LUAR cakupan layanan: tolak sopan 1-2 kalimat lalu arahkan kembali ke penggunaan aplikasi/kendala mereka (lihat KERAHASIAAN).`,
+    `CAKUPAN LAYANAN — HANYA MASALAH APLIKASI (WAJIB — pelanggaran = jawaban salah):
+Layanan ini KHUSUS menangani:
+- Laporan kendala/bug/error aplikasi (verifikasi, diagnosa, workaround sementara, usulan perbaikan).
+- Kendala akun/login pengguna sendiri.
+- Permintaan fitur & masukan aplikasi.
+- Lanjutan penanganan masalah yang sedang berjalan di tiket ini.
+Pertanyaan UMUM/INFORMASI — data aplikasi (jumlah karyawan, gaji & slip gaji, sisa cuti, jumlah kantor/perusahaan, data master), cara pakai fitur, sapaan/obrolan, atau topik apa pun di luar aplikasi — BUKAN ranah layanan ini dan TIDAK dijawab: JANGAN memakai alat apa pun (query_db dsb.) untuk mencari jawabannya. Tolak sopan dalam 2-3 kalimat: jelaskan bahwa layanan support ini khusus untuk melaporkan masalah/bug aplikasi, lalu arahkan pengguna ke **Asisten AI** — tombol chat mengambang di pojok kanan bawah aplikasi (tab "Asisten AI") yang memang menangani pertanyaan umum & data aplikasi. Setelah itu, bila pengguna menyampaikan kendala/error nyata, layani seperti biasa.
+- Permintaan menjelajahi/mengungkap internal sistem (daftar tabel/skema database, konfigurasi, teknologi & keamanan platform) → DI LUAR cakupan layanan: tolak sopan 1-2 kalimat lalu arahkan kembali ke kendala aplikasi mereka (lihat KERAHASIAAN).`,
     toolsOn ? toolsPromptSection() : "",
     `ATURAN MENJAWAB:
 1. Bahasa: ikuti bahasa pengguna (default: Indonesia yang ramah dan profesional).
@@ -628,7 +631,10 @@ export interface AgentTurnResult {
 /** R4 (audit-2) — akumulator pemakaian giliran. Dimutasi SETIAP langkah LLM
  *  oleh runAgentTurn supaya route tetap bisa mengatribusikan token yang
  *  sudah terpakai ketika giliran GAGAL di tengah jalan (→ SupportUsageLog
- *  billable=false: biaya tercatat, kuota tenant tidak terpakai). */
+ *  billable=false: biaya tercatat, kuota tenant tidak terpakai).
+ *  P10: route boleh mengisi nilai AWAL (benih) — token klasifikasi lapis-1
+ *  intent gate; runAgentTurn menyinkronkan akumulator sbg. BENIH + total
+ *  giliran (tidak menimpa benih). */
 export interface SupportTurnUsageAcc {
   llmSteps: number;
   tokensIn: number;
@@ -760,6 +766,11 @@ async function runAgentTurn(
     let turnTokensOut = 0;
     let turnProvider = "builtin";
     const deadline = Date.now() + TURN_BUDGET_MS;
+    // P10 — benih akumulator: route mengisi token pra-agent (klasifikasi
+    // lapis-1 intent gate). Sinkronisasi tiap langkah = BENIH + total giliran.
+    const seedSteps = usageAcc?.llmSteps ?? 0;
+    const seedTokensIn = usageAcc?.tokensIn ?? 0;
+    const seedTokensOut = usageAcc?.tokensOut ?? 0;
 
     for (let step = 1; step <= MAX_LLM_STEPS; step++) {
       const forceFinal = step === MAX_LLM_STEPS || Date.now() > deadline;
@@ -778,10 +789,11 @@ async function runAgentTurn(
       turnTokensOut += result.tokensOut;
       turnProvider = result.provider;
       // R4 — sinkronkan akumulator setiap langkah (baca deskripsi interface).
+      // P10: BENIH + total giliran — token klasifikasi lapis-1 ikut tercatat.
       if (usageAcc) {
-        usageAcc.llmSteps = turnSteps;
-        usageAcc.tokensIn = turnTokensIn;
-        usageAcc.tokensOut = turnTokensOut;
+        usageAcc.llmSteps = seedSteps + turnSteps;
+        usageAcc.tokensIn = seedTokensIn + turnTokensIn;
+        usageAcc.tokensOut = seedTokensOut + turnTokensOut;
         usageAcc.provider = turnProvider;
       }
       raw = result.text.trim();
@@ -1082,11 +1094,12 @@ async function runAgentTurn(
 export function greetingBody(userName: string | null): string {
   const sapa = userName?.trim() ? `Halo, **${userName.trim()}**!` : "Halo!";
   return (
-    `${sapa} Saya **${SUPPORT_AI_NAME}** — layanan dukungan RekanKerja yang siap membantu Anda.\n\n` +
-    `Ceritakan kendala atau pertanyaan Anda seputar aplikasi — misalnya:\n` +
-    `- ❓ *cara menggunakan fitur* (payroll, absensi, cuti, klaim, …)\n` +
+    `${sapa} Saya **${SUPPORT_AI_NAME}** — layanan dukungan khusus **masalah & bug aplikasi** RekanKerja.\n\n` +
+    `Ceritakan kendala yang Anda alami — misalnya:\n` +
     `- 🐛 *laporan bug/error* — sertakan langkah yang dilakukan & pesan errornya\n` +
-    `- 🔐 *masalah akun/login*\n\n` +
+    `- 🔐 *masalah akun/login*\n` +
+    `- 💡 *permintaan fitur & masukan*\n\n` +
+    `Untuk pertanyaan umum (jumlah karyawan, gaji & slip gaji, sisa cuti, cara pakai fitur, dsb.), gunakan **Asisten AI** — tombol chat mengambang di pojok kanan bawah aplikasi, tab Asisten AI. Pertanyaan umum di layanan ini tidak akan dijawab agar biaya penanganan masalah tetap optimal.\n\n` +
     `Anda juga bisa melampirkan **tangkapan layar** atau dokumen (JPG/PNG/WEBP/PDF, maks 5 MB) — saya akan membacanya langsung. Bila perlu, saya juga dapat memeriksa data & kondisi sistem secara langsung untuk mendiagnosa masalah Anda.`
   );
 }
