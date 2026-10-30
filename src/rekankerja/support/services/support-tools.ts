@@ -26,11 +26,16 @@
 //   · Tool 1-4 murni BACA. Path: relative-only, tanpa "..", deny
 //     dotfile/env/kunci/db/audit/tmp/node_modules/.next/generated;
 //     ekstensi whitelist teks saja. SQL: satu pernyataan, wajib
-//     SELECT/WITH, token terlarang ditolak (DML/DDL/session/pg_*),
-//     dibungkus subquery LIMIT, statement_timeout, denylist TABEL
-//     RAHASIA (kredensial/privasi), redaksi nilai kolom uang &
-//     kredensial ([DISENSOR]), sel + total output dibatasi. Log: hanya
-//     ekor file log aplikasi, substring rahasia di-scrub.
+//     SELECT/WITH, token terlarang ditolak (DML/DDL/session/pg_*/
+//     current_schema dkk.), dibungkus subquery LIMIT, statement_timeout,
+//     denylist TABEL RAHASIA (kredensial/privasi + registry platform),
+//     REFERENSI SCHEMA-QUALIFIED DITOLAK (AUDIT-3: kurungan schema tenant —
+//     tanpa ini, agent bisa membaca public."Tenant" (platform) atau
+//     tenant_lain."Employee" (perusahaan lain) via nama fully-qualified),
+//     katalog hanya via query kanonik SATU tabel (dipaksa schema aktif),
+//     redaksi nilai kolom uang & kredensial ([DISENSOR]), sel + total
+//     output dibatasi. Log: hanya ekor file log aplikasi, substring
+//     rahasia di-scrub.
 //   · Tool 5-6 (browser): guard di support-browser.ts + browser-runner
 //     (origin kurungan, budget aksi/tangkapan, TTL sesi, download
 //     dibatalkan); kredensial akun uji terenkripsi field-crypto dan
@@ -305,11 +310,20 @@ const DB_DENIED_TABLES = new Set([
   "employeefamily", "emergencycontact",
   // payload integrasi & jejak kirim berisi data sensitif
   "webhooklog", "walog",
+  // registry internal PLATFORM (schema public — AUDIT-3): agen melayani
+  // TENANT penanya; admin/entitlement/pemakaian/registry tenant platform
+  // bukan urusannya — nama & isinya adalah kebocoran lintas-tenant
+  "tenant", "user", "usertenant", "platformadmin", "platformalert",
+  "platformsetting", "supportentitlement", "supportproviderconfig",
+  "supportusagelog", "githubsynclog",
 ]);
 
-/** Token yang membuat pernyataan ditolak (DML/DDL/session/obfuscation). */
+/** Token yang membuat pernyataan ditolak (DML/DDL/session/obfuscation).
+ *  AUDIT-3: fungsi konteks koneksi (current_schema/current_database/
+ *  current_user dkk.) ikut ditolak dari SQL model — nama schema/role/db
+ *  adalah informasi internal yang tidak boleh sampai ke konteks LLM. */
 const SQL_BANNED_RE =
-  /\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|copy|vacuum|analyze|analyse|explain|call|do|merge|replace|reindex|cluster|listen|notify|lock|set|reset|comment|discard|prepare|execute|deallocate|reassign|import|foreign|security|savepoint|release|rollback|begin|commit|start|abort|close|declare|fetch|move)\b|--|\/\*|\*\/|;|\bpg_|current_setting|set_config|dblink|lo_|largeobject|read_file|pg_read/i;
+  /\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|copy|vacuum|analyze|analyse|explain|call|do|merge|replace|reindex|cluster|listen|notify|lock|set|reset|comment|discard|prepare|execute|deallocate|reassign|import|foreign|security|savepoint|release|rollback|begin|commit|start|abort|close|declare|fetch|move)\b|--|\/\*|\*\/|;|\bpg_|current_setting|set_config|current_schema|current_database|current_user|current_role|current_catalog|session_user|dblink|lo_|largeobject|read_file|pg_read/i;
 
 /** Nama kolom yang nilainya DISENSOR (kredensial). */
 const COL_SECRET_RE = /(password|passphrase|secret|token|apikey|api_key|datakey|privatekey|private_key|signature|salt|credential)/i;
@@ -363,11 +377,91 @@ async function queryDb(db: TenantDb, args: Record<string, unknown>): Promise<Sup
     return { ok: false, output: "DITOLAK: pernyataan harus diawali SELECT atau WITH." };
   }
 
+  // -------- AUDIT-3: kurungan schema tenant + larangan enumerasi --------
+  // String literal dikosongkan dulu — pola "from x.y" yang hanya ada di
+  // dalam teks pesan (mis. LIKE '%error from app.core%') tak boleh memicu
+  // penolakan palsu. Literal tetap utuh di `sql` asli untuk jalur katalog.
+  const sqlNoLit = sql.replace(/'(?:[^']|'')*'/g, "''");
+
+  // (1) Referensi schema-qualified DILARANG. Koneksi agen terikat schema
+  //     tenant penanya (search_path) — nama fully-qualified adalah satu-
+  //     satunya jalan keluar kurungan itu: public."Tenant" (registry
+  //     platform) atau tenant_lain."Employee" (data perusahaan lain).
+  //     Cek denylist lama (sqlTableRefs) hanya menangkap identifier
+  //     PERTAMA sebelum titik — tenant_lain."AppUser" lolos dari cek
+  //     tabel-rahasia. Pengecualian tunggal: information_schema.columns →
+  //     jalur khusus (2).
+  const qualifiedRefs = [
+    ...sqlNoLit.matchAll(/(?:from|join)\s+"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\.\s*"?([A-Za-z_][A-Za-z0-9_]*)"?/gi),
+  ].map((m) => `${m[1].toLowerCase()}.${m[2].toLowerCase()}`);
+  const badQualified = qualifiedRefs.filter((r) => r !== "information_schema.columns");
+  if (badQualified.length > 0) {
+    return {
+      ok: false,
+      output: `DITOLAK: query tidak boleh menunjuk schema lain (${[...new Set(badQualified)].join(", ")}). Anda hanya dapat membaca tabel basis data perusahaan penanya — tulis nama tabel TANPA prefiks schema.`,
+    };
+  }
+
+  // (1b) Sabuk pengaman lapis-2: daftar FROM dipisah koma (FROM "A",
+  //      public."B") dan kata perantara (JOIN LATERAL/ONLY schema.tabel)
+  //      lolos dari jangkar from/join di atas — pindai juga prefiks schema
+  //      berbahaya di POSISI MANA PUN di luar literal string.
+  //      information_schema.columns (jalur khusus (2)) dikecualikan.
+  const dangerRef =
+    /\b(?:public|pg_temp|tenant_[a-z0-9_]*)\s*\.\s*"?[A-Za-z_]/i.test(sqlNoLit) ||
+    /\binformation_schema\s*\.\s*(?!columns\b)[A-Za-z_]/i.test(sqlNoLit);
+  if (dangerRef) {
+    return {
+      ok: false,
+      output: "DITOLAK: query tidak boleh menunjuk schema lain. Anda hanya dapat membaca tabel basis data perusahaan penanya — tulis nama tabel TANPA prefiks schema.",
+    };
+  }
+
+  // (2) Jalur khusus katalog kolom — SATU tabel per query, dijalankan server
+  //     sebagai query kanonik (dipaksa table_schema = current_schema()).
+  //     Enumerasi daftar tabel / seluruh katalog tidak pernah dilayani:
+  //     informasi_schema menampakkan seluruh schema instance (10 tabel
+  //     registry platform + 226 tabel tiap tenant lain) — kebocoran nyata
+  //     kasus "coba list tabel pada aplikasi ini".
+  if (qualifiedRefs.includes("information_schema.columns")) {
+    const m = sql.match(/table_name\s*=\s*'([^']{1,63})'/i);
+    const tbl = m?.[1];
+    if (!tbl) {
+      return {
+        ok: false,
+        output: "DITOLAK: pemeriksaan struktur hanya boleh untuk SATU tabel per query dengan filter persis — contoh: SELECT column_name, data_type FROM information_schema.columns WHERE table_name='Employee' ORDER BY ordinal_position.",
+      };
+    }
+    if (DB_DENIED_TABLES.has(tbl.toLowerCase())) {
+      return { ok: false, output: `DITOLAK: tabel berisi data rahasia/privasi tidak dapat dibaca (${tbl}). Gunakan tabel lain yang relevan.` };
+    }
+    let cols: { column_name: string; data_type: string }[];
+    try {
+      cols = await db.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe("SET LOCAL statement_timeout = " + DB_TIMEOUT_MS);
+        return tx.$queryRawUnsafe<{ column_name: string; data_type: string }[]>(
+          "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1 AND table_schema = current_schema() ORDER BY ordinal_position",
+          tbl,
+        );
+      });
+    } catch (e) {
+      return { ok: false, output: `Query katalog gagal: ${(e instanceof Error ? e.message : String(e)).slice(0, 200)}` };
+    }
+    if (cols.length === 0) return { ok: true, output: `Tabel "${tbl}" tidak ditemukan di schema aktif (periksa ejaannya — nama biasanya PascalCase).` };
+    let body = cols.map((c) => `${c.column_name} (${c.data_type})`).join(", ");
+    if (body.length > DB_OUTPUT_CAP) body = body.slice(0, DB_OUTPUT_CAP) + " … (dipotong)";
+    return { ok: true, output: `"${tbl}" — ${cols.length} kolom: ${body}` };
+  }
+
   // Koreksi otomatis nama tabel TANPA KUTIP (model LLM sering menulis
   // `FROM Employee` padahal PostgreSQL butuh `FROM "Employee"` — identifier
   // tanpa kutip dilipat ke lowercase dan tabelnya tak ditemukan). Referensi
   // bare dipetakan ke nama tabel ASLI schema aktif (case-insensitive).
-  const bareRefs = [...sql.matchAll(/(?:from|join)\s+([A-Za-z_][A-Za-z0-9_]*)/gi)].map((m) => m[1]);
+  // AUDIT-3 fix: dulu syarat `hit !== ident` membuat kasus PALING UMUM
+  // (`FROM Employee` — ejaan persis sama, tanpa kutip) TIDAK dikutip →
+  // PG melipat ke "employee" → error. Ref bare yang cocok tabel asli
+  // SELALU aman dikutip (belum pernah terkutip).
+  const bareRefs = [...sqlNoLit.matchAll(/(?:from|join)\s+([A-Za-z_][A-Za-z0-9_]*)/gi)].map((m) => m[1]);
   if (bareRefs.length > 0) {
     let tables: { table_name: string }[] = [];
     try {
@@ -378,11 +472,11 @@ async function queryDb(db: TenantDb, args: Record<string, unknown>): Promise<Sup
     const actual = new Map(tables.map((t) => [t.table_name.toLowerCase(), t.table_name]));
     sql = sql.replace(/((?:from|join)\s+)([A-Za-z_][A-Za-z0-9_]*)/gi, (whole, pre: string, ident: string) => {
       const hit = actual.get(ident.toLowerCase());
-      return hit && hit !== ident ? `${pre}"${hit}"` : whole;
+      return hit ? `${pre}"${hit}"` : whole;
     });
   }
 
-  const denied = sqlTableRefs(sql).filter((t) => DB_DENIED_TABLES.has(t));
+  const denied = sqlTableRefs(sqlNoLit).filter((t) => DB_DENIED_TABLES.has(t));
   if (denied.length > 0) {
     return { ok: false, output: `DITOLAK: tabel berisi data rahasia/privasi tidak dapat dibaca (${[...new Set(denied)].join(", ")}). Gunakan tabel lain yang relevan.` };
   }
