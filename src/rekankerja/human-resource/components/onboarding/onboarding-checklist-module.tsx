@@ -147,13 +147,28 @@ function OnboardingChecklistList({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 // ================= DIALOG PROSES BARU =================
+interface Candidate { id: string; fullName: string; employeeNo: string; joinDate: string | null }
 function NewProcessDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const { t } = useI18n();
-  const { data: empData } = useApi<{ employees: { id: string; fullName: string; employeeNo: string }[] }>("/api/rekankerja/employees?pageSize=500");
+  // FIX: dulu fetch /employees?pageSize=500 → SEMUA karyawan (dan param
+  // pageSize bahkan tak dikenal API — limit aktual 50). Kini default =
+  // kandidat karyawan BARU (join ≤60 hari / terjadwal, Active, tanpa proses
+  // berjalan) dari endpoint khusus onboarding; "tampilkan semua" opsional
+  // untuk kasus khusus (mis. data lama pra-fitur yang belum pernah onboarding).
+  const { data: cand } = useApi<{ candidates: Candidate[]; openEmployeeIds: string[] }>("/api/rekankerja/onboarding?candidates=1");
+  const [showAll, setShowAll] = useState(false);
+  const { data: allEmps } = useApi<{ employees: { id: string; fullName: string; employeeNo: string; joinDate?: string | null; status?: string }[] }>(
+    showAll ? "/api/rekankerja/employees?limit=200&status=Active" : null, // lazy: url null = tak fetch
+  );
   const [employeeId, setEmployeeId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const openIds = new Set(cand?.openEmployeeIds ?? []);
+  const list: Candidate[] = showAll
+    ? (allEmps?.employees ?? []).map((e) => ({ id: e.id, fullName: e.fullName, employeeNo: e.employeeNo, joinDate: e.joinDate ?? null }))
+    : (cand?.candidates ?? []);
 
   async function create() {
     if (!employeeId) { toast.error(t("Pilih karyawan dulu", "Select an employee first")); return; }
@@ -169,6 +184,14 @@ function NewProcessDialog({ onClose, onCreated }: { onClose: () => void; onCreat
     }
   }
 
+  const joinLabel = (d: string | null) => {
+    if (!d) return "";
+    const dt = new Date(d);
+    return dt > new Date()
+      ? t(`mulai ${fmtDate(d)}`, `starts ${fmtDate(d)}`)
+      : t(`gabung ${fmtDate(d)}`, `joined ${fmtDate(d)}`);
+  };
+
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
@@ -181,11 +204,39 @@ function NewProcessDialog({ onClose, onCreated }: { onClose: () => void; onCreat
             <Select value={employeeId} onValueChange={setEmployeeId}>
               <SelectTrigger><SelectValue placeholder={t("Pilih karyawan…", "Select an employee…")} /></SelectTrigger>
               <SelectContent>
-                {(empData?.employees ?? []).map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.fullName} ({e.employeeNo})</SelectItem>
-                ))}
+                {list.length === 0 ? (
+                  <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                    {showAll
+                      ? (allEmps
+                          ? t("Tidak ada karyawan aktif", "No active employees")
+                          : t("Memuat daftar karyawan…", "Loading employee list…"))
+                      : t(
+                          "Tidak ada karyawan baru (bergabung ≤60 hari) tanpa proses onboarding berjalan. Nyalakan “Tampilkan semua” bila perlu memproses karyawan lama.",
+                          "No new employees (joined ≤60 days) without a running onboarding process. Turn on “Show all” if you need to process an older employee.",
+                        )}
+                  </div>
+                ) : (
+                  list.map((e) => {
+                    const busyEmp = showAll && openIds.has(e.id); // di mode semua: karyawan berproses Open dinonaktifkan
+                    return (
+                      <SelectItem key={e.id} value={e.id} disabled={busyEmp}>
+                        {e.fullName} ({e.employeeNo}){joinLabel(e.joinDate) ? ` — ${joinLabel(e.joinDate)}` : ""}
+                        {busyEmp ? t(" · proses berjalan", " · in progress") : ""}
+                      </SelectItem>
+                    );
+                  })
+                )}
               </SelectContent>
             </Select>
+            <label className="flex cursor-pointer items-center gap-2 pt-1 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={showAll}
+                onChange={(e) => { setShowAll(e.target.checked); setEmployeeId(""); }}
+                className="h-3.5 w-3.5 accent-foreground"
+              />
+              {t("Tampilkan semua karyawan (bukan hanya yang baru join)", "Show all employees (not just new joiners)")}
+            </label>
           </div>
           <div className="space-y-1">
             <Label>{t("Tanggal mulai (opsional)", "Start date (optional)")}</Label>
