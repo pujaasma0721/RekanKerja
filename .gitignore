@@ -88,3 +88,7 @@ vendor/jasper/cache/
 # Artefak audit laporan (screenshot bukti + eval script — lokal saja)
 .audit-tmp/
 tmp-*.mjs
+
+# R3 (audit-2) — salinan verifikasi typecheck pra-terap patch (support-patch.ts)
+**/*.__verify__.*
+.tsc-verify.*.json

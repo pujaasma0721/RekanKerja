@@ -24,12 +24,15 @@ interface PushStatusRes {
   publicKey: string | null;
 }
 
+// FIX pre-existing TS5.7+ — Uint8Array generik (ArrayBufferLike) tak lagi
+// kompatibel dgn BufferSource (butuh ArrayBuffer murni); alokasi eksplisit
+// ArrayBuffer supaya tipe pas utk applicationServerKey pushManager.subscribe.
 /** Konversi base64url (VAPID publicKey) → Uint8Array utk applicationServerKey. */
-function urlBase64ToUint8Array(base64Url: string): Uint8Array {
+function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64Url.length % 4)) % 4);
   const base64 = (base64Url + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = atob(base64);
-  const out = new Uint8Array(raw.length);
+  const out = new Uint8Array(new ArrayBuffer(raw.length));
   for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
   return out;
 }

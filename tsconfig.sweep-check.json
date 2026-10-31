@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/recruitment/components/selection-dialogs.tsx",
+    "src/rekankerja/shared/components/settings/email-config-view.tsx"
+  ],
+  "exclude": ["node_modules", ".next", "next-cache"]
+}

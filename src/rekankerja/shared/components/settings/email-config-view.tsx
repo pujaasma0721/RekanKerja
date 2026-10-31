@@ -550,13 +550,18 @@ function LogsPanel() {
     setSortKey(n.sortBy as typeof sortKey);
     setSortDir(n.sortDir);
   };
+  // FIX: paginasi (par panel Riwayat WA) — dulu hanya 100 terbaru yang
+  // terjangkau padahal badge menampilkan "total N".
+  const PAGE = 50;
+  const [page, setPage] = useState(0);
   const { data, loading, refresh } = useApi<{ logs: EmailLogRow[]; total: number; stats: Record<string, number> }>(
-    `/api/rekankerja/email-logs?limit=100&sortBy=${sortKey}&sortDir=${sortDir}`,
-    [sortKey, sortDir],
+    `/api/rekankerja/email-logs?limit=${PAGE}&offset=${page * PAGE}&sortBy=${sortKey}&sortDir=${sortDir}`,
+    [sortKey, sortDir, page],
   );
 
   const stats = data?.stats ?? {};
   const logs = data?.logs ?? [];
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE));
 
   return (
     <div className="space-y-4">
@@ -602,7 +607,8 @@ function LogsPanel() {
               <p className="mt-1 text-xs text-slate-400">{t("Notifikasi tercatat di sini setelah SMTP dikonfigurasi & pengajuan/approval terjadi.", "Notifications will appear here once SMTP is configured and requests/approvals happen.")}</p>
             </div>
           ) : (
-            <div className="max-h-[520px] overflow-y-auto">
+            <>
+              <div className="max-h-[520px] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
@@ -638,7 +644,23 @@ function LogsPanel() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+              </div>
+              {totalPages > 1 && (
+                <div className="mt-3 flex items-center justify-between">
+                  <p className="text-[11px] text-slate-400">
+                    {t("Halaman {p} dari {n}", "Page {p} of {n}", { p: page + 1, n: totalPages })}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)} className="h-7 rounded-lg text-[11px] font-bold">
+                      {t("Sebelumnya", "Previous")}
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)} className="h-7 rounded-lg text-[11px] font-bold">
+                      {t("Berikutnya", "Next")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

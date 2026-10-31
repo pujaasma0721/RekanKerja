@@ -735,6 +735,7 @@ function EmployeeDetail() {
         <CorrectJobRowDialog
           key={corrRow.rowId}
           row={corrRow}
+          selfId={e.id}
           onClose={() => setCorrRow(null)}
           opts={opts.data ?? null}
           onSaved={() => refresh()}
@@ -1452,7 +1453,8 @@ function PlacementChangeDialog({ open, setOpen, employee, opts, onSaved }: {
                   <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">{t("— tidak diubah", "— unchanged")}</SelectItem>
-                    {opts?.managers.map((m) => <SelectItem key={m.id} value={m.id}>{m.fullName} ({m.employeeNo})</SelectItem>)}
+                    {/* FIX: exclude karyawan yg sedang diedit — dulu bisa jadi atasan dirinya sendiri (par dengan EditWorkDialog). */}
+                    {opts?.managers.filter((m) => m.id !== employee.id).map((m) => <SelectItem key={m.id} value={m.id}>{m.fullName} ({m.employeeNo})</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -1479,8 +1481,8 @@ function PlacementChangeDialog({ open, setOpen, employee, opts, onSaved }: {
 // Task 69 — koreksi SATU baris riwayat (nilai salah ketik di masa lalu; tanpa
 // movement): guard server menolak mengubah baris aktif — gunakan "Ubah
 // Penempatan". Field dikosongkan = tidak diubah.
-function CorrectJobRowDialog({ row, onClose, opts, onSaved }: {
-  row: AssignmentHistory | null; onClose: () => void; opts: PlacementOpts | null; onSaved: () => void;
+function CorrectJobRowDialog({ row, selfId, onClose, opts, onSaved }: {
+  row: AssignmentHistory | null; selfId: string; onClose: () => void; opts: PlacementOpts | null; onSaved: () => void;
 }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
@@ -1577,7 +1579,8 @@ function CorrectJobRowDialog({ row, onClose, opts, onSaved }: {
                   <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">{t("— tidak diubah", "— unchanged")}</SelectItem>
-                    {opts?.managers.map((m) => <SelectItem key={m.id} value={m.id}>{m.fullName} ({m.employeeNo})</SelectItem>)}
+                    {/* FIX: exclude karyawan sendiri (selfId) — konsisten dgn Ubah Penempatan & EditWorkDialog. */}
+                    {opts?.managers.filter((m) => m.id !== selfId).map((m) => <SelectItem key={m.id} value={m.id}>{m.fullName} ({m.employeeNo})</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

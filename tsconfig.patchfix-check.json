@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": [
+    "next-env.d.ts",
+    "src/rekankerja/support/api/tickets.ts",
+    "src/rekankerja/support/services/support-patch.ts",
+    "src/rekankerja/support/components/support-module.tsx",
+    "src/rekankerja/shared/components/shell/notification-bell.tsx"
+  ],
+  "exclude": ["node_modules", ".next", "next-cache"]
+}

@@ -9032,9 +9032,45 @@ Stage Summary:
 - P4.6 SELESAI: format jawaban AI dikembalikan ke gaya terstruktur klasik yang user anggap lumayan — kini dgn poles yang tepat sasaran (sesuai contoh yang user berikan sendiri): pengantar singkat, tiap langkah SATU baris "aksi — keterangan", sub-bullet hemat (hanya bila perlu), tanpa garis pemisah, tanpa heading, label tebal utk catatan. Fitur hak akses penanya tetap berjalan.
 
 ---
+
+## 2026-10-31 — AUDIT-DETAIL lanjutan (lanjutkan semua): verifikasi fix Onboarding + whitelist menu picker karyawan lintas modul
+
+Task: sesi lanjutan "lanjutkan semua" — (1) verifikasi E2E fix dialog Proses Baru Onboarding (commit b84cd5b) + sapu bersih 14 bug (dfda688) benar-benar bekerja; (2) telusuri item yang kemarin sengaja dilewati dari sweep; (3) perbaiki yang masih satu kelas bug "data salah/tidak muncul tanpa error".
+
+### Verifikasi fix Onboarding (E2E browser, hrd@mii.co.id)
+- NEGATIF: dialog Proses Baru default → dropdown hanya kandidat baru; DB demo tak ada yang join ≤60 hari → pesan bantu "Tidak ada karyawan baru (bergabung ≤60 hari) tanpa proses onboarding berjalan…" (screenshot 02) — bukan lagi daftar 43 karyawan.
+- POSITIF: karyawan uji sementara (joinDate 10 hari lalu, via SQL) → dropdown HANYA menampilkan "E2E Karyawan Baru Uji (MII-E2E-991) — joined Oct 21, 2026" (1 opsi, bukan semua); toggle "Tampilkan semua" → 42 opsi karyawan aktif muncul (mode escape-hatch bekerja). Karyawan uji dihapus kembali (deleted rows: 1).
+- 0 page error · 0 console error.
+
+### Bug baru ditemukan & diperbaiki: whitelist menu picker karyawan (EMPLOYEE_LIST_MENUS)
+- Kelas bug sama dgn insiden onboarding: view ber-menu A memanggil endpoint yang diguard whitelist menu B → pemakai tanpa menu B mendapat 403 senyap / self-scope senyap (data tidak muncul tanpa error).
+- Audit menyeluruh ~12 call site GET /api/rekankerja/employees (non-ESS): 4 menu konsumen TIDAK ada di whitelist M-11:
+  1. performance:appraisals — pencarian peserta/undang reviewer 360 (performance-appraisals.tsx)
+  2. performance:calibration — peserta sesi kalibrasi (performance-calibration.tsx)
+  3. performance:results — picker merit planning di Hasil & 9-Box (performance-merit.tsx)
+  4. hr:onboarding-checklist — mode "tampilkan semua" dialog Proses Baru (onboarding-checklist-module.tsx) — menu yang sama dgn keluhan user!
+- Fix: 4 menu ditambahkan ke EMPLOYEE_LIST_MENUS (employees.ts, pola sama spt payroll:runs utk bonus-massal). Aman: baris tetap ter-scope scopeWhere (tanpa akses → kosong), PII tetap di-mask per cakupan M-9 (limited: NIK mask, phone/address/bank/salary null) — picker hanya butuh field operasional (nama/no/posisi) yang tidak pernah di-mask.
+- pa-create-dialog.tsx (pemanggil ke-5) ternyata dead code (0 import) — dibiarkan (cluster dead-code pa-* memang ditunda sadar).
+
+### Item yang kemarin dilewati — status pasca telusur
+- "9 raw fetch() bypass header multi-company": DIVERIFIKASI TIDAK BERDAMPAK hari ini — seluruh endpoint tujuan (performance settings/masters, medical insurance/policies, payroll journals/profiles/spt, job-families, esign, attachments) TIDAK membaca scope company (tenant-only); bypass hanya jadi masalah bila endpoint itu kelak dibuat company-scoped. Tetap dicatat sbg utang teknis.
+- "inbox PR approval list global": perilaku terdokumentasi di deskripsi halaman ("keputusan diotorisasi mesin approval berjenjang — hanya approver jenjang berjalan yang dapat memutus") + otorisasi decide-time di engine; inbox PA (personnel-actions mine=1) sudah punya fix K-03 filter per aktor. Butuh keputusan produk bila ingin PR approval inbox dibuat per-aktor juga.
+- "caps 100/300/500 picker rekrutmen": butuh server-side search (fitur) — tetap ditunda.
+- Probation (modul sekelas onboarding) di-spot-check: picker create manual memang by-design semua karyawan aktif tanpa evaluasi terbuka (placeholder eksplisit + joinDate & employmentStatus tampil + server menolak joinDate yang tenggat +3 bln sudah lewat) — aman, bukan bug.
+- dev.log memuat 2 parse error (selection-dialogs.tsx:1490, email-config-view.tsx:648) → artefak transien hot-reload saat edit sweep kemarin; kedua file kini lint 0/tsc 0 + render browser terverifikasi (Candidates & Selection + Email Configuration).
+
+### Verifikasi
+- GATES: eslint (employees.ts + 2 file transien) 0 error · tsc focused (tsconfig.onb-fix.json + tsconfig.sweep-check.json) EXIT 0.
+- E2E BROWSER fix whitelist: user uji "E2E Perf Only" (role Approver, CUSTOM menu HANYA performance:appraisals) → GET /employees?q=ag → 200 + 6 hasil scoped (dulu 403); PII ter-mask (Agus Salim: NIK "31•••••••••50", phone/address/bank/baseSalary null, posisi tampil). User uji dihapus (cascade menu access 0 sisa); sesi admin dipulihkan.
+- Artefak: audit/onb-followup-2/ (2 screenshot) + tsconfig.onb-fix.json + tsconfig.sweep-check.json.
+
+Stage Summary:
+- Lanjutan audit detail SELESAI: fix Onboarding terverifikasi penuh (negatif+positif+toggle+cleanup); 1 bug sekelas baru diperbaiki (4 menu picker karyawan masuk whitelist M-11 — performance 3 view + onboarding show-all) dgn E2E bukti 403→200 scoped+masked; item tertunda yang lain terverifikasi tidak berdampak / by-design / menunggu keputusan produk.
+
+---
 Task ID: PATCH-FIX-1 (lanjutan audit support)
 Agent: Z.ai (orkestrator utama)
-Task: FIX discoverability — "Support AI sudah propose_patch, tapi login admin tidak ada tiket untuk di-approve" + PEMULIHAN SANDBOX RESET
+Task: FIX discoverability — "Support AI sudah propose_patch, tapi login admin tidak ada tiket untuk di-approve" + PEMULIHAN SANDBOX RESET + MERGE histori paralel (sandbox reset ke-N memulihkan .git ke snapshot 30 Okt lineage 8064d20; GitHub berisi lineage 057d10f..0b84669 — merge-base b16f60a, digabung tanpa force-push)
 
 Work Log:
 - PEMULIHAN LINGKUNGAN (sandbox reset lagi — .env terpotong, PG fresh tanpa tenant, dev server mati): (1) .env ditulis ulang PLATFORM_DB_URL + TENANT_DB_BASE_URL + TENANT_DB_URL + DATABASE_URL legacy + SESSION_SECRET (PG rekankerja:rekankerja_dev@127.0.0.1:5432/rekankerja); (2) db:push + db:generate (kedua client); (3) restore-demo.ts → 3 tenant pulih (MII/Cahaya/Sentra); (4) migrasi idempoten: password-security, checklist-tables, password-idle-timeout, tenant-schema-integrity, task80-esign, support P1–P4 (SupportPatchProposal siap 3/3 schema); (5) seed-ess-demo-user; (6) SupportEntitlement TRIAL × 3 tenant (gate P5 — layanan mati tanpa baris ini); (7) watch-dev.sh watchdog → /api/health 200.
@@ -9044,7 +9080,9 @@ Work Log:
 - FIX 3 (support-module.tsx): badge amber "Patch menunggu (n)" di baris tiket (pelapor & pengelola sama-sama melihat) + chip "Perlu Keputusan Patch (total global)" di bawah pencarian (hanya canManage; muncul juga di scope Milik Saya — klik → otomatis pindah scope Semua Tiket + filter tiket ber-usulan menunggu) + refresh daftar tiket setelah keputusan (fix stale badge/chip) + auto-lepas filter saat total 0.
 - FIX 4 (notification-bell.tsx): VALID_SECTIONS dilengkapi seluruh SectionId shell (reports/whistleblowing/recruitment/performance/support/platform) + ikon kind support (Headset, amber).
 - E2E BROWSER (hrd@mii.co.id OWNER MII): seeding via jalur produksi proposePatchTool (tiket SP-2026-001 oleh yusuf, 3 usulan). (1) bel notifikasi muncul "Usulan patch baru menunggu keputusan — SP-2026-001" → klik → navigasi ?m=support ✓; (2) chip "Patch Decisions Needed 1" tampil di scope Mine ✓ → klik → scope All + tiket ber-badge "Patch pending" ✓; (3) approve usulan #1 (support-alerts.ts, kosmetik) → status Approved & Applied + pesan SYSTEM + verifikasi otomatis AI terpicu + file fisik berubah (git diff +1/-1) ✓; (4) temuan sekuel: badge/chip STALE setelah approve → FIX refresh ticketsApi di decidePatch → re-verify: chip langsung 0 ✓; (5) approve usulan #2 = perbaikan i18n RIIL (skills-view.tsx t("Menyimpan…") tanpa EN → +"Saving…") diterapkan ke file ✓; (6) usulan #3 (position-module.tsx gap i18n sekelas) DITINGGALKAN MENUNGGU sbg demo utk user; (7) 0 page error · 0 console error. Artefak: audit/e2e-patch-fix/ (4 screenshot).
+- MERGE PARALEL: sandbox reset memulihkan .git lokal ke snapshot lama (HEAD 8064d20, tanpa 057d10f) padahal GitHub sudah berisi 12 commit lebih baru (hingga 0b84669 fix zai-client oleh pujaas007). Merge origin/main → konflik hanya worklog.md (digabung kronologis); support-patch.ts auto-merge bersih — kode notifikasi saya + typecheck pra-terap milik remote berdampingan; support-module.tsx tak disentuh remote. Verifikasi pasca-merge: lint 0 error + smoke browser.
 - CATATAN DESAIN (di luar scope): portal ESS tidak punya titik masuk UI Online Support (shell admin saja) — API terbuka utk ESS (tanpa guard menu) tapi tanpa entry; pelapor insiden ini adalah pengguna admin-shell. Dicatat sbg calon fitur terpisah.
 
 Stage Summary:
 - Alur propose_patch → (notifikasi bel + chip Perlu Keputusan + badge tiket) → approve/reject → file diterapkan + verifikasi otomatis kini terverifikasi END-TO-END. Akar "admin login tapi tidak ada tiket untuk di-approve" tertutup dari 4 sisi.
+- Histori paralel sandbox ↔ GitHub direkonsiliasi tanpa kehilangan commit salah satu sisi.

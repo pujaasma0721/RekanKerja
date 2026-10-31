@@ -73,11 +73,41 @@ export async function emailOnboardingChecklist(db: TenantDb, onboardingId: strin
 }
 
 // GET /api/rekankerja/onboarding?employeeId= — daftar terbaru dulu
+// GET /api/rekankerja/onboarding?candidates=1 — KANDIDAT proses baru (dialog
+//   "Proses Baru"): karyawan yang baru join (joinDate ≤60 hari ke belakang,
+//   termasuk yang terjadwal mulai di masa depan), berstatus Active, dan
+//   TIDAK punya proses onboarding yang masih berjalan (Open). Dilengkapi
+//   openEmployeeIds (karyawan berproses Open) supaya mode "tampilkan semua"
+//   di UI bisa menonaktifkan mereka tanpa fetch tambahan.
 export async function GET(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "hr:onboarding-checklist", "view");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
+
+    if (req.nextUrl.searchParams.get("candidates")) {
+      // window 60 hari: cukup luas untuk onboarding yang tertunda beberapa
+      // pekan, cukup sempit agar daftar tetap "karyawan baru" (bukan semua).
+      const CANDIDATE_WINDOW_DAYS = 60;
+      const cutoff = new Date(Date.now() - CANDIDATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+      const [candidates, openRows] = await Promise.all([
+        db.employee.findMany({
+          where: {
+            status: "Active",
+            joinDate: { gte: cutoff }, // gte mencakup joinDate masa depan (hire terjadwal)
+            onboardings: { none: { status: "Open" } },
+          },
+          select: { id: true, fullName: true, employeeNo: true, joinDate: true },
+          orderBy: { joinDate: "desc" },
+          take: 200,
+        }),
+        db.onboarding.findMany({ where: { status: "Open" }, select: { employeeId: true } }),
+      ]);
+      return NextResponse.json({
+        candidates,
+        openEmployeeIds: openRows.map((o) => o.employeeId),
+      });
+    }
 
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     const onboardings = await db.onboarding.findMany({

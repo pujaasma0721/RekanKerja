@@ -15,12 +15,15 @@
 //          kini KEWENANGAN PEMILIK APLIKASI lewat konsol Platform Admin
 //          (alat menyentuh kode aplikasi & infrastruktur platform, bukan
 //          ranah tenant). Kirim field tersebut dari tenant → 403.
-// Guard: sesi tenant valid utk GET; PUT memakai op settings:ai-provider
-//          update (admin) — kartu ini tampil di halaman Pengaturan → AI.
+// Guard: GET = aktor support valid + layanan aktif (paritas route lain);
+//          PUT memakai op settings:ai-provider update (admin) — kartu ini
+//          tampil di halaman Pengaturan → AI.
 // =====================================================================
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import {
+  resolveSupportActor, supportActorDenied, supportServiceDenied,
+} from "@/rekankerja/support/api/support-auth";
 import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 
@@ -39,8 +42,17 @@ async function readConfig(db: TenantDb): Promise<AgentCfgRow | null> {
 
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // R4/M2 (audit-2) — samakan gate dengan seluruh route support lain:
+    // aktor valid (profil AppUser tenant) + layanan AKTIF. Sebelumnya GET
+    // hanya memakai requireTenant — sesi valid apa pun (termasuk pengguna
+    // tanpa profil, atau saat layanan sudah dinonaktifkan pemilik aplikasi)
+    // bisa membaca email akun uji browser + status alat agen.
+    const a = await resolveSupportActor(req);
+    const denied = supportActorDenied(a);
+    if (denied || !a) return denied ?? NextResponse.json({ error: "unknown" }, { status: 500 });
+    const svc = await supportServiceDenied(a); // P5 — gate layanan berbayar
+    if (svc) return svc;
+    const db = a.db;
     let toolsEnabled = true;
     let browserEnabled = true;
     let patchEnabled = true;

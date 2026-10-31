@@ -537,7 +537,8 @@ function CompAssignmentDialog({ open, onClose }: { open: boolean; onClose: () =>
             <Select value={wageComponentId} onValueChange={setWageComponentId}>
               <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("cth: Bonus Kinerja", "e.g. Performance Bonus")} /></SelectTrigger>
               <SelectContent className="max-h-52">
-                {(compsApi.data?.components ?? []).filter((c) => c.type === "Earning" || c.type === "Deduction").map((c) => (
+                {/* FIX: hanya komponen aktif — mesin payroll memuat active:true saja; dulu komponen nonaktif bisa dipilih → assignment tersimpan tapi uang tak pernah dihitung (senyap). */}
+                {(compsApi.data?.components ?? []).filter((c) => c.active && (c.type === "Earning" || c.type === "Deduction")).map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>
                 ))}
               </SelectContent>
@@ -682,7 +683,8 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
               <Select value={componentCode} onValueChange={(v) => { setComponentCode(v); setPreview(null); }}>
                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-52">
-                  {(compsApi.data?.components ?? []).filter((c) => c.type === "Earning").map((c) => (
+                  {/* FIX: hanya komponen aktif — mesin payroll melomati nonaktif secara senyap saat menghitung rapel. */}
+                  {(compsApi.data?.components ?? []).filter((c) => c.active && c.type === "Earning").map((c) => (
                     <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>
                   ))}
                 </SelectContent>

@@ -121,6 +121,10 @@ export function MedicalClaimsPage() {
   );
   const hospitals = (providersMeta.data?.providers ?? []).filter((p) => p.kind === "HOSPITAL" && p.active);
   const familyMembers = familyMeta.data?.family ?? [];
+  // FIX: klaim dependent harus diisi atas dependent terdaftar (isDependent) —
+  // saldo & limit pool per-dependent. Dulu SEMUA anggota keluarga muncul
+  // (mis. anak ber-flag non-dependent) — par dgn dialog enroll asuransi.
+  const registeredDependents = familyMembers.filter((f) => f.isDependent);
 
   const claims = useMemo(() => filterRowsByAdv((api.data?.claims ?? []).filter((c) =>
     !query || c.fullName.toLowerCase().includes(query.toLowerCase()) || c.docNo.toLowerCase().includes(query.toLowerCase()),
@@ -550,14 +554,14 @@ export function MedicalClaimsPage() {
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="space-y-1">
                       <Label className="text-xs">{t("Nama yang Dirawat *", "Treated Person Name *")}</Label>
-                      {forDependent && familyMembers.length > 0 ? (
+                      {forDependent && registeredDependents.length > 0 ? (
                         <Select
-                          value={familyMembers.some((f) => f.name === l.treatedName) ? l.treatedName : "__manual"}
+                          value={registeredDependents.some((f) => f.name === l.treatedName) ? l.treatedName : "__manual"}
                           onValueChange={(v) => setLine(i, { treatedName: v === "__manual" ? "" : v })}
                         >
                           <SelectTrigger><SelectValue placeholder={t("Pilih dependent terdaftar", "Select registered dependent")} /></SelectTrigger>
                           <SelectContent>
-                            {familyMembers.map((f) => (
+                            {registeredDependents.map((f) => (
                               <SelectItem key={f.id} value={f.name}>
                                 {f.name}{f.relation === "Child" ? t(" (anak)", " (child)") : f.relation === "Spouse" ? t(" (pasangan)", " (spouse)") : ` (${f.relation})`}
                               </SelectItem>

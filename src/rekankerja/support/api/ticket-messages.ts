@@ -46,12 +46,17 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const access = await ticketAccess(req, a, ticket);
     if (!access.ok) return access.res;
 
-    const messages = await a.db.supportMessage.findMany({
+    // L2 (audit-2) — muat 200 pesan TERBARU (desc + reverse), pola sama
+    // dengan runAgentTurn: sebelumnya asc + take 200 mengambil 200 TERLAMA
+    // sehingga utas >200 pesan menyembunyikan pesan baru dari UI. hasMore
+    // memberi tahu UI bila ada pesan lama yang terpotong.
+    const loaded = await a.db.supportMessage.findMany({
       where: { ticketId: id },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
       take: 200,
       select: { id: true, senderRole: true, senderName: true, body: true, createdAt: true },
     });
+    const messages = loaded.reverse();
     const attMap = await attachmentsByEntityIds(
       a.db,
       "SupportMessage",
@@ -59,6 +64,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     );
     return NextResponse.json({
       messages: messages.map((m) => ({ ...m, attachments: attMap.get(m.id) ?? [] })),
+      hasMore: loaded.length === 200,
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

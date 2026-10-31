@@ -16,9 +16,12 @@ import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 import {
   resolveSupportActor, supportActorDenied, supportServiceDenied, ticketAccess,
 } from "@/rekankerja/support/api/support-auth";
-import { agentRespond, AgentTurnInProgressError } from "@/rekankerja/support/services/support-agent";
+import { agentRespond, AgentTurnInProgressError, SUPPORT_AI_NAME, type SupportTurnUsageAcc } from "@/rekankerja/support/services/support-agent";
 import { supportQuotaLeft, logSupportTurn } from "@/rekankerja/support/services/support-entitlement";
 import { raisePlatformAlert } from "@/rekankerja/support/services/support-alerts";
+import {
+  classifySupportIntentRules, classifySupportIntentLlm, supportRedirectBody,
+} from "@/rekankerja/support/services/support-intent";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -55,10 +58,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     // cek pesan terakhir non-SYSTEM harus dari USER (AI belum menjawabnya).
+    // P10: id+body ikut diambil — dipakai filter lapis pertama di bawah.
     const last = await a.db.supportMessage.findFirst({
       where: { ticketId: t.id, senderRole: { in: ["USER", "AI"] } },
       orderBy: { createdAt: "desc" },
-      select: { senderRole: true },
+      select: { senderRole: true, id: true, body: true },
     });
     if (!last || last.senderRole !== "USER") {
       return NextResponse.json(
@@ -86,13 +90,171 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       }
     }
 
-    const result = await agentRespond(a.db, t);
+    // -----------------------------------------------------------------------
+    // FEAT-SUPPORT-P10 — FILTER LAPIS PERTAMA (intent gate, SEBELUM agent):
+    // layanan support = kanal laporan MASALAH/BUG aplikasi. Pertanyaan umum
+    // (data aplikasi: jumlah karyawan/gaji/kantor, cara pakai fitur, sapaan)
+    // sudah ditangani widget Asisten AI — di sini DIBLOKIR supaya token &
+    // provider (biaya pemilik aplikasi) tidak terbakar untuk giliran agent
+    // penuh (system prompt besar + hingga 14 langkah LLM + loop tool + VLM).
+    //   · aturan (biaya nol): sinyal masalah jelas → lolos; sapaan murni /
+    //     pertanyaan data khas → blokir;
+    //   · ambigu → SATU panggilan klasifikasi LLM kecil (±ratusan token,
+    //     maxTokens 8) — jauh lebih murah daripada salah melayani giliran
+    //     penuh. Gagal klasifikasi → fail-open MASALAH (laporan masalah nyata
+    //     tidak boleh tertahan).
+    //   · P10.1 — SADAR-ALUR: pada utas yang SUDAH berjalan, klasifikasi
+    //     membawa riwayat ringkas (6 pesan terakhir) sehingga pesan LANJUTAN
+    //     penanganan (koreksi diagnosis, info tambahan, jawaban atas pertanyaan
+    //     agent) tidak salah diblokir cuma karena kalimatnya tampak umum —
+    //     akar masalah "agent tidak tahu alur percakapan" (SP-2026-005).
+    // Pesan dengan LAMPIRAN selalu lolos (bukti layar umumnya error) — VLM
+    // tetap menganalisa. Log HANYA metadata — isi pesan tidak pernah ditulis
+    // ke log server bersama (H1 audit-2).
+    // -----------------------------------------------------------------------
+    const gateBody = last.body?.trim() ?? "";
+    let gateSteps = 0;
+    let gateTokensIn = 0;
+    let gateTokensOut = 0;
+    let gateProvider = "builtin";
+    if (gateBody) {
+      const hasAttachment =
+        (await a.db.attachment.count({
+          where: { entityType: "SupportMessage", entityId: last.id },
+        })) > 0;
+      if (!hasAttachment) {
+        // P10.1 — riwayat ringkas utas utk klasifikasi: pesan LANJUTAN
+        // penanganan masalah yang sedang berjalan (koreksi diagnosis, info
+        // tambahan, jawaban atas pertanyaan agent) sering tampak umum bila
+        // dibaca sendirian ("cuti itu sudah ada : CT-LAHIR") dan tanpa
+        // riwayat salah diblokir → agent tampak tidak tahu alur percakapan
+        // (temuan analisa tiket SP-2026-005 "tanya lagi"). Maks 6 pesan
+        // non-SYSTEM sebelum pesan ini, @160 karakter — klasifikasi tetap
+        // murah (±ratusan token), jauh di bawah giliran agent penuh.
+        const priorRows = await a.db.supportMessage.findMany({
+          where: {
+            ticketId: t.id,
+            senderRole: { in: ["USER", "AI"] },
+            id: { not: last.id },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 6,
+          select: { senderRole: true, body: true },
+        });
+        const gateHistory = priorRows
+          .reverse()
+          .map(
+            (m) =>
+              `${m.senderRole === "AI" ? "SUPPORT" : "PENGGUNA"}: ${(m.body ?? "")
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 160)}`,
+          )
+          .join("\n");
+        // Utas "aktif" = sudah ada pesan PENGGUNA sebelumnya (bukan hanya
+        // pill sapaan awal AI — pill itu template tetap, bukan percakapan):
+        // hanya utas aktif yang berhak klasifikasi ber-riwayat; tiket baru
+        // tetap memakai jalur aturan nol-biaya / LLM tanpa riwayat.
+        const threadActive = priorRows.some((m) => m.senderRole === "USER");
+        const rules = classifySupportIntentRules(gateBody);
+        let blockedKind: "greeting" | "umum" | null =
+          rules === "UMUM_GREETING" ? "greeting" : rules === "UMUM" ? "umum" : null;
+        if (rules === "MASALAH") {
+          // sinyal masalah jelas → langsung lolos, tanpa panggilan LLM (biaya nol).
+        } else if (threadActive) {
+          // Utas SUDAH berjalan + pesan ambigu/sapaan/umum-menurut-aturan →
+          // putusan aturan TIDAK final (aturan tak melihat konteks: "iya"/"ok"
+          // bisa justru jawaban atas pertanyaan agent; koreksi bisa tampak umum).
+          // Klasifikasi LLM ber-riwayat yang menentukan; gagal → fail-open MASALAH.
+          try {
+            const c = await classifySupportIntentLlm(t.subject, gateBody, gateHistory);
+            gateTokensIn = c.usage.tokensIn;
+            gateTokensOut = c.usage.tokensOut;
+            gateSteps = c.usage.llmSteps;
+            gateProvider = c.usage.provider;
+            blockedKind = c.verdict === "UMUM" ? "umum" : null;
+          } catch (e) {
+            blockedKind = null; // fail-open → layani sbg. MASALAH
+            console.warn("[support-intent] klasifikasi LLM gagal (fail-open → MASALAH):", e instanceof Error ? e.message : e);
+          }
+        } else if (rules === null) {
+          // Utas BARU (tanpa riwayat) + ambigu → klasifikasi LLM ringan (perilaku lama).
+          try {
+            const c = await classifySupportIntentLlm(t.subject, gateBody);
+            gateTokensIn = c.usage.tokensIn;
+            gateTokensOut = c.usage.tokensOut;
+            gateSteps = c.usage.llmSteps;
+            gateProvider = c.usage.provider;
+            if (c.verdict === "UMUM") blockedKind = "umum";
+          } catch (e) {
+            // fail-open: klasifikasi gagal (provider dsb.) → layani sbg. MASALAH
+            console.warn("[support-intent] klasifikasi LLM gagal (fail-open → MASALAH):", e instanceof Error ? e.message : e);
+          }
+        }
+        if (blockedKind) {
+          // Balasan redirect TETAP tanpa giliran agent — jelaskan fungsi layanan
+          // support + arahkan ke Asisten AI (bubble chat pojok kanan bawah).
+          const message = await a.db.supportMessage.create({
+            data: {
+              ticketId: t.id,
+              senderRole: "AI",
+              senderName: SUPPORT_AI_NAME,
+              body: supportRedirectBody(blockedKind, a.appUserName),
+            },
+          });
+          await a.db.supportTicket.update({
+            where: { id: t.id },
+            data: { lastMessageAt: new Date() },
+          });
+          // Atribusi biaya nyata (token klasifikasi, bila dipakai) — tetap
+          // dicatat, TIDAK memakan kuota tenant (billable=false): giliran
+          // diblokir bukan kesalahan pengguna, dan pemilik aplikasi tetap
+          // melihat jejak filter bekerja di log pemakaian.
+          if (a.tenantId && (gateSteps > 0 || gateTokensIn > 0 || gateTokensOut > 0)) {
+            await logSupportTurn(a.tenantId, t.ticketNo, {
+              llmSteps: gateSteps, tokensIn: gateTokensIn, tokensOut: gateTokensOut,
+              provider: gateProvider, billable: false,
+            });
+          }
+          console.log(`[support-intent] tiket ${t.ticketNo}: pesan UMUM diblokir lapis-1 (${blockedKind}${gateSteps > 0 ? ", via LLM" : ", via aturan"}) — dialihkan ke Asisten AI tanpa giliran agent`);
+          return NextResponse.json({ message, category: null, priority: null }, { status: 201 });
+        }
+        // lolos filter (MASALAH): token klasifikasi tetap diatribusikan ke
+        // giliran agent berikut (dijumlahkan via usageAcc di bawah).
+        if (gateSteps > 0) {
+          console.log(`[support-intent] tiket ${t.ticketNo}: lolos lapis-1 (klasifikasi LLM: MASALAH) — giliran agent berjalan`);
+        }
+      }
+    }
+
+    // R4 (audit-2) — akumulator pemakaian giliran: dimutasi agentRespond per
+    // langkah LLM, sehingga giliran yang GAGAL di tengah jalan (→ 502) tetap
+    // mencatat token yang sudah terpakai ke SupportUsageLog (billable=false —
+    // biaya teratribusi, TANPA memakan kuota tenant: bukan salah pengguna).
+    // Sebelumnya giliran gagal tidak tercatat sama sekali → tagihan kurang
+    // hitung padahal token LLM (hingga 14 langkah) sudah terbakar.
+    // P10: nilai awal = token klasifikasi lapis-1 (bila dipakai) — runAgentTurn
+    // menyinkronkan akumulator sbg. BENIH + total giliran, bukan menimpa.
+    const usageAcc: SupportTurnUsageAcc = {
+      llmSteps: gateSteps, tokensIn: gateTokensIn, tokensOut: gateTokensOut, provider: gateProvider,
+    };
+    let result: Awaited<ReturnType<typeof agentRespond>>;
+    try {
+      result = await agentRespond(a.db, t, usageAcc);
+    } catch (e) {
+      if (a.tenantId && usageAcc.llmSteps > 0) {
+        await logSupportTurn(a.tenantId, t.ticketNo, { ...usageAcc, billable: false });
+      }
+      throw e;
+    }
 
     // P5 — atribusi pemakaian per giliran ke tenant (dasar kuota bulanan &
     // penagihan layanan berbayar). Pesan AI sudah tersimpan — kegagalan log
     // tidak boleh mengubah respons sukses (logSupportTurn best-effort).
+    // P10: usageAcc (bukan result.usage) dipakai — sudah memuat BENIH token
+    // klasifikasi lapis-1 + total giliran agent (biaya nyata utuh).
     if (a.tenantId) {
-      await logSupportTurn(a.tenantId, t.ticketNo, result.usage);
+      await logSupportTurn(a.tenantId, t.ticketNo, { ...usageAcc, billable: true });
     }
 
     // P7.1 — ESKALASI KE PEMILIK APLIKASI (best-effort, tidak pernah gagalkan

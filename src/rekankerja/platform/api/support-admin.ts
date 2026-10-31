@@ -36,9 +36,12 @@ export async function GET(req: NextRequest) {
         orderBy: { name: "asc" },
       }),
       platformDb.supportEntitlement.findMany(),
-      // ringkasan pemakaian bulan berjalan per tenant (atribusi biaya)
+      // ringkasan pemakaian bulan berjalan per tenant (atribusi biaya).
+      // R4 (audit-2): dipisah per `billable` — turns = SEMUA giliran (basis
+      // biaya), billableTurns = giliran sukses saja (basis KUOTA: giliran
+      // gagal di tengah jalan tidak memakan kuota tenant).
       platformDb.supportUsageLog.groupBy({
-        by: ["tenantId"],
+        by: ["tenantId", "billable"],
         where: { createdAt: { gte: monthStart } },
         _count: { _all: true },
         _sum: { llmSteps: true, tokensIn: true, tokensOut: true },
@@ -47,14 +50,21 @@ export async function GET(req: NextRequest) {
     ]);
 
     const entByTenant = new Map(entitlements.map((e) => [e.tenantId, e]));
-    const usageByTenant = new Map(
-      usageRows.map((u) => [u.tenantId, {
-        turns: u._count._all,
-        llmSteps: u._sum.llmSteps ?? 0,
-        tokensIn: u._sum.tokensIn ?? 0,
-        tokensOut: u._sum.tokensOut ?? 0,
-      }]),
-    );
+    const usageByTenant = new Map<
+      string,
+      { turns: number; billableTurns: number; llmSteps: number; tokensIn: number; tokensOut: number }
+    >();
+    for (const u of usageRows) {
+      const cur =
+        usageByTenant.get(u.tenantId) ??
+        { turns: 0, billableTurns: 0, llmSteps: 0, tokensIn: 0, tokensOut: 0 };
+      cur.turns += u._count._all;
+      if (u.billable) cur.billableTurns += u._count._all;
+      cur.llmSteps += u._sum.llmSteps ?? 0;
+      cur.tokensIn += u._sum.tokensIn ?? 0;
+      cur.tokensOut += u._sum.tokensOut ?? 0;
+      usageByTenant.set(u.tenantId, cur);
+    }
 
     // P10 — sakelar alat agen per tenant (toolsEnabled L2 / browserEnabled L3 /
     // patchEnabled L4) dibaca dari schema tenant masing-masing; schema lama
@@ -104,8 +114,10 @@ export async function GET(req: NextRequest) {
           llmSteps: u?.llmSteps ?? 0,
           tokensIn: u?.tokensIn ?? 0,
           tokensOut: u?.tokensOut ?? 0,
-          /** sisa kuota bulan ini; null = tanpa batas (kuota 0) */
-          quotaLeft: quota > 0 ? Math.max(0, quota - (u?.turns ?? 0)) : null,
+          /** sisa kuota bulan ini; null = tanpa batas (kuota 0). R4: hanya
+           *  giliran billable yang dihitung (giliran gagal = bukan salah
+           *  pengguna, tidak memakan kuota). */
+          quotaLeft: quota > 0 ? Math.max(0, quota - (u?.billableTurns ?? 0)) : null,
         },
       };
     });

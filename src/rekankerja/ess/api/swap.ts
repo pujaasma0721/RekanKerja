@@ -114,8 +114,10 @@ export async function GET(req: Request) {
     const hasAssignment = myRes.assignment.id !== "";
     const myDayTypeId = myRes.dayType?.id ?? null;
 
-    // kandidat: karyawan Active lain (maks 50) yang punya assignment + day type
+    // kandidat: karyawan Active lain (maks 300) yang punya assignment + day type
     // BERBEDA dari saya pada tanggal tsb (resolveDayType — termasuk overlay libur).
+    // FIX: dulu take 50 — di tenant >50 karyawan, rekan di luar 50 nomor induk
+    // pertama TIDAK PERNAH muncul sbg kandidat tukar shift (senyap).
     const others = await db.employee.findMany({
       where: { status: "Active", id: { not: employeeId } },
       select: {
@@ -123,7 +125,7 @@ export async function GET(req: Request) {
         orgUnit: { select: { name: true } },
       },
       orderBy: { employeeNo: "asc" },
-      take: 50,
+      take: 300,
     });
     const candidates: Array<{
       employeeId: string; employeeNo: string; fullName: string;

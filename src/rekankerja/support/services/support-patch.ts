@@ -27,6 +27,8 @@
 // =====================================================================
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import path from "node:path";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import type { SupportToolResult } from "@/rekankerja/support/services/support-tools";
@@ -35,6 +37,8 @@ import { pushNotification } from "@/rekankerja/shared/services/notification-serv
 import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES } from "@/rekankerja/shared/services/access-scope";
 import { db as platformDb } from "@/lib/db";
 import { tenantSchemaOfDb } from "@/rekankerja/shared/lib/field-crypto";
+
+const execFileAsync = promisify(execFile);
 
 // ------------------------------ konstanta ------------------------------
 
@@ -410,6 +414,105 @@ export async function proposePatchTool(
   };
 }
 
+// ------------------------- verifikasi pra-terap (R3 audit-2) -------------------------
+
+/** Batas waktu tsc --noEmit utk verifikasi pra-terap (proyek besar ±15 dtk). */
+const VERIFY_TIMEOUT_MS = 180_000;
+
+/** Jalankan `tsc --noEmit` atas SALINAN sementara isi hasil patch.
+ *
+ *  R3 (audit-2): patch yang merujuk identifier tak terdefinisi (mis.
+ *  memakai t() tanpa import — kasus NYATA saat audit 2026-10-30: usulan
+ *  #N9BWJ9 pasti merusak build bila disetujui) akan tertangkap SEBELUM
+ *  file asli ditulis. Mekanisme:
+ *    1. salinan isi-pasca-patch ditulis sebagai <nama>.__verify__.<ext> DI
+ *       SEBELAH file asli (resolusi import relatif identik),
+ *    2. dibuat tsconfig SEMENTARA (extends root) yang include HANYA
+ *       salinan itu — tsc memeriksa salinan + seluruh rantai dependensinya.
+ *       Program terbatas closure jauh lebih ringan daripada seluruh proyek
+ *       (uji nyata: proyek penuh OOM di server RAM 4GB; closure = ±3 dtk),
+ *    3. HANYA error yang menunjuk file salinan yang dianggap gagal —
+ *       error di file lain = noise pra-ada, tidak menghalangi,
+ *    4. salinan + tsconfig sementara SELALU dihapus (try/finally) —
+ *       pattern-nya juga di-gitignore.
+ *
+ *  Best-effort: typescript tak terpasang (deploy standalone tanpa devDeps)
+ *  / timeout / OOM → verifikasi DILEWATI (perilaku pra-R3) dan alasannya
+ *  dikembalikan sebagai `skipped` — approval tidak diblok oleh lingkungan.
+ */
+async function typecheckPatchedFile(
+  relPath: string,
+  abs: string,
+  patchedContent: string,
+): Promise<{ errors: string[]; skipped?: string }> {
+  const tscJs = path.join(process.cwd(), "node_modules", "typescript", "bin", "tsc");
+  try {
+    await fs.access(tscJs);
+  } catch {
+    return { errors: [], skipped: "typescript tidak terpasang di lingkungan ini" };
+  }
+  const ext = path.extname(abs);
+  const tmpAbs = abs.slice(0, abs.length - ext.length) + ".__verify__" + ext;
+  const tmpRel = relPath.slice(0, relPath.length - ext.length) + ".__verify__" + ext;
+  const cfgName = `.tsc-verify.${Date.now().toString(36)}.json`;
+  const cfgPath = path.join(process.cwd(), cfgName);
+  try {
+    await fs.writeFile(tmpAbs, patchedContent, "utf8");
+    await fs.writeFile(
+      cfgPath,
+      JSON.stringify({ extends: "./tsconfig.json", include: [tmpRel], exclude: [], compilerOptions: { incremental: false } }),
+      "utf8",
+    );
+    const stdout = await runTsc([tscJs, "-p", cfgName, "--noEmit", "--pretty", "false"]);
+    const errors = String(stdout)
+      .split("\n")
+      .filter((l) => l.includes(".__verify__") && / error TS\d+: /.test(l))
+      .slice(0, 8)
+      .map((l) => l.trim().slice(0, 240));
+    return { errors };
+  } catch (e) {
+    return { errors: [], skipped: e instanceof Error ? e.message : String(e) };
+  } finally {
+    await fs.rm(tmpAbs, { force: true }).catch(() => { /* best-effort */ });
+    await fs.rm(cfgPath, { force: true }).catch(() => { /* best-effort */ });
+  }
+}
+
+/** Jalankan binary tsc. Runtime utama = `node` (membaca NODE_OPTIONS
+ *  --max-old-space-size; tsc di bawah bun OOM pada server RAM kecil);
+ *  fallback process.execPath bila node tidak ada. Exit code != 0 dengan
+ *  stdout terisi = tsc menemukan error — stdout dikembalikan utk diparse. */
+async function runTsc(args: string[]): Promise<string> {
+  const opts = {
+    cwd: process.cwd(),
+    timeout: VERIFY_TIMEOUT_MS,
+    maxBuffer: 32 * 1024 * 1024,
+    env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=2048" },
+  };
+  const parse = (stdout?: string | Buffer) => (typeof stdout === "string" && stdout.length > 0 ? stdout : null);
+  try {
+    const r = await execFileAsync("node", args, opts);
+    return String(r.stdout);
+  } catch (e) {
+    const err = e as NodeJS.ErrnoException & { stdout?: string | Buffer; killed?: boolean };
+    if (err.code === "ENOENT") {
+      // node tak ada → coba runtime proses ini (bun di dev sandbox)
+      try {
+        const r = await execFileAsync(process.execPath, args, opts);
+        return String(r.stdout);
+      } catch (e2) {
+        const err2 = e2 as NodeJS.ErrnoException & { stdout?: string | Buffer; killed?: boolean };
+        const out2 = parse(err2.stdout);
+        if (out2) return out2;
+        throw new Error(err2.killed ? "tsc berakhir karena timeout/OOM" : err2.message ?? "tsc gagal dijalankan");
+      }
+    }
+    const out = parse(err.stdout);
+    if (out) return out;
+    throw new Error(err.killed ? "tsc berakhir karena timeout/OOM" : err.message ?? "tsc gagal dijalankan");
+  }
+}
+
 // ------------------------------ keputusan manusia ------------------------------
 
 export interface PatchReviewer {
@@ -420,7 +523,7 @@ export interface PatchReviewer {
 /** Hasil keputusan — dipakai route utk kode HTTP. */
 export type PatchDecisionResult =
   | { ok: true; status: "DISETUJUI" | "DITOLAK" | "KONFLIK" }
-  | { ok: false; httpStatus: number; error: string };
+  | { ok: false; httpStatus: number; error: string; typecheckErrors?: string[] };
 
 /** Terapkan/tolak usulan (dipanggil route patches — op support:service/manage).
  *  Semua efek samping (file, status, pesan SYSTEM, ActivityLog) terjadi
@@ -541,6 +644,27 @@ export async function decidePatchProposal(
   }
   if (next === current) {
     return { ok: false, httpStatus: 409, error: "Patch menghasilkan isi identik — tidak ada yang diterapkan" };
+  }
+
+  // ---------- R3 (audit-2): VERIFIKASI TYPECHECK PRA-TERAPAN ----------
+  // Hanya file TS di bawah src/ (bagian yang benar2 di-check oleh build).
+  // Gagal → usulan TETAP MENUNGGU (bukan KONFLIK — file belum tersentuh);
+  // reviewer melihat error TypeScript-nya dan bisa menolak/minta usul ulang.
+  if (/^src\//.test(p.filePath) && /\.(ts|tsx)$/.test(p.filePath)) {
+    const verify = await typecheckPatchedFile(p.filePath, abs, next);
+    if (verify.skipped) {
+      console.warn(`[support-patch] verifikasi pra-terap DILEWATI (${p.filePath}): ${verify.skipped}`);
+    }
+    if (verify.errors.length > 0) {
+      return {
+        ok: false,
+        httpStatus: 422,
+        error:
+          `Verifikasi typecheck GAGAL — patch TIDAK diterapkan, file belum diubah, usulan tetap menunggu. ` +
+          `Perbaiki usulan (atau tolak): ${verify.errors.slice(0, 3).join(" · ")}`,
+        typecheckErrors: verify.errors,
+      };
+    }
   }
 
   // tulis file secara atomik (temp + rename di direktori yang sama)

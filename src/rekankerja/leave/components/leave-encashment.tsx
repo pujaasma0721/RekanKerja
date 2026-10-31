@@ -80,7 +80,11 @@ export function LeaveEncashmentPage() {
     !query || e.fullName.toLowerCase().includes(query.toLowerCase()) || e.docNo.toLowerCase().includes(query.toLowerCase())
   ), adv, ADV_FIELDS), [api.data, query, adv]);
 
-  const openPeriods = (periodsApi.data?.periods ?? []).filter((p) => p.status === "Draft" || p.status === "Calculated");
+  // FIX: dulu filter "Draft"|"Calculated" — itu status PayrollRun, bukan
+  // PayrollPeriod (enum: Open|Processed|Closed|Locked) → daftar period SELALU
+  // kosong & tombol Transfer tak pernah bisa aktif (fitur mati senyap).
+  // Kini selaras konvensi jadwalkan klaim benefit: Open|Processed.
+  const openPeriods = (periodsApi.data?.periods ?? []).filter((p) => p.status === "Open" || p.status === "Processed");
 
   // Task 99 (F1-6) — semua jenis cashable+aktif utk picker dialog (bukan hardcode pertama).
   const cashableTypes = useMemo(

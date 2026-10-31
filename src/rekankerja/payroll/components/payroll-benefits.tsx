@@ -796,7 +796,8 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
               <Select value={wageComponentId} onValueChange={setWageComponentId}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("cth: Benefit Medis", "e.g. Medical Benefit")} /></SelectTrigger>
                 <SelectContent className="max-h-52">
-                  {(compsApi.data?.components ?? []).filter((c) => c.type === "Earning").map((c) => (
+                  {/* FIX: hanya komponen aktif — mesin payroll hanya memuat active:true; klaim terjadwal pada komponen nonaktif tak pernah muncul di payslip (senyap). */}
+                {(compsApi.data?.components ?? []).filter((c) => c.active && c.type === "Earning").map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>
                   ))}
                 </SelectContent>

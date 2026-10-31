@@ -363,6 +363,13 @@ export function BonusMassalDialog({
                           </CommandItem>
                         ))}
                       </CommandGroup>
+                      {/* FIX: clamp API 200 — bila total aktif >200, sisanya tak
+                          terjangkau picker; jujur di UI (dulu senyap). */}
+                      {(employeesApi.data?.total ?? 0) > employees.length && (
+                        <p className="border-t border-slate-100 px-3 py-2 text-[10px] text-slate-400 dark:border-slate-800">
+                          {t("Hanya 200 karyawan aktif pertama yang dimuat dari {n} — gunakan mode Unit/Grade utk menjangkau semua.", "Only the first 200 active employees of {n} are loaded — use the Unit/Grade mode to reach everyone.", { n: employeesApi.data?.total ?? 0 })}
+                        </p>
+                      )}
                     </CommandList>
                   </Command>
                 </PopoverContent>

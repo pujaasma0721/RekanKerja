@@ -1397,7 +1397,10 @@ export function TransferDialog({ open, onClose, prs, employees, defaultPrId, onD
   onDone: () => void;
 }) {
   const { t } = useI18n();
-  const appApi = useApi<{ rows: ApplicantOpt[] }>(open ? "/api/rekankerja/recruitment/applicants?status=Active&limit=100" : null, [open]);
+  // FIX: dulu limit=100 sort applicantNo ASC → bila talent pool >100, pelamar
+  // TERBARU hilang duluan dari picker (senyap). Kini urut TERBARU dulu + info
+  // jumlah bila terpotong (clamp layanan memang 100 — jujur di UI).
+  const appApi = useApi<{ rows: ApplicantOpt[]; total: number }>(open ? "/api/rekankerja/recruitment/applicants?status=Active&limit=100&sortBy=applicantNo&sortDir=desc" : null, [open]);
   const applicants = appApi.data?.rows ?? [];
   const [prId, setPrId] = useState(defaultPrId);
   const [kind, setKind] = useState<"applicant" | "employee">("applicant");
@@ -1473,17 +1476,24 @@ export function TransferDialog({ open, onClose, prs, employees, defaultPrId, onD
             {appApi.loading && !appApi.data ? (
               <LoadingRows rows={1} />
             ) : kind === "applicant" ? (
-              <PersonPicker
-                items={applicants}
-                selectedId={applicantId}
-                onSelect={setApplicantId}
-                rowOf={(it) => {
-                  const a = it as ApplicantOpt;
-                  return <>{a.applicantNo} — <b>{a.fullName}</b> ({a.sourceLabel ?? a.source ?? "—"})</>;
-                }}
-                searchOf={(it) => `${(it as ApplicantOpt).fullName} ${(it as ApplicantOpt).applicantNo}`}
-                placeholder={t("Cari pelamar aktif talent pool…", "Search active talent pool applicants…")}
-              />
+              <>
+                <PersonPicker
+                  items={applicants}
+                  selectedId={applicantId}
+                  onSelect={setApplicantId}
+                  rowOf={(it) => {
+                    const a = it as ApplicantOpt;
+                    return <>{a.applicantNo} — <b>{a.fullName}</b> ({a.sourceLabel ?? a.source ?? "—"})</>;
+                  }}
+                  searchOf={(it) => `${(it as ApplicantOpt).fullName} ${(it as ApplicantOpt).applicantNo}`}
+                  placeholder={t("Cari pelamar aktif talent pool…", "Search active talent pool applicants…")}
+                />
+                {(appApi.data?.total ?? 0) > applicants.length && (
+                  <p className="text-[10px] text-slate-400">
+                    {t("Menampilkan 100 pelamar terbaru dari {n} aktif — persempit lewat halaman Pelamar bila tidak ditemukan.", "Showing the 100 newest of {n} active applicants — narrow down via the Applicants page if not found.", { n: appApi.data?.total ?? 0 })}
+                  </p>
+                )}
+              </>
             ) : (
               <PersonPicker
                 items={employees}

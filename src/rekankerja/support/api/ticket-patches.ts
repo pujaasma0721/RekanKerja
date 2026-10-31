@@ -89,7 +89,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const reviewer = { id: a.appUserId, name: a.appUserName ?? a.email ?? "developer" };
     const result = await decidePatchProposal(a.db, id, proposalId, decision, reviewer, note);
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.httpStatus });
+    if (!result.ok) {
+      // R3 — sertakan rincian error typecheck (bila ada) utk UI reviewer.
+      return NextResponse.json(
+        { error: result.error, ...(result.typecheckErrors ? { typecheckErrors: result.typecheckErrors } : {}) },
+        { status: result.httpStatus },
+      );
+    }
 
     // P7.3 — verifikasi pasca-patch (fire-and-forget): setelah patch DITERAPKAN,
     // agent mereproduksi ulang langkah pelapor utk membuktikan error hilang;

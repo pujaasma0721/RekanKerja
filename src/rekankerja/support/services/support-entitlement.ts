@@ -79,11 +79,13 @@ export interface SupportUsageSummary {
   tokensOut: number;
 }
 
-/** Ringkasan pemakaian bulan berjalan satu tenant (untuk cek kuota & UI admin). */
+/** Ringkasan pemakaian bulan berjalan satu tenant. turns = GILIRAN
+ *  BERKUOTA saja (billable=true — lihat R4 audit-2: giliran gagal di tengah
+ *  jalan dicatat utk atribusi biaya, tetapi tidak memakan kuota tenant). */
 export async function supportUsageOfMonth(tenantId: string, now = new Date()): Promise<SupportUsageSummary> {
   try {
     const rows = await platformDb.supportUsageLog.findMany({
-      where: { tenantId, createdAt: { gte: monthStartUtc(now) } },
+      where: { tenantId, createdAt: { gte: monthStartUtc(now) }, billable: true },
       select: { llmSteps: true, tokensIn: true, tokensOut: true },
     });
     return rows.reduce<SupportUsageSummary>(
@@ -113,6 +115,9 @@ export interface SupportTurnUsage {
   tokensIn: number;
   tokensOut: number;
   provider: string;
+  /** R4 (audit-2) — false = giliran GAGAL di tengah (502): token tetap
+   *  diatribusikan (biaya), tapi TIDAK memakan kuota tenant. Default true. */
+  billable?: boolean;
 }
 
 /** Catat satu giliran agent selesai (atribusi biaya per tenant — best effort,
@@ -131,6 +136,7 @@ export async function logSupportTurn(
         tokensIn: usage.tokensIn,
         tokensOut: usage.tokensOut,
         provider: usage.provider,
+        billable: usage.billable ?? true,
       },
     });
   } catch (e) {
