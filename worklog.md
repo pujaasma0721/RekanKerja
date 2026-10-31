@@ -9030,3 +9030,39 @@ Task: umpan balik user atas P4.5: "anda memperbaiki ini tadi … tapi setelah sa
 
 Stage Summary:
 - P4.6 SELESAI: format jawaban AI dikembalikan ke gaya terstruktur klasik yang user anggap lumayan — kini dgn poles yang tepat sasaran (sesuai contoh yang user berikan sendiri): pengantar singkat, tiap langkah SATU baris "aksi — keterangan", sub-bullet hemat (hanya bila perlu), tanpa garis pemisah, tanpa heading, label tebal utk catatan. Fitur hak akses penanya tetap berjalan.
+
+---
+
+## 2026-10-31 — AUDIT-DETAIL lanjutan (lanjutkan semua): verifikasi fix Onboarding + whitelist menu picker karyawan lintas modul
+
+Task: sesi lanjutan "lanjutkan semua" — (1) verifikasi E2E fix dialog Proses Baru Onboarding (commit b84cd5b) + sapu bersih 14 bug (dfda688) benar-benar bekerja; (2) telusuri item yang kemarin sengaja dilewati dari sweep; (3) perbaiki yang masih satu kelas bug "data salah/tidak muncul tanpa error".
+
+### Verifikasi fix Onboarding (E2E browser, hrd@mii.co.id)
+- NEGATIF: dialog Proses Baru default → dropdown hanya kandidat baru; DB demo tak ada yang join ≤60 hari → pesan bantu "Tidak ada karyawan baru (bergabung ≤60 hari) tanpa proses onboarding berjalan…" (screenshot 02) — bukan lagi daftar 43 karyawan.
+- POSITIF: karyawan uji sementara (joinDate 10 hari lalu, via SQL) → dropdown HANYA menampilkan "E2E Karyawan Baru Uji (MII-E2E-991) — joined Oct 21, 2026" (1 opsi, bukan semua); toggle "Tampilkan semua" → 42 opsi karyawan aktif muncul (mode escape-hatch bekerja). Karyawan uji dihapus kembali (deleted rows: 1).
+- 0 page error · 0 console error.
+
+### Bug baru ditemukan & diperbaiki: whitelist menu picker karyawan (EMPLOYEE_LIST_MENUS)
+- Kelas bug sama dgn insiden onboarding: view ber-menu A memanggil endpoint yang diguard whitelist menu B → pemakai tanpa menu B mendapat 403 senyap / self-scope senyap (data tidak muncul tanpa error).
+- Audit menyeluruh ~12 call site GET /api/rekankerja/employees (non-ESS): 4 menu konsumen TIDAK ada di whitelist M-11:
+  1. performance:appraisals — pencarian peserta/undang reviewer 360 (performance-appraisals.tsx)
+  2. performance:calibration — peserta sesi kalibrasi (performance-calibration.tsx)
+  3. performance:results — picker merit planning di Hasil & 9-Box (performance-merit.tsx)
+  4. hr:onboarding-checklist — mode "tampilkan semua" dialog Proses Baru (onboarding-checklist-module.tsx) — menu yang sama dgn keluhan user!
+- Fix: 4 menu ditambahkan ke EMPLOYEE_LIST_MENUS (employees.ts, pola sama spt payroll:runs utk bonus-massal). Aman: baris tetap ter-scope scopeWhere (tanpa akses → kosong), PII tetap di-mask per cakupan M-9 (limited: NIK mask, phone/address/bank/salary null) — picker hanya butuh field operasional (nama/no/posisi) yang tidak pernah di-mask.
+- pa-create-dialog.tsx (pemanggil ke-5) ternyata dead code (0 import) — dibiarkan (cluster dead-code pa-* memang ditunda sadar).
+
+### Item yang kemarin dilewati — status pasca telusur
+- "9 raw fetch() bypass header multi-company": DIVERIFIKASI TIDAK BERDAMPAK hari ini — seluruh endpoint tujuan (performance settings/masters, medical insurance/policies, payroll journals/profiles/spt, job-families, esign, attachments) TIDAK membaca scope company (tenant-only); bypass hanya jadi masalah bila endpoint itu kelak dibuat company-scoped. Tetap dicatat sbg utang teknis.
+- "inbox PR approval list global": perilaku terdokumentasi di deskripsi halaman ("keputusan diotorisasi mesin approval berjenjang — hanya approver jenjang berjalan yang dapat memutus") + otorisasi decide-time di engine; inbox PA (personnel-actions mine=1) sudah punya fix K-03 filter per aktor. Butuh keputusan produk bila ingin PR approval inbox dibuat per-aktor juga.
+- "caps 100/300/500 picker rekrutmen": butuh server-side search (fitur) — tetap ditunda.
+- Probation (modul sekelas onboarding) di-spot-check: picker create manual memang by-design semua karyawan aktif tanpa evaluasi terbuka (placeholder eksplisit + joinDate & employmentStatus tampil + server menolak joinDate yang tenggat +3 bln sudah lewat) — aman, bukan bug.
+- dev.log memuat 2 parse error (selection-dialogs.tsx:1490, email-config-view.tsx:648) → artefak transien hot-reload saat edit sweep kemarin; kedua file kini lint 0/tsc 0 + render browser terverifikasi (Candidates & Selection + Email Configuration).
+
+### Verifikasi
+- GATES: eslint (employees.ts + 2 file transien) 0 error · tsc focused (tsconfig.onb-fix.json + tsconfig.sweep-check.json) EXIT 0.
+- E2E BROWSER fix whitelist: user uji "E2E Perf Only" (role Approver, CUSTOM menu HANYA performance:appraisals) → GET /employees?q=ag → 200 + 6 hasil scoped (dulu 403); PII ter-mask (Agus Salim: NIK "31•••••••••50", phone/address/bank/baseSalary null, posisi tampil). User uji dihapus (cascade menu access 0 sisa); sesi admin dipulihkan.
+- Artefak: audit/onb-followup-2/ (2 screenshot) + tsconfig.onb-fix.json + tsconfig.sweep-check.json.
+
+Stage Summary:
+- Lanjutan audit detail SELESAI: fix Onboarding terverifikasi penuh (negatif+positif+toggle+cleanup); 1 bug sekelas baru diperbaiki (4 menu picker karyawan masuk whitelist M-11 — performance 3 view + onboarding show-all) dgn E2E bukti 403→200 scoped+masked; item tertunda yang lain terverifikasi tidak berdampak / by-design / menunggu keputusan produk.

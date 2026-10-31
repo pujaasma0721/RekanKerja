@@ -214,12 +214,21 @@ export function nikTakenMessage(nik: string, owner: { employeeNo: string; fullNa
 // ter-scope penuh; anggota tenant tanpa menu dipaksa self-scope (lihat guard
 // di dalam GET — satu-satunya konsumen non-menu adalah pencarian global shell
 // admin-mode, yang bagi karyawan cukup menemukan DIRINYA sendiri).
+// Lanjutan audit detail (Okt 2026): picker karyawan modul lain memanggil
+// endpoint ini — menu konsumen WAJIB ikut whitelist, jika tidak picker-nya
+// senyap 403 / self-scope (kelas bug "data salah tanpa error"). Baris tetap
+// ter-scope (scopeWhere) + PII tetap di-mask per cakupan M-9 — picker hanya
+// butuh field operasional (nama/no/posisi) yang tidak pernah di-mask.
 const EMPLOYEE_LIST_MENUS = [
   "hr:directory", // Direktori Karyawan (employee-directory.tsx) — konsumen utama
   "hr:tree", // Unit Organisasi — daftar karyawan per unit (org-module.tsx)
   "settings:security", // Keamanan & Akses — pilih karyawan (user-security-view.tsx)
   "settings:audit", // Log Aktivitas — filter karyawan (activity-log-view.tsx)
   "payroll:runs", // dialog Bonus Massal di halaman run (bonus-massal-dialog.tsx)
+  "performance:appraisals", // pencarian peserta penilaian (performance-appraisals.tsx)
+  "performance:calibration", // peserta sesi kalibrasi (performance-calibration.tsx)
+  "performance:results", // picker merit planning di Hasil & 9-Box (performance-merit.tsx)
+  "hr:onboarding-checklist", // mode "tampilkan semua" dialog Proses Baru (onboarding-checklist-module.tsx)
 ] as const;
 
 // ==== M-9 (audit 42 / desain 42-e): seleksi field PII per cakupan akses ====
