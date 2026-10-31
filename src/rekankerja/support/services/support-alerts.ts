@@ -1,4 +1,4 @@
-// RekanKerja — Online Support P7.1: eskalasi notifikasi ke PEMILIK APLIKASI.=
+// RekanKerja — Online Support P7.1: eskalasi notifikasi ke PEMILIK APLIKASI.
 // =====================================================================
 // Gap yang ditutup: sebelumnya, bug yang dikonfirmasi agent (triase BUG
 // prioritas TINGGI/KRITIS) dan usulan patch MENUNGGU hanya "duduk" di tiket

@@ -373,7 +373,7 @@ function SkillCatalogDialog({
           <DialogFooter className="mt-1 gap-2 sm:col-span-2">
             <Button type="button" variant="outline" className="h-11 px-5" onClick={() => setOpen(false)} disabled={busy}>{t("Batal")}</Button>
             <Button type="submit" className="h-11 gap-2 px-6 font-bold" disabled={busy}>
-              {busy ? t("Menyimpan…") : skill ? t("Simpan Perubahan", "Save Changes") : t("Tambah Keahlian", "Add Skill")}
+              {busy ? t("Menyimpan…", "Saving…") : skill ? t("Simpan Perubahan", "Save Changes") : t("Tambah Keahlian", "Add Skill")}
             </Button>
           </DialogFooter>
         </form>

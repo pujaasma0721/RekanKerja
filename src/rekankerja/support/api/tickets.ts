@@ -2,6 +2,11 @@
 // =====================================================================
 // GET  /api/rekankerja/support/tickets          — "Percakapan Saya" (aktor).
 //      ?scope=all — SEMUA tiket tenant (op support:service/manage).
+//      Tiap baris tiket memuat `pendingPatches` (jumlah usulan patch status
+//      MENUNGGU) — dasar badge "perlu keputusan" di daftar tiket. Untuk
+//      pemegang op manage, respons juga memuat `pendingPatchTotal` (seluruh
+//      tiket tenant) supaya admin tahu ada usulan menunggu WALAU sedang di
+//      scope "Milik Saya" (lalu bisa berpindah scope "Semua Tiket").
 // POST /api/rekankerja/support/tickets          — buat percakapan baru {subject}.
 // =====================================================================
 import { NextRequest, NextResponse } from "next/server";
@@ -63,14 +68,11 @@ export async function GET(req: NextRequest) {
     if (svc) return svc;
 
     const scope = req.nextUrl.searchParams.get("scope");
-    if (scope === "all") {
-      const manage = await canManageAllTickets(req);
-      if (!manage) {
-        return NextResponse.json(
-          { error: "Akses ditolak: tiket ini bukan milik Anda dan Anda tidak memegang izin mengelola tiket seluruh pengguna" },
-          { status: 403 },
-        );
-      }
+    if (scope === "all" && !(await canManageAllTickets(req))) {
+      return NextResponse.json(
+        { error: "Akses ditolak: tiket ini bukan milik Anda dan Anda tidak memegang izin mengelola tiket seluruh pengguna" },
+        { status: 403 },
+      );
     }
     const where = scope === "all" ? {} : { createdById: a.appUserId! };
     const tickets = await a.db.supportTicket.findMany({
@@ -79,7 +81,42 @@ export async function GET(req: NextRequest) {
       select: TICKET_SELECT,
       take: 100,
     });
-    return NextResponse.json({ tickets });
+
+    // FIX discoverability usulan patch: jumlah usulan MENUNGGU per tiket
+    // (query terpisah + try/catch — schema pra-migrasi P4 → peta kosong,
+    // daftar tiket TIDAK boleh ikut gagal). Pola sama dgn route patches.
+    const pendingByTicket = new Map<string, number>();
+    try {
+      const groups = await a.db.supportPatchProposal.groupBy({
+        by: ["ticketId"],
+        where: { status: "MENUNGGU" },
+        _count: { _all: true },
+      });
+      for (const g of groups) pendingByTicket.set(g.ticketId, g._count._all);
+    } catch {
+      // tabel belum termigrasi → kosong
+    }
+    const withPending = tickets.map((tk) => ({
+      ...tk,
+      pendingPatches: pendingByTicket.get(tk.id) ?? 0,
+    }));
+
+    // Total seluruh tenant utk pemegang op manage — dasar chip "Perlu
+    // Keputusan" yang tetap terlihat WALAU admin sedang di scope "Milik
+    // Saya". Guard manage hanya di- resolve bila memang ada usulan menunggu
+    // (scope=all sudah pasti lolos guard di atas → tak perlu cek ulang).
+    let pendingPatchTotal = 0;
+    if (pendingByTicket.size > 0) {
+      const manage = scope === "all" || (await canManageAllTickets(req));
+      if (manage) {
+        try {
+          pendingPatchTotal = await a.db.supportPatchProposal.count({ where: { status: "MENUNGGU" } });
+        } catch {
+          pendingPatchTotal = 0;
+        }
+      }
+    }
+    return NextResponse.json({ tickets: withPending, pendingPatchTotal });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

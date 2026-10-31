@@ -31,6 +31,10 @@ import path from "node:path";
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import type { SupportToolResult } from "@/rekankerja/support/services/support-tools";
 import { maybeAutoPushAfterPatch } from "@/rekankerja/platform/services/github-sync";
+import { pushNotification } from "@/rekankerja/shared/services/notification-service";
+import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES } from "@/rekankerja/shared/services/access-scope";
+import { db as platformDb } from "@/lib/db";
+import { tenantSchemaOfDb } from "@/rekankerja/shared/lib/field-crypto";
 
 // ------------------------------ konstanta ------------------------------
 
@@ -162,6 +166,125 @@ export function buildUnifiedDiff(filePath: string, original: string, reps: Patch
   return diff;
 }
 
+// ------------------------------ notifikasi ------------------------------
+
+/**
+ * FIX discoverability (insiden "admin tidak melihat tiket utk di-approve"):
+ * daftar AppUser yang berhak memutuskan usulan patch — SEMANTIK SAMA dengan
+ * canManageAllTickets (support-auth):
+ *   1. super admin aplikasi (AppUser.role Admin),
+ *   2. platform OWNER/ADMIN tenant ini (diresolusi lewat brand schema client
+ *      → registry Tenant → UserTenant; hrd@mii.co.id di demo MII ber-role
+ *      AppUser "HR Manager" namun OWNER platform — tanpa jalur ini dia
+ *      TIDAK akan ternotifikasi padahal dialah pemegang keputusan),
+ *   3. pengguna UserMenuAccess mode ALL, atau CUSTOM yang memberi op manage
+ *      pada menu support:service (ops absen = boleh — pola opAllowed).
+ * Maksimum 15 penerima. Never-throw; query gagal → lewati sumber itu.
+ */
+async function supportManagerUserIds(db: TenantDb): Promise<string[]> {
+  const out = new Set<string>();
+  // (1) super admin aplikasi
+  try {
+    const supers = await db.appUser.findMany({
+      where: { active: true, role: { in: SUPER_ADMIN_APP_ROLES } },
+      select: { id: true },
+      take: 15,
+    });
+    for (const s of supers) out.add(s.id);
+  } catch {
+    // tabel AppUser tak terbaca → lanjut polos
+  }
+  // (2) platform OWNER/ADMIN tenant ini — cari via email keanggotaan
+  try {
+    const schemaName = tenantSchemaOfDb(db);
+    const tenant = await platformDb.tenant.findUnique({
+      where: { schemaName },
+      select: { id: true },
+    });
+    if (tenant) {
+      const memberships = await platformDb.userTenant.findMany({
+        where: { tenantId: tenant.id, role: { in: SUPER_ADMIN_PLATFORM_ROLES } },
+        select: { user: { select: { email: true } } },
+        take: 25,
+      });
+      const emails = memberships
+        .map((m) => m.user?.email)
+        .filter((e): e is string => !!e);
+      if (emails.length > 0) {
+        const owners = await db.appUser.findMany({
+          where: { active: true, email: { in: emails } },
+          select: { id: true },
+          take: 15,
+        });
+        for (const o of owners) out.add(o.id);
+      }
+    }
+  } catch {
+    // brand schema tak tersedia (mis. client transaksi) / platform DB tak
+    // terbaca → sumber ini dilewati — super admin + menu access tetap jalan
+  }
+  // (3) hak akses menu eksplisit
+  try {
+    const rows = await db.userMenuAccess.findMany({
+      select: { appUserId: true, mode: true, menusJson: true },
+      take: 500,
+    });
+    for (const r of rows) {
+      if (r.mode === "ALL") {
+        out.add(r.appUserId);
+        continue;
+      }
+      try {
+        const v = JSON.parse(r.menusJson) as Record<string, unknown>;
+        const perm = v?.["support:service"];
+        if (perm && typeof perm === "object") {
+          const p = perm as { view?: unknown; ops?: Record<string, unknown> };
+          if (p.view !== false && p.ops?.["op:manage"] !== false) out.add(r.appUserId);
+        }
+      } catch {
+        // JSON rusak → lewati baris ini
+      }
+    }
+  } catch {
+    // tabel belum termigrasi → dua sumber di atas saja
+  }
+  return Array.from(out).slice(0, 15);
+}
+
+/**
+ * Kirim notifikasi in-app "usulan patch menunggu keputusan" ke semua
+ * pengelola support (fire-and-forget — TIDAK boleh mengganggu tool result;
+ * kegagalan total dicatat console saja, pola notification-service).
+ */
+async function notifyPatchProposed(
+  db: TenantDb,
+  ticketId: string,
+  filePath: string,
+  description: string,
+): Promise<void> {
+  try {
+    const [ticket, userIds] = await Promise.all([
+      db.supportTicket.findUnique({ where: { id: ticketId }, select: { ticketNo: true, subject: true } }),
+      supportManagerUserIds(db),
+    ]);
+    if (!ticket || userIds.length === 0) return;
+    const desc = description.length > 120 ? `${description.slice(0, 117)}…` : description;
+    await Promise.all(
+      userIds.map((appUserId) =>
+        pushNotification(db, {
+          appUserId,
+          title: `Usulan patch baru menunggu keputusan — ${ticket.ticketNo}`,
+          body: `${filePath} — ${desc}`,
+          kind: "support",
+          link: "support:service",
+        }),
+      ),
+    );
+  } catch (e) {
+    console.warn("[support-patch] notifikasi usulan gagal:", e instanceof Error ? e.message : e);
+  }
+}
+
 // ------------------------------ tool agen ------------------------------
 
 /** Tool 7 — propose_patch: simpan USULAN perbaikan (tidak menulis file). */
@@ -269,6 +392,12 @@ export async function proposePatchTool(
     },
     select: { id: true },
   });
+
+  // FIX discoverability — begitu usulan tersimpan, pengelola support langsung
+  // dikirimi notifikasi in-app (sebelumnya usulan HANYA terlihat bila admin
+  // kebetulan membuka tiketnya satu per satu — akar insiden "admin login tapi
+  // tidak ada tiket utk di-approve"). Fire-and-forget, never-throw.
+  void notifyPatchProposed(db, ticketId, filePath, description);
 
   return {
     ok: true,

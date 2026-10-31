@@ -77,6 +77,9 @@ interface TicketRow {
   createdAt: string;
   closedAt?: string | null;
   _count?: { messages: number };
+  /** FIX discoverability — jumlah usulan patch status MENUNGGU pada tiket ini
+   *  (dasar badge "patch menunggu" di daftar; pelapor ikut melihat status). */
+  pendingPatches?: number;
 }
 interface AttachmentMeta { id: string; fileName: string; mimeType: string; sizeBytes: number }
 interface MessageRow {
@@ -610,6 +613,10 @@ function SupportServiceView() {
   const loc = locale || "id-ID";
 
   const [scope, setScope] = useState<"mine" | "all">("mine");
+  // FIX discoverability — filter "hanya tiket dgn usulan patch menunggu"
+  // (chip Perlu Keputusan; hanya relevan utk pemegang op manage, namun state
+  // tunggal sederhana tak mengganggu pelapor biasa — tak pernah bisa aktif).
+  const [pendingOnly, setPendingOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [newOpen, setNewOpen] = useState(false);
@@ -632,7 +639,7 @@ function SupportServiceView() {
     }
   }, []);
 
-  const ticketsApi = useApi<{ tickets: TicketRow[] }>(
+  const ticketsApi = useApi<{ tickets: TicketRow[]; pendingPatchTotal?: number }>(
     `/api/rekankerja/support/tickets${scope === "all" ? "?scope=all" : ""}`,
     [scope],
   );
@@ -778,14 +785,26 @@ function SupportServiceView() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = ticketsApi.data?.tickets ?? [];
-    if (!q) return list;
-    return list.filter(
+    const byPending = pendingOnly ? list.filter((tk) => (tk.pendingPatches ?? 0) > 0) : list;
+    if (!q) return byPending;
+    return byPending.filter(
       (tk) =>
         tk.ticketNo.toLowerCase().includes(q) ||
         tk.subject.toLowerCase().includes(q) ||
         (tk.createdByName ?? "").toLowerCase().includes(q),
     );
-  }, [ticketsApi.data, search]);
+  }, [ticketsApi.data, search, pendingOnly]);
+
+  /** Total usulan patch menunggu di SELURUH tiket tenant (dari API — hanya
+   *  diisi utk pemegang op manage). Chip tetap muncul di scope "Milik Saya"
+   *  supaya admin sadar ada keputusan menunggu lalu berpindah scope. */
+  const pendingTotal = canManage ? (ticketsApi.data?.pendingPatchTotal ?? 0) : 0;
+
+  // Saat usulan terakhir sudah diputuskan (total 0), filter aktif dilepas
+  // otomatis — daftar tidak "terkunci kosong" di bawah filter tanpa isi.
+  useEffect(() => {
+    if (pendingOnly && ticketsApi.data && pendingTotal === 0) setPendingOnly(false);
+  }, [pendingOnly, pendingTotal, ticketsApi.data]);
 
   const refreshAll = useCallback(() => {
     void ticketsApi.refresh();
@@ -953,6 +972,9 @@ function SupportServiceView() {
         setReviewNote("");
         void patchesApi.refresh();
         void msgApi.refresh();
+        // FIX stale badge/chip — jumlah "patch menunggu" di daftar tiket &
+        // chip Perlu Keputusan harus langsung menyusut setelah keputusan.
+        void ticketsApi.refresh();
         toast.success(
           decision === "approve"
             ? t("Patch disetujui & diterapkan ke file", "Patch approved & applied to file")
@@ -964,7 +986,7 @@ function SupportServiceView() {
         setDeciding(false);
       }
     },
-    [selectedId, review, reviewNote, patchesApi, msgApi, t],
+    [selectedId, review, reviewNote, patchesApi, msgApi, ticketsApi, t],
   );
 
   // timeline gabungan: pesan + kartu usulan patch, urut waktu.
@@ -1051,6 +1073,32 @@ function SupportServiceView() {
                 aria-label={t("Cari percakapan", "Search conversations")}
               />
             </div>
+            {/* FIX discoverability — chip "Perlu Keputusan": admin langsung tahu
+                ada usulan patch menunggu (bahkan di scope Milik Saya) tanpa
+                harus membuka tiket satu per satu. Klik → scope Semua Tiket +
+                filter tiket ber-usulan menunggu. */}
+            {canManage && (pendingTotal > 0 || pendingOnly) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!pendingOnly) setScope("all");
+                  setPendingOnly(!pendingOnly);
+                }}
+                aria-pressed={pendingOnly}
+                className={cn(
+                  "mt-2 flex w-full items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition",
+                  pendingOnly
+                    ? "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300"
+                    : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/15",
+                )}
+              >
+                <FileDiff className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span className="truncate">{t("Perlu Keputusan Patch", "Patch Decisions Needed")}</span>
+                <span className="ml-auto shrink-0 rounded-full bg-amber-200/90 px-1.5 py-px font-mono text-[10px] text-amber-900 dark:bg-amber-400/20 dark:text-amber-300">
+                  {pendingTotal}
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="flex-1 space-y-1 overflow-y-auto p-2">
@@ -1103,6 +1151,13 @@ function SupportServiceView() {
                       {t(st.id, st.en)}
                       <PriorityBadge priority={tk.priority} />
                       <CategoryBadge category={tk.category} />
+                      {(tk.pendingPatches ?? 0) > 0 && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-px text-[10px] font-semibold text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+                          <FileDiff className="h-2.5 w-2.5" aria-hidden />
+                          {t("Patch menunggu", "Patch pending")}
+                          {(tk.pendingPatches ?? 0) > 1 ? ` (${tk.pendingPatches})` : ""}
+                        </span>
+                      )}
                       {scope === "all" && tk.createdByName && (
                         <span className="truncate text-[10px] text-slate-400">· {tk.createdByName}</span>
                       )}

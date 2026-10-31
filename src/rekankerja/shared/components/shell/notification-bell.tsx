@@ -9,7 +9,7 @@
 //   · "Tandai semua dibaca" + empty state rapi.
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Bell, CheckCheck, Palmtree, Plane, HeartPulse, Wallet, CalendarClock, Inbox, BellRing } from "lucide-react";
+import { Bell, CheckCheck, Palmtree, Plane, HeartPulse, Wallet, CalendarClock, Inbox, BellRing, Headset } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, apiSend, fmtDateTime } from "@/rekankerja/shared/lib/api";
 import { useNav, type SectionId } from "@/rekankerja/shared/lib/store";
@@ -36,10 +36,13 @@ interface NotificationsData {
   unread: number;
 }
 
-/** SectionId valid shell admin — supaya link "section:view" salah bentuk diabaikan. */
+/** SectionId valid shell admin — supaya link "section:view" salah bentuk diabaikan.
+ *  FIX support-patch: seluruh SectionId shell kini valid (dulu "support" dll.
+ *  hilang → klik notifikasi usulan patch TIDAK menavigasi apa pun). */
 const VALID_SECTIONS: SectionId[] = [
-  "dashboard", "org", "position", "employee", "actions",
+  "dashboard", "org", "position", "employee", "actions", "reports",
   "payroll", "settings", "attendance", "leave", "travel", "medical",
+  "whistleblowing", "recruitment", "performance", "support", "platform",
 ];
 
 function parseNotifLink(link: string | null | undefined): { section: SectionId; view: string } | null {
@@ -59,6 +62,7 @@ const KIND_ICON: Record<string, React.ElementType> = {
   medical: HeartPulse,
   payroll: Wallet,
   attendance: CalendarClock,
+  support: Headset,
 };
 const KIND_ICON_CLS: Record<string, string> = {
   leave: "bg-brand/15 text-brand dark:bg-brand/15 dark:text-brand/85",
@@ -66,6 +70,7 @@ const KIND_ICON_CLS: Record<string, string> = {
   medical: "bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400",
   payroll: "bg-brand/15 text-brand dark:bg-brand/15 dark:text-brand/85",
   attendance: "bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400",
+  support: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
 };
 
 export function NotificationBell() {
