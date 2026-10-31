@@ -176,12 +176,21 @@ function TemplateDialog({ open, tpl, onClose }: { open: boolean; tpl: TemplateRo
                 <div key={gname}>
                   <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{gname}</p>
                   <div className="grid gap-1.5 sm:grid-cols-2">
-                    {comps.map((c) => (
-                      <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                        <Checkbox checked={selected.includes(c.id)} onCheckedChange={() => toggle(c.id)} />
-                        <span className="truncate text-xs font-medium">{c.name}</span>
-                      </label>
-                    ))}
+                    {comps.map((c) => {
+                      // FIX: komponen nonaktif tak bisa DITAMBAHkan (mesin payroll
+                      // hanya memuat active:true → item nonaktif tak pernah dihitung,
+                      // senyap). Yang sudah ada di template tetap tampil (bisa
+                      // di-uncheck) supaya menyimpan template tidak menghapus item
+                      // lama secara diam-diam.
+                      const inTpl = selected.includes(c.id);
+                      const pickable = c.active || inTpl;
+                      return (
+                        <label key={c.id} className={cn("flex items-center gap-2 rounded-lg px-2 py-1.5", pickable ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60" : "opacity-55")}>
+                          <Checkbox checked={inTpl} disabled={!pickable} onCheckedChange={() => toggle(c.id)} />
+                          <span className="truncate text-xs font-medium">{c.name}{!c.active ? t(" · nonaktif", " · inactive") : ""}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

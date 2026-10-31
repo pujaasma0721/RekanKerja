@@ -14,6 +14,9 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const limit = Math.max(1, Math.min(200, Math.floor(Number(url.searchParams.get("limit")) || 50)));
+    // FIX: offset kini dibaca — dulu hanya take:limit: UI menampilkan "total N"
+    // tapi hanya 100 terbaru yang bisa diakses (riwayat lama tak terjangkau).
+    const offset = Math.max(0, Math.floor(Number(url.searchParams.get("offset")) || 0));
     // Task 76 — sort server-side (whitelist; default terbaru dulu)
     const sortByParam = url.searchParams.get("sortBy") ?? "";
     const sortDirParam = url.searchParams.get("sortDir") === "desc" ? "desc" : "asc";
@@ -22,7 +25,7 @@ export async function GET(req: NextRequest) {
       ...(EMAIL_SORT[sortByParam] ? [{ [EMAIL_SORT[sortByParam]]: sortDirParam }] : []),
       { createdAt: "desc" },
     ];
-    const logs = await db.emailLog.findMany({ orderBy: emailOrderBy, take: limit });
+    const logs = await db.emailLog.findMany({ orderBy: emailOrderBy, take: limit, skip: offset });
     const total = await db.emailLog.count();
 
     const byStatus = await db.emailLog.groupBy({ by: ["status"], _count: { _all: true } });

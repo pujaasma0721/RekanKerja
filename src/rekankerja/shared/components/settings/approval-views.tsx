@@ -540,7 +540,8 @@ function DelegationDialog({ initial, users, onClose, onDone }: { initial: Delega
               <Select value={approverId} onValueChange={setApproverId}>
                 <SelectTrigger className="h-11 w-full"><SelectValue placeholder={t("Pilih approver", "Select an approver")} /></SelectTrigger>
                 <SelectContent className="max-h-64">
-                  {users.filter((u) => u.id !== delegateId).map(userItem)}
+                  {/* FIX: hanya pengguna aktif — dulu akun nonaktif bisa jadi sumber delegasi (tak pernah bisa login). */}
+                  {users.filter((u) => u.active && u.id !== delegateId).map(userItem)}
                 </SelectContent>
               </Select>
             </div>
@@ -549,7 +550,8 @@ function DelegationDialog({ initial, users, onClose, onDone }: { initial: Delega
               <Select value={delegateId} onValueChange={setDelegateId}>
                 <SelectTrigger className="h-11 w-full"><SelectValue placeholder={t("Pilih delegate", "Select a delegate")} /></SelectTrigger>
                 <SelectContent className="max-h-64">
-                  {users.filter((u) => u.id !== approverId).map(userItem)}
+                  {/* FIX: hanya pengguna aktif — dulu kekuasaan approval bisa didelegasikan ke akun nonaktif (dokumen menggantung). */}
+                  {users.filter((u) => u.active && u.id !== approverId).map(userItem)}
                 </SelectContent>
               </Select>
             </div>

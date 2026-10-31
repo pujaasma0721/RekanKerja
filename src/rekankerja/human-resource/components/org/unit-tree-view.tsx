@@ -263,8 +263,10 @@ export function UnitTreeView() {
     setSelectedId((prev) => prev ?? units[0]!.id);
   }, [units]);
 
+  // FIX: +status=Active — selaras peta organisasi & org-module (tanpa ini,
+  // karyawan resign dgn penempatan masih terbuka ikut muncul di panel unit).
   const employeesApi = useApi<EmployeesRes>(
-    selectedId ? `/api/rekankerja/employees?unit=${encodeURIComponent(selectedId)}&limit=100` : null,
+    selectedId ? `/api/rekankerja/employees?unit=${encodeURIComponent(selectedId)}&limit=100&status=Active` : null,
     [selectedId]
   );
   const employees = employeesApi.data?.employees ?? [];

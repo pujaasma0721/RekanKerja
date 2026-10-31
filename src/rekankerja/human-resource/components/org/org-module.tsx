@@ -62,8 +62,11 @@ function OrgTree() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  // FIX: +status=Active — dulu panel "Karyawan di Unit Ini" memuat karyawan
+  // Resigned/Terminated yang penempatannya masih terbuka (offboarding belum
+  // tuntas) tanpa penanda, padahal empty-state & peta organisasi menyebut "aktif".
   const employees = useApi<{ employees: Emp[]; total: number }>(
-    selected ? `/api/rekankerja/employees?unit=${selected.id}&limit=100` : null
+    selected ? `/api/rekankerja/employees?unit=${selected.id}&limit=100&status=Active` : null
   );
 
   const toggle = (id: string) =>

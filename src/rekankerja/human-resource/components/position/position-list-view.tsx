@@ -409,7 +409,8 @@ export function PositionListView() {
     if (unitFilter !== "all") p.set("orgUnitId", unitFilter);
     if (gradeFilter !== "all") p.set("gradeId", gradeFilter);
     if (statusFilter !== "all") p.set("active", statusFilter);
-    p.set("limit", "300");
+    // FIX: param "limit" dihapus — API /positions tidak membacanya (no-op senyap,
+    // pola yang sama dgn bug pageSize dialog onboarding).
     return `/api/rekankerja/positions?${p.toString()}`;
   }, [q, unitFilter, gradeFilter, statusFilter]);
 

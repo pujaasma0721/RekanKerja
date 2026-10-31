@@ -117,7 +117,9 @@ export function MedicalApprovalPage() {
     () => advClaims.filter((c) => c.state === "Settled").slice(0, 8),
     [advClaims],
   );
-  const openPeriods = (periodsApi.data?.periods ?? []).filter((p) => p.status === "Open" || p.status === "Scheduled");
+  // FIX: "Scheduled" bukan status PayrollPeriod (enum Open|Processed|Closed|Locked)
+  // — kondisi mati; selaras konvensi transfer (payroll-benefits): Open|Processed.
+  const openPeriods = (periodsApi.data?.periods ?? []).filter((p) => p.status === "Open" || p.status === "Processed");
 
   const openDialog = (a: Action, c: ClaimUI) => {
     setAction(a);

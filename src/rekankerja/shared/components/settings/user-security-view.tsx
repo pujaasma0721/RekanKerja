@@ -492,9 +492,11 @@ function UserCreateDialog({
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-64">
                 <SelectItem value="none">{t("— tanpa tautan karyawan —", "— no employee link —")}</SelectItem>
+                {/* FIX: karyawan non-aktif dinonaktifkan — dulu resigned/terminated
+                    bisa dipilih saat menautkan akun login baru (alur kerja aktif). */}
                 {employees.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.employeeNo} · {e.fullName}
+                  <SelectItem key={e.id} value={e.id} disabled={e.status !== "Active"}>
+                    {e.employeeNo} · {e.fullName}{e.status !== "Active" ? t(" · nonaktif", " · inactive") : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -656,8 +658,10 @@ function UserEditDialog({
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-64">
                 <SelectItem value="none">{t("— tanpa tautan —", "— no link —")}</SelectItem>
+                {/* FIX: sama — non-aktif tak bisa dipilih sbg tautan baru; nilai
+                    lama yang sudah non-aktif tetap tampil (item ada, hanya disabled). */}
                 {employees.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.employeeNo} · {e.fullName}</SelectItem>
+                  <SelectItem key={e.id} value={e.id} disabled={e.status !== "Active"}>{e.employeeNo} · {e.fullName}{e.status !== "Active" ? t(" · nonaktif", " · inactive") : ""}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
